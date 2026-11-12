@@ -91,6 +91,31 @@ test('within() lists remembered blocks in a box', () => {
     assert.deepEqual(map.within({ x: -2, y: 60, z: -2 }, { x: 8, y: 70, z: 8 }, ['chest']).map(e => e.x), [4]);
 });
 
+test('box queries work across column borders and negative coordinates', () => {
+    const map = createSeenMap({ scope: 's', now: clock() });
+    // One block in each of nine 16x16 columns around the origin, plus one far away.
+    for (const x of [-17, -1, 16]) for (const z of [-17, 0, 31]) map.observeBlock({ x, y: 64, z }, 'chest');
+    map.observeBlock({ x: 400, y: 64, z: 400 }, 'chest');
+    const near = map.within({ x: -2, y: 0, z: -1 }, { x: 16, y: 100, z: 31 });
+    assert.deepEqual(near.map(e => `${e.x},${e.z}`).sort(), ['-1,0', '-1,31', '16,0', '16,31']);
+    assert.equal(map.within({ x: -1000, y: 0, z: -1000 }, { x: 1000, y: 100, z: 1000 }).length, 10, 'a huge box still finds everything');
+    assert.equal(map.size, 10);
+});
+
+test('a remembered block keeps the exact state it was seen in', () => {
+    const now = clock();
+    const map = createSeenMap({ scope: 's', now });
+    map.observeBlock({ x: 3, y: 64, z: 3 }, 'wheat', 'observed', 4321);
+    assert.equal(map.get(3, 64, 3).stateId, 4321);
+    map.observeBlock({ x: 3, y: 64, z: 3 }, 'wheat'); // seen again by a caller that doesn't know the state
+    assert.equal(map.get(3, 64, 3).stateId, 4321, 'the known state is kept');
+    map.observeCell({ x: 3, y: 64, z: 3 }, 'wheat', 4328); // looked again: the crop has grown
+    assert.equal(map.get(3, 64, 3).stateId, 4328);
+    const dir = mkdtempSync(path.join(tmpdir(), 'seen-state-'));
+    map.save(dir);
+    assert.equal(loadSeenMap(dir, 's', { now }).get(3, 64, 3).stateId, 4328);
+});
+
 test('per-type caps drop the least recently seen entries first', () => {
     const now = clock();
     const map = createSeenMap({ scope: 's', now, maxPerType: 3 });

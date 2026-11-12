@@ -11,6 +11,10 @@
 // entry "gone". A place a player merely told the bot about is kept as "reported" and isn't treated as
 // a target until the bot sees it (the provenance idea comes from the hashtagakiaki fork's place registry).
 //
+// Each entry also keeps the exact block state it was seen in (which way a chest faces, how grown a crop
+// was). That lets perception answer "what's there?" from memory alone when the block is out of sight,
+// instead of peeking at the live world and learning something the bot couldn't know.
+//
 // This module is a pure store with an injected clock and plain file I/O. The perception service decides
 // *what* is worth recording (ores, containers, stations, sand...); the store only remembers it.
 import { createHash } from 'node:crypto';
@@ -40,30 +44,43 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
     if (!scope) throw new Error('A seen-world map needs a scope (server/world/dimension)');
     const byKey = new Map();   // "x,y,z" -> entry
     const byName = new Map();  // block name -> Set of keys
+    const byColumn = new Map(); // "cx,cz" (16x16 columns) -> Set of keys, so a box query walks only its own columns
     const explored = new Map(); // "sx,sy,sz" (16x16x16 sections) -> last time the bot saw into it
     const biomes = new Map();  // "cx,cz" (16x16 columns) -> { name, lastSeen }
 
+    const columnOf = entry => `${entry.x >> 4},${entry.z >> 4}`;
+
     function index(entry) {
+        const k = keyOf(entry.x, entry.y, entry.z);
         if (!byName.has(entry.name)) byName.set(entry.name, new Set());
-        byName.get(entry.name).add(keyOf(entry.x, entry.y, entry.z));
+        byName.get(entry.name).add(k);
+        const column = columnOf(entry);
+        if (!byColumn.has(column)) byColumn.set(column, new Set());
+        byColumn.get(column).add(k);
     }
 
     function unindex(entry) {
-        byName.get(entry.name)?.delete(keyOf(entry.x, entry.y, entry.z));
+        const k = keyOf(entry.x, entry.y, entry.z);
+        byName.get(entry.name)?.delete(k);
+        const column = columnOf(entry);
+        const keys = byColumn.get(column);
+        if (keys) {
+            keys.delete(k);
+            if (keys.size === 0) byColumn.delete(column);
+        }
     }
 
-    // Keep each type under its cap by forgetting what was seen longest ago.
+    // Keep each type near its cap by forgetting what was seen longest ago. Trimming waits until a type is
+    // a little over its cap (5%) and then drops the extra in one sorted pass. Trimming on every new block
+    // would mean a full scan of that type per block, which adds up fast on a beach full of sand.
+    const slack = Math.max(1, Math.ceil(maxPerType / 20));
     function enforceCap(name) {
         const keys = byName.get(name);
-        while (keys && keys.size > maxPerType) {
-            let oldestKey = null, oldest = Infinity;
-            for (const k of keys) {
-                const t = byKey.get(k).lastSeen;
-                if (t < oldest) { oldest = t; oldestKey = k; }
-            }
-            const entry = byKey.get(oldestKey);
-            unindex(entry);
-            byKey.delete(oldestKey);
+        if (!keys || keys.size <= maxPerType + slack) return;
+        const oldestFirst = [...keys].sort((a, b) => byKey.get(a).lastSeen - byKey.get(b).lastSeen);
+        for (const k of oldestFirst.slice(0, keys.size - maxPerType)) {
+            unindex(byKey.get(k));
+            byKey.delete(k);
         }
     }
 
@@ -85,8 +102,14 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
     const map = {
         scope,
 
-        /** The bot sees (or touches) a notable block right now. */
-        observeBlock(pos, name, provenance = 'observed') {
+        /** How many blocks are remembered in all, whatever their state. */
+        get size() { return byKey.size; },
+
+        /**
+         * The bot sees (or touches) a notable block right now.
+         * @param {number|null} [stateId] - the exact block state seen, when the caller knows it
+         */
+        observeBlock(pos, name, provenance = 'observed', stateId = null) {
             if (!PROVENANCES.has(provenance) || provenance === 'reported') throw new Error(`Bad provenance: ${provenance}`);
             const { x, y, z } = cell(pos);
             const t = now();
@@ -96,6 +119,7 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
                 x, y, z, name,
                 firstSeen: sameBlock && old.provenance !== 'reported' ? old.firstSeen : t,
                 lastSeen: t, provenance,
+                ...(Number.isInteger(stateId) ? { stateId } : sameBlock && Number.isInteger(old.stateId) ? { stateId: old.stateId } : {}),
                 ...(sameBlock && old.reportedBy ? { reportedBy: old.reportedBy } : {}),
             }));
         },
@@ -105,12 +129,13 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
          * that is still there is refreshed; one that isn't is marked gone. Never adds new entries; the
          * perception service calls observeBlock for things worth remembering.
          */
-        observeCell(pos, name) {
+        observeCell(pos, name, stateId = null) {
             const { x, y, z } = cell(pos);
             const entry = byKey.get(keyOf(x, y, z));
             if (!entry) return null;
             if (entry.name === name) {
                 entry.lastSeen = now();
+                if (Number.isInteger(stateId)) entry.stateId = stateId;
                 if (entry.provenance === 'reported' || entry.provenance === 'gone') entry.provenance = 'observed';
                 delete entry.goneAt;
             } else if (entry.provenance !== 'gone') {
@@ -159,12 +184,25 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
 
         /** Remembered blocks inside an inclusive box, optionally only some types. */
         within(min, max, types = null, filters = {}) {
-            const keys = types ? types.flatMap(n => [...(byName.get(n) ?? [])]) : [...byKey.keys()];
             const out = [];
-            for (const k of keys) {
+            const consider = k => {
                 const e = byKey.get(k);
-                if (e.x >= min.x && e.x <= max.x && e.y >= min.y && e.y <= max.y && e.z >= min.z && e.z <= max.z && visible(e, filters))
+                if (e && e.x >= min.x && e.x <= max.x && e.y >= min.y && e.y <= max.y && e.z >= min.z && e.z <= max.z && visible(e, filters))
                     out.push(copy(e));
+            };
+            if (types) {
+                for (const name of new Set(types)) for (const k of byName.get(name) ?? []) consider(k);
+                return out;
+            }
+            // Walk only the columns the box covers, unless the box is so big that walking everything is less work.
+            const cx0 = Math.floor(min.x) >> 4, cx1 = Math.floor(max.x) >> 4;
+            const cz0 = Math.floor(min.z) >> 4, cz1 = Math.floor(max.z) >> 4;
+            if ((cx1 - cx0 + 1) * (cz1 - cz0 + 1) >= byColumn.size) {
+                for (const keys of byColumn.values()) for (const k of keys) consider(k);
+            } else {
+                for (let cx = cx0; cx <= cx1; cx++)
+                    for (let cz = cz0; cz <= cz1; cz++)
+                        for (const k of byColumn.get(`${cx},${cz}`) ?? []) consider(k);
             }
             return out;
         },
@@ -207,7 +245,7 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
             return {
                 version: FORMAT_VERSION, scope, savedAt: now(),
                 blocks: [...byKey.values()].map(e => [e.x, e.y, e.z, e.name, e.firstSeen, e.lastSeen, e.provenance,
-                    e.reportedBy ?? null, e.goneAt ?? null]),
+                    e.reportedBy ?? null, e.goneAt ?? null, e.stateId ?? null]),
                 explored: [...explored].map(([k, t]) => [...k.split(',').map(Number), t]),
                 biomes: [...biomes].map(([k, s]) => [...k.split(',').map(Number), s.name, s.lastSeen]),
             };
@@ -225,10 +263,11 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
 
         /** Internal: restores entries from a saved file's data. */
         _restore(data) {
-            for (const [x, y, z, name, firstSeen, lastSeen, provenance, reportedBy, goneAt] of data.blocks ?? []) {
+            for (const [x, y, z, name, firstSeen, lastSeen, provenance, reportedBy, goneAt, stateId] of data.blocks ?? []) {
                 const entry = { x, y, z, name, firstSeen, lastSeen, provenance };
                 if (reportedBy) entry.reportedBy = reportedBy;
                 if (goneAt) entry.goneAt = goneAt;
+                if (Number.isInteger(stateId)) entry.stateId = stateId; // absent in files written before states were kept
                 put(entry);
             }
             for (const [sx, sy, sz, t] of data.explored ?? []) explored.set(keyOf(sx, sy, sz), t);
