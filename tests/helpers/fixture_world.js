@@ -17,19 +17,41 @@ export function fixtureWorld({ version = '1.21.11', min = [-32, -16, -32], max =
     const inBox = (x, y, z, lo, hi) => x >= lo[0] && x <= hi[0] && y >= lo[1] && y <= hi[1] && z >= lo[2] && z <= hi[2];
     const corners = (a, b) => [a.map((v, i) => Math.min(v, b[i])), a.map((v, i) => Math.max(v, b[i]))];
 
-    function stateIdOf(name) {
+    // The state id for a block, by default its default state. `props` picks a specific state, for
+    // example { type: 'double' } for a double slab; properties left out keep their default value.
+    function stateIdOf(name, props = null) {
         const block = registry.blocksByName[name];
         if (!block) throw new Error(`Unknown block name in fixture: ${name}`);
-        return block.defaultState ?? block.minStateId;
+        const base = block.defaultState ?? block.minStateId;
+        if (!props) return base;
+        // State ids count through the properties like digits of a mixed-radix number, last property fastest.
+        const states = block.states ?? [];
+        const valuesOf = s => s.values ?? (s.type === 'bool' ? ['true', 'false'] : Array.from({ length: s.num_values }, (_, i) => String(i)));
+        let rest = base - block.minStateId;
+        const digits = [];
+        for (let i = states.length - 1; i >= 0; i--) {
+            digits[i] = rest % states[i].num_values;
+            rest = Math.floor(rest / states[i].num_values);
+        }
+        let offset = 0;
+        states.forEach((s, i) => {
+            let digit = digits[i];
+            if (props[s.name] !== undefined) {
+                digit = valuesOf(s).indexOf(String(props[s.name]));
+                if (digit < 0) throw new Error(`${name} has no ${s.name}=${props[s.name]}`);
+            }
+            offset = offset * s.num_values + digit;
+        });
+        return block.minStateId + offset;
     }
 
     const world = {
         registry,
         stateIdOf,
 
-        /** Place one block. */
-        set(name, x, y, z) {
-            cells.set(key(x, y, z), stateIdOf(name));
+        /** Place one block; `props` picks a specific state, like { type: 'double' } for a slab. */
+        set(name, x, y, z, props = null) {
+            cells.set(key(x, y, z), stateIdOf(name, props));
             return world;
         },
 

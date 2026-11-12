@@ -29,6 +29,26 @@ test('stops-sight table marks only full opaque cubes, using filterLight rather t
         assert.equal(stops(name), false, name);
 });
 
+test('a double slab is a wall, a single slab is not', () => {
+    const world = fixtureWorld();
+    const table = buildStopsSightTable(world.registry);
+    assert.equal(table[world.stateIdOf('oak_slab', { type: 'double' })], 1);
+    assert.equal(table[world.stateIdOf('oak_slab', { type: 'bottom' })], 0);
+    assert.equal(table[world.stateIdOf('oak_slab', { type: 'top' })], 0);
+    assert.equal(world.registry.blocksByStateId[world.stateIdOf('oak_slab', { type: 'double' })].name, 'oak_slab');
+
+    const hidden = setup(w => {
+        for (let z = -3; z <= 3; z++) for (let y = 1; y <= 6; y++) w.set('stone_slab', 4, y, z, { type: 'double' });
+        w.set('diamond_ore', 8, 2, 0);
+    });
+    assert.equal(hidden.sight.canSeeBlock(EYE, 8, 2, 0), null, 'a wall of double slabs hides the ore');
+    const low = setup(w => {
+        for (let z = -3; z <= 3; z++) w.set('stone_slab', 4, 1, z, { type: 'bottom' });
+        w.set('diamond_ore', 8, 2, 0);
+    });
+    assert.ok(low.sight.canSeeBlock(EYE, 8, 2, 0), 'a row of single slabs does not');
+});
+
 test('S1: an ore buried inside stone is not seen, while the stone face in front of it is', () => {
     const { sight } = setup(w => {
         w.fill('stone', [4, 1, -2], [8, 5, 2]);

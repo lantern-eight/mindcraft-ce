@@ -32,14 +32,21 @@ const SEE_THROUGH_OVERRIDES = new Set(['tinted_glass']);
 // Seeing any one of them is enough, the way a player spots a mob's head over a wall.
 const ENTITY_SAMPLE_HEIGHTS = [0.1, 0.5, 0.9];
 
+// A collision shape that fills its whole cell.
+const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[0].join(',') === '0,0,0,1,1,1';
+
 /**
  * Builds the table of block states that hide what's behind them: full, opaque cubes.
  *
- * minecraft-data's `transparent` flag can't be used for this: it marks chests, slabs, stairs, fences
- * and farmland as non-transparent although you can plainly see past them. `filterLight === 15` (the
- * block stops all light) on a full `block` bounding box is the reliable marker of an opaque cube.
- * Non-full shapes (slabs, stairs, fences) count as see-through. That is slightly generous, since a
- * bottom slab does hide the lower half of what's behind it, and it can be tightened per shape later.
+ * minecraft-data's `transparent` flag can't be used alone for this: it marks chests, slabs, stairs,
+ * fences and farmland as non-transparent although you can plainly see past them. Two rules together
+ * get it right:
+ *   1. A block with a full `block` bounding box that stops all light (`filterLight === 15`) is an
+ *      opaque cube in every state: stone, ores, logs, furnaces.
+ *   2. A non-transparent block counts in just the states whose collision shape fills the cell. In
+ *      practice that is the double slab: a single slab lets you see over it, two stacked are a wall.
+ * Other non-full shapes (single slabs, stairs, fences) count as see-through. That is slightly generous,
+ * since a bottom slab does hide the lower half of what's behind it, and can be tightened later.
  *
  * @param {object} registry - minecraft-data or bot.registry
  * @returns {Uint8Array} indexed by state id; 1 = blocks sight
@@ -48,9 +55,17 @@ export function buildStopsSightTable(registry) {
     let maxState = 0;
     for (const block of registry.blocksArray) maxState = Math.max(maxState, block.maxStateId);
     const table = new Uint8Array(maxState + 1);
+    const shapes = registry.blockCollisionShapes;
     for (const block of registry.blocksArray) {
-        if (block.boundingBox === 'block' && block.filterLight === 15 && !SEE_THROUGH_OVERRIDES.has(block.name))
+        if (SEE_THROUGH_OVERRIDES.has(block.name)) continue;
+        if (block.boundingBox === 'block' && block.filterLight === 15) {
             table.fill(1, block.minStateId, block.maxStateId + 1);
+        } else if (!block.transparent && shapes) {
+            const perState = shapes.blocks[block.name];
+            const shapeOf = offset => shapes.shapes[Array.isArray(perState) ? perState[offset] : perState];
+            for (let id = block.minStateId; id <= block.maxStateId; id++)
+                if (isFullCube(shapeOf(id - block.minStateId))) table[id] = 1;
+        }
     }
     return table;
 }
