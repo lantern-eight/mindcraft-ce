@@ -35,6 +35,8 @@ export class Coder {
     }
 
     async generateCode(agent_history) {
+        // Fair play may turn code writing off; say so before spending a model call.
+        try { this.agent.fairPlay?.codeRunner(); } catch (error) { return error.message; }
         await this._ensureReady();
         this.agent.bot.modes.pause('unstuck');
         lockdown();
@@ -175,13 +177,20 @@ export class Coder {
         this.file_counter++;
         
         let write_result = await this._writeFilePromise('.' + this.fp + filename, src);
-        const compartment = makeCompartment({
-            skills,
-            log: skills.log,
-            world,
-            Vec3,
-        });
-        const mainFn = compartment.evaluate(src);
+        // Fair play: the code gets the fair facade instead of the raw bot (src/agent/fairplay/code_runner.js).
+        const fairRunner = this.agent.fairPlay?.codeRunner();
+        let mainFn;
+        if (fairRunner) {
+            mainFn = fairRunner.compileTemplate(src).main;
+        } else {
+            const compartment = makeCompartment({
+                skills,
+                log: skills.log,
+                world,
+                Vec3,
+            });
+            mainFn = compartment.evaluate(src);
+        }
         
         if (write_result) {
             console.error('Error writing code execution file: ' + write_result);

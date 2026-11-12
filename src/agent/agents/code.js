@@ -59,6 +59,8 @@ export class CodeAgent {
     async generateAugment(spec) {
         if (!settings.allow_insecure_coding) throw new Error('Code generation is disabled');
         validateAugmentSpec(spec);
+        // Fair play may turn code writing off; checked before spending a model call.
+        const fairRunner = this.agent.fairPlay?.codeRunner();
         const { augment_name, description, parameters, task_context } = spec;
         log.info(`Generating augment: ${augment_name}`);
 
@@ -93,7 +95,11 @@ export class CodeAgent {
             );
 
             try {
-                const tool = await this._saveAndRegister(augment_name, source);
+                // Fair play: keep the augment in memory and run it in the fair-play compartment,
+                // instead of writing a module into src/ and importing it with full host access.
+                const tool = fairRunner
+                    ? this._registerFair(fairRunner, spec, response.function_body)
+                    : await this._saveAndRegister(augment_name, source);
                 log.info(`Generated augment: ${augment_name}`);
                 return tool;
             } catch (error) {
@@ -201,5 +207,29 @@ export default ${className};
         else if (clean.startsWith('```')) clean = clean.slice(3);
         if (clean.endsWith('```')) clean = clean.slice(0, -3);
         return JSON.parse(clean.trim());
+    }
+
+    // Builds and registers an augment tool whose body runs in the fair-play code runner. It keeps the
+    // shape of the generated module (named parameters, an `args` object, `bot`/`skills`/`world`/`log`),
+    // minus `agent`. Like CE's own augments, it lasts for this session only.
+    _registerFair(runner, { augment_name, description, parameters }, functionBody) {
+        const names = parameters.map(p => p.name);
+        const body = `const args = Object.freeze({ ${names.join(', ')} });\n${functionBody}`;
+        const run = runner.compileBody(names, body);
+        const tool = {
+            name: augment_name,
+            description,
+            parameters: parameters.map(p => ({ name: p.name, description: p.description, type: p.type, is_required: !!p.required })),
+            is_action: true,
+            execute: async (agent, ...args) => {
+                let output;
+                const code_return = await agent.actions.runAction(`action:${augment_name}`,
+                    async () => { output = await run(...args); }, { timeout: settings.code_timeout_mins });
+                return code_return.message || (output === undefined ? 'Done.' : String(output));
+            },
+        };
+        getAugmentRegistry(this.agent).set(tool.name, tool);
+        log.info(`Registered fair-play augment: ${tool.name}`);
+        return tool;
     }
 }
