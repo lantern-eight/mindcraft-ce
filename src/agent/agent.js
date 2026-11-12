@@ -19,6 +19,7 @@ import { speak } from './speak.js';
 import { AgentSystem } from './agents/system.js';
 import { DecisionService } from './decisions.js';
 import { log, validateNameFormat, handleDisconnection } from './connection_handler.js';
+import { installFairPlay } from './fairplay/install.js';
 
 export class Agent {
     async start(load_mem=false, init_message=null, count_id=0) {
@@ -95,6 +96,9 @@ export class Agent {
         });
 
         initModes(this);
+        // Fair play (off unless settings.fair_play says otherwise): locks cheat mode, guards slash
+        // commands, and on spawn makes every world search answer only from what the bot has seen.
+        installFairPlay(this);
 
         this.bot.on('login', () => {
             console.log(this.name, 'logged in!');

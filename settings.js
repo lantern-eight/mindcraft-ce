@@ -123,6 +123,15 @@ const settings = {
     "language": "en", // translate to/from this language. Supports these language names: https://cloud.google.com/translate/docs/languages
     "render_bot_view": false, // show bot's view in browser at localhost:3000, 3001...
 
+    // Fair play: the bot may only know and do what a human survival player could.
+    // "strict" = every rule on; "off" = stock Mindcraft; "custom" = strict, loosened by fair_play_custom.
+    // Rules and defaults are listed in src/agent/fairplay/policy.js (STRICT_RULES).
+    "fair_play": "strict",
+    "fair_play_custom": {
+        // "ores_through_walls": true,   // example: measure what x-ray is worth (needs a server without anti-xray)
+    },
+    "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
+
     // Allows generated executable code (newAction/executeCode/augments) with host access.
     // Ordinary mining, crafting and building tools work while this is false.
     "allow_insecure_coding": false,

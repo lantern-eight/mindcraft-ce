@@ -355,7 +355,9 @@ export const actionsList = [
             return `Mode ${mode_name} does not exist.` + modes.getDocs();
             if (modes.isOn(mode_name) === on)
             return `Mode ${mode_name} is already ${on ? 'on' : 'off'}.`;
-            modes.setOn(mode_name, on);
+            // setOn may refuse (fair play locks cheat mode); report that instead of claiming success.
+            if (modes.setOn(mode_name, on) === false)
+                return `Mode ${mode_name} can't be turned ${on ? 'on' : 'off'} here.`;
             return `Mode ${mode_name} is now ${on ? 'on' : 'off'}.`;
         }
     },
