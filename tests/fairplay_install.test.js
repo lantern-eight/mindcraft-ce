@@ -12,7 +12,7 @@ import * as world from '../src/agent/library/world.js';
 import { setWorldQueries } from '../src/agent/library/world_queries.js';
 import { installFairPlay, lockModes, makeChatGuard, guardChat, watchPermissions } from '../src/agent/fairplay/install.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
-import { fixtureWorld, stubBot } from './helpers/fixture_world.js';
+import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
 
 const STRICT = resolvePolicy({ fair_play: 'strict' });
 const quiet = () => {};
@@ -118,7 +118,7 @@ function fairAgent(build, config = { fair_play: 'strict', host: 'localhost', por
     };
     initModes(agent);
     const seenDir = mkdtempSync(path.join(tmpdir(), 'fair-install-'));
-    const handle = installFairPlay(agent, { config, seenDir, perceptionOptions: { getStateId: w.getStateId } });
+    const handle = installFairPlay(agent, { config, seenDir, perceptionOptions: { getStateId: w.getStateId, ...NO_BUDGETS } });
     return { agent, bot, handle, ran, seenDir };
 }
 

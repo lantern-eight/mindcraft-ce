@@ -56,7 +56,7 @@ try {
 
     const policy = resolvePolicy({ fair_play: 'strict' });
     const seenMap = createSeenMap({ scope: 'smoke' });
-    const perception = createPerception({ bot, policy, seenMap, checksPerTick: 100000 });
+    const perception = createPerception({ bot, policy, seenMap, tickBudgetMs: Infinity, searchBudgetMs: Infinity });
     const ore = bot.registry.blocksByName.diamond_ore.id;
     const chest = bot.registry.blocksByName.chest.id;
 

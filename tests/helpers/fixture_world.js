@@ -17,6 +17,25 @@ export function fixtureWorld({ version = '1.21.11', min = [-32, -16, -32], max =
     const inBox = (x, y, z, lo, hi) => x >= lo[0] && x <= hi[0] && y >= lo[1] && y <= hi[1] && z >= lo[2] && z <= hi[2];
     const corners = (a, b) => [a.map((v, i) => Math.min(v, b[i])), a.map((v, i) => Math.max(v, b[i]))];
 
+    // Chunk columns, shaped like the real ones perception scans. They are rebuilt only after the world
+    // changes. Each column carries per-section summaries (how many non-air cells, which block states),
+    // the same shortcuts real chunk sections offer, so scans skip empty space here too.
+    let edits = 0, builtAt = -1, columns = new Map(), summaries = new Map();
+    const EMPTY_SECTION = Object.freeze({ solidBlockCount: 0, palette: Object.freeze([0]) });
+    function rebuild() {
+        columns = new Map();
+        summaries = new Map();
+        for (const [k, id] of cells) {
+            const [x, y, z] = k.split(',').map(Number);
+            const sectionKey = `${x >> 4},${y >> 4},${z >> 4}`;
+            let summary = summaries.get(sectionKey);
+            if (!summary) summaries.set(sectionKey, summary = { solidBlockCount: 0, palette: [0] });
+            if (id !== 0) summary.solidBlockCount++;
+            if (!summary.palette.includes(id)) summary.palette.push(id);
+        }
+        builtAt = edits;
+    }
+
     // The state id for a block, by default its default state. `props` picks a specific state, for
     // example { type: 'double' } for a double slab; properties left out keep their default value.
     function stateIdOf(name, props = null) {
@@ -52,6 +71,7 @@ export function fixtureWorld({ version = '1.21.11', min = [-32, -16, -32], max =
         /** Place one block; `props` picks a specific state, like { type: 'double' } for a slab. */
         set(name, x, y, z, props = null) {
             cells.set(key(x, y, z), stateIdOf(name, props));
+            edits++;
             return world;
         },
 
@@ -63,13 +83,33 @@ export function fixtureWorld({ version = '1.21.11', min = [-32, -16, -32], max =
                 for (let y = lo[1]; y <= hi[1]; y++)
                     for (let z = lo[2]; z <= hi[2]; z++)
                         cells.set(key(x, y, z), id);
+            edits++;
             return world;
         },
 
         /** Mark an inclusive box as not received by the client, so it reads as unknown. */
         unload(a, b) {
             unloaded.push(corners(a, b));
+            edits++;
             return world;
+        },
+
+        /**
+         * The chunk column at chunk coordinates (cx, cz), or null outside the world box. Like a real
+         * column: `getBlockStateId({x, y, z})` takes x and z inside the column and an absolute y, and
+         * `sections` starts at y -64, the overworld's lowest section.
+         */
+        column(cx, cz) {
+            if (cx * 16 + 15 < min[0] || cx * 16 > max[0] || cz * 16 + 15 < min[2] || cz * 16 > max[2]) return null;
+            if (builtAt !== edits) rebuild();
+            const columnKey = `${cx},${cz}`;
+            if (!columns.has(columnKey)) {
+                columns.set(columnKey, {
+                    getBlockStateId: pos => world.getStateId(cx * 16 + pos.x, pos.y, cz * 16 + pos.z),
+                    sections: Array.from({ length: 24 }, (_, i) => summaries.get(`${cx},${i - 4},${cz}`) ?? EMPTY_SECTION),
+                });
+            }
+            return columns.get(columnKey);
         },
 
         /** null means "the client doesn't have this cell", the same contract the sight core expects. */
@@ -97,8 +137,9 @@ export function fixtureWorld({ version = '1.21.11', min = [-32, -16, -32], max =
 
 /**
  * A stand-in for a mineflayer bot standing in a fixture world: enough of the real bot's surface
- * (blockAt, findBlocks, entities, registry, events) for perception and the fair-play guards.
- * findBlocks only scans cells set explicitly, which keeps tests fast; plain air is never a match.
+ * (blockAt, findBlocks, chunk columns, entities, registry, events) for perception and the fair-play
+ * guards. findBlocks is the *raw* search (it stands in for mineflayer's): it only scans cells set
+ * explicitly, which keeps tests fast, so plain air is never a match.
  */
 export function stubBot(world, { position = [0.5, 1, 0.5], yaw = 0, pitch = 0, entities = [] } = {}) {
     const registry = world.registry;
@@ -129,10 +170,17 @@ export function stubBot(world, { position = [0.5, 1, 0.5], yaw = 0, pitch = 0, e
             }
             return found.sort((a, b) => a.distanceTo(origin) - b.distanceTo(origin)).slice(0, count);
         },
-        world: { getBiome: () => 0 },
+        world: { getBiome: () => 0, getColumn: (cx, cz) => world.column(cx, cz) },
+        game: { minY: -64, height: 384, dimension: 'overworld', gameMode: 'survival' },
         moveTo(x, y, z) { bot.entity.position = new Vec3(x, y, z); },
     });
     bot.entities[0] = bot.entity;
     for (const e of entities) bot.entities[e.id] = e;
     return bot;
 }
+
+/**
+ * Options for createPerception in tests: no time budgets, so a result never depends on how fast the
+ * machine running the tests happens to be.
+ */
+export const NO_BUDGETS = Object.freeze({ searchBudgetMs: Infinity, tickBudgetMs: Infinity });

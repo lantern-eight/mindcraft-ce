@@ -13,7 +13,7 @@ import { ExecutorCodeAgent } from '../src/agent/agents/executor.js';
 import { CodeAgent, getAugmentRegistry } from '../src/agent/agents/code.js';
 import { setWorldQueries } from '../src/agent/library/world_queries.js';
 import { installFairPlay } from '../src/agent/fairplay/install.js';
-import { fixtureWorld, stubBot } from './helpers/fixture_world.js';
+import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
 
 function agentWith(custom = {}) {
     setSettings({ allow_insecure_coding: true, code_timeout_mins: -1, relevant_docs_count: 1 });
@@ -39,7 +39,7 @@ function agentWith(custom = {}) {
     installFairPlay(agent, {
         config: { fair_play: Object.keys(custom).length ? 'custom' : 'strict', fair_play_custom: custom, host: 'h', port: 1 },
         seenDir: mkdtempSync(path.join(tmpdir(), 'fair-code-')),
-        perceptionOptions: { getStateId: w.getStateId },
+        perceptionOptions: { getStateId: w.getStateId, ...NO_BUDGETS },
     });
     const done = () => { bot.emit('end'); setWorldQueries(null); };
     return { agent, bot, chats, done };
