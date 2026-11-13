@@ -60,8 +60,9 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 (`SPDX-License-Identifier: CC0-1.0`).
 
 - `src/agent/fairplay/` (all files)
+- `src/agent/memory/` (all files)
 - `src/agent/library/world_queries.js`
-- `tests/fairplay_*.test.js`, `tests/world_queries.test.js`, `tests/world_free_space.test.js`,
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/world_queries.test.js`, `tests/world_free_space.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`
 - `tests/helpers/fixture_world.js`
 - `tests/live/fairplay_*.js`
