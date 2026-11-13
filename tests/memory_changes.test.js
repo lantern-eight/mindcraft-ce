@@ -5,7 +5,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createChanges } from '../src/agent/memory/changes.js';
 
-const HOUR = 3_600_000;
 
 function clock(start = 1_000_000) {
     let t = start;
@@ -16,7 +15,7 @@ function clock(start = 1_000_000) {
 
 /** Reports a wall of differences, one per cell, and lets the group settle. */
 function wall(changes, now, cells, diff) {
-    const seen = cells.map(([x, y, z]) => changes.see({ x, y, z, lookedAgoMs: HOUR, ...diff }));
+    const seen = cells.map(([x, y, z]) => changes.see({ x, y, z, lookedBefore: true, ...diff }));
     now.advance(2000);
     return { seen, notes: changes.settle() };
 }
@@ -73,7 +72,7 @@ test('A5: crops, leaves, flowing water and the bot\'s own digging make no note',
         { before: null, after: 'wheat', sameViewpoint: true },        // a crop grew where there was none
         { before: 'stone', after: 'air', mine: true },                // the bot dug it
         { before: null, after: 'cobblestone', sameViewpoint: true, mine: true }, // the bot placed it
-        { before: 'stone', after: 'air', lookedAgoMs: 5_000 },        // it changed while the bot watched
+        { before: 'stone', after: 'air', watched: true },             // it changed while the bot watched
     ];
     for (const diff of quiet) {
         const { seen, notes } = wall(changes, now, row(10), diff);
@@ -91,10 +90,10 @@ test('A5: crops, leaves, flowing water and the bot\'s own digging make no note',
 test('A6: a chest gone from a known place is a note, whatever the viewpoint and however small', () => {
     const now = clock();
     const changes = createChanges({ now, placeName: id => (id === 1 ? 'the base' : null) });
-    changes.see({ x: 5, y: 64, z: 5, before: 'chest', after: 'air', place: 1, lookedAgoMs: HOUR });
-    changes.see({ x: 6, y: 64, z: 5, before: 'chest', after: 'air', place: 1, lookedAgoMs: HOUR });
-    for (const [x, y, z] of row(42, 66, 9)) changes.see({ x, y, z, before: 'air', after: 'oak_planks', place: 1, lookedAgoMs: HOUR });
-    for (const [x, y, z] of row(6, 67, 9)) changes.see({ x, y, z, before: 'air', after: 'glass', place: 1, lookedAgoMs: HOUR });
+    changes.see({ x: 5, y: 64, z: 5, before: 'chest', after: 'air', place: 1, lookedBefore: true });
+    changes.see({ x: 6, y: 64, z: 5, before: 'chest', after: 'air', place: 1, lookedBefore: true });
+    for (const [x, y, z] of row(42, 66, 9)) changes.see({ x, y, z, before: 'air', after: 'oak_planks', place: 1, lookedBefore: true });
+    for (const [x, y, z] of row(6, 67, 9)) changes.see({ x, y, z, before: 'air', after: 'glass', place: 1, lookedBefore: true });
     assert.equal(changes.settle().length, 0, 'not yet: the differences are still coming in');
     now.advance(2000);
     const [note] = changes.settle();
@@ -102,7 +101,7 @@ test('A6: a chest gone from a known place is a note, whatever the viewpoint and 
     assert.equal(note.place, 1);
 
     // One chest alone is still worth a note: it is a thing.
-    changes.see({ x: 300, y: 64, z: 0, before: 'chest', after: 'air', place: 2, lookedAgoMs: HOUR });
+    changes.see({ x: 300, y: 64, z: 0, before: 'chest', after: 'air', place: 2, lookedBefore: true });
     now.advance(2000);
     assert.equal(changes.settle()[0].text, 'Noticed at a site near 300, 64, 0: Gone: chest 1.');
     // Three stray blocks are not.
@@ -114,21 +113,21 @@ test('a thing never recorded, in a place the bot had looked over before, is note
     const now = clock();
     const changes = createChanges({ now, placeName: () => 'the base' });
     const first = { x: 1, y: 64, z: 1, before: null, after: 'barrel', place: 1 };
-    assert.equal(changes.see({ ...first, lookedAgoMs: HOUR }), 'first seen');
+    assert.equal(changes.see({ ...first, lookedBefore: true }), 'first seen');
     now.advance(2000);
     assert.equal(changes.settle()[0].text, 'Noticed at the base: First seen: barrel 1.');
     // On the first look round a base nothing had been looked over before, so nothing is "first seen".
-    assert.equal(changes.see({ ...first, lookedAgoMs: Infinity }), null);
+    assert.equal(changes.see({ ...first, lookedBefore: false }), null);
     // Outside any place it follows the ordinary rule.
-    assert.equal(changes.see({ ...first, place: null, lookedAgoMs: HOUR }), null);
-    assert.equal(changes.see({ ...first, place: null, lookedAgoMs: HOUR, sameViewpoint: true }), 'appeared');
+    assert.equal(changes.see({ ...first, place: null, lookedBefore: true }), null);
+    assert.equal(changes.see({ ...first, place: null, lookedBefore: true, sameViewpoint: true }), 'appeared');
 });
 
 test('differences far apart are separate notes; neighbouring cubes share one', () => {
     const now = clock();
     const changes = createChanges({ now });
-    for (const [x, y, z] of row(10, 64, 0)) changes.see({ x: x + 10, y, z, before: 'stone', after: 'air', lookedAgoMs: HOUR }); // crosses x = 16
-    for (const [x, y, z] of row(10, 64, 0)) changes.see({ x: x + 500, y, z, before: 'stone', after: 'air', lookedAgoMs: HOUR });
+    for (const [x, y, z] of row(10, 64, 0)) changes.see({ x: x + 10, y, z, before: 'stone', after: 'air', lookedBefore: true }); // crosses x = 16
+    for (const [x, y, z] of row(10, 64, 0)) changes.see({ x: x + 500, y, z, before: 'stone', after: 'air', lookedBefore: true });
     assert.equal(changes.pending, 2);
     now.advance(2000);
     const notes = changes.settle();
@@ -139,7 +138,7 @@ test('a note is handed out once, and kept in a short log', () => {
     const now = clock();
     const changes = createChanges({ now, keep: 3 });
     for (let i = 0; i < 5; i++) {
-        changes.see({ x: i * 200, y: 64, z: 0, before: 'chest', after: 'air', lookedAgoMs: HOUR });
+        changes.see({ x: i * 200, y: 64, z: 0, before: 'chest', after: 'air', lookedBefore: true });
         now.advance(2000);
         changes.settle();
     }

@@ -298,6 +298,33 @@ export function createCells({ storage = memoryStorage(), now = Date.now, maxLoad
             return before;
         },
 
+        /**
+         * The bot saw this cell empty: it looked straight through it at the block behind. Only a cell
+         * never seen before is marked; a remembered block is left for `write` to correct. This is what
+         * lets a block that later turns up there be known as new, from whichever side it is seen.
+         */
+        sawEmpty(x, y, z) {
+            const cube = getCube(x >> 4, y >> 4, z >> 4, true);
+            cube.cells ??= new Uint8Array(VOLUME);
+            const i = cellIndex(x, y, z);
+            if (cube.cells[i] !== NEVER) return;
+            cube.cells[i] = EMPTY;
+            cube.region.dirty = true;
+        },
+
+        /** Does the bot remember any cell in this cube? */
+        hasCells(cx, cy, cz) { return Boolean(getCube(cx, cy, cz, false)?.cells); },
+
+        /** The block names remembered anywhere near a point (by region, so it may include a few from just outside). */
+        namesWithin(from, maxDistance) {
+            const names = new Set();
+            for (const [key, have] of regionNames) {
+                const [rx, ry, rz] = key.split(',').map(Number);
+                if (boxDistance(from, rx * 64, ry * 64, rz * 64, 64) <= maxDistance) for (const name of have) names.add(name);
+            }
+            return names;
+        },
+
         /** What the bot remembers at a cell: a block name, 'air' (seen empty), or null (never seen). */
         read(x, y, z) {
             const cube = getCube(x >> 4, y >> 4, z >> 4, false);

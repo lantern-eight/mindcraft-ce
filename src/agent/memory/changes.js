@@ -15,7 +15,7 @@
 //     bot had looked over before                                      noted as "first seen"
 // What is never reported, though memory is still updated:
 //   - what the bot dug or placed itself
-//   - anything that changed while the bot was watching (looked at under a minute ago)
+//   - anything that changed while the bot was watching (it saw that very cell under a minute ago)
 //   - blocks that change by themselves: crops, leaves, grass, snow, fire, water, lava, falling sand
 //
 // Differences are grouped by place, or by neighbouring cubes outside one. Two seconds after the last
@@ -31,12 +31,11 @@ const AIR = 'air';
  * @param {() => number} [options.now]
  * @param {(id: number) => string|null} [options.placeName] - the name of a place, when it has one
  * @param {number} [options.settleMs] - quiet time before a group of differences becomes a note
- * @param {number} [options.watchingMs] - a cube looked at more recently than this was being watched
  * @param {number} [options.minBlocks] - blocks a group needs to be worth a note, when it holds no thing
  * @param {number} [options.keep] - notes kept in the log
  */
 export function createChanges({ now = Date.now, placeName = () => null, kindOf = defaultKindOf,
-    changesByItself = defaultChangesByItself, settleMs = 2000, watchingMs = 60_000, minBlocks = 8, keep = 20 } = {}) {
+    changesByItself = defaultChangesByItself, settleMs = 2000, minBlocks = 8, keep = 20 } = {}) {
     const open = [];    // groups still gathering differences
     const log = [];     // notes, oldest first
     let nextId = 1;
@@ -46,14 +45,14 @@ export function createChanges({ now = Date.now, placeName = () => null, kindOf =
     const bump = (counts, name) => counts.set(name, (counts.get(name) ?? 0) + 1);
 
     /** What sort of difference this is, or null when it is not one worth reporting. */
-    function classify({ before, after, sameViewpoint = false, mine = false, lookedAgoMs = Infinity, place = null }) {
-        if (mine || lookedAgoMs < watchingMs) return null;
+    function classify({ before, after, sameViewpoint = false, mine = false, watched = false, lookedBefore = false, place = null }) {
+        if (mine || watched) return null;
         if (before === after) return null;
         if (!stable(before) && !stable(after)) return null; // grass spread, leaves fell, water flowed
         if (before === null) {
             if (after === AIR) return null;
             // A thing the bot never recorded, in a place it had already looked over: new, or it was hidden.
-            if (kindOf(after) && place !== null && Number.isFinite(lookedAgoMs)) return 'first seen';
+            if (kindOf(after) && place !== null && lookedBefore) return 'first seen';
             return sameViewpoint ? 'appeared' : null;
         }
         if (before === AIR) return 'appeared';
@@ -109,7 +108,8 @@ export function createChanges({ now = Date.now, placeName = () => null, kindOf =
          * @param {string} diff.after - what is there now ('air' when empty)
          * @param {boolean} [diff.sameViewpoint] - the cube had been looked over before from this crumb
          * @param {boolean} [diff.mine] - the bot itself dug or placed this cell
-         * @param {number} [diff.lookedAgoMs] - how long ago the cube was last looked over (Infinity if never)
+         * @param {boolean} [diff.watched] - the bot saw this very cell moments ago, so it watched it change
+         * @param {boolean} [diff.lookedBefore] - the bot had looked over this cube on an earlier visit
          * @param {number|null} [diff.place] - the place the cell is in, if any
          * @returns {'gone'|'appeared'|'replaced'|'first seen'|null} what it was counted as
          */

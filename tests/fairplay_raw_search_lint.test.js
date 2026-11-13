@@ -29,6 +29,11 @@ const ALLOWED = [
         line: 'if (!bot.entities[nearest.id]) pickedUp++;',
         why: 'Confirms that a dropped item the bot just walked onto is gone. It learns nothing about where anything is.',
     },
+    {
+        file: 'src/agent/memory/recorder.js',
+        line: 'for (const entity of perception.entities()) {',
+        why: 'Asks perception, which gives only the animals the bot can perceive. It is the fair list, not the raw entity table.',
+    },
 ];
 
 function* sourceFiles(dir) {

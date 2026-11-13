@@ -103,3 +103,18 @@ const HERD_ANIMALS = new Set(['cow', 'mooshroom', 'sheep', 'pig', 'chicken', 'ho
 
 /** Is this mob one worth remembering the whereabouts of (farm animals, villagers, pets), as opposed to a monster? */
 export const isHerdAnimal = name => HERD_ANIMALS.has(name);
+
+const CLIMBABLE = new Set(['ladder', 'vine', 'scaffolding', 'twisting_vines', 'twisting_vines_plant', 'weeping_vines',
+    'weeping_vines_plant', 'cave_vines', 'cave_vines_plant']);
+
+/**
+ * How the bot is moving, going by the block its feet are in: through a doorway, up a ladder, in water,
+ * or just walking. The trail marks these spots, since a route through them is not plain walking.
+ * @returns {'walk'|'door'|'ladder'|'water'}
+ */
+export function moveKindOf(name) {
+    if (kindOf(name) === 'passage') return 'door';
+    if (CLIMBABLE.has(name)) return 'ladder';
+    if (name === 'water' || name === 'bubble_column') return 'water';
+    return 'walk';
+}
