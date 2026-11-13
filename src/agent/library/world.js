@@ -27,7 +27,7 @@ export function getNearestFreeSpace(bot, size=1, distance=8) {
             for (let z = 0; z < size; z++) {
                 let top = worldQueries().blockAt(bot, empty_pos[i].offset(x, 0, z));
                 let bottom = worldQueries().blockAt(bot, empty_pos[i].offset(x, -1, z));
-                if (!top || !top.name == 'air' || !bottom || bottom.drops.length == 0 || !bottom.diggable) {
+                if (!top || top.name !== 'air' || !bottom || bottom.drops.length == 0 || !bottom.diggable) {
                     empty = false;
                     break;
                 }
