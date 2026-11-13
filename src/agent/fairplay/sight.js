@@ -175,14 +175,19 @@ export function createSight({ getStateId, stopsSight }) {
      * anything that blocks sight. Interior blocks fail (2) for every face, so they cost six table
      * lookups and no rays.
      *
+     * `opts.face` (a unit normal like [0, 1, 0]) asks about that one face only: placing a block means
+     * clicking a particular side, so the reach guard needs to know that side is in view.
+     *
      * @returns {{face:number[], point:{x:number,y:number,z:number}}|null} the face and aim point that
-     *   were seen (the reach guard aims there), or null when no face is visible.
+     *   were seen, or null when no face is visible.
      */
     function canSeeBlock(eye, x, y, z, opts) {
         if (!withinView(eye, x + 0.5, y + 0.5, z + 0.5, { maxDistance: opts?.maxDistance })) return null;
         const origin = [x, y, z];
         const eyeArr = [eye.x, eye.y, eye.z];
+        const only = opts?.face;
         for (const face of FACES) {
+            if (only && (face[0] !== only[0] || face[1] !== only[1] || face[2] !== only[2])) continue;
             const axis = face[0] !== 0 ? 0 : face[1] !== 0 ? 1 : 2;
             const sign = face[axis];
             const plane = origin[axis] + (sign > 0 ? 1 : 0);

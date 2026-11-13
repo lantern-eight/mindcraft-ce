@@ -23,6 +23,8 @@ export const STRICT_RULES = Object.freeze({
     hearing_radius: 16,
     // Actions
     interact_through_walls: false,
+    reach_blocks: 4.5,              // how far a survival player can click or dig a block, eye to block
+    reach_entities: 3,              // how far a survival player can hit or use a mob, eye to hitbox
     slash_commands: false,
     slash_allowlist: Object.freeze(['tell', 'msg', 'w']),
     cheat_mode: false,

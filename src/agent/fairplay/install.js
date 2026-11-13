@@ -10,6 +10,8 @@
 //      play stops acting and says why, instead of quietly playing with powers a survival player lacks.
 //   4. On spawn (and on every respawn, since the dimension may change): the seen-world map for this
 //      server/world/dimension, the perception service, and the fair query provider for world.js.
+//   5. Reach guard, on the first spawn: the bot's click, dig, place and hit methods only work on targets
+//      within a player's reach and in view.
 // With `fair_play: "off"` (the default when the setting is absent) nothing is installed.
 import settings from '../settings.js';
 import { resolvePolicy } from './policy.js';
@@ -18,6 +20,7 @@ import { loadSeenMap } from './seen_map.js';
 import { fairQueries, registerFairPlay } from './fair_queries.js';
 import { setWorldQueries } from '../library/world_queries.js';
 import { createCodeRunner } from './code_runner.js';
+import { createReachGuard, installReachGuard } from './reach_guard.js';
 import * as skills from '../library/skills.js';
 import * as worldModule from '../library/world.js';
 import Vec3 from 'vec3';
@@ -141,8 +144,10 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         policy, chatGuard,
         perception: null, seenMap: null,
         get violation() { return violation; },
-        // Reach and good-neighbor guards plug in here (plan cards 2.2 and 3.x); the code runner calls it.
+        // The reach guard wraps the bot's own methods (see reach_guard.js), so it covers skills and
+        // generated code alike. Good-neighbor rules will plug in here (plan phase 3); the code runner calls it.
         guard: () => {},
+        reach: null,
         /**
          * Lines for the !entities report: what the bot heard lately but can't see, as "zombie (east,
          * close)". Direction and rough distance only, never coordinates. A hissing creeper is listed
@@ -199,6 +204,9 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         handle.perception.start();
         registerFairPlay(bot, { perception: handle.perception, policy });
         setWorldQueries(fairQueries);
+        // By the first spawn the bot's plugins are loaded, so its methods exist to be wrapped.
+        handle.reach ??= createReachGuard({ policy, getPerception: () => handle.perception });
+        installReachGuard(bot, handle.reach);
     };
     bot.on('spawn', onSpawn);
     if (bot.entity?.position && bot.registry) onSpawn(); // already spawned (tests, late install)

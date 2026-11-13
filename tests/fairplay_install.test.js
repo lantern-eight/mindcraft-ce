@@ -11,6 +11,7 @@ import { initModes } from '../src/agent/modes.js';
 import { getCommand } from '../src/agent/commands/index.js';
 import * as world from '../src/agent/library/world.js';
 import { setWorldQueries } from '../src/agent/library/world_queries.js';
+import { withAction } from '../src/agent/action_context.js';
 import { installFairPlay, lockModes, makeChatGuard, guardChat, watchPermissions } from '../src/agent/fairplay/install.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
@@ -102,7 +103,7 @@ test('L4: becoming an operator or leaving survival is noticed, and cleared when 
     assert.deepEqual(events.map(e => e[0]), ['bad', 'bad', 'bad', 'ok']);
 });
 
-function fairAgent(build, config = { fair_play: 'strict', host: 'localhost', port: 1 }) {
+function fairAgent(build, config = { fair_play: 'strict', host: 'localhost', port: 1 }, prepare = () => {}) {
     const w = fixtureWorld({ min: [-16, -4, -16], max: [16, 16, 16] });
     w.fill('stone', [-16, 0, -16], [16, 0, 16]);
     build(w);
@@ -111,6 +112,7 @@ function fairAgent(build, config = { fair_play: 'strict', host: 'localhost', por
     bot.game = { gameMode: 'survival', dimension: 'overworld' };
     bot.worldIdentity = 'w1';
     bot.chat = () => {};
+    prepare(bot);
     const ran = [];
     const agent = {
         name: 'Fairy', bot, task: null, openChat: () => {},
@@ -159,6 +161,22 @@ test('!entities lists what the bot heard but cannot see, without coordinates', (
     assert.match(report, /heard: zombie \(east, close\)/);
     assert.doesNotMatch(report, /heard: cow/, 'something in view is not also reported as heard');
     assert.doesNotMatch(report, /8\.5/, 'no coordinates');
+    bot.emit('end');
+    setWorldQueries(null);
+});
+
+test('R1 end to end: once installed, a skill cannot open a chest it cannot see, but the pathfinder is left alone', async () => {
+    const opened = [];
+    const { bot } = fairAgent(w => {
+        w.fill('stone', [2, 1, -2], [2, 4, 2]); // a wall
+        w.set('chest', 3, 1, 0);                // a chest behind it, within reach
+    }, undefined, b => { b.openContainer = async block => { opened.push(block.name); return 'window'; }; });
+    const chest = bot.blockAt(new Vec3(3, 1, 0));
+    // Skills, commands and generated code run inside one of CE's actions; that is what the guard looks for.
+    const action = { bot, signal: new AbortController().signal, cleanups: new Set() };
+    await assert.rejects(withAction(action, () => bot.openContainer(chest)), /can't see the block at 3, 1, 0/);
+    assert.deepEqual(opened, []);
+    assert.equal(await bot.openContainer(chest), 'window', 'a call from outside any action passes through');
     bot.emit('end');
     setWorldQueries(null);
 });

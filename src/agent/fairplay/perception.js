@@ -23,7 +23,7 @@
 //   blockAt(pos)            the block the bot knows there (live or remembered), else null
 //   findBlocks(options)     mineflayer findBlocks options; positions of known matching blocks, nearest first
 //   entities()              live entities the bot perceives (not itself)
-//   canSeeBlock(pos)        sight check only, for the reach guard
+//   seesCell / seesFace / seesEntity   what is in view this instant, for the reach guard
 //   heard(options)          recent sounds, summarised
 //   tick()                  one slice of the background pass that notices notable blocks (ores, chests, sand...)
 //   stop()                  ends the service for good and removes its listeners
@@ -523,6 +523,22 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
         canSeeBlock: pos => {
             beginLook();
             return sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), viewOpts);
+        },
+        /** Touch or sight, right now (no memory): can the bot perceive this cell as it stands? */
+        seesCell: pos => {
+            beginLook();
+            return perceivable(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z));
+        },
+        /** Is this one side of a block in view? `face` is a unit normal with x, y, z. */
+        seesFace: (pos, face) => {
+            beginLook();
+            return Boolean(sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z),
+                { ...viewOpts, face: [Math.sign(face.x), Math.sign(face.y), Math.sign(face.z)] }));
+        },
+        /** Is this entity in view right now? No name-tag rule and no "just slipped out of view" grace. */
+        seesEntity: entity => {
+            beginLook();
+            return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
         },
         knowsCell: pos => blockAt(pos) !== null,
         sight,
