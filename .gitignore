@@ -33,3 +33,6 @@ site/
 
 # Generated augments
 src/agent/commands/tools/augments/
+
+# Private working notes (plans, research, logs). Never committed.
+/plans/

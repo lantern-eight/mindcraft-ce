@@ -280,5 +280,30 @@
         "type": "object",
         "default": {},
         "description": "Optional input_per_million, output_per_million, cached_input_per_million USD pricing when usage has no cost."
+    },
+    "fair_play": {
+        "type": "string",
+        "default": "strict",
+        "options": [
+            "strict",
+            "custom",
+            "off"
+        ],
+        "description": "Fair play: the bot may only know and do what a human survival player could. strict = every rule on; custom = strict, loosened by fair_play_custom; off = stock behavior. See docs/fair-play.md."
+    },
+    "fair_play_custom": {
+        "type": "object",
+        "default": {},
+        "description": "With fair_play set to custom: the rules to loosen, for example {\"ores_through_walls\": true}. The full list is in docs/fair-play.md."
+    },
+    "good_neighbor": {
+        "type": "object",
+        "default": {
+            "protect_builds": true,
+            "protect_chests": true,
+            "protect_animals": true,
+            "protected_areas": []
+        },
+        "description": "Reserved for good-neighbor rules (not built yet): don't break players' builds, loot their chests, or hurt their animals."
     }
 }

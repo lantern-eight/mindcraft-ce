@@ -1,420 +1,149 @@
-<div>
-<h1 align="center">🧠Mindcraft CE⛏️</h1>
-
-
-<p align="center">Crafting minds for Minecraft with LLMs and <a href="https://prismarinejs.github.io/mineflayer/#/">Mineflayer!</a></p>
-<p align="center">The experimental version of <a href="https://github.com/mindcraft-bots/mindcraft">Mindcraft!</a>
-
-<p align="center">
-  <a href="docs/FAQ.md#common-issues">FAQ</a> | 
-  <a href="https://discord.gg/mindcraft-ce">Discord Support</a> | 
-  <a href="https://mindcraft-ce.com">Website</a> | 
-  <a href="https://andy.mindcraft-ce.com">Andy API</a>
-<br>
-  <a href="https://www.youtube.com/watch?v=gRotoL8P8D8">Video Tutorial</a> | 
-  <a href="https://kolbynottingham.com/mindcraft/">Blog Post</a> | 
-  <a href="https://mindcraft-minecollab.github.io/index.html">Paper Website</a> | 
-  <a href="https://github.com/mindcraft-bots/mindcraft/blob/main/minecollab.md">MineCollab</a>
-</p>
-</div>
-
-> [!Caution]
-Do not connect this bot to public servers with coding enabled. This project allows an LLM to write/execute code on your computer. The code is sandboxed, but still vulnerable to injection attacks. Code writing is disabled by default, you can enable it by setting `allow_insecure_coding` to `true` in `settings.js`. Ye be warned.
-
-# New Experimental Features
-
-Mindcraft CE is the experimental fork of Mindcraft, featuring unique implementations and unmerged PRs from the original repository. Each branch offers distinct features not found in others.
-
-| Branch | Focus | Status | Key Features |
-|--------|-------|--------|--------------|
-| `stable` | Production ready | Stable | Confirmed working snapshot |
-| [`develop`](#develop) | Active development | Beta | Upstream + extra/unique content |
-| [`agent-system`](#agent-system) | AI tooling | Experimental | Native tools, Brain/Task/RP, narration and model routing |
-
-> [!Warning]
-> Some of the new features may not work right, proceed at your own risk. If you encounter problems, consider contributing by submitting a pull request to the corresponding branch.
-
-## Develop
-
-[Develop](https://github.com/mindcraft-ce/mindcraft-ce/tree/develop) is the default branch. This README describes the `agent-system` branch, which includes develop plus the agent features below.
-
-### 🦙 Andy API
-The [Andy API](https://andy.mindcraft-ce.com/) is Mindcraft CE's OpenAI-compatible model gateway. The current public service is a standalone gateway while the integrated Mindcraft compute-pool and Unleashed platform continue development. Mindcraft CE uses it by default through `andy/auto` in `andy.json`, and it remains usable by ordinary OpenAI-compatible clients.
-
-You can use the API without an API key. Adding an `ANDY_API_KEY` to `keys.json` enables authenticated account limits; keys do not multiply an account's capacity. The available models and service limits are live and may change, so use the API's model list and documentation for the current values.
-
-For OpenAI-compatible clients, use:
-
-```text
-https://andy.mindcraft-ce.com/api/v1/
-```
-
-> [!Note]
-> Andy API supports embeddings through `/api/v1/embeddings`. The `andy/auto` model selects an embedding-capable model automatically.
-
-You do not need to run the Andy API local client or open a port to use the API.
-
-The public endpoint and API contract are documented here independently of the gateway's internal implementation. Any future account or key migration will be announced in advance.
-
-## Agent System
-
-You can access this on the [agent-system](https://github.com/mindcraft-ce/mindcraft-ce/tree/agent-system) branch.
-
-On this branch, native function calling is **enabled by default**. Brain/Task/RP orchestration, decision endpoints and task-model selection are **off by default**. See the [settings guide](docs/agent-system.md) and [verification results and limits](docs/agent-system-verification.md).
-
-- **`use_function_calling`** uses native tools backed by the existing command implementations; set it to `false` for the legacy text-command agent.
-- **`use_brain_agent`** enables a supervisory Brain, a Task executor and optional RP replies, with explicit handoffs and saved goals.
-- **`decisions.enabled`** enables a separate classifier. Without Brain, it only classifies player chat; MindServer ADMIN messages bypass it. With Brain, it also helps check task progress and goals. It needs a supported decision endpoint and credentials.
-- **`model_selection.enabled`** lets Brain choose a Task model from your configured roster for each task. Fixed `brain_model`, `task_model` and `rp_model` overrides are also available; empty values use the main model.
-- **`tool_narration`** selects `all`, `periodic` (default), or `none`. Periodic updates use plain language after three completed tools or 30 seconds of silence during work. Questions, completion and important blockers remain visible.
-- **`prompt_format`** selects `auto` or `xml`; explicit profile prompts and the legacy `use_xml_prompts` flag remain supported.
-- **`load_memory`** restores saved conversation and agent state at startup. It defaults to `false`; memory is saved automatically, but a restart otherwise starts fresh.
-
-Ordinary mining, crafting and building use predefined tools and work with `allow_insecure_coding: false`. That flag controls generated executable code. Mining fixes cover tool speed, server-confirmed breaks and overhead reach; idle automatic behavior no longer competes between native tool calls.
-
-Default prompts remain in `_default.json`; XML templates are under `profiles/defaults/commands/` and `profiles/defaults/tools/`. Provider text, vision, and embedding interfaces remain available. ACP and retrieval-augmented memory are deferred.
-
-### 👁️ Enhanced Vision & Models
-- Improved vision request handling across all model providers
-- Andy API TTS implementation
-
-### 🎯 Other Improvements
-- 🐳 Docker support with improved container configuration
-- 📊 Multi-agent MineCollab framework
-- 🌐 OpenRouter-compatible model configuration
-
-# Getting Started
-## Requirements
-
-- [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc) (up to and including v1.21.11)
-- [Node.js Installed](https://nodejs.org/) (use Node 22, v22.13 or newer; `nvm use` selects this branch's configured version)
-- An available model from a [supported provider](#model-customization). The default profile uses Andy API; local Ollama and LM Studio are also supported. Provider credentials are needed only when your chosen service requires them.
-
-> [!Important]
-> If installing node on windows, ensure you check `Automatically install the necessary tools`
->
-> If you encounter `npm install` errors on macOS, see the [FAQ](docs/FAQ.md#common-issues) for troubleshooting native module build issues
-
-## Install and Run
-
-1. Make sure you have the requirements above.
-
-2. Download the [latest release](https://github.com/mindcraft-ce/mindcraft-ce/releases/latest) and unzip it, or clone the repository.
-
-3. Copy `keys.example.json` to `keys.json` and fill in credentials required by your chosen provider. Set the model in `andy.json` or another profile. The default Andy configuration and local providers do not require a paid API key.
-
-4. In terminal/command prompt, run `npm install` from the installed directory
-
-5. Start a Minecraft Java server or open a world to LAN. Set `host`, `port` and `auth` in `settings.js` to match it; a LAN world's displayed port can change each time. This branch's sample configuration uses `localhost:55916`.
-
-6. Run `node main.js` from the installed directory
-
-If you encounter issues, check the [FAQ](docs/FAQ.md#common-issues) or find support on [discord](https://discord.gg/mindcraft-ce). We are currently not very responsive to github issues. To run tasks please refer to [Minecollab Instructions](docs/minecollab.md#installation)
-
-
-# Configuration
-## Model Customization
-
-You can configure project details in `settings.js`. [See file.](settings.js)
-
-You can configure the agent's name, model, and prompts in a profile such as `andy.json`. Use a provider/model string such as `"model": "ollama/your-installed-model"`, or a model object as shown below. Provide credentials when the selected provider requires them. See the supported APIs below.
-
-<details>
-<summary><strong>⭐ VIEW SUPPORTED APIs ⭐</strong></summary>
-
-<table>
-  <thead>
-    <tr>
-      <th>API Name</th>
-      <th>Config Variable</th>
-      <th>Docs</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><pre>andy</pre></td>
-      <td><pre>ANDY_API_KEY</pre> (optional)</td>
-      <td><a href="https://andy.mindcraft-ce.com/docs">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>openai</pre></td>
-      <td><pre>OPENAI_API_KEY</pre></td>
-      <td><a href="https://platform.openai.com/docs/models">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>google</pre></td>
-      <td><pre>GEMINI_API_KEY</pre></td>
-      <td><a href="https://ai.google.dev/gemini-api/docs/models/gemini">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>anthropic</pre></td>
-      <td><pre>ANTHROPIC_API_KEY</pre></td>
-      <td><a href="https://docs.anthropic.com/claude/docs/models-overview">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>xai</pre></td>
-      <td><pre>XAI_API_KEY</pre></td>
-      <td><a href="https://docs.x.ai/docs">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>deepseek</pre></td>
-      <td><pre>DEEPSEEK_API_KEY</pre></td>
-      <td><a href="https://api-docs.deepseek.com/">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>ollama (local)</pre></td>
-      <td>n/a</td>
-      <td><a href="https://ollama.com/library">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>ollama_cloud</pre></td>
-      <td><pre>OLLAMA_API_KEY</pre></td>
-      <td><a href="https://docs.ollama.com/cloud">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>qwen</pre></td>
-      <td><pre>QWEN_API_KEY</pre></td>
-      <td><a href="https://www.alibabacloud.com/help/en/model-studio/developer-reference/use-qwen-by-calling-api">Intl.</a>/<a href="https://help.aliyun.com/zh/model-studio/getting-started/models">cn</a></td>
-    </tr>
-    <tr>
-      <td><pre>mistral</pre></td>
-      <td><pre>MISTRAL_API_KEY</pre></td>
-      <td><a href="https://docs.mistral.ai/getting-started/models/models_overview/">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>replicate</pre></td>
-      <td><pre>REPLICATE_API_KEY</pre></td>
-      <td><a href="https://replicate.com/collections/language-models">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>groq (not grok)</pre></td>
-      <td><pre>GROQCLOUD_API_KEY</pre></td>
-      <td><a href="https://console.groq.com/docs/models">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>huggingface</pre></td>
-      <td><pre>HUGGINGFACE_API_KEY</pre></td>
-      <td><a href="https://huggingface.co/models">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>novita</pre></td>
-      <td><pre>NOVITA_API_KEY</pre></td>
-      <td><a href="https://novita.ai/model-api/product/llm-api?utm_source=github_mindcraft&utm_medium=github_readme&utm_campaign=link">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>openrouter</pre></td>
-      <td><pre>OPENROUTER_API_KEY</pre></td>
-      <td><a href="https://openrouter.ai/models">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>hyperbolic</pre></td>
-      <td><pre>HYPERBOLIC_API_KEY</pre></td>
-      <td><a href="https://docs.hyperbolic.xyz/docs/getting-started">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>vllm</pre></td>
-      <td>n/a</td>
-      <td>n/a</td>
-    </tr>
-    <tr>
-      <td><pre>cerebras</pre></td>
-      <td><pre>CEREBRAS_API_KEY</pre></td>
-      <td><a href="https://inference-docs.cerebras.ai/introduction">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>mercury</pre></td>
-      <td><pre>MERCURY_API_KEY</pre></td>
-      <td><a href="https://www.inceptionlabs.ai/">docs</a></td>
-    </tr>
-    <tr>
-      <td><pre>lmstudio</pre></td>
-      <td>n/a</td>
-      <td><a href="https://www.lmstudio.ai/">docs</a></td>
-    </tr>
-  </tbody>
-</table>
-
-</details>
-
-For more comprehensive model configuration and syntax, see [Model Specifications](#model-specifications).
-
-### Ollama Cloud and local Ollama
-
-Use `ollama/modelname` for a local Ollama server (default: `http://127.0.0.1:11434`),
-with no API key required. Use `ollama_cloud/modelname` for direct Ollama Cloud
-access and set `OLLAMA_API_KEY` in `keys.json` or your environment. `ollamacloud/`
-and `ollama-cloud/` are also accepted prefixes.
-
-Cloud models accessed through a signed-in local Ollama server still use `ollama/`;
-the local server handles authentication. Use the model name recognized by the
-server you connect to. See the example profiles for [local Ollama](profiles/ollama.json)
-and [Ollama Cloud](profiles/ollama_cloud.json).
-
-For Andy model downloads and model-specific setup, see the [Mindcraft CE Hugging Face collection](https://huggingface.co/collections/Mindcraft-CE). Use the exact model name installed in your chosen local server.
-
-## Online Servers
-To connect to online servers your bot will need an official Microsoft/Minecraft account. You can use your own personal one, but will need another account if you want to connect too and play with it. To connect, change these lines in `settings.js`:
-```javascript
-"host": "111.222.333.444",
-"port": 55920,
-"auth": "microsoft",
-
-// rest is same...
-```
-> [!Important]
-> The bot's name in the profile.json must exactly match the Minecraft profile name! Otherwise the bot will spam talk to itself.
-
-To use different accounts, Mindcraft will connect with the account that the Minecraft launcher is currently using. You can switch accounts in the launcher, then run `node main.js`, then switch to your main account after the bot has connected.
-
-## Tasks
-
-Tasks automatically start the bot with a prompt and a goal item to acquire or blueprint to construct. To run a simple task that involves collecting 4 oak_logs run 
-
-`node main.js --task_path tasks/basic/single_agent.json --task_id gather_oak_logs`
-
-Here is an example task json format: 
-
-```json
-{
-    "gather_oak_logs": {
-      "goal": "Collect at least four logs",
-      "initial_inventory": {
-        "0": {
-          "wooden_axe": 1
-        }
-      },
-      "agent_count": 1,
-      "target": "oak_log",
-      "number_of_target": 4,
-      "type": "techtree",
-      "max_depth": 1,
-      "depth": 0,
-      "timeout": 300,
-      "blocked_actions": {
-        "0": [],
-        "1": []
-      },
-      "missing_items": [],
-      "requires_ctable": false
-    }
-}
-```
-
-The `initial_inventory` is what the bot will have at the start of the episode, `target` refers to the target item and `number_of_target` refers to the number of target items the agent needs to collect to successfully complete the task. 
-
-If you want more optimization and automatic launching of the minecraft world, you will need to follow the instructions in [Minecollab Instructions](docs/minecollab.md#installation)
-
-## MindServer access
-
-MindServer binds to `127.0.0.1` by default. Set `MINDCRAFT_BIND_HOST` to choose another address; a non-loopback address requires `MINDCRAFT_CONTROL_TOKEN`. Keep this token private because it authorizes agent management, messaging, and shutdown.
-
-When a token is configured, open `http://localhost:8080/?token=<your-token>` once to authorize the UI. MindServer stores an HttpOnly cookie and redirects to `/`. Automatic UI startup supplies the token for you. Socket.IO control clients supply `auth: { controlToken: "<your-token>" }` when connecting; the Python client reads the token from the environment. Agent processes use separate credentials and can end a configured task run without operator access.
-
-## Docker Container
-
-If you intend to `allow_insecure_coding`, it is a good idea to run the app in a docker container to reduce risks of running unknown code. This is strongly recommended before connecting to remote servers, although still does not guarantee complete safety.
-
-```bash
-export MINDCRAFT_CONTROL_TOKEN="$(openssl rand -hex 32)"
-docker build -t mindcraft . && docker run --rm --add-host=host.docker.internal:host-gateway -p 127.0.0.1:8080:8080 -p 127.0.0.1:3000-3003:3000-3003 -e MINDCRAFT_BIND_HOST=0.0.0.0 -e MINDCRAFT_CONTROL_TOKEN -e SETTINGS_JSON='{"auto_open_ui":false,"profiles":["./profiles/gemini.json"],"host":"host.docker.internal"}' --volume ./keys.json:/app/keys.json --name mindcraft mindcraft
-```
-or simply
-```bash
-export MINDCRAFT_CONTROL_TOKEN="$(openssl rand -hex 32)"
-docker-compose up --build
-```
-
-When running in docker, if you want the bot to join your local minecraft server, you have to use a special host address `host.docker.internal` to call your localhost from inside your docker container. Put this into your [settings.js](settings.js):
+# Mindcraft-CE: Fair-Play Integration Fork
+
+An LLM-driven Minecraft player that plays by the rules a person does. It knows only what it could see,
+hear or remember, reaches only as far as an arm does, and never runs a command.
+
+This is an **integration fork** of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce), built on
+its `agent-system` branch. Mindcraft-CE stays the core. This fork adds its own modules around it and keeps
+its edits to the core small, so upstream updates stay easy to merge and pieces of this work stay easy to
+offer back.
+
+> [!CAUTION]
+> Do not connect this bot to public servers with coding enabled. With `allow_insecure_coding` on, a model
+> writes code that runs on your computer. Code writing is off by default.
+
+## At a Glance
+
+| | |
+|---|---|
+| **What it is** | Mindcraft-CE's agent (native tool calling, optional Brain, Task and RP agents) with fair play added |
+| **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
+| **Minecraft** | Java Edition, up to 1.21.11 |
+| **Runs on** | Node 22 |
+| **Status** | Experimental. Version 0.1.0 ([changelog](CHANGELOG.md)) |
+| **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
+
+## Why Fair Play
+
+A Minecraft bot is not a player. The server sends it every block in every loaded chunk, so it knows where
+the diamonds are before it has dug anything. It can open a chest through a wall, and it can type commands.
+A bot that uses all of that is not playing the same game as the people next to it.
+
+With fair play on, the bot is held to what a survival player in its place could know and do:
+
+- **It knows** what it touches, what a straight line from its eyes reaches, what it remembers seeing, and
+  what it hears. Buried ore, a chest in a sealed room and a zombie behind a wall are unknown to it.
+- **It does** what a player's hands can: reach is a survival player's reach, and the target has to be in
+  view.
+- **It never** runs a slash command, turns on cheat mode, or acts while it is an operator or outside
+  survival mode.
+- **Code the model writes** is handed a stand-in for the bot that follows the same rules.
+
+Every rule has its own switch, so one "cheat" at a time can be turned on to measure what it is worth. The
+full guide is [docs/fair-play.md](docs/fair-play.md).
+
+## What This Fork Changes
+
+Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
+
+| Area | Mindcraft-CE `agent-system` | This fork |
+|---|---|---|
+| Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
+| Memory of the world | Named places the model chooses to save | Also remembers notable blocks it has seen, per world. The model asks with `!recall` |
+| Reach | The server's distance check | A survival player's reach, and the target must be in view |
+| Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
+| Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
+| Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
+| "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
+| Tests | 100 offline tests | 214 offline tests, plus live scenarios on a real server that make no model calls |
+| Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
+
+**Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
+animals), and limiting the pathfinder's choice of route to blocks the bot has seen. The guide lists every
+[known limit](docs/fair-play.md#known-limits).
+
+## Quick Start
+
+1. Install [Node.js 22](https://nodejs.org/) (`nvm use` picks the right version) and have
+   [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc)
+   1.21.11 or older.
+2. Clone this repository and run `npm install` in it.
+3. Copy `keys.example.json` to `keys.json` and fill in what your model provider needs. Choose the model in
+   `andy.json` or another profile. The default profile and local providers need no paid key.
+4. Start a Minecraft Java server, or open a world to LAN. Set `host`, `port` and `auth` in `settings.js` to
+   match it.
+5. Run `node main.js`.
+
+Model providers, profiles, online servers, Docker and the rest are covered in
+[docs/setup.md](docs/setup.md).
+
+## Fair-Play Settings
+
+In `settings.js`:
 
 ```javascript
-"host": "host.docker.internal", // instead of "localhost", to join your local minecraft from inside the docker container
+"fair_play": "strict",      // "strict" = every rule on, "custom" = strict loosened below, "off" = stock behavior
+"fair_play_custom": {
+    // "ores_through_walls": true,   // one rule turned off, to measure what x-ray is worth
+},
 ```
 
-To connect to an unsupported minecraft version, you can try to use [viaproxy](services/viaproxy/README.md)
+For fair play to mean anything the bot must not be a server operator, and under `strict` it stops and says
+so if it is made one. A server can add its own protection, such as Paper's anti-xray, but the bot's rules
+hold without it. See [Turning It On](docs/fair-play.md#turning-it-on) and
+[The Switches](docs/fair-play.md#the-switches).
 
-# Bot Profiles
+## Tests
 
-Bot profiles are json files (such as `andy.json`) that define:
-
-1. Bot backend LLMs to use for talking, coding, and embedding.
-2. Prompts used to influence the bot's behavior.
-3. Examples help the bot perform tasks.
-
-## Model Specifications
-
-LLM models can be specified simply as `"model": "gpt-5.4"`, or more specifically with `"{api}/{model}"`, like `"openrouter/google/gemini-2.5-pro"`. See all supported APIs [here](#model-customization).
-
-The `model` field can be a string or an object. A model object must specify an `api`, and optionally a `model`, `url`, and additional `params`. You can also use different models/providers for chatting, coding, vision, embedding, and voice synthesis. See the example below.
-
-```json
-"model": {
-  "api": "openai",
-  "model": "gpt-5.4",
-  "url": "https://api.openai.com/v1/",
-  "params": {
-    "max_tokens": 1000,
-    "temperature": 1
-  }
-},
-"code_model": {
-  "api": "openai",
-  "model": "gpt-5.4-mini",
-  "url": "https://api.openai.com/v1/"
-},
-"vision_model": {
-  "api": "openai",
-  "model": "gpt-5.4",
-  "url": "https://api.openai.com/v1/"
-},
-"embedding": {
-  "api": "openai",
-  "url": "https://api.openai.com/v1/",
-  "model": "text-embedding-3-small"
-},
-"speak_model": "openai/tts-1/echo"
+```bash
+npm test
 ```
 
-`model` is used for chat, `code_model` is used for newAction coding, `vision_model` is used for image interpretation, `embedding` is used to embed text for example selection, and `speak_model` is used for voice synthesis. `model` will be used by default for all other models if not specified. Not all APIs support embeddings, vision, or voice synthesis.
+runs the offline tests. They need no server and no model.
 
-All apis have default models and urls, so those fields are optional. The `params` field is optional and can be used to specify additional parameters for the model. It accepts any key-value pairs supported by the api. Is not supported for embedding models.
+The scripts in `tests/live/` start a throwaway Minecraft server, build each scene from the server console,
+and check the bot against it. They make no model calls. They need Java 21 and a server jar:
 
-## Embedding Models
+```bash
+export MC_TEST_JAVA=/path/to/java
+export MC_TEST_SERVER_JAR=/path/to/server.jar
+node tests/live/fairplay_scenarios.js
+```
 
-Embedding models are used to embed and efficiently select relevant examples for conversation and coding.
+## Documentation
 
-Embedding adapters include `andy`, `openai`, `google`, `replicate`, `huggingface`, `novita` and `ollama` (local). The selected model must support embeddings; direct Ollama Cloud does not provide this adapter's embedding interface. On this branch, `"embedding": false` disables embedding requests.
+| Page | What it covers |
+|---|---|
+| [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
+| [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
+| [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
+| [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |
+| [docs/FAQ.md](docs/FAQ.md) | Common problems (inherited) |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
+| [ATTRIBUTION.md](ATTRIBUTION.md) | Credits, and which license covers which files |
 
-If you try to use an unsupported model, then it will default to a simple word-overlap method. Expect reduced performance. We recommend using supported embedding APIs.
+## Where It Came From
 
-## Voice Synthesis Models
+This fork stands on other people's work, and most of the code here is theirs.
 
-Voice synthesis models are used to narrate bot responses and specified with `speak_model`. This field is parsed differently than other models and only supports strings formatted as `"{api}/{model}/{voice}"`, like `"openai/tts-1/echo"`. We only support `openai` and `google` for voice synthesis.
+- **[Mindcraft](https://github.com/mindcraft-bots/mindcraft)** is the original project: an LLM agent that
+  plays Minecraft through [Mineflayer](https://github.com/PrismarineJS/mineflayer), by
+  [@kolbytn](https://github.com/kolbytn), [@MaxRobinsonTheGreat](https://github.com/MaxRobinsonTheGreat),
+  [@icwhite](https://github.com/icwhite), [@Ninot1Quyi](https://github.com/Ninot1Quyi) and its
+  contributors. It is described in the paper
+  [Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning](https://arxiv.org/abs/2504.17950).
+- **[Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce)** is the community edition, by
+  [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip),
+  [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors.
+  Its **`agent-system`** branch, the base of this fork, adds native tool calling, the Brain, Task and RP
+  agents, tool narration and model routing.
+- **[Mineflayer](https://github.com/PrismarineJS/mineflayer)** and the PrismarineJS libraries speak the
+  Minecraft protocol. This fork does not patch them.
 
-## Specifying Profiles via Command Line
+What this fork adds on top is fair play (`src/agent/fairplay/`), its tests, and the fixes in the changelog.
 
-By default, the program will use the profiles specified in `settings.js`. You can specify one or more agent profiles using the `--profiles` argument: `node main.js --profiles ./andy.json ./profiles/claude.json`
+If you use Mindcraft in research, please cite the original paper:
 
-
-# Contributing
-
-We welcome contributions to the project! We are generally less responsive to github issues, and more responsive to pull requests. Join the [discord](https://discord.gg/mindcraft-ce) for more active support and direction.
-
-While AI generated code is allowed, please vet it carefully. Submitting tons of sloppy code and documentation actively harms development.
-
-## Patches
-
-Some of the node modules that we depend on have bugs in them. To add a patch, change your local node module file and run `npx patch-package [package-name]`
-
-## Development Team
-[@Sweaterdog](https://github.com/Sweaterdog) | [@riqvip](https://github.com/riqvip) | [@uukelele](https://github.com/uukelele) | [@mrelmida](https://github.com/mrelmida)
-
-
-Also thanks to all the other developers of the Mindcraft project: [@MaxRobinsonTheGreat](https://github.com/MaxRobinsonTheGreat), [@kolbytn](https://github.com/kolbytn), [@icwhite](https://github.com/icwhite), [@Ninot1Quyi](https://github.com/Ninot1Quyi)
-
-
-
-## Citation:
-This work is published in the paper [Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning](https://arxiv.org/abs/2504.17950). Please use this citation if you use this project in your research:
 ```
 @article{mindcraft2025,
   title = {Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning},
@@ -425,8 +154,39 @@ This work is published in the paper [Collaborating Action by Action: A Multi-age
 }
 ```
 
-## Contributors
+## Staying in Step With Upstream
 
-Thanks to everyone who has submitted issues on and off Github, made suggestions, and generally helped make this a better project.
+`main` is Mindcraft-CE's `agent-system` branch plus this fork's work. To take an upstream update:
 
-![Contributors](https://contrib.rocks/image?repo=mindcraft-ce/mindcraft-ce)
+```bash
+git fetch upstream
+git merge upstream/agent-system
+npm install && npm test
+```
+
+Then re-check each entry in [docs/core-hooks.md](docs/core-hooks.md). That list is short on purpose: new
+code lives in its own folders, and inherited files only get small hooks.
+
+## Contributing
+
+This is a personal project, and it isn't set up to take contributions. There are two better homes for
+your work:
+
+- **Fork it.** Everything this fork adds is in the public domain, so take it and make it yours.
+- **Contribute to [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce)**, the community edition
+  this is built on. A fix or a feature there reaches everyone, this fork included.
+
+Fixes this fork makes to inherited code are kept in their own commits, so they can be offered to
+Mindcraft-CE one at a time. [CLAUDE.md](CLAUDE.md) holds the working rules used here, if you want the same
+approach in your fork.
+
+## License
+
+Two licenses apply, to different parts:
+
+- **Code inherited from Mindcraft and Mindcraft-CE** is under the [MIT License](LICENSE).
+- **What this fork adds** is dedicated to the public domain under [CC0 1.0](LICENSE-CC0). Take it, change
+  it, ship it, with no conditions.
+
+[ATTRIBUTION.md](ATTRIBUTION.md) says which files are which, and credits the projects and ideas this fork
+builds on.

@@ -1,5 +1,7 @@
 import pf from 'mineflayer-pathfinder';
 import * as mc from '../../utils/mcdata.js';
+// Block and entity searches go through a swappable provider (raw by default); see world_queries.js.
+import { worldQueries } from './world_queries.js';
 
 
 export function getNearestFreeSpace(bot, size=1, distance=8) {
@@ -12,7 +14,7 @@ export function getNearestFreeSpace(bot, size=1, distance=8) {
      * @example
      * let position = world.getNearestFreeSpace(bot, 1, 8);
      **/
-    let empty_pos = bot.findBlocks({
+    let empty_pos = worldQueries().findBlocks(bot, {
         matching: (block) => {
             return block && block.name == 'air';
         },
@@ -23,9 +25,9 @@ export function getNearestFreeSpace(bot, size=1, distance=8) {
         let empty = true;
         for (let x = 0; x < size; x++) {
             for (let z = 0; z < size; z++) {
-                let top = bot.blockAt(empty_pos[i].offset(x, 0, z));
-                let bottom = bot.blockAt(empty_pos[i].offset(x, -1, z));
-                if (!top || !top.name == 'air' || !bottom || bottom.drops.length == 0 || !bottom.diggable) {
+                let top = worldQueries().blockAt(bot, empty_pos[i].offset(x, 0, z));
+                let bottom = worldQueries().blockAt(bot, empty_pos[i].offset(x, -1, z));
+                if (!top || top.name !== 'air' || !bottom || bottom.drops.length == 0 || !bottom.diggable) {
                     empty = false;
                     break;
                 }
@@ -51,7 +53,7 @@ export function getBlockAtPosition(bot, x=0, y=0, z=0) {
      * let blockBelow = world.getBlockAtPosition(bot, 0, -1, 0);
      * let blockAbove = world.getBlockAtPosition(bot, 0, 2, 0); since minecraft position is at the feet
      **/
-    let block = bot.blockAt(bot.entity.position.offset(x, y, z));
+    let block = worldQueries().blockAt(bot, bot.entity.position.offset(x, y, z));
     if (!block) block = {name: 'air'};
        
     return block;
@@ -99,7 +101,7 @@ export function getFirstBlockAboveHead(bot, ignore_types=null, distance=32) {
     let block_above = {name: 'air'};
     let height = 0
     for (let i = 0; i < distance; i++) {
-        let block = bot.blockAt(bot.entity.position.offset(0, i+2, 0));
+        let block = worldQueries().blockAt(bot, bot.entity.position.offset(0, i+2, 0));
         if (!block) block = {name: 'air'};
         // Ignore and continue
         if (ignore_blocks.includes(block.name)) continue;
@@ -152,8 +154,10 @@ export function getNearestBlocksWhere(bot, predicate, distance=8, count=10000) {
      * @example
      * let waterBlocks = world.getNearestBlocksWhere(bot, block => block.name === 'water', 16, 10);
      **/
-    let positions = bot.findBlocks({matching: predicate, maxDistance: distance, count: count});
-    let blocks = positions.map(position => bot.blockAt(position));
+    let positions = worldQueries().findBlocks(bot, {matching: predicate, maxDistance: distance, count: count});
+    // A remembered position can come back without a readable block (it changed, or its chunk unloaded);
+    // drop it rather than hand callers a null.
+    let blocks = positions.map(position => worldQueries().blockAt(bot, position)).filter(Boolean);
     return blocks;
 }
 
@@ -178,7 +182,7 @@ export function getNearestBlock(bot, block_type, distance=16) {
 
 export function getNearbyEntities(bot, maxDistance=16) {
     let entities = [];
-    for (const entity of Object.values(bot.entities)) {
+    for (const entity of worldQueries().entities(bot)) {
         const distance = entity.position.distanceTo(bot.entity.position);
         if (distance > maxDistance) continue;
         entities.push({ entity: entity, distance: distance });
@@ -192,14 +196,27 @@ export function getNearbyEntities(bot, maxDistance=16) {
 }
 
 export function getNearestEntityWhere(bot, predicate, maxDistance=16) {
-    return bot.nearestEntity(entity => predicate(entity) && bot.entity.position.distanceTo(entity.position) < maxDistance);
+    return worldQueries().nearestEntity(bot, entity => predicate(entity) && bot.entity.position.distanceTo(entity.position) < maxDistance);
+}
+
+
+export function getPlayerEntity(bot, username) {
+    /**
+     * Get a player's entity by name, if that player is near enough for the bot to know where they are.
+     * @param {Bot} bot - The bot to look for the player with.
+     * @param {string} username - The player's name.
+     * @returns {Entity|null} - The player's entity, or null if they are not nearby or not online.
+     * @example
+     * let player = world.getPlayerEntity(bot, 'Steve');
+     **/
+    return worldQueries().entities(bot).find(entity => entity.type === 'player' && entity.username === username) ?? null;
 }
 
 
 export function getNearbyPlayers(bot, maxDistance) {
     if (maxDistance == null) maxDistance = 16;
     let players = [];
-    for (const entity of Object.values(bot.entities)) {
+    for (const entity of worldQueries().entities(bot)) {
         const distance = entity.position.distanceTo(bot.entity.position);
         if (distance > maxDistance) continue;
         if (entity.type == 'player' && entity.username != bot.username) {
@@ -411,7 +428,7 @@ export function shouldPlaceTorch(bot) {
     if (!nearest_torch)
         nearest_torch = getNearestBlock(bot, 'wall_torch', 6);
     if (!nearest_torch) {
-        const block = bot.blockAt(pos);
+        const block = worldQueries().blockAt(bot, pos);
         let has_torch = bot.inventory.findInventoryItem('torch');
         return has_torch && block?.name === 'air';
     }

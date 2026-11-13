@@ -485,8 +485,8 @@ export async function pickupNearbyItems(bot, allowDig=false) {
         const attempts = new Map();
         while (Date.now() < deadline && !bot.interrupt_code) {
             assertActionOwner(bot);
-            const nearest = bot.nearestEntity(entity => entity.name === 'item' &&
-                bot.entity.position.distanceTo(entity.position) < 8 && (attempts.get(entity.id) || 0) < 2);
+            const nearest = world.getNearestEntityWhere(bot, entity => entity.name === 'item' &&
+                (attempts.get(entity.id) || 0) < 2, 8);
             if (!nearest) break;
             attempts.set(nearest.id, (attempts.get(nearest.id) || 0) + 1);
             try {
@@ -985,14 +985,13 @@ export async function giveToPlayer(bot, itemType, username, num=1) {
         log(bot, `You cannot give items to yourself.`);
         return false;
     }
-    let player = bot.players[username].entity
+    let player = world.getPlayerEntity(bot, username)
     if (!player) {
         log(bot, `Could not find ${username}.`);
         return false;
     }
     await goToPlayer(bot, username, 3);
     // if we are 2 below the player
-    log(bot, bot.entity.position.y, player.position.y);
     if (bot.entity.position.y < player.position.y - 1) {
         await goToPlayer(bot, username, 1);
     }
@@ -1297,7 +1296,7 @@ export async function goToPlayer(bot, username, distance=3) {
 
     bot.modes.pause('self_defense');
     bot.modes.pause('cowardice');
-    let player = bot.players[username].entity
+    let player = world.getPlayerEntity(bot, username)
     if (!player) {
         log(bot, `Could not find ${username}.`);
         return false;
@@ -1322,7 +1321,7 @@ export async function followPlayer(bot, username, distance=4) {
      * @example
      * await skills.followPlayer(bot, "player");
      **/
-    let player = bot.players[username].entity
+    let player = world.getPlayerEntity(bot, username)
     if (!player)
         return false;
 
@@ -1499,7 +1498,7 @@ export async function useDoor(bot, door_pos=null) {
     if (!door_pos) {
         for (let door_type of ['oak_door', 'spruce_door', 'birch_door', 'jungle_door', 'acacia_door', 'dark_oak_door',
                                'mangrove_door', 'cherry_door', 'bamboo_door', 'crimson_door', 'warped_door']) {
-            door_pos = world.getNearestBlock(bot, door_type, 16).position;
+            door_pos = world.getNearestBlock(bot, door_type, 16)?.position;
             if (door_pos) break;
         }
     } else {
@@ -1539,18 +1538,13 @@ export async function goToBed(bot) {
      * @example
      * await skills.goToBed(bot);
      **/
-    const beds = bot.findBlocks({
-        matching: (block) => {
-            return block.name.includes('bed');
-        },
-        maxDistance: 32,
-        count: 1
-    });
+    // not includes('bed'), which also matches bedrock
+    const beds = world.getNearestBlocksWhere(bot, block => block.name.endsWith('_bed'), 32, 1);
     if (beds.length === 0) {
         log(bot, `Could not find a bed to sleep in.`);
         return false;
     }
-    let loc = beds[0];
+    let loc = beds[0].position;
     await goToPosition(bot, loc.x, loc.y, loc.z);
     const bed = bot.blockAt(loc);
     await bot.sleep(bed);
@@ -1674,7 +1668,7 @@ export async function activateNearestBlock(bot, type) {
  */
 async function findAndGoToVillager(bot, id) {
     id = id+"";
-    const entity = bot.entities[id];
+    const entity = world.getNearbyEntities(bot, Infinity).find(entity => entity.id + "" === id);
     
     if (!entity) {
         log(bot, `Cannot find villager with id ${id}`);
@@ -1970,7 +1964,7 @@ export async function goToSurface(bot) {
             continue;
         }
         await goToPosition(bot, block.position.x, block.position.y + 1, block.position.z, 0); // this will probably work most of the time but a custom mining and towering up implementation could be added if needed
-        log(bot, `Going to the surface at y=${y+1}.`);``
+        log(bot, `Going to the surface at y=${y+1}.`);
         return true;
     }
     return false;
@@ -1985,7 +1979,7 @@ export async function useToolOn(bot, toolName, targetName) {
      * @param {string} targetName - entity type, block type, or "nothing" for no target
      * @returns {Promise<boolean>} true if action succeeded
      */
-    if (!bot.inventory.slots.find(slot => slot && slot.name === toolName) && !bot.game.gameMode === 'creative') {
+    if (!bot.inventory.slots.find(slot => slot && slot.name === toolName) && bot.game.gameMode !== 'creative') {
         log(bot, `You do not have any ${toolName} to use.`);
         return false;
     }

@@ -1,5 +1,6 @@
 import { Vec3 } from 'vec3';
 import { Camera } from "./camera.js";
+import * as world from '../library/world.js';
 import fs from 'fs';
 
 export class VisionInterpreter {
@@ -18,7 +19,7 @@ export class VisionInterpreter {
         }
         let result = "";
         const bot = this.agent.bot;
-        const player = bot.players[player_name]?.entity;
+        const player = world.getPlayerEntity(bot, player_name);
         if (!player) {
             return `Could not find player ${player_name}`;
         }

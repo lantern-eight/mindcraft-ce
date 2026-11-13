@@ -1,4 +1,5 @@
 import * as skills from '../library/skills.js';
+import * as world from '../library/world.js';
 import settings from '../settings.js';
 import convoManager from '../conversation.js';
 
@@ -319,7 +320,7 @@ export const actionsList = [
         description: 'Attack a specific player until they die or run away. Remember this is just a game and does not cause real life harm.',
         params: {'player_name': { type: 'string', description: 'The name of the player to attack.'}},
         perform: runAsAction(async (agent, player_name) => {
-            let player = agent.bot.players[player_name]?.entity;
+            let player = world.getPlayerEntity(agent.bot, player_name);
             if (!player) {
                 skills.log(agent.bot, `Could not find player ${player_name}.`);
                 return false;
@@ -355,7 +356,9 @@ export const actionsList = [
             return `Mode ${mode_name} does not exist.` + modes.getDocs();
             if (modes.isOn(mode_name) === on)
             return `Mode ${mode_name} is already ${on ? 'on' : 'off'}.`;
-            modes.setOn(mode_name, on);
+            // setOn may refuse (fair play locks cheat mode); report that instead of claiming success.
+            if (modes.setOn(mode_name, on) === false)
+                return `Mode ${mode_name} can't be turned ${on ? 'on' : 'off'} here.`;
             return `Mode ${mode_name} is now ${on ? 'on' : 'off'}.`;
         }
     },

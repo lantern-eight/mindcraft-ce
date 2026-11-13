@@ -16,6 +16,8 @@ export class ExecutorCodeAgent {
 
     async executeTask(task, context) {
         if (!settings.allow_insecure_coding) throw new Error('Code execution is disabled');
+        // Fair play may turn code writing off; say so before spending a model call.
+        try { this.agent.fairPlay?.codeRunner(); } catch (error) { return error.message; }
         log.info(`Task: ${task}`);
 
         let lastError = null;
@@ -98,14 +100,16 @@ export class ExecutorCodeAgent {
         const agent = this.agent;
         const bot = agent.bot;
 
-        const wrappedFn = new Function(
+        // Fair play: run in a fair-play compartment, with no agent and no host globals.
+        const fairRunner = agent.fairPlay?.codeRunner();
+        const wrappedFn = fairRunner ? fairRunner.compileBody([], functionBody) : new Function(
             'agent', 'bot', 'skills', 'world', 'Vec3', 'log',
             `return (async () => {\n${functionBody}\n})();`
         );
 
         let result;
         const actionFn = async () => {
-            result = await wrappedFn(agent, bot, skills, world, Vec3, skills.log);
+            result = fairRunner ? await wrappedFn() : await wrappedFn(agent, bot, skills, world, Vec3, skills.log);
         };
 
         const code_return = await agent.actions.runAction(
