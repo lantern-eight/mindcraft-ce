@@ -20,7 +20,7 @@ offer back.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **Minecraft** | Java Edition, up to 1.21.11 |
 | **Runs on** | Node 22 |
-| **Status** | Experimental. Version 0.1.0 ([changelog](CHANGELOG.md)) |
+| **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
 | **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
 
 ## Why Fair Play
@@ -156,7 +156,8 @@ If you use Mindcraft in research, please cite the original paper:
 
 ## Staying in Step With Upstream
 
-`main` is Mindcraft-CE's `agent-system` branch plus this fork's work. To take an upstream update:
+`main` is Mindcraft-CE's `agent-system` branch plus this fork's work, so an upstream update comes in by
+merge:
 
 ```bash
 git fetch upstream
@@ -164,8 +165,21 @@ git merge upstream/agent-system
 npm install && npm test
 ```
 
-Then re-check each entry in [docs/core-hooks.md](docs/core-hooks.md). That list is short on purpose: new
-code lives in its own folders, and inherited files only get small hooks.
+The merge is the easy part. What to expect, and what to do after it:
+
+| What upstream changed | What happens | What to do |
+|---|---|---|
+| `README.md` | A conflict every time, because this fork's is rewritten | Keep this one. Copy anything useful from theirs into [docs/setup.md](docs/setup.md) |
+| A file this fork hooks | Usually merges by itself. Now and then, a conflict at the hook | Fix it by hand. [docs/core-hooks.md](docs/core-hooks.md) lists every hook and why it is there |
+| New code that searches the bot directly | Merges cleanly | A lint test fails and names the line. Send the search through `world.js` |
+| Code this fork has replaced | Merges cleanly, the tests pass, and **their change does nothing here** | Read their change and carry it over by hand. The same page lists the replaced pieces |
+
+The first three announce themselves. The last one is silent, so the list of replaced pieces is worth
+reading against upstream's changes after every merge. This fork keeps that list short by putting its own
+version of something in its own module and leaving a small hook in the inherited file.
+
+Code from other forks can't come in by merge, because their history doesn't line up with this one. It is
+ported by hand, after checking its license, and credited in [ATTRIBUTION.md](ATTRIBUTION.md).
 
 ## Contributing
 

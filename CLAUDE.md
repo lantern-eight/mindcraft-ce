@@ -53,6 +53,10 @@ upstream authors and fork owners is fine and needed where their licenses ask for
 - **Never patch the protocol layer** (mineflayer, minecraft-data, prismarine-*) beyond the patches
   Mindcraft-CE already pins. Keeping clear of it is what keeps a Minecraft update cheap.
 - **Core edits are hooks only**, each listed in `docs/core-hooks.md`.
+- **Replace by module, not in place.** When this fork's version of something takes over from inherited
+  code, put it in its own module and leave a small hook in the inherited file. Never rewrite the
+  inherited logic where it stands: an upstream change to it would then merge cleanly and do nothing. Add
+  the piece to "Replaced Pieces" in `docs/core-hooks.md`.
 - **Branches:** `main` is the integration branch. Work happens on a branch named for what it adds, and is
   merged when it is tested.
 
