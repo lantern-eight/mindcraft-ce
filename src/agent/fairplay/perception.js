@@ -364,30 +364,54 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     }
 
     // ---- Hearing ----
+    //
+    // Built from the sound packets the server sends, read directly (nothing is ever sent back). The
+    // server only sends a sound to players close enough to hear it, so this is what a player with
+    // subtitles on would get. mineflayer's own `soundEffectHeard` event can't be used: on 1.21 it looks
+    // each sound up one place off in the sound list, so a cow's moo arrives named as an unrelated sound
+    // and its hurt cry as its death cry.
+
+    // minecraft-data numbers its sound list from 0 in some versions and from 1 in others; the protocol
+    // always counts from 0. Going by where the list starts keeps the lookup right either way.
+    const soundBase = bot.registry.soundsArray?.[0]?.id ?? 0;
+
+    /** The name of the sound a packet carries, or null. */
+    function soundNameOf(packet) {
+        if (typeof packet?.soundName === 'string') return packet.soundName;                 // older servers name it outright
+        if (typeof packet?.sound?.data?.soundName === 'string') return packet.sound.data.soundName; // a sound given by name
+        const id = packet?.sound ? packet.sound.soundId : packet?.soundId;                   // its place in the game's sound list
+        return Number.isInteger(id) ? bot.registry.sounds?.[id + soundBase]?.name ?? null : null;
+    }
 
     function hearSound(soundName, position) {
         const subject = soundSubject(soundName);
-        if (!subject || !position) return;
-        if (position.distanceTo(bot.entity.position) > policy.hearing_radius) return;
+        if (!subject || !position || !bot.entity?.position) return;
+        if (Math.hypot(position.x - bot.entity.position.x, position.y - bot.entity.position.y, position.z - bot.entity.position.z) > policy.hearing_radius) return;
         heardLog.push({ subject, position: { x: position.x, y: position.y, z: position.z }, at: now() });
         if (heardLog.length > 50) heardLog.shift();
     }
 
-    function hearEntity(entityId) {
-        const entity = bot.entities[entityId];
-        if (!entity?.position || entity.position.distanceTo(bot.entity.position) > policy.hearing_radius) return;
-        heardLog.push({ subject: entity.name ?? entity.username ?? 'something', position: { ...entity.position }, at: now() });
-        if (heardLog.length > 50) heardLog.shift();
-    }
-
-    /** What the bot heard recently: subject, direction and rough distance, newest first, no coordinates. */
+    /**
+     * What the bot heard recently: subject, direction and rough distance, newest first, no coordinates.
+     * Two cows in different directions are two entries. `seen` says whether something of that kind the
+     * bot can see is standing where the sound came from, so callers can leave out noises whose source
+     * is already in view.
+     */
     function heard({ withinMs = 10000 } = {}) {
         const t = now();
         const here = bot.entity.position;
+        const inView = entities();
         const latest = new Map();
-        for (const sound of heardLog) if (t - sound.at <= withinMs) latest.set(sound.subject, sound);
+        for (const sound of heardLog) {
+            if (t - sound.at > withinMs) continue;
+            const where = describeDirection(here, sound.position);
+            const kind = sound.subject.replace(/ \(.*$/, '');
+            const seen = inView.some(e => e.name === kind
+                && Math.hypot(e.position.x - sound.position.x, e.position.y - sound.position.y, e.position.z - sound.position.z) <= 4);
+            latest.set(`${sound.subject}|${where.direction}`, { subject: sound.subject, ...where, seen, at: sound.at });
+        }
         return [...latest.values()].sort((a, b) => b.at - a.at)
-            .map(s => ({ subject: s.subject, ...describeDirection(here, s.position), secondsAgo: Math.round((t - s.at) / 1000) }));
+            .map(({ at, ...sound }) => ({ ...sound, secondsAgo: Math.round((t - at) / 1000) }));
     }
 
     // ---- Background pass: notice notable blocks, correct memory, note biome and explored areas ----
@@ -469,16 +493,18 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     // ---- Lifetime ----
 
     let timer = null;
-    const onSound = (name, position) => hearSound(name, position);
-    const onEntitySound = packet => hearEntity(packet.entityId);
+    // Sounds played at a spot carry their position in eighths of a block; sounds attached to an
+    // entity come from wherever that entity is.
+    const onSound = packet => hearSound(soundNameOf(packet), { x: packet.x / 8, y: packet.y / 8, z: packet.z / 8 });
+    const onEntitySound = packet => hearSound(soundNameOf(packet), bot.entities[packet.entityId]?.position);
+    const soundPackets = [['sound_effect', onSound], ['named_sound_effect', onSound], ['entity_sound_effect', onEntitySound]];
     // Anything that changes the world makes cached sight answers stale.
     const worldEvents = ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload'];
     for (const event of worldEvents) bot.on?.(event, invalidate);
 
     function start({ intervalMs = 150 } = {}) {
         if (timer) return;
-        bot.on('soundEffectHeard', onSound);
-        bot._client?.on?.('entity_sound_effect', onEntitySound); // sounds attached to an entity; mineflayer doesn't surface these
+        for (const [packet, listener] of soundPackets) bot._client?.on?.(packet, listener);
         timer = setInterval(() => { try { tick(); } catch (error) { console.warn('Perception tick failed:', error.message); } }, intervalMs);
         timer.unref?.(); // never the only thing keeping the process alive
     }
@@ -487,14 +513,13 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     function stop() {
         clearInterval(timer);
         timer = null;
-        bot.off?.('soundEffectHeard', onSound);
-        bot._client?.off?.('entity_sound_effect', onEntitySound);
+        for (const [packet, listener] of soundPackets) bot._client?.off?.(packet, listener);
         for (const event of worldEvents) bot.off?.(event, invalidate);
         liveReader?.dispose();
     }
 
     return {
-        eye, blockAt, findBlocks, entities, heard, tick, start, stop, hearSound, hearEntity, invalidate,
+        eye, blockAt, findBlocks, entities, heard, tick, start, stop, hearSound, invalidate,
         canSeeBlock: pos => {
             beginLook();
             return sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), viewOpts);

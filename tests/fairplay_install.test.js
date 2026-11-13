@@ -6,6 +6,7 @@ import { EventEmitter } from 'node:events';
 import { mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import Vec3 from 'vec3';
 import { initModes } from '../src/agent/modes.js';
 import { getCommand } from '../src/agent/commands/index.js';
 import * as world from '../src/agent/library/world.js';
@@ -142,6 +143,23 @@ test('installing strict on a spawned bot makes world.js fair and saves the map w
     assert.deepEqual(found.map(b => b.position.x), [-6]);
     bot.emit('end');
     assert.equal(readdirSync(seenDir).filter(f => f.endsWith('.json')).length, 1);
+    setWorldQueries(null);
+});
+
+test('!entities lists what the bot heard but cannot see, without coordinates', () => {
+    const { agent, bot, handle } = fairAgent(w => w.fill('stone', [4, 1, -3], [4, 6, 3])); // a wall to the east
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: new Vec3(8.5, 1, 0.5), height: 1.95 };
+    const cow = { id: 8, type: 'animal', name: 'cow', position: new Vec3(-6.5, 1, 0.5), height: 1.4 };
+    bot.entities[7] = zombie; bot.entities[8] = cow;
+    handle.perception.hearSound('entity.zombie.ambient', zombie.position); // behind the wall
+    handle.perception.hearSound('entity.cow.ambient', cow.position);       // in plain view
+    assert.deepEqual(handle.heardLines(), ['heard: zombie (east, close)']);
+    const report = getCommand('!entities').perform(agent);
+    assert.match(report, /entities: 1 cow\(s\)/);
+    assert.match(report, /heard: zombie \(east, close\)/);
+    assert.doesNotMatch(report, /heard: cow/, 'something in view is not also reported as heard');
+    assert.doesNotMatch(report, /8\.5/, 'no coordinates');
+    bot.emit('end');
     setWorldQueries(null);
 });
 

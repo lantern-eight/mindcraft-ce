@@ -2,8 +2,8 @@
 //   source <planning folder>/scripts/env.sh && node tests/live/fairplay_perception_smoke.js
 //
 // The unit tests prove the geometry on hand-built worlds. This checks the parts only a real server can:
-// reading block states from real chunk columns, entity data from real packets, and how long a perception
-// pass takes on real terrain. The throwaway server has anti-xray off, so the raw bot *can* see the buried
+// reading block states from real chunk columns, entity data and sounds from real packets, and how long a
+// perception pass takes. The throwaway server has anti-xray off, so the raw bot *can* see the buried
 // ore and the sealed chest; the test passes only if perception hides them anyway.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
@@ -98,6 +98,17 @@ try {
         const nearbyMs = performance.now() - t;
         assert.ok(seenMap.count('diamond_ore') === 1, 'the pass remembered the visible diamond only');
         return { tickMs: Math.round(tickMs), nearbyBlocksMs: Math.round(nearbyMs), nearbyKnown: near.length };
+    });
+
+    await step('the cow behind the wall is heard, by name and direction, though it is not seen', async () => {
+        perception.start(); // listens to the server's sound packets
+        await cmd('damage @e[type=cow,x=0,y=70,z=-10,distance=..3,limit=1] 1'); // it cries out
+        await delay(1500);
+        const heard = perception.heard();
+        perception.stop();
+        assert.ok(heard.some(h => h.subject === 'cow' && h.direction === 'north'), `heard ${JSON.stringify(heard)}`);
+        assert.equal(perception.entities().filter(e => e.name === 'cow').length, 1, 'still only the cow in the open is seen');
+        return { heard: heard.map(h => `${h.subject} (${h.text})`) };
     });
 
     console.log(JSON.stringify({ status: 'passed', steps: results.length }));

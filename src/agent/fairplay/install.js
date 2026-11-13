@@ -144,6 +144,16 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // Reach and good-neighbor guards plug in here (plan cards 2.2 and 3.x); the code runner calls it.
         guard: () => {},
         /**
+         * Lines for the !entities report: what the bot heard lately but can't see, as "zombie (east,
+         * close)". Direction and rough distance only, never coordinates. A hissing creeper is listed
+         * even when it's in view, because the hiss is the news.
+         */
+        heardLines() {
+            return (handle.perception?.heard() ?? [])
+                .filter(sound => !sound.seen || sound.subject.includes('('))
+                .map(sound => `heard: ${sound.subject} (${sound.text})`);
+        },
+        /**
          * The runner for model-written code (newAction, executeCode, augments). null when policy says
          * "raw" (stock behavior); throws when it says "off". One runner per agent, created on first use;
          * it looks perception up on each call, so it keeps working after a respawn swaps perception.

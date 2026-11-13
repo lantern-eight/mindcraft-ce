@@ -2,6 +2,7 @@
 // tested on small hand-built worlds with a stand-in bot (tests/helpers/fixture_world.js).
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import Vec3 from 'vec3';
 import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
 import { createPerception, describeDirection, soundSubject } from '../src/agent/fairplay/perception.js';
@@ -180,12 +181,17 @@ test('the background pass is spread over several ticks, each stopping at its tim
 });
 
 test('stop() removes every listener perception added, so respawns do not pile them up', () => {
-    const { bot, perception } = setup(() => {});
+    const { world } = setup(() => {});
+    const bot = stubBot(world);
+    bot._client = new EventEmitter();
+    const perception = createPerception({ bot, policy: STRICT, ...NO_BUDGETS });
     perception.start();
-    const events = ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload', 'soundEffectHeard'];
-    assert.ok(events.every(e => bot.listenerCount(e) > 0));
+    const events = ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload'];
+    const packets = ['sound_effect', 'named_sound_effect', 'entity_sound_effect'];
+    assert.ok(events.every(e => bot.listenerCount(e) > 0) && packets.every(p => bot._client.listenerCount(p) > 0));
     perception.stop();
-    assert.deepEqual(events.map(e => bot.listenerCount(e)), [0, 0, 0, 0]);
+    assert.deepEqual(events.map(e => bot.listenerCount(e)), [0, 0, 0]);
+    assert.deepEqual(packets.map(p => bot._client.listenerCount(p)), [0, 0, 0]);
 });
 
 test('E1: a mob behind a wall is not perceived; one in view is', () => {
@@ -241,6 +247,38 @@ test('E2: hearing gives what and roughly where, never coordinates, and only with
     for (const h of heard) assert.doesNotMatch(h.text, /\d/, 'no coordinates or exact distances');
     now.advance(20_000);
     assert.equal(perception.heard().length, 0, 'old sounds fade');
+});
+
+test('hearing reads the server\'s sound packets and names each sound from the right place in the list', () => {
+    const { world } = setup(() => {});
+    const cow = { id: 21, type: 'animal', name: 'cow', position: at(-4.5, 1, 0.5), height: 1.4 };
+    const bot = stubBot(world, { entities: [cow] });
+    bot._client = new EventEmitter();
+    const perception = createPerception({ bot, policy: STRICT, ...NO_BUDGETS });
+    perception.start();
+    const sounds = world.registry.soundsByName, first = world.registry.soundsArray[0].id;
+    // The protocol counts sounds from 0, wherever minecraft-data starts counting.
+    const moo = sounds['entity.cow.ambient'].id - first;
+    // The trap this avoids: indexing the table with that number directly gives a different sound.
+    assert.notEqual(world.registry.sounds[moo]?.name, 'entity.cow.ambient');
+
+    bot._client.emit('sound_effect', { sound: { soundId: moo }, x: 6 * 8, y: 1 * 8, z: 0 }); // a sound at a spot, by number
+    bot._client.emit('sound_effect', { sound: { data: { soundName: 'minecraft:entity.zombie.ambient' } }, x: 0, y: 8, z: -6 * 8 }); // by name
+    bot._client.emit('entity_sound_effect', { sound: { soundId: sounds['entity.creeper.primed'].id - first }, entityId: 21 }); // attached to an entity
+    bot._client.emit('sound_effect', { sound: { soundId: sounds['entity.cow.ambient'].id - first }, x: 60 * 8, y: 8, z: 0 }); // too far to hear
+    perception.stop();
+
+    const heard = Object.fromEntries(perception.heard().map(h => [h.subject, h.direction]));
+    assert.deepEqual(heard, { cow: 'east', zombie: 'north', 'creeper (hissing)': 'west' });
+});
+
+test('two of a kind in different directions are heard separately, and a source in view is marked seen', () => {
+    const cow = { id: 21, type: 'animal', name: 'cow', position: at(-6.5, 1, 0.5), height: 1.4 }; // in plain view, to the west
+    const { perception } = setup(w => w.fill('stone', [4, 1, -3], [4, 6, 3]), { entities: [cow] });
+    perception.hearSound('entity.cow.ambient', cow.position);
+    perception.hearSound('entity.cow.hurt', at(8.5, 1, 0.5)); // another cow, behind the wall to the east
+    const heard = perception.heard().map(h => [h.subject, h.direction, h.seen]);
+    assert.deepEqual(heard.sort(), [['cow', 'east', false], ['cow', 'west', true]]);
 });
 
 test('describeDirection and soundSubject', () => {
