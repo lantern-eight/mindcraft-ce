@@ -200,6 +200,19 @@ export function getNearestEntityWhere(bot, predicate, maxDistance=16) {
 }
 
 
+export function getPlayerEntity(bot, username) {
+    /**
+     * Get a player's entity by name, if that player is near enough for the bot to know where they are.
+     * @param {Bot} bot - The bot to look for the player with.
+     * @param {string} username - The player's name.
+     * @returns {Entity|null} - The player's entity, or null if they are not nearby or not online.
+     * @example
+     * let player = world.getPlayerEntity(bot, 'Steve');
+     **/
+    return worldQueries().entities(bot).find(entity => entity.type === 'player' && entity.username === username) ?? null;
+}
+
+
 export function getNearbyPlayers(bot, maxDistance) {
     if (maxDistance == null) maxDistance = 16;
     let players = [];

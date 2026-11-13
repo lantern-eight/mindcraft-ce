@@ -1,4 +1,5 @@
 import * as skills from '../library/skills.js';
+import * as world from '../library/world.js';
 import settings from '../settings.js';
 import convoManager from '../conversation.js';
 
@@ -319,7 +320,7 @@ export const actionsList = [
         description: 'Attack a specific player until they die or run away. Remember this is just a game and does not cause real life harm.',
         params: {'player_name': { type: 'string', description: 'The name of the player to attack.'}},
         perform: runAsAction(async (agent, player_name) => {
-            let player = agent.bot.players[player_name]?.entity;
+            let player = world.getPlayerEntity(agent.bot, player_name);
             if (!player) {
                 skills.log(agent.bot, `Could not find player ${player_name}.`);
                 return false;

@@ -33,6 +33,8 @@ test('by default world.js reads the bot directly, exactly as before', () => {
     assert.deepEqual(world.getNearbyEntities(bot, 16), [bot.entity, cow, alex]);
     assert.deepEqual(world.getNearbyPlayers(bot, 16), [alex]);
     assert.equal(world.getNearestEntityWhere(bot, e => e.name === 'cow', 16), cow);
+    assert.equal(world.getPlayerEntity(bot, 'Alex'), alex);
+    assert.equal(world.getPlayerEntity(bot, 'Nobody'), null);
     assert.equal(world.getBlockAtPosition(bot, 0.5, -1, -0.5).name, 'stone');
     assert.deepEqual([...new Set(calls)].sort(), ['blockAt', 'findBlocks', 'nearestEntity']);
 });
@@ -48,6 +50,7 @@ test('an installed provider answers every search, and methods it leaves out fall
     assert.deepEqual(names(world.getNearestBlocksWhere(bot, () => true, 64, 10)), ['oak_log']);
     assert.deepEqual(world.getNearbyEntities(bot, 16), [cow]);
     assert.deepEqual(world.getNearbyPlayers(bot, 16), []);
+    assert.equal(world.getPlayerEntity(bot, 'Alex'), null, 'a player the provider does not report is not found');
     assert.equal(world.getBlockAtPosition(bot, 0.5, -1, -0.5).name, 'air', 'an unknown cell reads as air, like an unloaded one');
     assert.deepEqual(calls, [], 'the raw bot was never asked');
     assert.equal(world.getNearestEntityWhere(bot, e => e.name === 'cow', 16), cow);

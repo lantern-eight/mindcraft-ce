@@ -236,7 +236,7 @@ const modes_list = [
         last_entity: null,
         next_change: 0,
         update: function (agent) {
-            const entity = agent.bot.nearestEntity();
+            const entity = world.getNearestEntityWhere(agent.bot, () => true, 10);
             let entity_in_view = entity && entity.position.distanceTo(agent.bot.entity.position) < 10 && entity.name !== 'enderman';
             if (entity_in_view && entity !== this.last_entity) {
                 this.staring = true;
