@@ -146,16 +146,20 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         /**
          * The runner for model-written code (newAction, executeCode, augments). null when policy says
          * "raw" (stock behavior); throws when it says "off". One runner per agent, created on first use;
-         * it reaches perception through `handle`, so it keeps working after a respawn swaps perception.
+         * it looks perception up on each call, so it keeps working after a respawn swaps perception.
          */
         codeRunner() {
             if (policy.generated_code === 'raw') return null;
             if (policy.generated_code === 'off') throw new Error('Writing code is turned off by fair play.');
             if (!runner) {
+                // Generated code asks the same provider world.js does, so a custom switch (say
+                // ores_through_walls) means the same thing for `bot.findBlocks` in code as it does
+                // for a command. Before the bot has spawned there is no perception yet, and the
+                // answer is "nothing" rather than whatever the raw bot would say.
                 const perception = {
-                    blockAt: pos => handle.perception?.blockAt(pos) ?? null,
-                    findBlocks: options => handle.perception?.findBlocks(options) ?? [],
-                    entities: () => handle.perception?.entities() ?? [],
+                    blockAt: pos => (handle.perception ? fairQueries.blockAt(bot, pos) : null),
+                    findBlocks: options => (handle.perception ? fairQueries.findBlocks(bot, options) : []),
+                    entities: () => (handle.perception ? fairQueries.entities(bot).filter(e => e !== bot.entity) : []),
                 };
                 runner = createCodeRunner({
                     realBot: bot, skills, world: worldModule, log: skills.log, Vec3, perception,
