@@ -541,6 +541,8 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
             return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
         },
         knowsCell: pos => blockAt(pos) !== null,
+        /** Is this a kind of block the background pass records in the seen-world map? */
+        remembers: name => notableNameSet.has(name),
         sight,
     };
 }

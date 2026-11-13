@@ -19,6 +19,17 @@ export function getCommand(name) {
     return commandMap[name];
 }
 
+// Lets a module add a command of its own without editing the lists in actions.js and queries.js.
+// Returns false when a command of that name already exists.
+export function registerCommand(command) {
+    if (!command?.name?.startsWith('!') || typeof command.perform !== 'function')
+        throw new Error('A command needs a name starting with "!" and a perform function');
+    if (commandMap[command.name]) return false;
+    commandMap[command.name] = command;
+    commandList.push(command);
+    return true;
+}
+
 export function blacklistCommands(commands) {
     const unblockable = ['!stop', '!stats', '!inventory', '!goal'];
     for (let command_name of commands) {

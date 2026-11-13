@@ -14,6 +14,7 @@ import { setWorldQueries } from '../src/agent/library/world_queries.js';
 import { withAction } from '../src/agent/action_context.js';
 import { installFairPlay, lockModes, makeChatGuard, guardChat, watchPermissions } from '../src/agent/fairplay/install.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
+import { withSearchHint, SEARCH_HINT } from '../src/agent/fairplay/commands.js';
 import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
 
 const STRICT = resolvePolicy({ fair_play: 'strict' });
@@ -117,7 +118,12 @@ function fairAgent(build, config = { fair_play: 'strict', host: 'localhost', por
     const agent = {
         name: 'Fairy', bot, task: null, openChat: () => {},
         prompter: { profile: {}, getInitModes: () => ({}) },
-        actions: { runAction: async (label) => { ran.push(label); return { success: true, message: 'done' }; } },
+        // Stands in for CE's action runner: records the label; a label starting "search:" comes back empty-handed.
+        actions: { runAction: async (label) => {
+            ran.push(label);
+            return label.startsWith('search:') ? { success: false, text: 'Could not find any sand in 64 blocks.', message: 'Could not find any sand in 64 blocks.' }
+                : { success: true, message: 'done' };
+        } },
     };
     initModes(agent);
     const seenDir = mkdtempSync(path.join(tmpdir(), 'fair-install-'));
@@ -177,6 +183,40 @@ test('R1 end to end: once installed, a skill cannot open a chest it cannot see, 
     await assert.rejects(withAction(action, () => bot.openContainer(chest)), /can't see the block at 3, 1, 0/);
     assert.deepEqual(opened, []);
     assert.equal(await bot.openContainer(chest), 'window', 'a call from outside any action passes through');
+    bot.emit('end');
+    setWorldQueries(null);
+});
+
+test('!recall answers from memory: where, how far, which way, how long ago', async () => {
+    const { agent, bot, handle } = fairAgent(w => {
+        w.fill('sand', [6, 1, -1], [7, 1, 1]);      // a patch of sand in view to the east
+        w.fill('stone', [-6, 1, -2], [-3, 4, 2]);
+        w.set('diamond_ore', -4, 2, 0);             // buried
+    });
+    handle.perception.tick(); // the background pass notices the sand
+    const recall = getCommand('!recall');
+    assert.ok(recall, 'installing fair play registers the command');
+    const sand = recall.perform(agent, 'sand');
+    assert.match(sand, /^REMEMBERED sand \(nearest first\)\n- at 6, 1, 0: 6 blocks east, seen just now/);
+    assert.match(sand, /and 1 more farther away/);
+    assert.equal(recall.perform(agent, 'diamond_ore'), "You haven't seen any diamond_ore yet. Explore to find some.");
+    assert.match(recall.perform(agent, 'stone'), /isn't a kind of block you keep track of/);
+    bot.emit('end');
+    setWorldQueries(null);
+});
+
+test('an empty-handed search is explained once: not found means not seen', async () => {
+    const { agent, bot } = fairAgent(() => {});
+    const found = await agent.actions.runAction('action:collectBlocks', async () => {});
+    assert.equal(found.message, 'done', 'ordinary results are left alone');
+    const empty = await agent.actions.runAction('search:sand', async () => {});
+    assert.equal(empty.message, 'Could not find any sand in 64 blocks.' + SEARCH_HINT, 'the action runner adds the sentence');
+    assert.deepEqual(withSearchHint({ status: 'failed', text: 'Could not find any sand in 64 blocks.', message: 'Could not find any sand in 64 blocks.' }).message,
+        'Could not find any sand in 64 blocks.' + SEARCH_HINT);
+    assert.equal(withSearchHint({ text: 'There is no furnace nearby and you have no furnace.' }).text.endsWith(SEARCH_HINT), true);
+    assert.equal(withSearchHint({ text: 'Collected 3 oak_log.' }).text, 'Collected 3 oak_log.');
+    const once = withSearchHint(withSearchHint({ text: 'Could not find a chest nearby.' }));
+    assert.equal(once.text.split(SEARCH_HINT).length, 2, 'the sentence is not added twice');
     bot.emit('end');
     setWorldQueries(null);
 });

@@ -12,6 +12,8 @@
 //      server/world/dimension, the perception service, and the fair query provider for world.js.
 //   5. Reach guard, on the first spawn: the bot's click, dig, place and hit methods only work on targets
 //      within a player's reach and in view.
+//   6. For the model: a !recall command (what the bot remembers seeing), and a sentence added to an
+//      empty-handed search explaining that "not found" now means "not seen".
 // With `fair_play: "off"` (the default when the setting is absent) nothing is installed.
 import settings from '../settings.js';
 import { resolvePolicy } from './policy.js';
@@ -21,6 +23,8 @@ import { fairQueries, registerFairPlay } from './fair_queries.js';
 import { setWorldQueries } from '../library/world_queries.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
+import { recallCommand, withSearchHint } from './commands.js';
+import { registerCommand } from '../commands/index.js';
 import * as skills from '../library/skills.js';
 import * as worldModule from '../library/world.js';
 import Vec3 from 'vec3';
@@ -126,7 +130,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     if (agent.actions?.runAction) {
         const runAction = agent.actions.runAction.bind(agent.actions);
         agent.actions.runAction = async (label, fn, options) => {
-            if (!violation) return runAction(label, fn, options);
+            // An empty-handed search gets one sentence explaining what "not found" means under fair play.
+            if (!violation) return withSearchHint(await runAction(label, fn, options));
             const text = `Refused: fair play is on, but ${violation}.`;
             return { status: 'blocked', text, code: 'fair_play', success: false, message: text, interrupted: false, timedout: false };
         };
@@ -215,6 +220,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     saveTimer.unref?.();
     bot.on('end', () => { clearInterval(saveTimer); handle.perception?.stop(); saveMap(); });
 
+    registerCommand(recallCommand); // the model's way to ask what the bot remembers seeing
     agent.fairPlay = handle;
     console.log(`[fair play] ${policy.mode} mode is on.`);
     return handle;
