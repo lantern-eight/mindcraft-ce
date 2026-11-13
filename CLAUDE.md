@@ -1,53 +1,84 @@
 # Working Rules for Agents
 
-These rules apply to every agent working in this repository. This file holds no personal details and is
-meant to be public.
+These rules apply to every agent working in this repository. This file is public and holds no private
+details.
 
 ## What This Is
 
-A fork of Mindcraft-CE (`agent-system` branch) that adds **fair play**: the bot may only know and do what a
-human survival player could. New code lives in `src/agent/fairplay/`. Edits to CE's own files are small
-hooks, each listed in `docs/core-hooks.md`.
+An integration fork of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce), built on its
+`agent-system` branch. `main` is that branch plus this fork's own work. The first addition is **fair
+play**: the bot may only know and do what a human survival player could.
 
-`docs/fair-play.md` explains what fair play does, its switches, its known limits, and how the code is laid
-out. Read it before changing anything under `src/agent/fairplay/`.
+- New code lives in its own folders (`src/agent/fairplay/` so far).
+- Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
+- `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
+  before changing anything under `src/agent/fairplay/`.
+- `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
+  changed in each version.
 
-If the private planning folder is present next to this repo, its `docs/plan.md` is the work plan and
-hand-off log and its `docs/fair-play.md` is the design. Never copy those notes into this repo: write clean
-docs here instead.
+## Private Notes Stay Out of Git
+
+Working notes (plans, research, task lists, logs) live in `plans/`, which is gitignored.
+
+- **Never commit anything from `plans/`**, and never copy its text into a committed file. Write clean docs
+  here instead.
+- **Commit messages, code comments and docs never point at those notes.** No task numbers, phases, plan
+  names or "as planned". A commit explains its own change and the intent of the branch or pull request it
+  belongs to, and nothing else.
+- `plans/upstream-candidates.md` is the running list of changes worth offering back to Mindcraft-CE. Add a
+  line whenever a commit fixes something in Mindcraft-CE's own code.
 
 ## Public and Clean
 
-Anything here may become public, so none of it may contain: names, usernames, emails or account IDs of
-people; local paths (use repo-relative paths); network details (IPs, hostnames, machine
-names); API keys, tokens, passwords, or the contents of `keys.json` / `.env`. That covers code,
-comments, docs, test fixtures, commit messages, branch names, and committed logs. Credit to upstream authors
-and fork owners that their licenses require is fine and needed.
+Everything committed here is public. None of it may contain:
+
+- names, usernames, emails or account IDs of people, beyond the public Git identity on a commit
+- local paths (use paths relative to the repo)
+- network details: IP addresses, hostnames, machine names, server addresses
+- API keys, tokens, passwords, or the contents of `keys.json` / `.env`
+- anything else about who runs this project or how their machines are set up
+
+That covers code, comments, docs, test fixtures, commit messages, branch names and committed logs. Credit to
+upstream authors and fork owners is fine and needed where their licenses ask for it.
 
 ## Git
 
-- **Commit locally, in small chunks, as you go.** Never push, never add remotes on GitHub, never open PRs.
-  The remote is named `upstream` and its push URL is disabled on purpose.
-- **One feature or one fix per commit**, so CE's maintainers can take pieces one at a time. Fixes to CE's own
-  bugs get their own commits and a line in `docs/upstream-candidates.md`.
-- **New features are modules behind a setting**, working without the rest of our code.
-- **Never patch the protocol layer** (mineflayer, minecraft-data, prismarine-*) beyond the patches CE pins.
+- **Commit locally, in small chunks, as you go.**
+- **Push only when the maintainer has asked for that push.** Never push, open a pull request, or add a
+  remote on your own initiative. The `upstream` remote is Mindcraft-CE and its push URL is disabled on
+  purpose.
+- **One feature or one fix per commit**, so Mindcraft-CE's maintainers can take pieces one at a time. A fix
+  to Mindcraft-CE's own code gets its own commit, with nothing from this fork mixed in.
+- **New features are modules behind a setting**, working without the rest of this fork's code.
+- **Never patch the protocol layer** (mineflayer, minecraft-data, prismarine-*) beyond the patches
+  Mindcraft-CE already pins. Keeping clear of it is what keeps a Minecraft update cheap.
 - **Core edits are hooks only**, each listed in `docs/core-hooks.md`.
+- **Branches:** `main` is the integration branch. Work happens on a branch named for what it adds, and is
+  merged when it is tested.
+
+## Changelog and Versions
+
+- `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Every change a person
+  running the bot would notice adds a line under **Unreleased**, in the same commit or branch.
+- Versions follow [Semantic Versioning](https://semver.org/). A release moves the Unreleased lines under a
+  new version heading with its date, and sets the same version in `package.json`.
 
 ## Code Style
 
 - Comment generously and explain **why**: what the code is for, why it's done this way, what would go wrong
   otherwise. Keep comments simple and high-level.
-- Commit messages explain the overall intent in plain language.
-- Match CE's style: 4-space indentation in JavaScript, ES modules.
+- Commit messages explain the overall intent in plain language. The diff shows the details.
+- Match the surrounding style: 4-space indentation in JavaScript, ES modules.
 
 ## Testing
 
-- **Tests first.** `source <planning>/scripts/env.sh` (Node 22, Java 21), then `npm test`.
-- Fair-play tests are `tests/fairplay_*.test.js` (CE's runner globs `tests/*.test.js`); helpers go in
+- **Tests first.** Use Node 22 (see `.nvmrc`), then `npm test`.
+- Fair-play tests are `tests/fairplay_*.test.js` (the runner globs `tests/*.test.js`); helpers go in
   `tests/helpers/`.
-- Live scenarios that make no model calls are free to run. **Ask first** before anything that calls a paid
-  model API.
+- Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
+  to run. They need Java 21 and a server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
+- **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve
+  a model report a success rate over several runs, not a single pass or fail.
 
 ## Fair Play
 

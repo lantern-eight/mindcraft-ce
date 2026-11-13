@@ -150,7 +150,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         perception: null, seenMap: null,
         get violation() { return violation; },
         // The reach guard wraps the bot's own methods (see reach_guard.js), so it covers skills and
-        // generated code alike. Good-neighbor rules will plug in here (plan phase 3); the code runner calls it.
+        // generated code alike. This hook is where good-neighbor rules will plug in; the code runner calls it.
         guard: () => {},
         reach: null,
         /**

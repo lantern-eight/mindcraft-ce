@@ -1,5 +1,6 @@
 // Live smoke test for fair-play perception against a real server (no model calls, free to run).
-//   source <planning folder>/scripts/env.sh && node tests/live/fairplay_perception_smoke.js
+//   node tests/live/fairplay_perception_smoke.js
+// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The unit tests prove the geometry on hand-built worlds. This checks the parts only a real server can:
 // reading block states from real chunk columns, entity data and sounds from real packets, and how long a

@@ -1,5 +1,6 @@
 // Live fair-play scenarios against a real server (no model calls, free to run).
-//   source <planning folder>/scripts/env.sh && node tests/live/fairplay_scenarios.js [--port=55922]
+//   node tests/live/fairplay_scenarios.js [--port=55922]
+// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The unit tests check each rule on hand-built worlds. These check the whole thing put together the way
 // a real agent runs it: fair play installed by its normal hook, CE's real skills and reflexes, real
