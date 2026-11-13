@@ -296,6 +296,11 @@
         "default": {},
         "description": "With fair_play set to custom: the rules to loosen, for example {\"ores_through_walls\": true}. The full list is in docs/fair-play.md."
     },
+    "world_memory": {
+        "type": "boolean",
+        "default": false,
+        "description": "World memory: the bot remembers every block it has seen, chests and their contents, places, the ways it has walked, and notices when a place has changed. Needs fair_play on. See docs/world-memory.md."
+    },
     "good_neighbor": {
         "type": "object",
         "default": {

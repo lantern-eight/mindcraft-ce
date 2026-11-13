@@ -130,6 +130,9 @@ const settings = {
     "fair_play_custom": {
         // "ores_through_walls": true,   // example: measure what x-ray is worth (needs a server without anti-xray)
     },
+    // World memory: the bot remembers every block it has seen, chests and what was in them, places, the
+    // ways it has walked, and notices when a place has changed. Needs fair_play on. See docs/world-memory.md.
+    "world_memory": false,
     "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
 
     // Allows generated executable code (newAction/executeCode/augments) with host access.

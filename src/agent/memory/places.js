@@ -66,7 +66,6 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
         older.spot ??= newer.spot;
         older.crumb ??= newer.crumb;
         older.lastSeen = Math.max(older.lastSeen, newer.lastSeen);
-        if (newer.kind === 'found') older.kind = 'found';
         places.delete(newer.id);
         mergedInto.set(newer.id, older.id);
     }
@@ -86,20 +85,24 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
         noteThing(thing) {
             const cell = cellOf(thing);
             const t = now();
-            const close = [...places.values()].filter(place => gapTo(place, cell) <= joinDistance).sort((a, b) => a.id - b.id);
-            const place = close[0] ?? create(cell, 'found', t);
+            // Only found places draw things in and join up. A bare named spot is someone's chosen name for
+            // a point, so it is never swallowed by a site growing nearby; but a thing turning up right at
+            // such a spot, with no site around, makes the spot itself the site.
+            const close = [...places.values()].filter(place => place.kind === 'found' && gapTo(place, cell) <= joinDistance).sort((a, b) => a.id - b.id);
+            const spot = close.length ? null : [...places.values()].find(place => place.kind === 'named' && gapTo(place, cell) <= 4);
+            const place = close[0] ?? spot ?? create(cell, 'found', t);
             const joined = close.slice(1).map(other => { absorb(place, other); return other.id; });
-            if (place.kind === 'named') place.kind = 'found'; // a named spot that turned out to have things at it
+            place.kind = 'found';
             grow(place, cell);
             place.lastSeen = t;
             place.crumb ??= thing.from ?? null;
             dirty = true;
-            return { id: place.id, isNew: close.length === 0, joined };
+            return { id: place.id, isNew: close.length === 0 && !spot, joined };
         },
 
         /**
-         * Names the spot the bot stands on. Inside a known place that place gets the name; anywhere else a
-         * new place is made around the spot. A name belongs to one place: using it again moves it.
+         * Names the spot the bot stands on. In or right beside a known place that has no name yet, that
+         * place gets the name; anywhere else a new place is made around the spot. A name belongs to one place: using it again moves it.
          * @returns {object} the place
          */
         remember(name, pos, { crumb = null, by = null } = {}) {
@@ -110,7 +113,9 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
                 delete other.spot;
                 if (other.kind === 'named') places.delete(other.id); // it was only ever the name
             }
-            const place = api.at(pos, { margin: 0, raw: true }) ?? create(cellOf(pos), 'named', now());
+            // A site that already has a name keeps it: the new name is then a spot of its own inside it.
+            const here = api.at(pos, { raw: true });
+            const place = here && !here.name ? here : create(cellOf(pos), 'named', now());
             place.name = label;
             place.namedBy = by;
             place.spot = { x: pos.x, y: pos.y, z: pos.z };

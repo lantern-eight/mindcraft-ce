@@ -11,7 +11,7 @@ import settings from '../settings.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 
 const spec = JSON.parse(readFileSync('src/mindcraft/public/settings_spec.json', 'utf8'));
-const KEYS = ['fair_play', 'fair_play_custom', 'good_neighbor'];
+const KEYS = ['fair_play', 'fair_play_custom', 'good_neighbor', 'world_memory'];
 
 // What MindServer does to the settings of an agent created through its API.
 function throughMindServer(given) {

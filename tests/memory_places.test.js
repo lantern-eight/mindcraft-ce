@@ -129,3 +129,16 @@ test('naming the spot the bot stands on: inside a place it names the place, else
     assert.equal(places.forget(named), false);
     assert.equal(places.get(1), null);
 });
+
+test('a named spot is never swallowed by a site growing next to it', () => {
+    const places = createPlaces({ scope: SCOPE, now: clock() });
+    places.noteThing({ x: 0, y: 64, z: 0 });
+    places.name(1, 'base');
+    const door = places.remember('front door', { x: 6.5, y: 64, z: 0.5 });   // inside a site that has a name
+    assert.equal(door.kind, 'named');
+    assert.equal(places.get(1).name, 'base', 'the site keeps its own name');
+    places.noteThing({ x: 8, y: 64, z: 0 });                                  // the base grows past the door
+    assert.equal(places.byName('front door').id, door.id);
+    assert.equal(places.byName('base').max.x, 8);
+    assert.equal(places.size, 2);
+});

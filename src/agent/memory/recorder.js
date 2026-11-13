@@ -28,17 +28,23 @@ const cubeKey = (cx, cy, cz) => `${cx},${cy},${cz}`;
  * @param {object} options
  * @param {object} options.bot - the mineflayer bot
  * @param {object} options.memory - from openMemory (store.js)
- * @param {object} options.perception - from createPerception; the recorder uses its eyes
+ * @param {object} [options.perception] - from createPerception; the recorder uses its eyes. It can be
+ *   handed over later with attach(), since perception in turn is given the recorder's `view`
  * @param {() => number} [options.now] - wall clock in ms
  * @param {() => number} [options.clock] - fine-grained clock in ms, for the time budget
  * @param {number} [options.radius] - how far around the bot it looks
  * @param {number} [options.tickBudgetMs] - most time one tick() may spend
  */
-export function createRecorder({ bot, memory, perception, now = Date.now, clock = () => performance.now(),
+export function createRecorder({ bot, memory, perception = null, now = Date.now, clock = () => performance.now(),
     radius = 24, tickBudgetMs = 4 } = {}) {
     const registry = bot.registry;
     const { cells, things, places, trail, changes } = memory;
-    const { sight, readState, columnAt } = perception;
+    let sight = null, readState = null, columnAt = null;
+    function attach(eyes) {
+        perception = eyes;
+        ({ sight, readState, columnAt } = eyes);
+    }
+    if (perception) attach(perception);
     const stopsSight = buildStopsSightTable(registry);
     const VIEW = { maxDistance: radius + 2 };
 
@@ -382,7 +388,7 @@ export function createRecorder({ bot, memory, perception, now = Date.now, clock 
     };
 
     return {
-        view, tick, canWalkStraight, recordAt,
+        view, tick, canWalkStraight, recordAt, attach,
         /** Is a look-around in progress? */
         get busy() { return pass !== null; },
 

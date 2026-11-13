@@ -36,10 +36,10 @@ function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'me
     bot.entity.onGround = true;
     let recorder = null;
     const memory = openMemory({ baseDir, scope: SCOPE, now, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
+    recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
     // Perception is handed world memory as its memory, and leaves the looking around to the recorder.
-    const lazyView = new Proxy({}, { get: (_, key) => recorder.view[key] });
-    const perception = createPerception({ bot, policy: STRICT, seenMap: lazyView, backgroundPass: false, now, ...NO_BUDGETS });
-    recorder = createRecorder({ bot, memory, perception, now, tickBudgetMs: Infinity });
+    const perception = createPerception({ bot, policy: STRICT, seenMap: recorder.view, backgroundPass: false, now, ...NO_BUDGETS });
+    recorder.attach(perception);
     recorder.listen(); // hear the bot move, dig, place and open things; the tests call tick() themselves
     const lookAround = () => { bot.emit('blockUpdate', null, { position: bot.entity.position }); recorder.tick(); };
     const walkTo = (x, y, z) => {

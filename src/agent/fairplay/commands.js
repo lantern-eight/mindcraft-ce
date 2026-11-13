@@ -6,16 +6,7 @@
 // from a limit into something useful: the bot can find its way back to the beach, the furnace, the
 // chest, without anyone having told it to save the spot.
 import { describeDirection } from './perception.js';
-
-const ago = ms => {
-    const seconds = Math.round(ms / 1000);
-    if (seconds < 30) return 'just now';
-    if (seconds < 90) return 'a minute ago';
-    if (seconds < 3600) return `${Math.round(seconds / 60)} minutes ago`;
-    if (seconds < 5400) return 'an hour ago';
-    if (seconds < 86400) return `${Math.round(seconds / 3600)} hours ago`;
-    return seconds < 129600 ? 'a day ago' : `${Math.round(seconds / 86400)} days ago`;
-};
+import { ago, recallText as recallFromMemory } from '../memory/commands.js';
 
 /** Text for !recall: the nearest remembered blocks of one type. */
 export function recallText(handle, bot, type, { limit = 5, now = Date.now } = {}) {
@@ -35,12 +26,18 @@ export function recallText(handle, bot, type, { limit = 5, now = Date.now } = {}
     return `REMEMBERED ${type} (nearest first)\n${lines.join('\n')}${more > 0 ? `\n- and ${more} more farther away` : ''}`;
 }
 
+// With world memory on, the same command answers from the whole store: any block, kinds of thing, what
+// is in the chests the bot opened, places, fields, animals and changes (memory/commands.js).
 export const recallCommand = {
     name: '!recall',
-    description: 'List the nearest blocks of a type that you remember seeing, however far away. Use it to find your way back to things like sand, ore, a furnace or a chest.',
-    params: { 'type': { type: 'BlockName', description: 'The block type to recall.' } },
-    perform: function (agent, type) {
+    description: 'Ask what you remember, however far away: a block type ("sand", "iron_ore"), a kind of thing ("chest", "door", "bed"), '
+        + 'an item to find in the containers you opened ("iron"), an animal, a crop, a place name, or "changes" for what you noticed had changed.',
+    params: { 'what': { type: 'string', description: 'What to recall.' } },
+    perform: function (agent, what) {
         if (!agent.fairPlay) return 'Nothing is remembered: fair play is off.';
+        if (agent.fairPlay.memory) return recallFromMemory(agent.fairPlay.memory, agent.bot.entity.position, what);
+        const type = String(what).trim().toLowerCase().replace(/\s+/g, '_');
+        if (!agent.bot.registry?.blocksByName?.[type]) return `${what} isn't a block type. Without world memory, !recall takes a block type such as sand or iron_ore.`;
         return recallText(agent.fairPlay, agent.bot, type);
     },
 };
