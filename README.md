@@ -20,7 +20,7 @@ offer back.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **Minecraft** | Java Edition, up to 1.21.11 |
 | **Runs on** | Node 22 |
-| **Status** | Experimental. Version 0.1.0 ([changelog](CHANGELOG.md)) |
+| **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
 | **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
 
 ## Why Fair Play
