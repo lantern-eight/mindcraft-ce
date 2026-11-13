@@ -9,6 +9,9 @@ A fork of Mindcraft-CE (`agent-system` branch) that adds **fair play**: the bot 
 human survival player could. New code lives in `src/agent/fairplay/`. Edits to CE's own files are small
 hooks, each listed in `docs/core-hooks.md`.
 
+`docs/fair-play.md` explains what fair play does, its switches, its known limits, and how the code is laid
+out. Read it before changing anything under `src/agent/fairplay/`.
+
 If the private planning folder is present next to this repo, its `docs/plan.md` is the work plan and
 hand-off log and its `docs/fair-play.md` is the design. Never copy those notes into this repo: write clean
 docs here instead.
