@@ -169,9 +169,16 @@ code lives in its own folders, and inherited files only get small hooks.
 
 ## Contributing
 
-Issues and pull requests are welcome. Fixes to inherited code are kept in their own commits so they can be
-offered to Mindcraft-CE one at a time. [CLAUDE.md](CLAUDE.md) holds the working rules for anyone, person or
-agent, changing this repository.
+This is a personal project, and it isn't set up to take contributions. There are two better homes for
+your work:
+
+- **Fork it.** Everything this fork adds is in the public domain, so take it and make it yours.
+- **Contribute to [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce)**, the community edition
+  this is built on. A fix or a feature there reaches everyone, this fork included.
+
+Fixes this fork makes to inherited code are kept in their own commits, so they can be offered to
+Mindcraft-CE one at a time. [CLAUDE.md](CLAUDE.md) holds the working rules used here, if you want the same
+approach in your fork.
 
 ## License
 
