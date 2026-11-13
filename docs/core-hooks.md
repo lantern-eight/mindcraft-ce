@@ -23,6 +23,25 @@ file.
 | 9 | `src/agent/library/skills.js`, `src/agent/modes.js`, `src/agent/commands/actions.js`, `src/agent/vision/vision_interpreter.js`; one new helper `getPlayerEntity` in `world.js` | The last places that searched the bot directly now call `world.*`: finding a player by name (give, go to, follow, attack, look at), dropped items, beds, a villager by id, and what the idle bot stares at. Stock behavior is unchanged. `tests/fairplay_raw_search_lint.test.js` fails if a new raw search appears | These calls are inside CE's skills and reflexes. Until they ask `world.js`, they bypass whatever provider is installed |
 | 10 | `src/agent/commands/index.js` | New `registerCommand(command)`: adds a command to the same map and list the built-in ones live in | Fair play adds a `!recall` command only when it is on. Without this the command would have to be written into CE's lists and exist for everyone |
 
+## Replaced Pieces
+
+Inherited code that this fork steps around when one of its own features is on. Git can't warn about
+these: an upstream change to one merges cleanly, the tests pass, and the change has no effect here.
+
+**After every upstream merge, read what upstream changed in these and carry over what matters:**
+`git diff <old upstream>..<new upstream> -- <file>`.
+
+| Inherited piece | Stepped around by | When | Upstream changes to look for |
+|---|---|---|---|
+| How model-written code is run: the compartment in `src/agent/coder.js`, the `new Function` call in `src/agent/agents/executor.js`, and augment modules written to disk by `src/agent/agents/code.js` | `src/agent/fairplay/code_runner.js` and `fair_bot.js` | `fair_play` on, unless `generated_code` is `"raw"` | What generated code is handed, how it is checked, timed out or stored. A new object given to that code must also be given, in a fair form, by the runner |
+| The bot's own block and entity searches behind `src/agent/library/world.js` | The provider in `world_queries.js`, answered by `src/agent/fairplay/fair_queries.js` | `fair_play` on | A new kind of search added to `world.js`. The lint test catches a raw call; a new provider method needs a fair answer too |
+| Anything that sends a slash command, and the cheat mode in `src/agent/modes.js` | The chat guard and mode lock in `src/agent/fairplay/install.js` | `fair_play` on | A new feature that relies on a command or on cheat mode. It will be dropped without an error under fair play |
+| Mindcraft-CE's task harness (`settings.task`), which needs an operator bot | Every action is refused, with the reason, by `install.js` | `fair_play` on | Nothing to carry over. Listed so the refusal is no surprise |
+
+Add a row whenever a new feature takes over from inherited code. Keep the takeover in this fork's own
+module with a small hook in the inherited file, so that most upstream edits to that code show up as a
+conflict instead of passing silently.
+
 ## Housekeeping Edits
 
 These inherited files are also changed, with no effect on how the bot behaves:

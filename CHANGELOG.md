@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- The README and `docs/core-hooks.md` say what to expect when merging an upstream update, including
+  upstream changes to code this fork has replaced, which merge cleanly and then do nothing.
+
 ## [0.1.0] - 2026-11-13
 
 The first version of this fork. Built on Mindcraft-CE's `agent-system` branch at commit `6a1ce8b`.
@@ -73,3 +78,6 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
+
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/lantern-eight/mindcraft-ce/releases/tag/v0.1.0
