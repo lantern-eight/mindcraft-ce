@@ -38,7 +38,8 @@ export function blacklistCommands(commands) {
             continue;
         }
         delete commandMap[command_name];
-        delete commandList.find(command => command.name === command_name);
+        const index = commandList.findIndex(command => command.name === command_name);
+        if (index !== -1) commandList.splice(index, 1);
     }
 }
 
