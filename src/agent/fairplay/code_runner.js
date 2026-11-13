@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The fair-play code runner: one place where all model-written code runs.
 //
 // CE has three ways to run generated code, and only one is sandboxed: `!newAction` runs in an SES

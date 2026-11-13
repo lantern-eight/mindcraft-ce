@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // world.getNearestFreeSpace(size > 1) must only accept a spot where every cell of the square is empty.
 import test from 'node:test';
 import assert from 'node:assert/strict';

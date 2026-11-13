@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Fair-play policy: turns the `fair_play` settings into one frozen object every check reads.
 //
 // There is one master switch, `fair_play`:

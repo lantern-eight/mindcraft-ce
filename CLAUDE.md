@@ -56,6 +56,14 @@ upstream authors and fork owners is fine and needed where their licenses ask for
 - **Branches:** `main` is the integration branch. Work happens on a branch named for what it adds, and is
   merged when it is tested.
 
+## Licenses and Credit
+
+- Inherited code is MIT. What this fork adds is CC0 1.0. `ATTRIBUTION.md` says which files are which.
+- **A new source file written for this fork starts with `// SPDX-License-Identifier: CC0-1.0`** and is added
+  to the list in `ATTRIBUTION.md`.
+- **Before copying code from another project, check its license allows it.** Keep that project's notice with
+  the code and add a row to `ATTRIBUTION.md`. An idea taken without code gets a line there too.
+
 ## Changelog and Versions
 
 - `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Every change a person

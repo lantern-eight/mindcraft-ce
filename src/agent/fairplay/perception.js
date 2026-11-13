@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Perception: what this bot knows about the world right now, under the fair-play rules.
 //
 // Mineflayer receives every block in every loaded chunk and every entity the server tracks, walls or no

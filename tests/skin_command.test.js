@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // A profile without a skin must not make the bot send a /skin command at login.
 import test from 'node:test';
 import assert from 'node:assert/strict';

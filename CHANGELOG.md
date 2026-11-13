@@ -37,6 +37,8 @@ The first version of this fork. Built on Mindcraft-CE's `agent-system` branch at
 - A lint test that fails when new code searches the bot directly instead of going through `world.js`.
 - Live scenarios (`tests/live/fairplay_*.js`) that check fair play on a real server with no model calls.
 - `docs/fair-play.md`, `docs/core-hooks.md`, `docs/setup.md` and this changelog.
+- `ATTRIBUTION.md`, crediting the projects this fork builds on, and a CC0 1.0 dedication
+  (`LICENSE-CC0`) for everything this fork adds. Inherited code stays under the MIT License.
 
 ### Changed
 

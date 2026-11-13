@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Times fair-play perception on real terrain (no model calls, free to run).
 //   node tests/live/fairplay_perception_bench.js [--port=55916]
 // Needs a server that is already running in offline mode on 127.0.0.1, with natural terrain around

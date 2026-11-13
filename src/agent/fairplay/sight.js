@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Fair-play sight: could a survival player standing here see that block, point, or mob?
 //
 // This is the geometric heart of fair play. Mineflayer receives every block in every loaded chunk,

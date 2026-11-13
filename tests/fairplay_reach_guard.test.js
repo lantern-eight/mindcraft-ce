@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The reach guard: the bot can only click, dig, place against or hit what is within a player's reach
 // and in view. Each test stands the bot in a small hand-built world and tries an action.
 import test from 'node:test';

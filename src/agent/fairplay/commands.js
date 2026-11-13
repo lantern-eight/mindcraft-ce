@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Commands that fair play adds for the model.
 //
 // !recall is the model's window into the seen-world map: "where did I see sand?" answered from memory,

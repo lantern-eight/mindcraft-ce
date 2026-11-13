@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Where world.js gets its block and entity searches from.
 //
 // Every search in world.js (nearest blocks, nearby entities, the block at a spot) goes through the

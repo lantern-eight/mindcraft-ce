@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Fair-play code runner: code the model writes may only steer the player the way a person could.
 //
 // Today `!newAction` code gets the raw mineflayer bot, and `executeCode` / generated augments run with

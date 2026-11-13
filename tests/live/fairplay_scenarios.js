@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Live fair-play scenarios against a real server (no model calls, free to run).
 //   node tests/live/fairplay_scenarios.js [--port=55922]
 // Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.

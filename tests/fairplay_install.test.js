@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Installing fair play on an agent: the cheat-mode lock, the slash-command guard, the operator and
 // game-mode watch, and the spawn-time wiring of perception, the seen-world map and the world.js provider.
 import test from 'node:test';

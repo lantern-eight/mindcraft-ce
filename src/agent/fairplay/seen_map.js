@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The seen-world map: what this bot has actually seen, remembered the way a player remembers it.
 //
 // It does two jobs at once:

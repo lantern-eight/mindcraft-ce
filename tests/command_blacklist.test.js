@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // A blacklisted command must be gone everywhere: from lookup, and from the docs shown to the model.
 import test from 'node:test';
 import assert from 'node:assert/strict';

@@ -21,7 +21,7 @@ offer back.
 | **Minecraft** | Java Edition, up to 1.21.11 |
 | **Runs on** | Node 22 |
 | **Status** | Experimental. Version 0.1.0 ([changelog](CHANGELOG.md)) |
-| **License** | MIT |
+| **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
 
 ## Why Fair Play
 
@@ -120,6 +120,7 @@ node tests/live/fairplay_scenarios.js
 | [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |
 | [docs/FAQ.md](docs/FAQ.md) | Common problems (inherited) |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
+| [ATTRIBUTION.md](ATTRIBUTION.md) | Credits, and which license covers which files |
 
 ## Where It Came From
 
@@ -174,4 +175,11 @@ agent, changing this repository.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Two licenses apply, to different parts:
+
+- **Code inherited from Mindcraft and Mindcraft-CE** is under the [MIT License](LICENSE).
+- **What this fork adds** is dedicated to the public domain under [CC0 1.0](LICENSE-CC0). Take it, change
+  it, ship it, with no conditions.
+
+[ATTRIBUTION.md](ATTRIBUTION.md) says which files are which, and credits the projects and ideas this fork
+builds on.

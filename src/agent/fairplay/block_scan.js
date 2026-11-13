@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // A fast, private scan of the chunk data the client holds. For perception.js only.
 //
 // mineflayer's own block search builds a full Block object for every cell it looks at. On real terrain

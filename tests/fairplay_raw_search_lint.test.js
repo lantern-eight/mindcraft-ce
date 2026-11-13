@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Keeps fair play from quietly springing a leak.
 //
 // Fair play works because everything that looks for a block or an entity asks world.js, which answers

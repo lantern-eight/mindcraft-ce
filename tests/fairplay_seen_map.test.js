@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Seen-world map: what the bot has actually seen, remembered the way a player remembers it.
 //
 // It is the fair-play replacement for "search every loaded block" (the bot can only go back to sand it

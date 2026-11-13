@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // A tiny in-memory block world for fair-play unit tests.
 //
 // Fair-play rules are about geometry ("is there a clear line from the eye to this face?"),

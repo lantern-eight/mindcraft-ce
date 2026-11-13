@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The world.js choke point: with the fair query provider installed, every search in world.js answers
 // from perception, and each through-walls switch loosens exactly one category.
 import test from 'node:test';

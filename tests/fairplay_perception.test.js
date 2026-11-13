@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Perception: what the bot knows right now. Touch, sight, memory, hearing, and the name-tag rule,
 // tested on small hand-built worlds with a stand-in bot (tests/helpers/fixture_world.js).
 import test from 'node:test';

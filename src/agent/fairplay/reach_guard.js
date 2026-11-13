@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The reach guard: the bot may only click, dig, place against, or hit what a player standing in its
 // place could.
 //

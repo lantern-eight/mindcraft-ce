@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Fair-play settings must be on MindServer's list of known settings.
 //
 // An agent created from the MindServer page or its API has every setting that isn't on that list

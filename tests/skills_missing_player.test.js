@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // A player name that isn't on the server (a typo, or someone who just left) should get an honest
 // "could not find", not a crash.
 import test from 'node:test';

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Turns fair play on for one agent. Called once from agent.js, right after the modes are set up.
 //
 // What it installs, in order:

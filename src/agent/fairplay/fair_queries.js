@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The fair query provider for world.js: searches answer from what the bot has seen, not from chunk data.
 //
 // Installed with setWorldQueries(fairQueries). From then on every caller of world.js (the prompt's

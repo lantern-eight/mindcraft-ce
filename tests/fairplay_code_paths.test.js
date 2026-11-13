@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // CE's three ways to run model-written code all go through the fair-play runner when fair play is on:
 // !newAction (Coder), the executeCode tool (ExecutorCodeAgent), and generated augments (CodeAgent).
 import test from 'node:test';

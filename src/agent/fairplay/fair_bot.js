@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The fair bot: what generated code gets instead of the real mineflayer bot.
 //
 // A person playing survival can read their own stats and inventory, look around, press movement

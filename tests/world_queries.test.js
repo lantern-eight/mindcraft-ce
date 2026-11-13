@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // The query provider behind world.js: stock behavior by default, and one place to swap in another
 // source of blocks and entities. These tests need nothing but world.js and a hand-made bot.
 import test from 'node:test';

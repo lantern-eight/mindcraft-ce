@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: CC0-1.0
 // Fair-play sight core: "could a survival player standing here see that block or mob?"
 //
 // Each test builds a small world by hand. The bot's eye sits at x 0.5, y 2.62, z 0.5 (standing on a
