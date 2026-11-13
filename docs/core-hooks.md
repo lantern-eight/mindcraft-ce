@@ -22,3 +22,13 @@ file.
 | 8 | `src/agent/commands/queries.js` (`!entities`) | Adds one line per sound the bot heard but can't see the source of, from `agent.fairPlay.heardLines()`. Nothing is added when fair play is off | `!entities` is what the model reads about its surroundings every turn, and its text is built inside the command |
 | 9 | `src/agent/library/skills.js`, `src/agent/modes.js`, `src/agent/commands/actions.js`, `src/agent/vision/vision_interpreter.js`; one new helper `getPlayerEntity` in `world.js` | The last places that searched the bot directly now call `world.*`: finding a player by name (give, go to, follow, attack, look at), dropped items, beds, a villager by id, and what the idle bot stares at. Stock behavior is unchanged. `tests/fairplay_raw_search_lint.test.js` fails if a new raw search appears | These calls are inside CE's skills and reflexes. Until they ask `world.js`, they bypass whatever provider is installed |
 | 10 | `src/agent/commands/index.js` | New `registerCommand(command)`: adds a command to the same map and list the built-in ones live in | Fair play adds a `!recall` command only when it is on. Without this the command would have to be written into CE's lists and exist for everyone |
+
+## Housekeeping Edits
+
+These inherited files are also changed, with no effect on how the bot behaves:
+
+| File | Change |
+|---|---|
+| `README.md` | Rewritten for this fork. Mindcraft-CE's setup and configuration guide moved to `docs/setup.md` |
+| `package.json`, `package-lock.json` | A `version` field for this fork's own releases |
+| `.gitignore` | Ignores `plans/`, the folder for private working notes |
