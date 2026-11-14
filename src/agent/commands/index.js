@@ -20,13 +20,15 @@ export function getCommand(name) {
 }
 
 // Lets a module add a command of its own without editing the lists in actions.js and queries.js.
-// Returns false when a command of that name already exists.
-export function registerCommand(command) {
+// Returns false when a command of that name already exists. `action: true` says the command makes the
+// bot do something, as opposed to answering a question, so isAction() treats it like the built-in ones.
+export function registerCommand(command, { action = false } = {}) {
     if (!command?.name?.startsWith('!') || typeof command.perform !== 'function')
         throw new Error('A command needs a name starting with "!" and a perform function');
     if (commandMap[command.name]) return false;
     commandMap[command.name] = command;
     commandList.push(command);
+    if (action) actionsList.push(command);
     return true;
 }
 
