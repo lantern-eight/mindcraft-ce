@@ -136,14 +136,19 @@ try {
     });
 
     await step('V6: the chest in the sealed room is not found; once a doorway is opened it is, and the skill works', async () => {
+        // How much dirt it holds is counted here, not assumed, because fetching the diamond earlier may
+        // have cost one. The diamond drops into the hole its ore left, one block up. When it comes to
+        // rest deep in the hole, the bot digs the stone above to step in. When it comes to rest on the
+        // lip, the bot places a block in front to stand level with it. Which one is the game's chance.
+        const dirt = count('dirt');
         const before = await act('test:chest', () => skills.putInChest(bot, 'dirt', 1));
         assert.match(before.text, /Could not find a chest nearby/);
-        assert.equal(count('dirt'), 8);
+        assert.equal(count('dirt'), dirt);
         await cmd('fill 0 70 6 0 71 6 air'); // a doorway facing the bot
         await delay(800);
         const after = await act('test:chest', () => skills.putInChest(bot, 'dirt', 1));
         assert.equal(after.status, 'ok', after.text);
-        assert.equal(count('dirt'), 7, after.text);
+        assert.equal(count('dirt'), dirt - 1, after.text);
         assert.match(getCommand('!recall').perform(agent, 'chest'), /REMEMBERED chest/);
         return { text: after.text.trim() };
     });
