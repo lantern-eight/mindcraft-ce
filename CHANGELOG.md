@@ -9,6 +9,20 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- **Chest sorting.** `!sortChests(distance)` tidies every chest, trapped chest and barrel the bot knows of
+  within that many blocks: part stacks are merged, each kind of item is put together from the first slot,
+  and related kinds (tools, food, minerals, wood and so on) share a chest. It is on by default, works with
+  fair play on or off, and `chest_sorting: false` leaves the command out. See `docs/chest-sorting.md`.
+  - A double chest is one chest. A full chest is sorted by swapping, so no free slot is needed.
+  - A group of items stays in the chest that already holds most of it. Otherwise it goes to the chest
+    that is least full for its size.
+  - The bot's own inventory is left as it was: it carries chest items only in slots that were empty.
+  - A chest within reach is opened from where the bot stands. It walks only to one it cannot reach.
+  - If a chest changes while the bot works, it notices, puts down what it is carrying and plans again.
+    A chest that will not open is left out and named. Nothing is lost either way.
+
 ## [0.2.0] - 2026-11-14
 
 The bot remembers the world it has seen, and walks back the way it came. Built on the same Mindcraft-CE

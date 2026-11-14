@@ -134,6 +134,10 @@ const settings = {
     // ways it has walked, and notices when a place has changed. Trips to places it has been follow the way
     // it walked. Needs fair_play on; false turns it off. See docs/world-memory.md.
     "world_memory": true,
+    // Chest sorting: adds !sortChests, which tidies the chests and barrels around the bot (part stacks
+    // merged, each kind of item together, related kinds in the same chest). Works with fair play on or
+    // off; false leaves the command out. See docs/chest-sorting.md.
+    "chest_sorting": true,
     "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
 
     // Allows generated executable code (newAction/executeCode/augments) with host access.

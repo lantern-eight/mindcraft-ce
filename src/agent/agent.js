@@ -20,6 +20,7 @@ import { AgentSystem } from './agents/system.js';
 import { DecisionService } from './decisions.js';
 import { log, validateNameFormat, handleDisconnection } from './connection_handler.js';
 import { installFairPlay } from './fairplay/install.js';
+import { installStorage } from './storage/install.js';
 
 /** The chat command that applies a profile's skin, or null when the profile doesn't set one. */
 export function skinCommand(profile) {
@@ -104,6 +105,8 @@ export class Agent {
         // Fair play (off unless settings.fair_play says otherwise): locks cheat mode, guards slash
         // commands, and on spawn makes every world search answer only from what the bot has seen.
         installFairPlay(this);
+        // Chest sorting (off unless settings.chest_sorting is true): adds the !sortChests command.
+        installStorage(this);
 
         this.bot.on('login', () => {
             console.log(this.name, 'logged in!');

@@ -301,6 +301,11 @@
         "default": true,
         "description": "World memory: the bot remembers every block it has seen, chests and their contents, places, the ways it has walked, and notices when a place has changed. Trips to places it has been follow the way it walked. Needs fair_play on. See docs/world-memory.md."
     },
+    "chest_sorting": {
+        "type": "boolean",
+        "default": true,
+        "description": "Chest sorting: adds !sortChests, which tidies the chests and barrels around the bot (part stacks merged, each kind of item together, related kinds in the same chest). Works with fair play on or off. See docs/chest-sorting.md."
+    },
     "good_neighbor": {
         "type": "object",
         "default": {
