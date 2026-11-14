@@ -61,9 +61,8 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
-animals), limiting the pathfinder's choice of route to blocks the bot has seen, and following the
-remembered trail on long trips. The guide lists every
-[known limit](docs/fair-play.md#known-limits).
+animals), and limiting the pathfinder's choice of route to blocks the bot has seen on a trip to somewhere
+it has not been. The guide lists every [known limit](docs/fair-play.md#known-limits).
 
 ## Quick Start
 
