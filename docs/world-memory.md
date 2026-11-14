@@ -124,11 +124,26 @@ World memory is built so it never slows the game.
 - **Reading and writing a remembered block** take tens of nanoseconds.
 - **Saving** happens once a minute, only for what changed, a few milliseconds at a time.
 
+Measured with the bot standing in a normal world (one laptop; your numbers will differ):
+
+| Where the bot stood | A whole look-around, first time | The same ground again | Slices of work |
+|---|---|---|---|
+| On the surface | 14 ms | 11 ms | 2, the longest 4.2 ms |
+| In a cave | 23 ms | 19 ms | 5, the longest 4.1 ms |
+| Inside a house full of chests | 10 ms | 3 ms | 1 |
+
+| Asked of memory | Time |
+|---|---|
+| The nearest five blocks of one type | About 0.1 ms |
+| The text of a `!recall` answer | Under 0.01 ms |
+| A route across a trail of 1,000 spots (4 km walked) | 0.5 ms |
+| A route across 100,000 spots (400 km walked) | 24 ms |
+
 | Stored | Size |
 |---|---|
-| One 16-block cube of terrain, on disk | About 135 bytes |
+| One 16-block cube, on disk | 120 to 320 bytes; about 160 on average |
 | One cube in memory | 4 KB, for the cubes near the bot |
-| A kilometre of new ground walked | Roughly 50 to 150 KB of cells and 40 KB of trail |
+| A kilometre of new ground walked | Roughly 50 to 150 KB of cells and 25 KB of trail |
 
 Walking the same ground again adds nothing. Cells are kept in small region files (64 blocks a side) that
 load only when something asks about that part of the world.
@@ -145,6 +160,8 @@ load only when something asks about that part of the world.
 - **The same-spot rule is not used yet.** A block that turns up where the bot had recorded nothing is
   reported only if the bot had seen that cell empty, which covers anything built on ground it has seen.
 - **Memory never fades.** A much-travelled world grows by the sizes above and nothing is thinned out yet.
+- **The trail is saved as one file.** That is quick for a long time (under 3 ms at 40 km walked) and
+  grows with the trail: about 50 ms at 400 km walked, which would be felt once a minute.
 
 ## For Developers
 
