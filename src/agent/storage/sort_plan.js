@@ -423,12 +423,16 @@ export function planSort(chests, { stackSize = () => 64, groupOf = groupByName, 
  * Carries a list of moves out on a copy of the chests, and says what the chests and the bot's hands
  * hold afterwards. Throws on a move that could not be made, so it doubles as the check that a plan
  * is sound. The chests handed in are not changed.
+ *
+ * `bag` is what the bot's hands hold to begin with, for carrying a plan out one move at a time: the
+ * hands that one call returns go into the next. Without it they start empty, `carry` of them.
  * @returns {{chests: object[], bag: (object|null)[]}}
  */
-export function applyMoves(chests, moves, { stackSize = () => 64, carry = 27 } = {}) {
+export function applyMoves(chests, moves, { stackSize = () => 64, carry = 27, bag: held = null } = {}) {
     const state = copyChests(chests);
-    const sizes = stackSizes(state, stackSize);
-    const bag = new Array(handCount(carry)).fill(null);
+    const bag = held ? held.map(copyStack) : new Array(handCount(carry)).fill(null);
+    // What is in hand counts too when working out how big a stack can be.
+    const sizes = stackSizes([...state, { slots: bag }], stackSize);
     const byId = new Map(state.map(chest => [chest.id, chest]));
     const has = (list, index, what) => {
         if (!Number.isInteger(index) || index < 0 || index >= list.length) throw new Error(`${what} no slot ${index}.`);
