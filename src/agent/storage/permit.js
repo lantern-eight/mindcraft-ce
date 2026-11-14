@@ -71,8 +71,10 @@ export function poolsFor(chests, book, { whose, chest: where, asked = null } = {
             if (!byOwner.has(key)) byOwner.set(key, { owner, chests: [] });
             byOwner.get(key).chests.push(chest);
         } else if (sorting === 'never') leave(chest, 'never');
+        // A chest nobody owns is worth asking about, whatever was asked for.
+        else if (owner === null) leave(chest, 'unknown');
         else if (everyApproved) leave(chest, 'not_always');
-        else if (!sameOwner(owner, whose)) leave(chest, owner === null ? 'unknown' : 'other');
+        else if (!sameOwner(owner, whose)) leave(chest, 'other');
         else leave(chest, 'not_asked');
     }
     pools.push(...[...byOwner.values()].sort((a, b) => rank(a.owner) - rank(b.owner) || compare(a.owner ?? '', b.owner ?? '')));

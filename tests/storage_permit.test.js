@@ -60,6 +60,9 @@ test('"approved" takes every chest marked always, each owner\'s as a separate po
     ]);
     assert.equal(why(result, '2,64,0'), 'not_always');
     assert.equal(why(result, '6,64,0'), 'not_always');
+    // A chest nobody owns is asked about, whatever was asked for.
+    book.mark(chests[5], { sorting: 'asked' });
+    assert.equal(why(poolsFor(chests, book, { whose: 'approved' }), '10,64,0'), 'unknown');
     // Items never move between owners: no chest is in two pools, and no pool has two owners.
     const seen = result.pools.flatMap(pool => ids(pool.chests));
     assert.equal(new Set(seen).size, seen.length);
