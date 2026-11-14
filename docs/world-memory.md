@@ -7,7 +7,7 @@ is as it left it.
 Without it, the bot remembers a short list of notable blocks. With it, the bot can answer "where is the
 iron?", walk back to "the base" by the way it came, and say "two chests are gone" when it comes home.
 
-- [Turning It On](#turning-it-on)
+- [Turning It On or Off](#turning-it-on-or-off)
 - [What the Bot Remembers](#what-the-bot-remembers)
 - [What the Model Can Ask](#what-the-model-can-ask)
 - [Finding the Way](#finding-the-way)
@@ -17,17 +17,17 @@ iron?", walk back to "the base" by the way it came, and say "two chests are gone
 - [Known Limits](#known-limits)
 - [For Developers](#for-developers)
 
-## Turning It On
+## Turning It On or Off
 
-In `settings.js`:
+World memory is **on by default**. To turn it off, in `settings.js`:
 
 ```javascript
-"world_memory": true,
+"world_memory": false,
 ```
 
-It is **off by default** while it is new. It needs `fair_play` to be on (`"strict"` or `"custom"`),
-because it sees through fair play's eyes. With `world_memory` off, nothing here runs and the bot behaves
-as before.
+It needs `fair_play` to be on (`"strict"` or `"custom"`), because it sees through fair play's eyes. With
+fair play off it does nothing, whatever this setting says. With `world_memory` off, nothing here runs:
+the bot remembers a short list of notable blocks, and every walk is planned afresh.
 
 Memory is kept per server, world and dimension, under `bots/<name>/memory/`. The Nether never mixes with
 the overworld, and one server's base is never looked for on another. Deleting that folder makes the bot

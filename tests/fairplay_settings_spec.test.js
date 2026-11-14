@@ -34,3 +34,9 @@ test('an agent created through MindServer keeps fair play: strict by default, or
     assert.equal(resolvePolicy(custom).ores_through_walls, true);
     assert.equal(resolvePolicy(throughMindServer({ profile: { name: 'a' }, fair_play: 'off' })).mode, 'off');
 });
+
+test('world memory is on by default, in settings.js and for an agent created through MindServer', () => {
+    assert.equal(settings.world_memory, true);
+    assert.equal(throughMindServer({ profile: { name: 'a' } }).world_memory, true);
+    assert.equal(throughMindServer({ profile: { name: 'a' }, world_memory: false }).world_memory, false, 'and stays off when it was turned off');
+});

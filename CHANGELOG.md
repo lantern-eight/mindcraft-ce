@@ -11,8 +11,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Added
 
-- **World memory** (`world_memory: true`, off by default; needs fair play on). The bot remembers the world
-  the way a player who has been there does. See `docs/world-memory.md`.
+- **World memory.** The bot remembers the world the way a player who has been there does. It is on by
+  default, needs fair play on, and `world_memory: false` turns it off. See `docs/world-memory.md`.
   - **Every block it has seen,** not only notable ones, per server, world and dimension.
   - **Things:** containers, workstations, doors, beds, signs, portals and ores, with their state and when
     they were last seen. A double chest, a bed and a door are each one thing.
@@ -32,13 +32,19 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
-- With world memory on, `!recall` takes any text: a block type, a kind of thing ("chest", "door"), an
-  item in the containers the bot opened ("iron"), an animal, a crop, a place name, or "changes". With
-  world memory off it is unchanged.
-- With world memory on, `!rememberHere` and `!goToRememberedPlace` keep their names as places in world
-  memory. Places saved earlier are carried over, and nothing is lost if world memory is turned off again.
-- With world memory on, searches such as `!searchForBlock` remember every kind of block the bot has
-  seen, not only notable ones.
+World memory is on by default, so each of these applies unless `world_memory` is set to `false`:
+
+- `!recall` takes any text: a block type, a kind of thing ("chest", "door"), an item in the containers
+  the bot opened ("iron"), an animal, a crop, a place name, or "changes". With world memory off it is
+  unchanged.
+- `!rememberHere` and `!goToRememberedPlace` keep their names as places in world memory. Places saved
+  earlier are carried over, and nothing is lost if world memory is turned off again.
+- Searches such as `!searchForBlock` remember every kind of block the bot has seen, not only notable
+  ones.
+- Every command and skill that walks follows the trail when the bot knows a way, as described above.
+- The notable blocks remembered by earlier versions (under `bots/<name>/seen/`) are not carried into
+  world memory, which starts from what the bot sees from now on. That file is left as it is, and is
+  used again if world memory is turned off.
 
 ## [0.1.1] - 2026-11-13
 

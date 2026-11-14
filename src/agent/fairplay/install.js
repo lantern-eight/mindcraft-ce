@@ -200,6 +200,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     };
     let runner = null;
 
+    // The shipped settings turn world memory on. A config that leaves the key out gets the seen-world
+    // map instead, the same way a config that leaves `fair_play` out gets no fair play.
     const worldMemory = config.world_memory === true;
     const mapDir = seenDir ?? `./bots/${agent.name}/seen`;
     const worldDir = memoryDir ?? `./bots/${agent.name}/memory`;

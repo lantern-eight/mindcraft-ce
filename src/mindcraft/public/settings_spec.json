@@ -298,8 +298,8 @@
     },
     "world_memory": {
         "type": "boolean",
-        "default": false,
-        "description": "World memory: the bot remembers every block it has seen, chests and their contents, places, the ways it has walked, and notices when a place has changed. Needs fair_play on. See docs/world-memory.md."
+        "default": true,
+        "description": "World memory: the bot remembers every block it has seen, chests and their contents, places, the ways it has walked, and notices when a place has changed. Trips to places it has been follow the way it walked. Needs fair_play on. See docs/world-memory.md."
     },
     "good_neighbor": {
         "type": "object",
