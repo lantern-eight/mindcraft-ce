@@ -28,12 +28,13 @@ function clock(start = 1_000_000) {
 }
 
 /** A flat stone floor at y 0, the bot standing on it at the origin, and whatever `build` adds. */
-function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [] } = {}) {
+function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [], prepare = () => {} } = {}) {
     const world = fixtureWorld({ min: [-40, -4, -40], max: [40, 24, 40] });
     world.fill('stone', [-40, 0, -40], [40, 0, 40]);
     build(world);
     const bot = stubBot(world, { entities });
     bot.entity.onGround = true;
+    prepare(bot);
     let recorder = null;
     const memory = openMemory({ baseDir, scope: SCOPE, now, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
@@ -92,6 +93,16 @@ test('nothing runs while the bot stands still in an unchanged world', () => {
     bot.emit('blockUpdate', null, { position: new Vec3(2, 1, 2) });
     recorder.tick();
     assert.equal(memory.cells.read(2, 1, 2), 'oak_planks', 'a block changing nearby starts a look');
+
+    // So does a chunk arriving: a bot that lands somewhere before its chunks load must look again.
+    world.set('glass', 3, 1, 3);
+    bot.emit('chunkColumnLoad', new Vec3(0, 0, 0));
+    recorder.tick();
+    assert.equal(memory.cells.read(3, 1, 3), 'glass');
+    world.set('glass', 4, 1, 4);
+    bot.emit('chunkColumnLoad', new Vec3(1600, 0, 1600));   // a chunk far away is no reason to look
+    recorder.tick();
+    assert.equal(memory.cells.read(4, 1, 4), 'air');
 });
 
 test('A1 and A2: a wall of planks replaced by glass while the bot was away is one note; no change, no note', () => {
@@ -122,6 +133,8 @@ test('A3: a hut built on ground the bot had seen is a note naming planks, from a
     lookAround();
     const [note] = notes();
     assert.match(note, /^Noticed near .*: New: oak_planks \d+\.$/);
+    // Only the bottom row stands where it had seen empty air, but the wall above it is counted too.
+    assert.equal(Number(note.match(/oak_planks (\d+)/)[1]) >= 20, true, note);
 });
 
 test('A4: a hut the bot comes across for the first time is recorded, not reported', () => {
@@ -165,6 +178,18 @@ test('A6: a chest gone from a known place is a note, however little else changed
     lookAround();
     assert.deepEqual(notes(), ['Noticed at the base: Gone: chest 1.']);
     assert.equal(memory.things.get(4, 1, 0).provenance, 'gone');
+
+    // A double chest is one thing in two cells: new, it is one new chest; gone, one chest gone.
+    world.set('chest', 4, 1, 3, { facing: 'west', type: 'right' });
+    world.set('chest', 4, 1, 4, { facing: 'west', type: 'left' });
+    now.advance(3_600_000);
+    lookAround();
+    assert.deepEqual(notes(), ['Noticed at the base: New: chest 1.'], 'it stands where the bot had seen empty floor');
+    assert.equal(memory.things.count('chest'), 1);
+    world.set('air', 4, 1, 3); world.set('air', 4, 1, 4);
+    now.advance(3_600_000);
+    lookAround();
+    assert.deepEqual(notes(), ['Noticed at the base: Gone: chest 1.']);
     assert.equal(memory.things.nearest(['chest'], { x: 0, y: 1, z: 0 }).length, 0);
 });
 
@@ -184,33 +209,33 @@ test('walking drops crumbs, and the walk test keeps crumbs either side of a wall
 });
 
 test('opening a container records what is in it, and closing it records what the bot left', async () => {
-    const { world, bot, memory, recorder, now } = setup(w => {
-        // A double chest facing west: seen from the front, its left half is the one to the south.
-        w.set('chest', 2, 1, 0, { facing: 'west', type: 'right' });
-        w.set('chest', 2, 1, 1, { facing: 'west', type: 'left' });
-    });
     // A stand-in for mineflayer's openBlock and the window it gives back.
     const stacks = [{ name: 'iron_ingot', count: 40 }, { name: 'bread', count: 5 }];
     const window = { inventoryStart: 54, containerItems: () => stacks };
-    bot.openBlock = async () => window;
-    recorder.stop();
-    recorder.listen();                              // again, now that there is an openBlock to watch
-    try {
-        recorder.tick();
-        assert.equal(memory.things.count('chest'), 1, 'the two halves are one chest');
-        assert.equal(memory.things.get(2, 1, 0).contents, undefined, 'it has not looked inside yet');
-        await bot.openBlock({ position: new Vec3(2, 1, 1) });
-        assert.deepEqual(memory.things.get(2, 1, 0).contents.items, { iron_ingot: 40, bread: 5 });
-        assert.equal(memory.things.get(2, 1, 0).contents.freeSlots, 52);
+    const { bot, memory, recorder, now } = setup(w => {
+        // A double chest facing west: seen from the front, its left half is the one to the south.
+        w.set('chest', 2, 1, 0, { facing: 'west', type: 'right' });
+        w.set('chest', 2, 1, 1, { facing: 'west', type: 'left' });
+    }, { prepare: b => { b.openBlock = async () => window; } });
+    recorder.tick();
+    assert.equal(memory.things.count('chest'), 1, 'the two halves are one chest');
+    assert.equal(memory.things.get(2, 1, 0).contents, undefined, 'it has not looked inside yet');
+    await bot.openBlock({ position: new Vec3(2, 1, 1) });
+    assert.deepEqual(memory.things.get(2, 1, 0).contents.items, { iron_ingot: 40, bread: 5 });
+    assert.equal(memory.things.get(2, 1, 0).contents.freeSlots, 52);
 
-        stacks.pop();                               // it takes the bread
-        now.advance(4000);
-        bot.emit('windowClose', window);
-        assert.deepEqual(memory.things.get(2, 1, 1).contents.items, { iron_ingot: 40 });
-        assert.equal(memory.things.findItem('iron', { x: 0, y: 1, z: 0 })[0].total, 40);
-        assert.equal(memory.things.findItem('bread', { x: 0, y: 1, z: 0 }).length, 0);
-    } finally { recorder.stop(); }
-    assert.equal(world.nameAt(2, 1, 0), 'chest');
+    stacks.pop();                               // it takes the bread
+    now.advance(4000);
+    bot.emit('windowClose', window);
+    assert.deepEqual(memory.things.get(2, 1, 1).contents.items, { iron_ingot: 40 });
+    assert.equal(memory.things.findItem('iron', { x: 0, y: 1, z: 0 })[0].total, 40);
+    assert.equal(memory.things.findItem('bread', { x: 0, y: 1, z: 0 }).length, 0);
+
+    // A recorder that has stopped (the bot left for another dimension) hears nothing more.
+    recorder.stop();
+    stacks.push({ name: 'diamond', count: 1 });
+    await bot.openBlock({ position: new Vec3(2, 1, 1) });
+    assert.equal(memory.things.findItem('diamond', { x: 0, y: 1, z: 0 }).length, 0);
 });
 
 test('fields and herds are kept per cube from what is in view', () => {

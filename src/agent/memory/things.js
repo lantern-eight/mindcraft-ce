@@ -100,13 +100,16 @@ export function createThings({ scope, now = Date.now, kindOf = defaultKindOf, ma
          * @param {object} [seen]
          * @param {object|null} [seen.state] - the block's properties by name (facing, open, age...)
          * @param {number|null} [seen.from] - the trail crumb the bot stands at
+         * @param {number|null} [seen.fromDistance] - how far the bot is from the thing. The crumb kept is
+         *   the one it was seen from closest up: that is the spot to walk back to, not wherever it last
+         *   caught sight of the thing from across a field
          * @param {number|null} [seen.day] - the game day
          * @param {object|null} [seen.partner] - the cell of its other half (double chest, bed, door)
          * @param {string} [seen.text] - what a sign says
          * @param {boolean} [seen.touched] - known by touch, not by sight
          * @returns {{thing: object, isNew: boolean}} `isNew` when the bot didn't already believe it was there
          */
-        see(pos, name, { state = null, from = null, day = null, partner = null, text = undefined, touched = false } = {}) {
+        see(pos, name, { state = null, from = null, fromDistance = null, day = null, partner = null, text = undefined, touched = false } = {}) {
             const { x, y, z } = cellOf(pos);
             const t = now();
             let thing = byKey.get(keyOf(x, y, z));
@@ -140,7 +143,10 @@ export function createThings({ scope, now = Date.now, kindOf = defaultKindOf, ma
             thing.lastSeen = t;
             thing.provenance = touched ? 'touched' : 'observed';
             delete thing.goneAt;
-            if (from !== null) thing.from = from;
+            if (from !== null && (thing.from == null || fromDistance === null || !(fromDistance > thing.fromDistance))) {
+                thing.from = from;
+                if (fromDistance !== null) thing.fromDistance = Math.round(fromDistance * 10) / 10;
+            }
             if (day !== null) thing.day = day;
             if (text !== undefined) thing.text = text;
             dirty = true;

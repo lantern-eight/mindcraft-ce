@@ -166,6 +166,15 @@ export function withNotes(result, memory) {
 const memoryOf = agent => agent.fairPlay?.memory ?? null;
 const OFF = 'World memory is off (set world_memory to true in settings.js).';
 
+// Registered in place of fair play's own !recall, which only knows block types.
+export const recallCommand = {
+    name: '!recall',
+    description: 'Ask what you remember, however far away: a block type ("sand", "iron_ore"), a kind of thing ("chest", "door", "bed"), '
+        + 'an item to find in the containers you opened ("iron"), an animal, a crop, a place name, or "changes" for what you noticed had changed.',
+    params: { 'what': { type: 'string', description: 'What to recall.' } },
+    perform: (agent, what) => (memoryOf(agent) ? recallText(memoryOf(agent), agent.bot.entity.position, what) : OFF),
+};
+
 export const placesCommand = {
     name: '!places',
     description: 'List the places you know of, nearest first, with what you remember at each.',

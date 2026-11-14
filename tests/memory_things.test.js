@@ -37,6 +37,11 @@ test('K1: a thing seen once is remembered after walking away, with when and from
     assert.deepEqual(hit.state, { facing: 'north', lit: 'false' });
     assert.equal(things.see({ x: 10, y: 63, z: -4 }, 'furnace').isNew, false);
     assert.equal(things.get(10, 63, -4).from, 12, 'seeing it again without a crumb keeps the old one');
+    // The crumb kept is the one it was seen from closest up.
+    things.see({ x: 10, y: 63, z: -4 }, 'furnace', { from: 20, fromDistance: 15 });
+    things.see({ x: 10, y: 63, z: -4 }, 'furnace', { from: 21, fromDistance: 3 });
+    things.see({ x: 10, y: 63, z: -4 }, 'furnace', { from: 22, fromDistance: 18 });
+    assert.equal(things.get(10, 63, -4).from, 21, 'not the far-off spot it last glimpsed it from');
 });
 
 test('K1: nearest sorts by distance, respects limit and maximum distance, and filters by kind', () => {

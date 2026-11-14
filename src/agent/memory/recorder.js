@@ -22,6 +22,7 @@ import { AIR, OTHER_NAME } from './cells.js';
 import { isCrop, isHerdAnimal, isRipe, kindOf, moveKindOf, partnerOffset, startsPlace } from './kinds.js';
 
 const WATCHING_MS = 60_000; // a cell seen this recently was being watched: a change to it is no surprise
+const containerWatch = new WeakMap(); // bot -> the one wrapper around its openBlock
 const cubeKey = (cx, cy, cz) => `${cx},${cy},${cz}`;
 
 /**
@@ -91,6 +92,8 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     let timer = null;
     let listening = false;
 
+    const eyeOrFeet = () => eye ?? bot.entity.position;
+
     /** Touch: the cells the body is in, the ones just below and above, and the four beside each. */
     function touching(x, y, z) {
         const sideways = Math.abs(x - feet.x) + Math.abs(z - feet.z);
@@ -111,13 +114,47 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
 
     // ---- Writing one seen cell ----
 
-    function noteDifference(x, y, z, before, after, t) {
+    const isMine = (x, y, z, after) => {
         const tag = cells.tagOf(x, y, z);
-        const mine = tag === 'dug' ? after === AIR : tag === 'placed' ? after !== AIR : false;
+        return tag === 'dug' ? after === AIR : tag === 'placed' ? after !== AIR : false;
+    };
+
+    function noteDifference(x, y, z, before, after, t, place) {
         const { watched, lookedBefore } = recently(x, y, z, t);
-        changes.see({ x, y, z, before, after, mine, watched, lookedBefore, place: places.at({ x, y, z })?.id ?? null });
-        if (before && kindFor(before)) things.seeCell({ x, y, z }, after);
+        // A double chest, a bed or a door is one thing in two cells. Once its first cell has been seen
+        // gone the thing is gone, and the second cell is not a second loss.
+        let was = before;
+        if (before && kindFor(before)) {
+            if (things.get(x, y, z)?.provenance === 'gone') was = AIR;
+            things.seeCell({ x, y, z }, after);
+        }
+        const what = was === after ? null
+            : changes.see({ x, y, z, before: was, after, mine: isMine(x, y, z, after), watched, lookedBefore, place });
+        if (pass && (what === 'appeared' || what === 'replaced')) pass.appeared.push(x, y, z);
         if (before && isCrop(before) && pass?.cube) pass.cube.crops.add(before);
+    }
+
+    // A whole number for a cell near where this look began, so the cells first seen in it can be kept in a map.
+    const nearKey = (x, y, z) => (((x - feet.x + 64) & 127) << 14) | (((y - feet.y + 64) & 127) << 7) | ((z - feet.z + 64) & 127);
+
+    // The bot knows a block appeared only where it had seen empty space, which is the row of a new wall
+    // that stands on ground it had seen. The rest of the wall is cells it never looked at before. But a
+    // block first seen in this same look, of the same kind, touching one that certainly appeared, is
+    // part of the same new thing, so it is counted with it. Without this a new hut reads as nine blocks.
+    function spreadAppeared() {
+        const queue = pass.appeared;
+        while (queue.length) {
+            const z = queue.pop(), y = queue.pop(), x = queue.pop();
+            const name = cells.read(x, y, z);
+            for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+                const nx = x + dx, ny = y + dy, nz = z + dz;
+                const key = nearKey(nx, ny, nz);
+                if (pass.fresh.get(key) !== name) continue;
+                pass.fresh.delete(key);
+                changes.see({ x: nx, y: ny, z: nz, before: AIR, after: name, mine: isMine(nx, ny, nz, name), place: places.at({ x: nx, y: ny, z: nz })?.id ?? null });
+                queue.push(nx, ny, nz);
+            }
+        }
     }
 
     /** The bot sees (or touches) this cell holding this block state right now. */
@@ -128,22 +165,33 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const t = now();
         const before = cells.write(x, y, z, name);
         const kind = name === AIR ? null : kindFor(name);
-        if (before === null) { if (kind) noteDifference(x, y, z, null, name, t); else recently(x, y, z, t); }
-        else if (before !== name && before !== OTHER_NAME) noteDifference(x, y, z, before, name, t);
-        else recently(x, y, z, t);
+        const differs = before === null ? Boolean(kind) : before !== name && before !== OTHER_NAME;
+        // The place is looked up before this thing can make or grow one: "a new thing in a place I knew"
+        // has to mean a place that was there already.
+        const place = differs ? places.at({ x, y, z })?.id ?? null : null;
+        let secondHalf = false;
         if (kind) {
             const state = propsFor(stateId);
             const offset = partnerOffset(name, state);
             const { thing, isNew } = things.see({ x, y, z }, name, {
-                state, from: trail.current, day: bot.time?.day ?? null,
+                state, from: trail.current, fromDistance: Math.hypot(x + 0.5 - eyeOrFeet().x, y + 0.5 - eyeOrFeet().y, z + 0.5 - eyeOrFeet().z),
+                day: bot.time?.day ?? null,
                 partner: offset ? { x: x + offset.x, y: y + offset.y, z: z + offset.z } : null,
                 ...(kind === 'sign' ? { text: signText(x, y, z) } : {}),
             });
             if (isNew && startsPlace(kind)) places.noteThing(thing);
+            // The other cell of a two-block thing the bot already has: not a second new thing.
+            secondHalf = !isNew && thing.also?.x === x && thing.also.y === y && thing.also.z === z && (before === null || before === AIR);
         } else if (pass?.cube && isCrop(name)) {
             pass.cube.crops.add(name);
             if (isRipe(name, propsFor(stateId))) pass.cube.ripe.set(name, (pass.cube.ripe.get(name) ?? 0) + 1);
         }
+        // Only cells near where this look began fit the map's numbering; a far one (asked about by a
+        // skill mid-look) is left out so that it can never be taken for a near one.
+        if (before === null && pass && name !== AIR && Math.abs(x - feet.x) < 64 && Math.abs(y - feet.y) < 64 && Math.abs(z - feet.z) < 64)
+            pass.fresh.set(nearKey(x, y, z), name);
+        if (differs && !secondHalf) noteDifference(x, y, z, before, name, t, place);
+        else recently(x, y, z, t);
     }
 
     function recordAt(pos) {
@@ -161,7 +209,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const minY = bot.game?.minY ?? -64;
         const maxY = minY + (bot.game?.height ?? 384) - 1;
         pass = { sections: sectionsInRange(feet, radius, minY, maxY), next: 0, queue: [], cube: null, minY,
-            crumb: trail.current };
+            crumb: trail.current, fresh: new Map(), appeared: [] };
         lastPassEye = eye;
         worldChanged = false;
         try {
@@ -212,6 +260,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     // Animals in view, per cube. A remembered herd whose spot is in view with no such animal near it has
     // moved on, and is forgotten; one whose spot can't be seen from here is left as it was remembered.
     function finishPass() {
+        if (pass.appeared.length && pass.fresh.size) spreadAppeared();
         const groups = new Map();
         for (const entity of perception.entities()) {
             if (!isHerdAnimal(entity.name) || !entity.position) continue;
@@ -321,18 +370,29 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     }
 
     // Every way of opening a container block goes through bot.openBlock, so one wrapper sees them all.
+    // The bot is wrapped once, however many recorders come and go (one per dimension the bot visits);
+    // the wrapper passes each opening on to whichever recorder is listening now.
     function watchContainers() {
-        if (typeof bot.openBlock !== 'function' || bot.openBlock.worldMemory) return;
-        const openBlock = bot.openBlock;
-        bot.openBlock = async function (block, ...rest) {
-            const window = await openBlock.call(this, block, ...rest);
-            try {
-                if (block?.position && typeof window?.containerItems === 'function') { opened = { window, pos: block.position }; snapshot(); }
-            } catch (error) { console.warn('[world memory] Could not note what is in the container:', error.message); }
-            return window;
-        };
-        bot.openBlock.worldMemory = true;
+        let watch = containerWatch.get(bot);
+        if (!watch) {
+            if (typeof bot.openBlock !== 'function') return;
+            watch = { onOpen: null };
+            containerWatch.set(bot, watch);
+            const openBlock = bot.openBlock;
+            bot.openBlock = async function (block, ...rest) {
+                const window = await openBlock.call(this, block, ...rest);
+                try { watch.onOpen?.(block, window); }
+                catch (error) { console.warn('[world memory] Could not note what is in the container:', error.message); }
+                return window;
+            };
+        }
+        watch.onOpen = onOpen;
     }
+    const onOpen = (block, window) => {
+        if (!block?.position || typeof window?.containerItems !== 'function') return;
+        opened = { window, pos: block.position };
+        snapshot();
+    };
     const onWindowClose = window => {
         if (opened?.window !== window) return;
         try { snapshot(); } catch { /* the window is gone; the look taken when it opened stands */ }
@@ -348,9 +408,15 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const p = bot.entity?.position;
         if (pos && p && Math.abs(pos.x - p.x) <= radius && Math.abs(pos.y - p.y) <= radius && Math.abs(pos.z - p.z) <= radius) worldChanged = true;
     };
+    // A chunk arriving is new world to look at. Without this, a bot that lands somewhere (a spawn, a
+    // teleport) before its chunks have loaded would look once at nothing and, standing still, never again.
+    const onChunkLoad = corner => {
+        const p = bot.entity?.position;
+        if (!corner || !p || (Math.abs(corner.x + 8 - p.x) <= radius + 8 && Math.abs(corner.z + 8 - p.z) <= radius + 8)) worldChanged = true;
+    };
     const onDeath = () => trail.breakStretch();
     const listeners = [['move', onMove], ['windowClose', onWindowClose], ['diggingCompleted', onDug], ['blockPlaced', onPlaced],
-        ['blockUpdate', onBlockUpdate], ['death', onDeath]];
+        ['blockUpdate', onBlockUpdate], ['chunkColumnLoad', onChunkLoad], ['death', onDeath]];
 
     // ---- What perception is told the bot remembers ----
     //
@@ -414,6 +480,8 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
             timer = null;
             for (const [event, listener] of listeners) bot.off?.(event, listener);
             listening = false;
+            const watch = containerWatch.get(bot);
+            if (watch?.onOpen === onOpen) watch.onOpen = null;
         },
     };
 }

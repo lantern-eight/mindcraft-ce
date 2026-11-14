@@ -29,7 +29,7 @@ import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
 import { recallCommand, withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
-import { namePlaceCommand, placesCommand, withNotes } from '../memory/commands.js';
+import { namePlaceCommand, placesCommand, recallCommand as memoryRecallCommand, withNotes } from '../memory/commands.js';
 import { registerCommand } from '../commands/index.js';
 import * as skills from '../library/skills.js';
 import * as worldModule from '../library/world.js';
@@ -242,7 +242,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     saveTimer.unref?.();
     bot.on('end', () => { clearInterval(saveTimer); handle.recorder?.stop(); handle.perception?.stop(); saveMap({ budgetMs: Infinity }); });
 
-    registerCommand(recallCommand); // the model's way to ask what the bot remembers seeing
+    // The model's way to ask what the bot remembers. World memory brings a fuller one.
+    registerCommand(worldMemory ? memoryRecallCommand : recallCommand);
     if (worldMemory) {
         registerCommand(placesCommand);
         registerCommand(namePlaceCommand);
