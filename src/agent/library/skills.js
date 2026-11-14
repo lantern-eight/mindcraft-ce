@@ -1,6 +1,7 @@
 import * as mc from "../../utils/mcdata.js";
 import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
+import { followKnownWay } from './travel_guide.js';
 import { assertActionOwner, actionContext, onActionCleanup, cancellable } from '../action_context.js';
 import pf from 'mineflayer-pathfinder';
 import Vec3 from 'vec3';
@@ -1048,6 +1049,10 @@ export async function goToGoal(bot, goal) {
      * @param {MinecraftBot} bot, reference to the minecraft bot.
      * @param {pf.goals.Goal} goal, the goal to navigate to.
      **/
+
+    // A trip the bot remembers a walked way for follows that way first, as far as it leads. The
+    // planning below then carries on from wherever that left the bot. See travel_guide.js.
+    await followKnownWay(bot, goal, log);
 
     const nonDestructiveMovements = new pf.Movements(bot);
     const dontBreakBlocks = ['glass', 'glass_pane'];
