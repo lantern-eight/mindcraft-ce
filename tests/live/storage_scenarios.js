@@ -9,8 +9,8 @@
 // and opens it under the fair-play rules.
 //
 // The server console is the "director". It builds the room, fills the chests, and afterwards reads
-// each chest back itself, so nothing the bot believes is taken on trust. The bot is given one
-// instruction, the same command a model would call.
+// each chest back itself, so nothing the bot believes is taken on trust. The bot is given the same
+// commands a model would call: it is told whose a chest is, and then asked to sort.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -66,7 +66,8 @@ try {
     initModes(agent);
     const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'storage-live-')) });
     assert.ok(handle?.memory, 'fair play and world memory are on');
-    assert.deepEqual(installStorage(agent)?.commands, ['!sortChests'], 'chest sorting is on');
+    const storage = installStorage(agent, { bookDir: mkdtempSync(path.join(tmpdir(), 'storage-live-book-')) });
+    assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests'], 'chest sorting is on');
     // The last few things the bot did with a chest, kept so that a run that goes wrong can say where.
     const lately = [];
     const note = text => { lately.push(text); if (lately.length > 12) lately.shift(); };
@@ -78,17 +79,20 @@ try {
         };
     }
     bot.on('windowClose', () => note('close'));
-    /** Gives the bot the command. A sort that never finishes fails here, saying where the bot is stuck, instead of hanging the run. */
-    const sortChests = async (distance, seconds = 120) => {
+    /** Gives the bot a sorting command. A sort that never finishes fails here, saying where the bot is stuck, instead of hanging the run. */
+    const sorting = async (command, args, seconds = 120) => {
         let timer;
         const stuck = new Promise((_, reject) => {
             timer = setTimeout(() => reject(new Error(`the sort did not finish in ${seconds} s: ${JSON.stringify({
                 at: bot.entity.position.floored(), window: bot.currentWindow?.type ?? null, walking: bot.pathfinder.isMoving(), lately, said: bot.output,
             })}`)), seconds * 1000);
         });
-        try { return await Promise.race([getCommand('!sortChests').perform.structured(agent, distance), stuck]); }
+        try { return await Promise.race([getCommand(command).perform.structured(agent, ...args), stuck]); }
         finally { clearTimeout(timer); }
     };
+    const sortChests = (whose, distance) => sorting('!sortChests', [whose, distance]);
+    /** What a player would tell the bot about chests, through the commands a model would use for it. */
+    const say = (command, ...args) => getCommand(command).perform(agent, ...args);
     const settled = async () => { await delay(400); await waitFor(() => !handle.recorder.busy, 20000, () => 'the look-around never finished'); await delay(300); };
 
     // ---- The director's side: filling chests and reading them back through the console ----
@@ -174,18 +178,28 @@ try {
     await cmd('setblock -15 71 -10 chest');
     await fill([-15, 71, -10], { 0: 'dirt x5', 9: 'dirt x6' });
 
-    await step('S1: one chest, two kinds scattered in part stacks: merged, each kind together, nothing gained or lost', async () => {
+    await step('S1: one chest, two kinds scattered in part stacks: left alone until a player says it is hers, then merged, each kind together, nothing gained or lost', async () => {
         await fill(ONE['the chest'][0], { 0: 'cobblestone x40', 3: 'oak_log x10', 7: 'cobblestone x30', 12: 'oak_log x60', 20: 'cobblestone x5' });
         await cmd(`tp ${NAME} -14.5 70 -13.5 -90 0`);
         await delay(1500);
         await settled();
         const own = pockets();
-        const result = await sortChests(6);
+        // Nobody has said whose this chest is, so nothing is sorted, whatever is asked for.
+        const before = await readAll(ONE);
+        for (const whose of ['approved', NAME, 'Alice']) {
+            const refused = await sortChests(whose, 6);
+            assert.equal(refused.status, 'failed', refused.text);
+            assert.match(refused.text, /Nothing was sorted\.\nLeft alone within 6 blocks:\n- 1 chest with no known owner: -12, 70, -14\./, refused.text);
+        }
+        assert.deepEqual(await readAll(ONE), before, 'the chest is slot for slot as it was');
+        // A player says it is hers, and asks.
+        assert.match(say('!markChest', -12, 70, -14, 'Alice', 'same'), /is now Alice's, sorted only when asked/);
+        const result = await sortChests('Alice', 6);
         assert.equal(result.status, 'ok', result.text);
         const after = await readAll(ONE);
         assert.deepEqual(show(after[0].slots), ['oak_log x64', 'oak_log x6', 'cobblestone x64', 'cobblestone x11']);
         assert.ok(packed(after[0].slots), 'from the first slot, with no gaps');
-        assert.match(result.text, /^Sorted 1 chest in \d+ moves: 5 stacks are now 4\.\n- chest at -12, 70, -14: wood, stone \(4 of 27 slots used\)$/, result.text);
+        assert.match(result.text, /^Sorted 1 chest \(Alice's\) in \d+ moves: 5 stacks are now 4\.\n- chest at -12, 70, -14: wood, stone \(4 of 27 slots used\)$/, result.text);
         assert.deepEqual(pockets(), own, 'the bot has exactly what it had before');
         return { text: result.text.split('\n')[0] };
     });
@@ -195,9 +209,9 @@ try {
     });
 
     await step('sorting it again moves nothing, and world memory knows what the chest holds now', async () => {
-        const result = await sortChests(6);
+        const result = await sortChests('Alice', 6);
         assert.equal(result.status, 'ok', result.text);
-        assert.match(result.text, /^The chest here is already in order\. Nothing was moved\./);
+        assert.match(result.text, /^The chest here \(Alice's\) is already in order\. Nothing was moved\./);
         const recall = getCommand('!recall').perform(agent, 'cobblestone');
         assert.match(recall, /IN CONTAINERS YOU OPENED\n- chest at -12, 70, -14: cobblestone 75 /, recall);
     });
@@ -218,7 +232,9 @@ try {
         const before = await readAll(TWENTY);
         assert.equal(before[0].slots.filter(Boolean).length, 27, 'the chest starts full');
         const own = pockets();
-        const result = await sortChests(6);
+        // This one is the bot's own, which it may sort without being asked.
+        assert.match(say('!markChests', 'unknown', 6, NAME, 'same'), /^Marked 1 chest as your own, may always be sorted: 12, 70, -14\.$/);
+        const result = await sortChests('approved', 6);
         assert.equal(result.status, 'ok', result.text);
         const after = await readAll(TWENTY);
         assert.deepEqual(totals(after), totals(before), 'nothing gained or lost');
@@ -244,7 +260,9 @@ try {
         const before = await readAll(FOUR);
         const own = pockets();
         const started = Date.now();
-        const result = await sortChests(8);
+        // "These are for everyone": all four in view are marked at once, then sorted together.
+        assert.match(say('!markChests', 'unknown', 8, 'shared', 'same'), /^Marked 4 chests as shared, sorted only when asked: /);
+        const result = await sortChests('shared', 8);
         assert.equal(result.status, 'ok', result.text);
         const after = await readAll(FOUR);
         assert.deepEqual(totals(after), totals(before), 'nothing gained or lost');
@@ -259,7 +277,7 @@ try {
         const pickaxes = after.flatMap(c => c.slots).filter(s => s?.name === 'iron_pickaxe');
         assert.equal(new Set(pickaxes.map(s => s.key)).size, 2);
         assert.equal(Object.values(totals(after)).length, Object.values(totals(before)).length);
-        assert.match(result.text, /^Sorted 4 chests in \d+ moves: \d+ stacks are now \d+\./, result.text);
+        assert.match(result.text, /^Sorted 4 chests \(shared\) in \d+ moves: \d+ stacks are now \d+\./, result.text);
         assert.match(result.text, /- double chest at 3, 70, 11: /, result.text);
         assert.match(result.text, /- barrel at 3, 70, 14: /, result.text);
         assert.deepEqual(pockets(), own);
@@ -270,7 +288,7 @@ try {
         await cmd(`tp ${NAME} -14.5 70 13.5`);
         await delay(1500);
         await settled();
-        const result = await sortChests(4);
+        const result = await sortChests('approved', 4);
         assert.equal(result.status, 'failed');
         assert.match(result.text, /don't see or remember a chest or barrel within 4 blocks/);
     });
