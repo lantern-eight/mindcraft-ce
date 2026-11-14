@@ -9,6 +9,33 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- **World memory** (`world_memory: true`, off by default; needs fair play on). The bot remembers the world
+  the way a player who has been there does. See `docs/world-memory.md`.
+  - **Every block it has seen,** not only notable ones, per server, world and dimension.
+  - **Things:** containers, workstations, doors, beds, signs, portals and ores, with their state and when
+    they were last seen. A double chest, a bed and a door are each one thing.
+  - **Container contents,** taken when the bot opens a container and again when it closes it.
+  - **Fields and herds:** crops per area with how many were ripe, and the animals it saw.
+  - **A trail** of where it has walked, which `!recall` uses to say how long a known way takes.
+  - **Places:** chests, workstations, beds, doors and signs close together become a site with no one
+    having to save it, and it can be named later.
+  - **Change notes:** when a place is not as the bot remembers it, one sentence is added to the result of
+    the action it was doing, such as "Noticed at the base: Gone: chest 2. New: oak_planks 42."
+- `!places` lists the places the bot knows and what is at each. `!namePlace` names the place it stands in.
+- Live scenarios for world memory (`tests/live/memory_scenarios.js`), on a real server with no model calls.
+
+### Changed
+
+- With world memory on, `!recall` takes any text: a block type, a kind of thing ("chest", "door"), an
+  item in the containers the bot opened ("iron"), an animal, a crop, a place name, or "changes". With
+  world memory off it is unchanged.
+- With world memory on, `!rememberHere` and `!goToRememberedPlace` keep their names as places in world
+  memory. Places saved earlier are carried over, and nothing is lost if world memory is turned off again.
+- With world memory on, searches such as `!searchForBlock` remember every kind of block the bot has
+  seen, not only notable ones.
+
 ## [0.1.1] - 2026-11-13
 
 Documentation only. Built on the same Mindcraft-CE commit as 0.1.0.

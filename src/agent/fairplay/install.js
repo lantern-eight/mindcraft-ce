@@ -15,6 +15,9 @@
 //      within a player's reach and in view.
 //   6. For the model: a !recall command (what the bot remembers seeing), and a sentence added to an
 //      empty-handed search explaining that "not found" now means "not seen".
+//   7. World memory, when `world_memory` is on: in place of the seen-world map, the bot remembers every
+//      block it has seen, things, places, a trail and changes (src/agent/memory/). It adds !places and
+//      !namePlace, and saved places move into it.
 // With `fair_play: "off"` (the default when the setting is absent) nothing is installed.
 import settings from '../settings.js';
 import { resolvePolicy } from './policy.js';
@@ -25,6 +28,8 @@ import { setWorldQueries } from '../library/world_queries.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
 import { recallCommand, withSearchHint } from './commands.js';
+import { attachWorldMemory, placeBank } from '../memory/install.js';
+import { namePlaceCommand, placesCommand, recallCommand as memoryRecallCommand, withNotes } from '../memory/commands.js';
 import { registerCommand } from '../commands/index.js';
 import * as skills from '../library/skills.js';
 import * as worldModule from '../library/world.js';
@@ -111,7 +116,7 @@ export function scopeOf(bot, config = settings) {
  * @param {object} agent - the CE Agent, after initModes
  * @returns {object|null} the fair-play handle (also stored on agent.fairPlay), or null when off
  */
-export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000, seenDir = null, perceptionOptions = {} } = {}) {
+export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000, seenDir = null, memoryDir = null, perceptionOptions = {} } = {}) {
     const policy = resolvePolicy({ ...config, ...(agent.prompter?.profile ?? {}) });
     if (policy.mode === 'off') return null;
     const bot = agent.bot;
@@ -132,7 +137,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         const runAction = agent.actions.runAction.bind(agent.actions);
         agent.actions.runAction = async (label, fn, options) => {
             // An empty-handed search gets one sentence explaining what "not found" means under fair play.
-            if (!violation) return withSearchHint(await runAction(label, fn, options));
+            // And, with world memory on, any change the bot noticed along the way, once.
+            if (!violation) return withNotes(withSearchHint(await runAction(label, fn, options)), handle.memory);
             const text = `Refused: fair play is on, but ${violation}.`;
             return { status: 'blocked', text, code: 'fair_play', success: false, message: text, interrupted: false, timedout: false };
         };
@@ -149,6 +155,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     const handle = {
         policy, chatGuard,
         perception: null, seenMap: null,
+        memory: null, recorder: null, scope: null, // world memory, when `world_memory` is on
         get violation() { return violation; },
         // The reach guard wraps the bot's own methods (see reach_guard.js), so it covers skills and
         // generated code alike. This hook is where good-neighbor rules will plug in; the code runner calls it.
@@ -193,20 +200,34 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     };
     let runner = null;
 
+    const worldMemory = config.world_memory === true;
     const mapDir = seenDir ?? `./bots/${agent.name}/seen`;
-    const saveMap = () => {
-        try { handle.seenMap?.save(mapDir); } catch (error) { console.warn('[fair play] Could not save the seen-world map:', error.message); }
+    const worldDir = memoryDir ?? `./bots/${agent.name}/memory`;
+    // Saving on the timer gets a few milliseconds and carries on next time; the save at the end takes all it needs.
+    const saveMap = ({ budgetMs = 8 } = {}) => {
+        try {
+            handle.seenMap?.save(mapDir);
+            handle.memory?.save({ budgetMs });
+        } catch (error) { console.warn('[fair play] Could not save what the bot remembers:', error.message); }
     };
 
     // Each spawn may be a new dimension (or a new world identity), and each scope has its own memory.
     const onSpawn = () => {
         permissions.check();
         const scope = scopeOf(bot, config);
-        if (handle.seenMap?.scope === scope && handle.perception) return;
-        saveMap();
+        if (handle.scope === scope && handle.perception) return;
+        saveMap({ budgetMs: Infinity });
+        handle.recorder?.stop();
         handle.perception?.stop();
-        handle.seenMap = loadSeenMap(mapDir, scope);
-        handle.perception = createPerception({ bot, policy, seenMap: handle.seenMap, ...perceptionOptions });
+        handle.scope = scope;
+        if (worldMemory) {
+            // World memory takes the seen-world map's place: perception answers from it instead.
+            Object.assign(handle, attachWorldMemory({ bot, policy, scope, baseDir: worldDir, perceptionOptions }), { seenMap: null });
+            handle.recorder.start();
+        } else {
+            handle.seenMap = loadSeenMap(mapDir, scope);
+            handle.perception = createPerception({ bot, policy, seenMap: handle.seenMap, ...perceptionOptions });
+        }
         handle.perception.start();
         registerFairPlay(bot, { perception: handle.perception, policy });
         setWorldQueries(fairQueries);
@@ -219,9 +240,16 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
 
     const saveTimer = setInterval(saveMap, saveEveryMs);
     saveTimer.unref?.();
-    bot.on('end', () => { clearInterval(saveTimer); handle.perception?.stop(); saveMap(); });
+    bot.on('end', () => { clearInterval(saveTimer); handle.recorder?.stop(); handle.perception?.stop(); saveMap({ budgetMs: Infinity }); });
 
-    registerCommand(recallCommand); // the model's way to ask what the bot remembers seeing
+    // The model's way to ask what the bot remembers. World memory brings a fuller one.
+    registerCommand(worldMemory ? memoryRecallCommand : recallCommand);
+    if (worldMemory) {
+        registerCommand(placesCommand);
+        registerCommand(namePlaceCommand);
+        // Saved places (!rememberHere, !goToRememberedPlace) now live in world memory, as places.
+        if (agent.memory_bank) agent.memory_bank = placeBank(() => handle.memory, agent.memory_bank);
+    }
     agent.fairPlay = handle;
     console.log(`[fair play] ${policy.mode} mode is on.`);
     return handle;

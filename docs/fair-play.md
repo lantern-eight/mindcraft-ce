@@ -49,6 +49,9 @@ Details that matter:
 - **Memory is per server, world and dimension,** saved under `bots/<name>/seen/`. It records "notable"
   blocks: ores, logs, sand, gravel, clay, containers, crafting stations, beds, doors, crops and a few
   rarer ones. Other blocks are known only while in view.
+- **With [world memory](world-memory.md) on, the bot remembers much more:** every block it has seen,
+  what was in the chests it opened, places, the ways it has walked, and whether a place has changed. It
+  takes the place of the memory described above and follows the same rule: only what was in view.
 - **Coordinates are fair.** Players have them on the debug screen.
 
 This applies to everything that decides what the bot does: the state summary the model reads each turn,
@@ -155,12 +158,12 @@ All of it lives in `src/agent/fairplay/`:
 | `sight.js` | The geometry: can a straight line from the eye reach this block, point or mob? Pure, no mineflayer |
 | `block_scan.js` | A fast private read of chunk data, for perception only |
 | `perception.js` | **The boundary.** The one place that reads raw world data; it returns only what touch, sight, memory and hearing allow |
-| `seen_map.js` | What the bot has seen, saved per world |
+| `seen_map.js` | What the bot has seen, saved per world. With `world_memory` on, the store in `src/agent/memory/` takes its place |
 | `policy.js` | Turns the settings into one frozen object of rules |
 | `fair_queries.js` | The provider plugged into `world.js`, where the through-walls switches are applied |
 | `reach_guard.js` | Reach and line of sight for clicking, digging, placing and hitting |
 | `fair_bot.js`, `code_runner.js` | The stand-in bot and the compartment for model-written code |
-| `commands.js` | `!recall`, and the "not found means not seen" sentence |
+| `commands.js` | `!recall` (world memory registers a fuller one in its place when it is on), and the "not found means not seen" sentence |
 | `install.js` | Switches all of the above on for one agent |
 
 **How it hooks into Mindcraft.** Nearly every search in Mindcraft goes through `src/agent/library/world.js`.

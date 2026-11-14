@@ -1,7 +1,7 @@
 # Core Hooks
 
 Every edit this fork makes to a file that came from Mindcraft-CE is listed here. New code lives in
-`src/agent/fairplay/` and needs no entry.
+`src/agent/fairplay/` and `src/agent/memory/` and needs no entry.
 
 **Why this list exists:** when CE updates, merge it, then re-check each hook below and run the tests. A short
 list keeps that a small job instead of a hunt.
@@ -15,7 +15,7 @@ file.
 | 1 | `src/agent/library/world.js` (plus the new `world_queries.js` beside it) | Every block and entity search in world.js (`findBlocks`, `blockAt`, `entities`, `nearestEntity`) goes through a swappable provider. The default is the raw bot, so stock behavior is unchanged. `getNearestBlocksWhere` also drops positions that come back without a block | All of CE's commands, skills, reflexes and prompts search through world.js, so one provider changes them all at once. The setter lives in `world_queries.js`, not world.js, because world.js is handed to generated code |
 | 2 | `src/agent/agent.js` | One import and one call: `installFairPlay(this)` right after `initModes(this)` | Fair play needs the agent's bot, modes and action runner at startup. The install does nothing when `fair_play` is off |
 | 3 | `src/agent/commands/actions.js` (`!setMode`) | Reports a refusal when `modes.setOn` returns `false`, instead of claiming the mode changed | The cheat-mode lock wraps `setOn`. Without this the model would be told cheat mode is on when it isn't |
-| 4 | `settings.js`, `src/mindcraft/public/settings_spec.json` | New keys `fair_play`, `fair_play_custom`, `good_neighbor` (this fork's default is strict), in both files | Settings live there. They must also be in `settings_spec.json`: MindServer removes any setting that isn't listed there from agents created through its page or API, which would switch fair play off without a word |
+| 4 | `settings.js`, `src/mindcraft/public/settings_spec.json` | New keys `fair_play`, `fair_play_custom`, `good_neighbor` (this fork's default is strict) and `world_memory` (off by default), in both files | Settings live there. They must also be in `settings_spec.json`: MindServer removes any setting that isn't listed there from agents created through its page or API, which would switch fair play off without a word |
 | 5 | `src/agent/coder.js` (`generateCode`, `_stageCode`) | Asks `agent.fairPlay.codeRunner()` first: refuses early when code writing is off, otherwise evaluates `!newAction` code through the fair runner instead of a compartment holding the raw bot | The compartment is created inside `_stageCode`; there is no other place to swap what the code receives |
 | 6 | `src/agent/agents/executor.js` (`executeTask`, `_executeCode`) | Same early refusal; runs `executeCode` bodies through the runner instead of host `new Function` with the agent | As above |
 | 7 | `src/agent/agents/code.js` (`generateAugment`, new `_registerFair`) | Under fair play, augments are compiled by the runner and kept in memory, instead of written into `src/` and imported | As above |
@@ -37,6 +37,8 @@ these: an upstream change to one merges cleanly, the tests pass, and the change 
 | The bot's own block and entity searches behind `src/agent/library/world.js` | The provider in `world_queries.js`, answered by `src/agent/fairplay/fair_queries.js` | `fair_play` on | A new kind of search added to `world.js`. The lint test catches a raw call; a new provider method needs a fair answer too |
 | Anything that sends a slash command, and the cheat mode in `src/agent/modes.js` | The chat guard and mode lock in `src/agent/fairplay/install.js` | `fair_play` on | A new feature that relies on a command or on cheat mode. It will be dropped without an error under fair play |
 | Mindcraft-CE's task harness (`settings.task`), which needs an operator bot | Every action is refused, with the reason, by `install.js` | `fair_play` on | Nothing to carry over. Listed so the refusal is no surprise |
+| Saved places: the `MemoryBank` in `src/agent/memory_bank.js`, behind `!rememberHere`, `!goToRememberedPlace` and the saved-places query | `placeBank` in `src/agent/memory/install.js`, which offers the same five calls and keeps the names as places in world memory. The original bank is kept underneath and still holds everything | `world_memory` on | A new method on `MemoryBank`, or a new caller that expects one. The stand-in would not have it. No inherited file is edited for this: the stand-in is swapped in on `agent.memory_bank` |
+| What the bot remembers seeing (this fork's own seen-world map, `src/agent/fairplay/seen_map.js`) | The store in `src/agent/memory/`, filled by `recorder.js` | `world_memory` on | Nothing upstream: both are this fork's. Listed so a change to one is checked against the other |
 
 Add a row whenever a new feature takes over from inherited code. Keep the takeover in this fork's own
 module with a small hook in the inherited file, so that most upstream edits to that code show up as a

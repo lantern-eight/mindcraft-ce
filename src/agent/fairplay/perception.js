@@ -32,6 +32,7 @@ import Vec3 from 'vec3';
 import { buildStopsSightTable, createSight, viewDirection } from './sight.js';
 import { blockCategory } from './policy.js';
 import { lazyStateTable, scanSection, sectionsInRange } from './block_scan.js';
+import { stateOfProps } from '../memory/block_state.js';
 
 const PLAYER_EYE_HEIGHT = 1.62;
 const NAMETAG_RANGE = 64; // vanilla name tags render through walls up to about this far
@@ -80,7 +81,11 @@ export function soundSubject(soundName) {
  * @param {object} options
  * @param {object} options.bot - the mineflayer bot
  * @param {object} options.policy - from resolvePolicy
- * @param {object} [options.seenMap] - from seen_map.js; without one the bot only knows what it sees now
+ * @param {object} [options.seenMap] - what the bot remembers: the seen-world map (seen_map.js), or world
+ *   memory's view of its store (memory/recorder.js), which remembers every block and says so with
+ *   `recordsAll`. Without one the bot only knows what it sees now
+ * @param {boolean} [options.backgroundPass] - false when something else does the looking around (the
+ *   world-memory recorder), so tick() has nothing to do
  * @param {function} [options.getStateId] - (x, y, z) => state id or null; defaults to a fast live reader
  * @param {function} [options.getColumn] - (chunkX, chunkZ) => chunk column or null; defaults to the bot's world
  * @param {function} [options.now] - wall clock in ms, for memory and "how long ago"
@@ -93,7 +98,7 @@ export function soundSubject(soundName) {
  */
 export function createPerception({ bot, policy, seenMap = null, getStateId = null, getColumn = null, now = Date.now,
     clock = () => performance.now(), permanenceMs = 3000, notableNames = null, notableRadius = 32,
-    tickBudgetMs = 4, searchBudgetMs = 200 } = {}) {
+    tickBudgetMs = 4, searchBudgetMs = 200, backgroundPass = true } = {}) {
     const liveReader = getStateId ? null : liveStateReader(bot);
     const readState = getStateId ?? liveReader.read;
     const columnAt = getColumn ?? ((cx, cz) => bot.world.getColumn(cx, cz));
@@ -193,7 +198,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     // doesn't still claim something notable is here.
     function noteSeen(x, y, z, name, stateId) {
         if (!seenMap) return;
-        const notable = Number.isInteger(stateId) ? isNotableState(stateId) : notableNameSet.has(name);
+        const notable = seenMap.recordsAll || (Number.isInteger(stateId) ? isNotableState(stateId) : notableNameSet.has(name));
         if (notable) seenMap.observeBlock({ x, y, z }, name, 'observed', stateId);
         else seenMap.observeCell({ x, y, z }, name);
     }
@@ -214,9 +219,11 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     function standIn(entry) {
         const type = bot.registry.blocksByName[entry.name];
         if (!type) return null;
-        // A saved state id is trusted only while it still means the same block; ids shift between game versions.
-        const stateId = Number.isInteger(entry.stateId) && nameOfState(entry.stateId) === entry.name
-            ? entry.stateId : (type.defaultState ?? type.minStateId);
+        // A saved state id is trusted only while it still means the same block; ids shift between game
+        // versions. World memory keeps the properties by name instead, which survive a game update.
+        const stateId = Number.isInteger(entry.stateId) && nameOfState(entry.stateId) === entry.name ? entry.stateId
+            : entry.state ? stateOfProps(bot.registry, entry.name, entry.state)
+            : (type.defaultState ?? type.minStateId);
         const Block = blockClass();
         const block = Block ? Block.fromStateId(stateId, 0) : {
             name: type.name, type: type.id, stateId, displayName: type.displayName, hardness: type.hardness,
@@ -300,7 +307,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
                 const d2 = (x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2;
                 if (d2 > r2 || !perceivable(x, y, z)) return;
                 if (needsBlock && !accepts(bot.blockAt(new Vec3(x, y, z)))) return;
-                if (seenMap && isNotableState(stateId)) seenMap.observeBlock({ x, y, z }, nameOfState(stateId), 'observed', stateId);
+                if (seenMap && (seenMap.recordsAll || isNotableState(stateId))) seenMap.observeBlock({ x, y, z }, nameOfState(stateId), 'observed', stateId);
                 found.push({ x, y, z, d2 });
             });
             if (found.length >= count) {
@@ -313,8 +320,14 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
         // Remembered blocks that are out of sight (or in chunks that aren't loaded any more).
         if (seenMap) {
             const names = byType ? ids.map(id => bot.registry.blocks[id]?.name).filter(Boolean) : null;
-            const entries = seenMap.within({ x: ox - maxDistance, y: oy - maxDistance, z: oz - maxDistance },
-                { x: ox + maxDistance, y: oy + maxDistance, z: oz + maxDistance }, names);
+            // The seen-world map is small enough to hand over everything in the box. World memory holds
+            // every block the bot has seen, so it is asked for the nearest few that could match instead;
+            // for a predicate, "could match" is judged per block name on a stand-in block.
+            const entries = seenMap.recall
+                ? seenMap.recall({ names, point: { x: ox, y: oy, z: oz }, maxDistance, count: count + found.length,
+                    accepts: name => accepts(standIn({ name, x: ox, y: oy, z: oz, lastSeen: 0 })) })
+                : seenMap.within({ x: ox - maxDistance, y: oy - maxDistance, z: oz - maxDistance },
+                    { x: ox + maxDistance, y: oy + maxDistance, z: oz + maxDistance }, names);
             const have = entries.length ? new Set(found.map(f => `${f.x},${f.y},${f.z}`)) : null;
             for (const entry of entries) {
                 const d2 = (entry.x - ox) ** 2 + (entry.y - oy) ** 2 + (entry.z - oz) ** 2;
@@ -458,7 +471,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     }
 
     function tick({ budgetMs = tickBudgetMs } = {}) {
-        if (!bot.entity?.position) return;
+        if (!backgroundPass || !bot.entity?.position) return;
         beginLook();
         const t = now();
         const idle = nextSection >= passSections.length && passCells.length === 0;
@@ -542,9 +555,12 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
             return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
         },
         knowsCell: pos => blockAt(pos) !== null,
-        /** Is this a kind of block the background pass records in the seen-world map? */
-        remembers: name => notableNameSet.has(name),
+        /** Is this a kind of block the bot keeps a memory of? World memory keeps them all. */
+        remembers: name => Boolean(seenMap?.recordsAll) || notableNameSet.has(name),
         sight,
+        // For the world-memory recorder, which does its own looking around with the same eyes: the raw
+        // block reader and chunk columns. Nothing that decides what the bot does may use these.
+        readState, columnAt,
     };
 }
 

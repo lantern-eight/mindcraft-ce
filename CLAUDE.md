@@ -9,10 +9,12 @@ An integration fork of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-
 `agent-system` branch. `main` is that branch plus this fork's own work. The first addition is **fair
 play**: the bot may only know and do what a human survival player could.
 
-- New code lives in its own folders (`src/agent/fairplay/` so far).
+- New code lives in its own folders: `src/agent/fairplay/` and `src/agent/memory/` (world memory, behind
+  the `world_memory` setting).
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
-  before changing anything under `src/agent/fairplay/`.
+  before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
+  `src/agent/memory/`.
 - `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
   changed in each version.
 
@@ -85,8 +87,8 @@ upstream authors and fork owners is fine and needed where their licenses ask for
 ## Testing
 
 - **Tests first.** Use Node 22 (see `.nvmrc`), then `npm test`.
-- Fair-play tests are `tests/fairplay_*.test.js` (the runner globs `tests/*.test.js`); helpers go in
-  `tests/helpers/`.
+- Fair-play tests are `tests/fairplay_*.test.js` and world-memory tests are `tests/memory_*.test.js` (the
+  runner globs `tests/*.test.js`); helpers go in `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
   to run. They need Java 21 and a server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
 - **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve
@@ -99,6 +101,9 @@ upstream authors and fork owners is fine and needed where their licenses ask for
   ("the legs") may read raw world data for now, but text about routes must not name unseen things.
 - New or ported skills must not call `bot.findBlocks`, `bot.findBlock`, `bot.nearestEntity`, `bot.entities`
   or `bot.players[…].entity` directly; use `world.*`. A lint test enforces this.
+- World memory records only what was in view. The memory store (`cells.js`, `things.js`, `trail.js`,
+  `places.js`, `changes.js`) never touches the game and keeps names, never the game's numbers for blocks
+  or states; only `recorder.js` reads the world, and only `kinds.js` knows what a chest or a door is.
 - Good-neighbor rules are enforced in code: don't break player builds, loot protected chests, or attack
   players and their animals.
 - Keep code writing (`allow_insecure_coding`) off unless it runs inside the fair-play code runner.

@@ -50,16 +50,18 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 |---|---|---|
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
 | Memory of the world | Named places the model chooses to save | Also remembers notable blocks it has seen, per world. The model asks with `!recall` |
+| World memory (optional, `world_memory: true`) | | Every block the bot has seen, what was in the chests it opened, places it found, the ways it has walked, and a note when a place has changed. See [docs/world-memory.md](docs/world-memory.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 214 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 283 offline tests, plus live scenarios on a real server that make no model calls |
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
-animals), and limiting the pathfinder's choice of route to blocks the bot has seen. The guide lists every
+animals), limiting the pathfinder's choice of route to blocks the bot has seen, and following the
+remembered trail on long trips. The guide lists every
 [known limit](docs/fair-play.md#known-limits).
 
 ## Quick Start
@@ -115,6 +117,7 @@ node tests/live/fairplay_scenarios.js
 | Page | What it covers |
 |---|---|
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
+| [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
 | [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
 | [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |
@@ -140,7 +143,8 @@ This fork stands on other people's work, and most of the code here is theirs.
 - **[Mineflayer](https://github.com/PrismarineJS/mineflayer)** and the PrismarineJS libraries speak the
   Minecraft protocol. This fork does not patch them.
 
-What this fork adds on top is fair play (`src/agent/fairplay/`), its tests, and the fixes in the changelog.
+What this fork adds on top is fair play (`src/agent/fairplay/`), world memory (`src/agent/memory/`), their
+tests, and the fixes in the changelog.
 
 If you use Mindcraft in research, please cite the original paper:
 
