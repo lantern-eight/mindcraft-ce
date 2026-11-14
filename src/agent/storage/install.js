@@ -12,6 +12,7 @@ import settings from '../settings.js';
 import { registerCommand } from '../commands/index.js';
 import { scopeOf } from '../fairplay/install.js';
 import { scopeDir } from '../memory/files.js';
+import { requestWatcher } from './asker.js';
 import { loadChestBook } from './chest_book.js';
 import { storageCommands } from './commands.js';
 
@@ -21,8 +22,8 @@ import { storageCommands } from './commands.js';
  * @param {object} [options.config] - the settings to go by
  * @param {object} [options.deps] - stand-ins for finding and reaching chests, for tests
  * @param {string} [options.bookDir] - the folder the chest books are kept in
- * @returns {{commands: string[], book: () => object, save: () => void}|null} what was added, or null
- *   when the setting is off
+ * @returns {{commands: string[], book: () => object, save: () => void, behind: () => object}|null} what
+ *   was added, or null when the setting is off
  */
 export function installStorage(agent, { config = settings, deps = {}, bookDir = null } = {}) {
     // Only an outright `true` turns it on, so a config that leaves the key out gets stock behavior.
@@ -60,7 +61,11 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
         return things.within(min, max, { kinds: ['sign'] }).find(sign => sign.text)?.text ?? null;
     };
 
-    const commands = storageCommands({ book: bookNow, save, deps: { signNear, ...deps } });
+    // Who is behind what the bot is doing: a chest that is not the bot's own and not marked "always"
+    // is sorted only when a player asks, so the bot's own ideas have to be told from a player's request.
+    const watcher = requestWatcher(agent);
+
+    const commands = storageCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { signNear, ...deps } });
     for (const { command, action } of commands) registerCommand(command, { action });
-    return { commands: commands.map(({ command }) => command.name), book: bookNow, save };
+    return { commands: commands.map(({ command }) => command.name), book: bookNow, save, behind: () => watcher.behind() };
 }
