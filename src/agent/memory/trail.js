@@ -271,8 +271,11 @@ export function createTrail({ scope, now = Date.now, canWalkStraight = () => tru
                 const { cost, item: crumb } = open.pop();
                 if (cost > cheapest.get(crumb)) continue; // an older, worse entry for a crumb already settled
                 if (crumb === goal) {
+                    // Walk back from the goal and turn the list round at the end. Adding each step to
+                    // the front instead would redo the whole list every time, which shows on a long route.
                     const way = [goal];
-                    while (cameFrom.has(way[0])) way.unshift(cameFrom.get(way[0]));
+                    while (cameFrom.has(way.at(-1))) way.push(cameFrom.get(way.at(-1)));
+                    way.reverse();
                     return { ids: way.map(c => c.id), points: way.map(snapshot), seconds: cost };
                 }
                 for (const link of crumb.links) {
