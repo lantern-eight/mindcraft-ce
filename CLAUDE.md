@@ -87,8 +87,9 @@ upstream authors and fork owners is fine and needed where their licenses ask for
 ## Testing
 
 - **Tests first.** Use Node 22 (see `.nvmrc`), then `npm test`.
-- Fair-play tests are `tests/fairplay_*.test.js` and world-memory tests are `tests/memory_*.test.js` (the
-  runner globs `tests/*.test.js`); helpers go in `tests/helpers/`.
+- Fair-play tests are `tests/fairplay_*.test.js`, world-memory tests are `tests/memory_*.test.js` and
+  chest-sorting tests are `tests/storage_*.test.js` (the runner globs `tests/*.test.js`); helpers go in
+  `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
   to run. They need Java 21 and a server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
 - **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve

@@ -57,7 +57,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 303 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 321 offline tests, plus live scenarios on a real server that make no model calls |
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
