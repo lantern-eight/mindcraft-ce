@@ -19,12 +19,16 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   - **Container contents,** taken when the bot opens a container and again when it closes it.
   - **Fields and herds:** crops per area with how many were ripe, and the animals it saw.
   - **A trail** of where it has walked, which `!recall` uses to say how long a known way takes.
+  - **Travel follows the trail.** A trip to somewhere the bot has been walks the way it came, in hops
+    that neither dig nor place, instead of digging in a straight line. Every command and skill that
+    walks does this by itself. A way found blocked is said once, and the bot looks for a way past.
   - **Places:** chests, workstations, beds, doors and signs close together become a site with no one
     having to save it, and it can be named later.
   - **Change notes:** when a place is not as the bot remembers it, one sentence is added to the result of
     the action it was doing, such as "Noticed at the base: Gone: chest 2. New: oak_planks 42."
 - `!places` lists the places the bot knows and what is at each. `!namePlace` names the place it stands in.
-- Live scenarios for world memory (`tests/live/memory_scenarios.js`), on a real server with no model calls.
+- Live scenarios for world memory (`tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`),
+  on a real server with no model calls.
 
 ### Changed
 

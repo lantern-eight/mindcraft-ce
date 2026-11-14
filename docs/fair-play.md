@@ -137,7 +137,8 @@ Fair play is honest about what it doesn't cover yet:
 
 - **Route planning.** The pathfinder still plans with every loaded block, so its *choice of route* can use
   terrain the bot hasn't seen. Targets always come from what the bot perceives; only the path between
-  uses more.
+  uses more. With [world memory](world-memory.md) on, a trip to somewhere the bot has been follows the
+  way it walked, which uses nothing it hasn't seen.
 - **The pathfinder and the combat plugin aren't held to the reach rule.** They act from their own timers
   while carrying out an action that was itself checked.
 - **A few skills name a block before the bot has looked at it** when given exact coordinates

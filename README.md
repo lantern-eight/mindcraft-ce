@@ -50,13 +50,13 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 |---|---|---|
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
 | Memory of the world | Named places the model chooses to save | Also remembers notable blocks it has seen, per world. The model asks with `!recall` |
-| World memory (optional, `world_memory: true`) | | Every block the bot has seen, what was in the chests it opened, places it found, the ways it has walked, and a note when a place has changed. See [docs/world-memory.md](docs/world-memory.md) |
+| World memory (optional, `world_memory: true`) | | Every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed. Trips to places it has been follow the way it walked, instead of digging towards them. See [docs/world-memory.md](docs/world-memory.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 283 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 302 offline tests, plus live scenarios on a real server that make no model calls |
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
