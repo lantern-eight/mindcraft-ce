@@ -19,6 +19,7 @@ offer back.
 | **What it is** | Mindcraft-CE's agent (native tool calling, optional Brain, Task and RP agents) with fair play added |
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
+| **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
 | **Minecraft** | Java Edition, up to 1.21.11 |
 | **Runs on** | Node 22 |
 | **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
@@ -52,12 +53,13 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
 | Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
 | Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
+| Chests | Looks in, takes from or puts into the nearest chest | Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 321 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 413 offline tests, plus live scenarios on a real server that make no model calls |
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
@@ -89,6 +91,7 @@ In `settings.js`:
     // "ores_through_walls": true,   // one rule turned off, to measure what x-ray is worth
 },
 "world_memory": true,       // what the bot has seen, chests, places and the ways it walked; false turns it off
+"chest_sorting": true,      // one instruction tidies a player's chests; false leaves the commands out
 ```
 
 For fair play to mean anything the bot must not be a server operator, and under `strict` it stops and says
@@ -119,6 +122,7 @@ node tests/live/fairplay_scenarios.js
 |---|---|
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
+| [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
 | [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
 | [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |

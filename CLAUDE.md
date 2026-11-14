@@ -9,12 +9,13 @@ An integration fork of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-
 `agent-system` branch. `main` is that branch plus this fork's own work. The first addition is **fair
 play**: the bot may only know and do what a human survival player could.
 
-- New code lives in its own folders: `src/agent/fairplay/` and `src/agent/memory/` (world memory, behind
-  the `world_memory` setting).
+- New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
+  the `world_memory` setting) and `src/agent/storage/` (chest sorting, behind the `chest_sorting`
+  setting).
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
-  `src/agent/memory/`.
+  `src/agent/memory/`, and `docs/chest-sorting.md` for `src/agent/storage/`.
 - `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
   changed in each version.
 
