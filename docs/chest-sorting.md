@@ -321,6 +321,8 @@ asked for before counting what moved.
 | The plan, and who may be sorted | `tests/storage_sort_plan.test.js`, `tests/storage_item_groups.test.js`, `tests/storage_chest_book.test.js`, `tests/storage_permit.test.js`, `tests/storage_asker.test.js`, `tests/storage_made_chests.test.js` | Nothing |
 | The doing, in a fake room | `tests/storage_sorter.test.js`, `tests/storage_commands.test.js`, `tests/storage_chest_access.test.js`, `tests/storage_install.test.js`. The room (`tests/helpers/fake_chest_bot.js`) keeps the server's copy of a window apart from the bot's guess | Nothing |
 | The doing, for real | `tests/live/storage_scenarios.js`: the server console fills the chests and reads them back itself. Its last steps are a room several players share, where every chest a sort was not approved for must be slot for slot as it was | A throwaway server, no model |
+| The asking | `tests/live/storage_agent_scenarios.js`: the whole agent is told things in plain words ("that chest is mine", "sort my chests", "keep them tidy"), and the console reads the chests and the bot's own file back. On recorded replies it checks that the commands reach the model as tools and that the bot knows who is speaking | A throwaway server, no model |
+| The asking, by a model | The same script with `--live-model --runs=5`. A model's answers vary, so it reports how often each step came out right | A throwaway server and the model in `andy.json`, **which costs money** |
 
 Edits to inherited files are listed in [core-hooks.md](core-hooks.md): the setting, one line in
 `agent.js`, and `registerCommand`.

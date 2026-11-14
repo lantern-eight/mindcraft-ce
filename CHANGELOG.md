@@ -46,6 +46,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Live scenarios for chest sorting (`tests/live/storage_scenarios.js`), on a real server with no model
   calls: the server console fills the chests and reads them back itself. In a room several players
   share, every chest a sort was not approved for is checked to be slot for slot as it was.
+- A scenario that tells the whole agent about chests in plain words (`tests/live/storage_agent_scenarios.js`):
+  "that chest is mine", "sort my chests", "keep them tidy". It runs on recorded replies with no model.
+  With `--live-model` it uses the model in `andy.json`, which costs money, and reports how often each
+  step came out right over several runs.
 
 ## [0.2.0] - 2026-11-14
 
