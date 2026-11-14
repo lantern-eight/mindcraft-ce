@@ -19,10 +19,10 @@ import Vec3 from 'vec3';
 import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { buildStopsSightTable, createSight } from '../fairplay/sight.js';
-import * as skills from '../library/skills.js';
 import * as world from '../library/world.js';
 import { worldQueries } from '../library/world_queries.js';
 import { ago } from '../memory/commands.js';
+import { pathfinderLegs } from '../memory/navigator.js';
 import { botHands } from './bot_hands.js';
 import { ME, SHARED, SORTING, sameOwner } from './chest_book.js';
 import { chestsFrom, isSortable, SORTABLE } from './chests.js';
@@ -32,6 +32,9 @@ import { runSort } from './sorter.js';
 
 // How long a walk to a chest may take before it is called off: a start, plus time for each block of the way.
 const WALK_MS = 8000, WALK_MS_PER_BLOCK = 1500;
+// How near a chest the walk to it ends. Two blocks is within reach, and also covers a chest that sits
+// on top of another, which nobody can stand level with.
+const WALK_WITHIN = 2;
 // How far away one chest named by where it is may be. The same as the widest sort.
 const NAMED_CHEST_RANGE = 32;
 
@@ -203,20 +206,23 @@ const real = {
     },
     /** What a sign right next to the chest says, when the bot knows. A hint to show, never an owner to assume. */
     signNear: () => null,
-    /** Walks to within reach of a chest. What the walk says along the way is kept out of the report. */
+    /**
+     * Walks to within reach of a chest, on foot only. Tidying a chest is never a reason to dig through
+     * a wall or build a bridge, least of all in somebody's base, so this is the walk that neither digs
+     * nor places: when there is no such way, the chest counts as one the bot could not get to.
+     *
+     * It is also the walk that goes round a corner squarely. Chests stand in rows, and the pathfinder
+     * will plan a diagonal step past the corner of one and then stand still for good.
+     */
     async goTo(bot, chest) {
-        const before = bot.output;
-        // A walk across a room of chests takes seconds. The pathfinder can also plan a step past a
-        // corner it cannot cut and then stand still for good, so a walk gets a deadline: when it
-        // passes, the walk is called off and the chest counts as one the bot could not get to.
+        // A walk across a room of chests takes seconds, so one that is going nowhere is called off.
         const far = bot.entity.position.distanceTo(new Vec3(chest.x + 0.5, chest.y, chest.z + 0.5));
-        const timer = setTimeout(() => bot.pathfinder?.setGoal(null), WALK_MS + WALK_MS_PER_BLOCK * far);
-        let arrived = false;
-        try { arrived = await skills.goToPosition(bot, chest.x, chest.y, chest.z, 2); }
-        finally { clearTimeout(timer); }
-        const said = String(bot.output ?? '').slice(String(before ?? '').length).trim();
-        bot.output = before;
-        if (!arrived) throw new Error(said.split('\n').pop() || 'you could not get to it');
+        const legs = pathfinderLegs(bot, { hopTimeoutMs: WALK_MS + WALK_MS_PER_BLOCK * far });
+        try { await legs.walkTo(chest, WALK_WITHIN); }
+        catch (error) {
+            assertActionOwner(bot);     // a sort that was stopped is not a chest that could not be reached
+            throw new Error(/no path/i.test(error.message) ? 'there is no way to walk to it without digging or placing a block' : 'the walk to it did not get there');
+        }
     },
 };
 

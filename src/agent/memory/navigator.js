@@ -40,7 +40,7 @@ export function targetOf(goal) {
  * @param {object} options.legs - how the bot moves:
  *   `position()` where it stands; `interrupted()` whether it was told to stop;
  *   `canWalkTo(point, budgetMs)` whether a walk there needs no digging or placing;
- *   `walkTo(point)` that walk; `pushThrough(point, budgetMs)` an ordinary walk there, which may dig,
+ *   `walkTo(point, within)` that walk, to within that many blocks (1 when left out); `pushThrough(point, budgetMs)` an ordinary walk there, which may dig,
  *   resolving to whether it got there
  * @param {(name: string) => boolean} [options.blocksWay] - is a remembered block of this name solid,
  *   so that it stands in the way? Without it, memory of walls is not consulted
@@ -314,7 +314,7 @@ export function pathfinderLegs(bot, { hopTimeoutMs = 120000 } = {}) {
         movements.digCost = 10;
         return movements;
     };
-    const near = point => new pf.goals.GoalNear(point.x, point.y, point.z, 1);
+    const near = (point, within = 1) => new pf.goals.GoalNear(point.x, point.y, point.z, within);
     const nextTick = () => new Promise(resolve => setImmediate(resolve));
 
     // Thinks in short slices and lets the game run between them, so a hard question never freezes the bot.
@@ -329,7 +329,7 @@ export function pathfinderLegs(bot, { hopTimeoutMs = 120000 } = {}) {
         return false;
     }
 
-    async function go(movements, point) {
+    async function go(movements, point, within) {
         const previous = bot.pathfinder.movements;
         // The pathfinder says "stuck" when it has stood still for a few seconds, then plans again.
         // Twice in one hop means it is not going to get there, and waiting out the clock helps no one.
@@ -338,7 +338,7 @@ export function pathfinderLegs(bot, { hopTimeoutMs = 120000 } = {}) {
         bot.on('path_reset', onReset);
         bot.pathfinder.setMovements(movements);
         try {
-            await cancellable(bot, () => bot.pathfinder.goto(near(point)), hopTimeoutMs, () => bot.pathfinder.setGoal(null));
+            await cancellable(bot, () => bot.pathfinder.goto(near(point, within)), hopTimeoutMs, () => bot.pathfinder.setGoal(null));
         } finally {
             bot.off('path_reset', onReset);
             if (previous) bot.pathfinder.setMovements(previous);
@@ -349,7 +349,8 @@ export function pathfinderLegs(bot, { hopTimeoutMs = 120000 } = {}) {
         position: () => ({ x: bot.entity.position.x, y: bot.entity.position.y, z: bot.entity.position.z }),
         interrupted: () => Boolean(bot.interrupt_code),
         canWalkTo: (point, budgetMs) => canPlan(strict(), point, budgetMs),
-        walkTo: point => go(strict(), point),
+        // `within` is how near is near enough, in blocks: 1 unless the caller says otherwise.
+        walkTo: (point, within) => go(strict(), point, within),
         async pushThrough(point, budgetMs) {
             const movements = careful();
             if (!(await canPlan(movements, point, budgetMs))) return false;
