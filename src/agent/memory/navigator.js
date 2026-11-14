@@ -62,14 +62,16 @@ export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20,
     const lengthOf = points => points.slice(1).reduce((sum, point, i) => sum + dist(points[i], point), 0);
 
     /**
-     * Does the bot remember a wall between a spot and the target, within the first few blocks?
+     * Does the bot remember a wall on the straight line from a spot to the target?
      *
      * A crumb two blocks from the target can be on the far side of a wall, and then it is no way there
-     * at all. Memory knows: the bot saw that wall when it stood at the crumb. The line is walked at
-     * foot and head height, a step up or down allowed, the way the ground rises and falls. A cell the
-     * bot never saw counts as open, so this only ever rules a spot out on what was really seen.
+     * at all. So can a crumb twenty blocks from it, in the tunnel next door. Memory knows: the bot saw
+     * that wall as it walked past. The line is followed at foot and head height, a step up or down
+     * allowed, the way the ground rises and falls. A cell the bot never saw counts as open, so this
+     * only ever rules a spot out on what was really seen. The whole line is checked, up to `reach`:
+     * a check of only the first few blocks misses a wall the line meets at a shallow angle.
      */
-    function facesWall(from, target, reach = 6) {
+    function facesWall(from, target, reach = 64) {
         if (!blocksWay || !memory.cells) return false;
         const flat = Math.hypot(target.x - from.x, target.z - from.z);
         if (flat < 0.5) return false;
@@ -176,6 +178,12 @@ export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20,
         return { shortCut, order: [...new Set([shortCut, stride, at + 1])].filter(index => index > at) };
     }
 
+    /** The farthest spot in (from, to] the bot is standing at, or `from` when it is at none of them. */
+    function passed(points, from, to, pos) {
+        for (let index = to; index > from; index--) if (dist(pos, points[index]) <= 2.5) return index;
+        return from;
+    }
+
     return {
         plan,
 
@@ -204,6 +212,7 @@ export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20,
                     let moved = false;
                     const { shortCut, order } = candidates(points, at, legs.position(), rest === 0);
                     for (const index of order) {
+                        if (index <= at) continue;
                         if (!(await legs.canWalkTo(points[index], planMs))) {
                             // A failed plan costs thinking time, so after one the short cut rests a while.
                             if (index === shortCut) rest = 4;
@@ -213,7 +222,10 @@ export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20,
                             await legs.walkTo(points[index]);
                         } catch (error) {
                             if (legs.interrupted()) throw error;
-                            continue; // stuck part-way: try a nearer spot
+                            // Stuck part-way. It may have passed some spots before it stuck; carry on
+                            // from the last of those, and try a nearer spot.
+                            at = passed(points, at, index, legs.position());
+                            continue;
                         }
                         at = index;
                         hops++;
@@ -227,10 +239,18 @@ export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20,
                     const from = points[at], next = points[at + 1];
                     trail.markBlocked(from.id, next.id);
                     say(`The way you walked before is blocked near ${Math.floor(next.x)}, ${Math.floor(next.y)}, ${Math.floor(next.z)}.`);
-                    // First an ordinary path to the very next spot: a fallen block or a shut gap is
-                    // usually a step or two to get past, and the rest of the way is still good.
-                    if (await legs.pushThrough(next, planMs)) { at++; hops++; continue; }
-                    if (legs.interrupted()) throw new Error('Travel interrupted');
+                    // First an ordinary path past the blockage: a fallen block or a shut gap is usually
+                    // a step or two to get past, and the rest of the way is still good. It aims for the
+                    // farthest spot ahead that is close by, and only then for the very next one, or a
+                    // bot that has dug its way round would walk back to the wall's far side to carry on.
+                    const ahead = candidates(points, at, legs.position(), true).shortCut;
+                    let pushed = false;
+                    for (const index of new Set([ahead, at + 1])) {
+                        if (index <= at) continue;
+                        if (await legs.pushThrough(points[index], planMs)) { at = index; hops++; pushed = true; break; }
+                        if (legs.interrupted()) throw new Error('Travel interrupted');
+                    }
+                    if (pushed) continue;
                     // Then another way the bot knows, now that routes avoid this link.
                     const around = detours < maxDetours ? trail.route(from.id, trip.end.id) : null;
                     if (around && around.points.length >= 2) {
@@ -253,9 +273,10 @@ export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20,
  * The real legs: the bot's pathfinder.
  * @param {object} bot - the mineflayer bot, with the pathfinder plugin loaded
  * @param {object} [options]
- * @param {number} [options.hopTimeoutMs] - a hop that takes longer than this is given up
+ * @param {number} [options.hopTimeoutMs] - a hop that takes longer than this is given up. It is a last
+ *   resort: a hop that is going nowhere is caught much sooner, by the pathfinder saying it is stuck
  */
-export function pathfinderLegs(bot, { hopTimeoutMs = 30000 } = {}) {
+export function pathfinderLegs(bot, { hopTimeoutMs = 120000 } = {}) {
     // The pathfinder will plan a diagonal step past a solid corner when only one side of the corner is
     // open, and then stand still, because its own walking check knows the bot can't cut that corner.
     // In a tunnel one block wide that is every turn. So a hop takes a diagonal only when both sides

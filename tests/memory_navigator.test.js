@@ -187,6 +187,22 @@ test('N7: with no other way known, the bot pushes on to the next crumb by an ord
     assert.doesNotMatch(said.join('\n'), /Going around/);
 });
 
+test('N7b: past a blockage it aims for the farthest spot ahead that is close, not back onto the old route', async () => {
+    // A corridor out and back, the two arms side by side. The bot is half-way down the second arm,
+    // going back to the start, and finds it walled up. The start is close by through the side wall;
+    // the next spot on its old route is the long way round.
+    const memory = laid([at(0, 0), at(40, 0), at(40, 6), at(0, 6)]);
+    const sideWall = crossesZ(3, -5, 39.5), newWall = crossesX(21, 5, 7);
+    const body = legs(stand(memory, at(0, 6)), { open: (a, b) => !sideWall(a, b) && !newWall(a, b), through: (a, b) => !newWall(a, b) });
+    const result = await createNavigator({ memory, legs: body }).follow({ x: 0, y: 64, z: 0, range: 1 });
+
+    assert.equal(result.reached, 'end');
+    assert.ok(dist(body.pos, at(0, 0)) <= 1.5);
+    const push = body.walked.find(hop => hop.dug);
+    assert.ok(Math.round(push.to.z) === 0 && push.to.x < 10, `it pushed through to ${JSON.stringify(push.to)}: the first arm, near where it was going`);
+    assert.ok(Math.max(...body.walked.map(hop => hop.to.x)) < 21, 'and never went round to the far side of the wall');
+});
+
 test('N8: blocked with no way round and no way through, it stops where it is and says how far it got', async () => {
     const memory = laid([at(0, 0), at(60, 0)]);
     const wall = crossesX(22, -3, 3);
@@ -247,18 +263,20 @@ test('N14: a crumb close to the target but behind a wall the bot remembers is no
     // The bot walked one arm of a corridor and round the corner. The target is at the far end of the
     // other arm, which it has not walked: straight ahead, and two blocks from where it started, through
     // the wall between the arms. It saw that wall. Going back to the start would be going the wrong way.
-    const memory = laid([at(0, 0), at(20, 0), at(20, 2)]);
+    const memory = laid([at(0, 0), at(40, 0), at(40, 2)]);
     memory.cells = createCells();
-    for (let x = 0; x < 20; x++) for (const y of [64, 65]) memory.cells.write(x, y, 1, 'dirt');
-    const body = legs(at(20, 2));
+    for (let x = 0; x < 40; x++) for (const y of [64, 65]) memory.cells.write(x, y, 1, 'dirt');
+    const body = legs(at(40, 2));
     const navigator = createNavigator({ memory, legs: body, blocksWay: name => name === 'dirt' });
+    // Not the start, two blocks from the target. And not a spot half-way back along the arm it walked
+    // either, though that one is 20 blocks closer to the target: the same wall is still in between.
     assert.equal((await navigator.follow({ x: 0, y: 64, z: 2, range: 0 })).followed, false);
     assert.equal(body.walked.length, 0);
 
     // With no wall remembered there, the same spot counts as being there, and the known way is taken.
-    const open = laid([at(0, 0), at(20, 0), at(20, 2)]);
+    const open = laid([at(0, 0), at(40, 0), at(40, 2)]);
     open.cells = createCells();
-    const free = legs(at(20, 2));
+    const free = legs(at(40, 2));
     const result = await createNavigator({ memory: open, legs: free, blocksWay: name => name === 'dirt' }).follow({ x: 0, y: 64, z: 2, range: 0 });
     assert.equal(result.reached, 'end');
     assert.ok(dist(free.pos, at(0, 0)) <= 1.5);
