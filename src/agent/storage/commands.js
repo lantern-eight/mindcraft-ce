@@ -37,19 +37,20 @@ const NAMED_CHEST_RANGE = 32;
 
 const plural = (n, one, many = `${one}s`) => (n === 1 ? one : many);
 const at = pos => `${pos.x}, ${pos.y}, ${pos.z}`;
-const labelOf = chest => `${chest.also ? 'double ' : ''}${chest.name ?? 'chest'} at ${at(chest)}`;
+/** "double chest at 3, 70, 11": a chest as the model reads it. */
+export const labelOf = chest => `${chest.also ? 'double ' : ''}${chest.name ?? 'chest'} at ${at(chest)}`;
 const capital = text => text.charAt(0).toUpperCase() + text.slice(1);
 
 // ---- Words ----
 
 /** "Alice's", "shared", "your own", "owner unknown": whose a chest is, as the model reads it. */
-const ownerLabel = owner => (owner === ME ? 'your own' : owner === SHARED ? 'shared' : owner === null ? 'owner unknown' : `${owner}'s`);
+export const ownerLabel = owner => (owner === ME ? 'your own' : owner === SHARED ? 'shared' : owner === null ? 'owner unknown' : `${owner}'s`);
 /** "2 chests of Alice's", "1 shared chest", "3 chests with no known owner". */
 function countOf(n, owner) {
     const chests = `${n} ${owner === SHARED ? 'shared ' : ''}${plural(n, 'chest')}`;
     return owner === SHARED ? chests : `${chests} ${owner === ME ? 'of your own' : owner === null ? 'with no known owner' : `of ${owner}'s`}`;
 }
-const SORTING_TEXT = { always: 'may always be sorted', asked: 'sorted only when asked', never: 'never sorted' };
+export const SORTING_TEXT = { always: 'may always be sorted', asked: 'sorted only when asked', never: 'never sorted' };
 
 // The model speaks for several people, so "me" and "mine" could mean the player who is talking or
 // the bot. Neither is guessed: the bot's own chests go by the bot's own name.

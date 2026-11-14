@@ -141,6 +141,19 @@ test('a single chest that became a double one keeps its owner, and so does a dou
     assert.equal(book.dropCell(4, 70, 1), false);
 });
 
+test('a chest that is filed somewhere new is worth saving, even with nothing else to say about it', () => {
+    const book = createChestBook({ scope: SCOPE });
+    book.mark(chest(1, 64, 1), { owner: 'Alice' });
+    book.save(mkdtempSync(path.join(tmpdir(), 'chest-book-')));
+    assert.equal(book.dirty, false);
+    assert.equal(book.mark(chest(1, 64, 1), {}).changed, false);
+    assert.equal(book.dirty, false, 'found where it was: nothing to save');
+    // A second chest was put beside it, and the two are one chest now.
+    assert.equal(book.mark(chest(1, 64, 1, { also: { x: 2, y: 64, z: 1 } }), {}).changed, false);
+    assert.equal(book.at(2, 64, 1).owner, 'Alice');
+    assert.equal(book.dirty, true);
+});
+
 test('a different kind of container at the same spot is a new chest', () => {
     const book = createChestBook({ scope: SCOPE });
     book.mark(chest(1, 64, 1), { owner: 'Alice', sorting: 'always' });

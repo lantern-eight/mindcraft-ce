@@ -11,10 +11,12 @@
 import settings from '../settings.js';
 import { registerCommand } from '../commands/index.js';
 import { scopeOf } from '../fairplay/install.js';
+import { log } from '../library/skills.js';
 import { scopeDir } from '../memory/files.js';
 import { requestWatcher } from './asker.js';
 import { loadChestBook } from './chest_book.js';
 import { storageCommands } from './commands.js';
+import { watchMadeChests } from './made_chests.js';
 
 /**
  * @param {object} agent - the agent, once it has a bot
@@ -67,5 +69,10 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
 
     const commands = storageCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { signNear, ...deps } });
     for (const { command, action } of commands) registerCommand(command, { action });
+
+    // A chest the bot places itself needs nobody to say whose it is: that follows from who it was
+    // placed for. What was noted goes into the result of whatever the bot is doing, so the model can
+    // put it right. A chest the bot digs up is forgotten.
+    watchMadeChests(agent.bot, { book: bookNow, behind: () => watcher.behind(), save, say: text => log(agent.bot, text) });
     return { commands: commands.map(({ command }) => command.name), book: bookNow, save, behind: () => watcher.behind() };
 }

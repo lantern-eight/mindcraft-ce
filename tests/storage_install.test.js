@@ -72,3 +72,20 @@ test('when it cannot tell who asked, it does not refuse', async () => {
     await during('Alice', '!markChest', 0, 64, 0, 'same', 'asked');
     assert.match(await getCommand('!sortChests').perform(agent, 'Alice', 8), /^The chest here \(Alice's\) is already in order/);
 });
+
+test('a chest the bot places is written down as it is placed, and one it digs up is forgotten', async () => {
+    const placed = x => ({ name: 'chest', position: { x, y: 64, z: 0 }, getProperties: () => ({ facing: 'north', type: 'single' }) });
+    bot.output = '';
+    await agent.handleMessage('Alice', () => bot.emit('blockPlaced', null, placed(10)));
+    assert.equal(book().ownerOf(found('10,64,0')), 'Alice');
+    assert.equal(book().sortingOf(found('10,64,0')), 'asked');
+    assert.match(bot.output, /^The chest at 10, 64, 0 is noted as Alice's, because you placed it while doing what Alice asked/, 'the result of what the bot is doing says so');
+
+    await agent.handleMessage('system', () => bot.emit('blockPlaced', null, placed(12)));
+    assert.equal(book().ownerOf(found('12,64,0')), 'me');
+    assert.equal(book().sortingOf(found('12,64,0')), 'always');
+
+    bot.emit('diggingCompleted', { name: 'air', position: { x: 12, y: 64, z: 0 } });
+    assert.equal(book().of(found('12,64,0')), null);
+    assert.equal(book().dirty, false, 'each change was saved as it happened');
+});

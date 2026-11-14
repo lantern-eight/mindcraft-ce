@@ -98,6 +98,9 @@ export function createChestBook({ scope, now = Date.now, history = 5 } = {}) {
         } else if (other || !entry.also) {
             // The chest says where both of its halves are (or it has one): go by that. A chest that
             // cannot say (one the bot only remembers) keeps the halves the book already knows.
+            // Being filed somewhere new is worth saving, even when nothing else about the chest changed.
+            const there = cell => (cell ? keyOf(cell.x, cell.y, cell.z) : '');
+            if (there(entry) !== there(here) || there(entry.also) !== there(other)) dirty = true;
             unindex(entry);
             Object.assign(entry, here, { also: other });
         }
