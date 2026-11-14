@@ -19,7 +19,7 @@
 //   - Kinds are laid out from the first slot by group (item_groups.js), then by name.
 //   - A group of related kinds shares a chest. It stays in the chest that already holds most of it,
 //     which respects a base somebody has organized and keeps the carrying short. Otherwise it goes to
-//     the chest with the most room, which spreads the groups out instead of packing one chest.
+//     the emptiest chest for its size, which spreads the groups out instead of packing one chest.
 //   - A group too big for any chest is placed kind by kind, and a kind too big, stack by stack.
 // Sorting chests that are already sorted gives no moves.
 import { GROUPS, groupOf as groupByName } from './item_groups.js';
@@ -112,9 +112,15 @@ function layout(chests, { sizes, groupOf, groupOrder }) {
         placed[ci].push({ kind, fulls, rest });
         free[ci] -= fulls + (rest ? 1 : 0);
     };
+    // "Roomiest" goes by how full a chest is, not by how many slots it has free. By free slots alone a
+    // double chest among single ones stays the roomiest however much goes into it, and swallows every
+    // group while the others stand empty. Between chests equally full, the bigger one wins, then the
+    // earlier one. (Cross-multiplied, to compare the two fractions without rounding.)
+    const size = chests.map(chest => chest.slots.length);
+    const emptier = (a, b) => free[a] * size[b] - free[b] * size[a] || free[a] - free[b];
     const roomiest = need => {
         let pick = -1;
-        for (let ci = 0; ci < free.length; ci++) if (free[ci] >= need && (pick < 0 || free[ci] > free[pick])) pick = ci;
+        for (let ci = 0; ci < free.length; ci++) if (free[ci] >= need && (pick < 0 || emptier(ci, pick) > 0)) pick = ci;
         return pick;
     };
     // The chest for a group or a kind that needs `need` slots: the one already holding most of it, when

@@ -152,6 +152,22 @@ test('a base that is already organized keeps its chests: only the strays move', 
     assert.ok(plan.moves.length <= 10 && plan.visits <= 3, `${plan.moves.length} moves, ${plan.visits} openings`);
 });
 
+test('groups spread over chests of different sizes: a double chest does not swallow what the single ones could share', () => {
+    // Four kinds of thing, a little of each in every chest, so no chest has a claim on any of them.
+    const some = ['bread x5', 'iron_ingot x10', 'oak_log x10', 'cobblestone x10'];
+    const { after } = checked([chest('double', 54, some), chest('a', 27, some), chest('b', 27, some), chest('c', 27, some)]);
+    // Going by free slots alone, the double chest would stay the roomiest however much went into it, and
+    // take all four while three chests stood empty. Going by how full each chest is, they get one each.
+    for (const c of after) {
+        const groups = new Set(c.slots.filter(Boolean).map(s => groupOf(s.name)));
+        assert.equal(groups.size, 1, `chest ${c.id} holds one group, not ${[...groups].join(', ') || 'nothing'}`);
+    }
+    // And a chest that is already half full is passed over for an empty one, even with as many slots free.
+    const half = chest('double', 54, Array.from({ length: 27 }, () => 'cobblestone x64'));
+    const sorted = checked([half, chest('a', 27, ['oak_log x10', 'bread x3']), chest('b', 27, ['oak_log x10', 'bread x3'])]).after;
+    assert.deepEqual(chestsWith(sorted, s => s.name !== 'cobblestone').sort(), ['a', 'b']);
+});
+
 test('chests that are already sorted need no moves at all', () => {
     const before = [
         chest('a', 27, ['oak_log x64', 'oak_log x5', 'spruce_planks x12']),
