@@ -38,6 +38,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
     that walk never digs or places a block.
   - If a chest changes while the bot works, it notices, puts down what it is carrying and plans again.
     A chest that will not open is left out and named. Nothing is lost either way.
+- **Chest commands that say which chest.** `!viewChestAt(x, y, z)`, `!takeFromChestAt(x, y, z, item_name,
+  num)` and `!putInChestAt(x, y, z, item_name, num)` look in, take from and put into the chest, trapped
+  chest or barrel at a position, where `!viewChest`, `!takeFromChest` and `!putInChest` use whichever
+  chest is nearest. They say whose the chest is, walk to it without digging or placing, and report
+  what really moved when not all of it fitted. They come with chest sorting (`chest_sorting`).
 - Live scenarios for chest sorting (`tests/live/storage_scenarios.js`), on a real server with no model
   calls: the server console fills the chests and reads them back itself. In a room several players
   share, every chest a sort was not approved for is checked to be slot for slot as it was.

@@ -126,6 +126,9 @@ were empty when the sort began, and never in its hotbar.
 | `!markChests(which, distance, owner, sorting)` | The same for several chests in view at once. `which` is `unknown` for the ones with no owner yet, or a current owner. It never changes another owner's chests |
 | `!sortChest(x, y, z)` | Sorts one chest by itself |
 | `!sortChests(whose, distance)` | Sorts one owner's chests in view within `distance` blocks (1 to 32), together. `whose` is a player's name, `shared`, the bot's own name, or `approved` for every chest marked `always` |
+| `!viewChestAt(x, y, z)` | Says what one chest holds, added up by kind, and whose it is |
+| `!takeFromChestAt(x, y, z, item_name, num)` | Takes up to `num` of an item out of one chest |
+| `!putInChestAt(x, y, z, item_name, num)` | Puts up to `num` of an item the bot carries into one chest |
 
 - **`owner`** is a player's name, `shared`, the bot's own name, `unknown`, or `same` to leave it as it is.
 - **`sorting`** is `always`, `asked`, `never`, or `same`.
@@ -159,6 +162,28 @@ Left alone within 8 blocks:
 - 1 chest with no known owner: 41, 70, -6. Ask whose it is before sorting it.
 - 1 more Alice's is nearby but out of sight from here. Only chests you can see from where you stand are sorted.
 ```
+
+**One chest, named by where it is.** The chest commands Mindcraft-CE comes with (`!viewChest`,
+`!takeFromChest`, `!putInChest`) use whichever chest is nearest, and only chests, not barrels. They are
+still there. In a room of chests the model has to say which one, and `!chests` gives it the positions:
+
+```
+The chest at 41, 70, 4, which is Bob's, holds (2 of 27 slots used):
+- stone 3
+- sand 30
+```
+
+```
+Took 10 sand from the chest at 41, 70, 4, which is Bob's.
+```
+
+- **The chest is opened as a sort opens it:** from where the bot stands when it is within reach, and
+  otherwise after a walk that neither digs nor places.
+- **What moved is counted from the chest afterwards.** With no room in the bot's inventory, or in the
+  chest, what fits is moved and the result says how much that was.
+- **A number larger than what is there moves all of it.**
+- **They say whose the chest is and refuse nothing.** Whose chests the bot may take from is not decided
+  yet (see [Known Limits](#known-limits)).
 
 How a conversation goes:
 
@@ -266,7 +291,7 @@ The code is in `src/agent/storage/`.
 | `permit.js` | Which chests a request may sort, in sets that never cross owners, and why the rest are left. A pure function |
 | `asker.js` | Who is behind what the bot is doing: a player who asked, or the bot's own idea |
 | `made_chests.js` | Whose a chest is when the bot placed it itself, and forgetting one it dug up |
-| `commands.js` | The five commands and the text of their results |
+| `commands.js` | The eight commands and the text of their results |
 | `install.js` | Turns it on for an agent, from the `chest_sorting` setting. Opens and saves the chest book |
 
 The chest book is saved under `bots/<name>/storage/`, one `chests.json` per server, world and dimension.
@@ -277,7 +302,7 @@ when nothing can be told the answer is "unknown", which is allowed.
 
 Two things to know before changing `bot_hands.js`:
 
-- **A move is three clicks made directly,** not mineflayer's `moveSlotItem`. That helper looks for the
+- **A move of the sort is three clicks made directly,** not mineflayer's `moveSlotItem`. That helper looks for the
   cursor on the bot's own inventory, which is not where the cursor is while a chest is open, so a swap
   would leave a stack on the cursor.
 - **The bot's copy of a window is a guess.** It works out what each click did without waiting for the
@@ -285,12 +310,16 @@ Two things to know before changing `bot_hands.js`:
   to it. `settle` asks the server to send the window again and puts back a stack a wrong guess left on
   the cursor.
 
+Taking from and putting into one chest use mineflayer's own `withdraw` and `deposit`, as the inherited
+chest skills do: there the item is meant to join the stacks the bot already carries. `settle` is still
+asked for before counting what moved.
+
 **Tests**, in three layers:
 
 | Layer | Where | Needs |
 |---|---|---|
 | The plan, and who may be sorted | `tests/storage_sort_plan.test.js`, `tests/storage_item_groups.test.js`, `tests/storage_chest_book.test.js`, `tests/storage_permit.test.js`, `tests/storage_asker.test.js`, `tests/storage_made_chests.test.js` | Nothing |
-| The doing, in a fake room | `tests/storage_sorter.test.js`, `tests/storage_commands.test.js`, `tests/storage_install.test.js`. The room (`tests/helpers/fake_chest_bot.js`) keeps the server's copy of a window apart from the bot's guess | Nothing |
+| The doing, in a fake room | `tests/storage_sorter.test.js`, `tests/storage_commands.test.js`, `tests/storage_chest_access.test.js`, `tests/storage_install.test.js`. The room (`tests/helpers/fake_chest_bot.js`) keeps the server's copy of a window apart from the bot's guess | Nothing |
 | The doing, for real | `tests/live/storage_scenarios.js`: the server console fills the chests and reads them back itself. Its last steps are a room several players share, where every chest a sort was not approved for must be slot for slot as it was | A throwaway server, no model |
 
 Edits to inherited files are listed in [core-hooks.md](core-hooks.md): the setting, one line in

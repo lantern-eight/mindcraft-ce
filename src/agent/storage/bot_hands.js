@@ -22,6 +22,8 @@ import { onActionCleanup } from '../action_context.js';
 const MAIN_START = 9, MAIN_END = 36;
 // How long to wait for the server to correct the bot's copy of a window, when it cannot be asked outright.
 const QUIET_MS = 250;
+// After the server has answered, how long to go on listening for another copy of the window.
+const SETTLE_MS = 120;
 // A chest this close to the bot's eyes is opened from where the bot stands. A little under what the
 // game allows, so a chest right at the edge is walked up to instead of missed.
 const ARMS_REACH = 4;
@@ -71,11 +73,12 @@ function within(promise, ms, what) {
  * @param {number} [options.reach] - how near a chest has to be for the bot to open it without walking
  * @param {number} [options.openTimeoutMs] - how long a chest gets to open. One with a block on top never does
  * @param {number} [options.syncTimeoutMs] - how long the server gets to send a window again
+ * @param {number} [options.settleMs] - how long it goes on listening for a later copy of the window
  * @param {number} [options.pauseMs] - the pause after each move, so the clicks come no faster than a
  *   quick player's
  * @param {(ms: number) => Promise<void>} [options.wait]
  */
-export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARMS_REACH, openTimeoutMs = 4000, syncTimeoutMs = 1500,
+export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARMS_REACH, openTimeoutMs = 4000, syncTimeoutMs = 1500, settleMs = SETTLE_MS,
     pauseMs = 100, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
     // Decided once, at the start: a slot that fills up later (something picked up on the way) is then
     // noticed as a surprise instead of quietly changing which slot is which.
@@ -83,6 +86,11 @@ export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARM
     const own = bot.inventory.slots;
     for (let slot = MAIN_START; slot < MAIN_END; slot++) if (!own[slot]) handSlots.push(slot);
     const where = pos => `${pos.x}, ${pos.y}, ${pos.z}`;
+    const itemId = name => {
+        const id = bot.registry.itemsByName[name]?.id;
+        if (id === undefined) throw new Error(`there is no item called ${name}`);
+        return id;
+    };
 
     /** Is the block at `pos` within arm's reach of the bot's eyes, measured to the nearest point of the block? */
     const inReach = pos => {
@@ -145,10 +153,31 @@ export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARM
             // A cancelled sort closes the chest there and then. It is not left open on the bot.
             const shut = () => { if (bot.currentWindow === window) window.close(); };
             const forget = onActionCleanup(bot, shut);
+            // "The server's answer" is simply the next full copy of the window to arrive, and it may not
+            // be the answer at all: the server also sends a copy whenever a click did not match what it
+            // expected, and one of those can still be on its way after a quick run of clicks. Taken for
+            // the truth, it shows a moment in the middle of them (a stack still on the cursor, say),
+            // and tidying that up moves real items. The server answers in order, so the last copy to
+            // arrive is the truth: listen until no more come.
+            const lastCopy = async () => {
+                if (typeof bot.on !== 'function' || typeof bot.off !== 'function') return;
+                let arrived = false;
+                const onCopy = () => { arrived = true; };
+                bot.on(`setWindowItems:${window.id}`, onCopy);
+                try {
+                    for (let tries = 0; tries < 10; tries++) {
+                        arrived = false;
+                        await wait(settleMs);
+                        if (!arrived) break;
+                    }
+                } finally { bot.off(`setWindowItems:${window.id}`, onCopy); }
+            };
             const sync = async () => {
                 if (typeof bot._syncWindow === 'function') {
-                    try { return await within(bot._syncWindow(window), syncTimeoutMs, 'the server did not answer'); }
-                    catch { /* wait it out instead */ }
+                    try {
+                        await within(bot._syncWindow(window), syncTimeoutMs, 'the server did not answer');
+                        return await lastCopy();
+                    } catch { /* wait it out instead */ }
                 }
                 await wait(QUIET_MS);
             };
@@ -165,6 +194,14 @@ export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARM
                     if (window.selectedItem) await bot.clickWindow(a, 0, 0);
                     if (pauseMs > 0) await wait(pauseMs);
                 },
+                /**
+                 * Takes up to `count` of an item out of the chest into the bot's inventory, or puts it
+                 * in from there: onto stacks of the same item first, then into empty slots. Unlike a
+                 * move of the sort, this is meant to mix with what the bot carries. It rejects when
+                 * not all of it fits, having moved what did; `settle`, then `slots`, say how much.
+                 */
+                async withdraw(name, count) { await window.withdraw(itemId(name), null, count); },
+                async deposit(name, count) { await window.deposit(itemId(name), null, count); },
                 async settle() {
                     await sync();
                     if (!window.selectedItem) return;

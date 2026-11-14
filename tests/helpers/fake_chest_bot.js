@@ -38,6 +38,29 @@ function leftClick(view, slot, sizeOf, alike = sameKind) {
 }
 
 /**
+ * Moves up to `count` of an item from one run of slots to another, the way the game's own "take" and
+ * "put" do it: onto part stacks of the same kind first, then into empty slots. What fits is moved
+ * even when not all of it does, and then it throws, as mineflayer does.
+ * `view` is { slots, cursor }; `from` and `to` are [first slot, one past the last].
+ */
+function transfer(view, name, count, from, to, sizeOf) {
+    const within = (i, [start, end]) => i >= start && i < end;
+    let left = count;
+    while (left > 0) {
+        const source = view.slots.findIndex((s, i) => within(i, from) && s?.name === name);
+        if (source < 0) throw new Error(`Can't find ${name} in slots [${from[0]} - ${from[1]}]`);
+        const stack = view.slots[source];
+        let target = view.slots.findIndex((s, i) => within(i, to) && s && sameKind(s, stack) && s.count < sizeOf(name));
+        if (target < 0) target = view.slots.findIndex((s, i) => within(i, to) && !s);
+        if (target < 0) throw new Error('destination full');
+        const moved = Math.min(left, stack.count, sizeOf(name) - (view.slots[target]?.count ?? 0));
+        view.slots[target] = { ...stack, count: (view.slots[target]?.count ?? 0) + moved };
+        view.slots[source] = stack.count > moved ? { ...stack, count: stack.count - moved } : null;
+        left -= moved;
+    }
+}
+
+/**
  * @param {object} [options]
  * @param {Object<string, (string|object|null)[]>} [options.chests] - "x,y,z" -> its slots, every slot listed
  * @param {(string|object|null)[]} [options.pockets] - the bot's own 36 inventory slots (27 main, then the hotbar)
@@ -58,6 +81,7 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
     } : null);
 
     let open = null;        // the window that is open now: { id, window, server, client, size }
+    const heard = new Map(); // event name -> the bot's listeners for it
     let windowIds = 0;
 
     const room = {
@@ -72,6 +96,10 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
         dropped: [],            // stacks that ended up on the floor
         onOpen: null,           // (id, how many times it has now been opened) => void, before the window opens
         onClick: null,          // (how many clicks so far) => void, before the click lands
+        // An older copy of the open window that is still on its way when the bot next asks the server
+        // what is there: (the server's { slots, cursor }) => { slots, cursor }. The bot gets it first,
+        // and the true copy a few milliseconds later, as on a real server after a quick run of clicks.
+        lateCopy: null,
 
         /** What is really in a chest. */
         contents: id => room.chests.get(id).map(clone),
@@ -103,7 +131,7 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
         output: '',
         currentWindow: null,
         registry: {
-            itemsByName: new Proxy({}, { get: (_, name) => ({ name, stackSize: clientSize(name) }) }),
+            itemsByName: new Proxy({}, { get: (_, name) => ({ id: name, name, stackSize: clientSize(name) }) }),
             foodsByName: { bread: {}, apple: {}, cooked_beef: {} },
         },
         inventory: {
@@ -124,10 +152,20 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
             const size = room.chests.get(id).length;
             const server = { slots: [...room.chests.get(id).map(clone), ...room.pockets.map(clone)], cursor: null };
             const client = { slots: server.slots.map(clone), cursor: null };
+            server.sizeOf = serverSize; client.sizeOf = clientSize;
+            // The same thing happens on the server and in the bot's copy; a problem is reported once.
+            const both = fn => {
+                let problem = null;
+                for (const view of [server, client]) { try { fn(view); } catch (error) { problem = error; } }
+                if (problem) throw problem;
+            };
             const window = {
                 id: ++windowIds, type: 'minecraft:generic_9x3', inventoryStart: size, inventoryEnd: size + 36,
                 get slots() { return client.slots.map(toItem); },
                 get selectedItem() { return toItem(client.cursor, -1); },
+                // mineflayer's own "take out" and "put in": between the chest's slots and the bot's.
+                async withdraw(type, metadata, count) { both(view => transfer(view, type, count, [0, size], [size, size + 36], view.sizeOf)); },
+                async deposit(type, metadata, count) { both(view => transfer(view, type, count, [size, size + 36], [0, size], view.sizeOf)); },
                 close() {
                     if (bot.currentWindow !== window) return;
                     // The server hands a stack left on the cursor back to the player, or drops it.
@@ -154,11 +192,26 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
             leftClick(open.server, slot, serverSize);
             leftClick(open.client, slot, clientSize, clientIgnoresTags ? (a, b) => a.name === b.name : sameKind);
         },
+        on(name, fn) { heard.set(name, [...(heard.get(name) ?? []), fn]); },
+        off(name, fn) { heard.set(name, (heard.get(name) ?? []).filter(listener => listener !== fn)); },
         /** Asks the server to send the whole window again: the bot's copy becomes the truth. */
         async _syncWindow() {
             if (!open) return;
-            open.client.slots = open.server.slots.map(clone);
-            open.client.cursor = clone(open.server.cursor);
+            const current = open;
+            const truth = () => {
+                current.client.slots = current.server.slots.map(clone);
+                current.client.cursor = clone(current.server.cursor);
+            };
+            if (!room.lateCopy) return truth();
+            const stale = room.lateCopy({ slots: current.server.slots.map(clone), cursor: clone(current.server.cursor) });
+            room.lateCopy = null;
+            current.client.slots = stale.slots.map(clone);
+            current.client.cursor = clone(stale.cursor);
+            setTimeout(() => {
+                if (open !== current) return;
+                truth();
+                for (const fn of heard.get(`setWindowItems:${current.window.id}`) ?? []) fn();
+            }, 5);
         },
     };
     return { bot, room };

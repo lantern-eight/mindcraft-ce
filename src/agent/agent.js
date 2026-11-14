@@ -105,7 +105,7 @@ export class Agent {
         // Fair play (off unless settings.fair_play says otherwise): locks cheat mode, guards slash
         // commands, and on spawn makes every world search answer only from what the bot has seen.
         installFairPlay(this);
-        // Chest sorting (off unless settings.chest_sorting is true): adds the !sortChests command.
+        // Chest sorting (off unless settings.chest_sorting is true): adds the chest commands.
         installStorage(this);
 
         this.bot.on('login', () => {

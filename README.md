@@ -53,13 +53,13 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
 | Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
 | Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
-| Chests | Looks in, takes from or puts into the nearest chest | Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
+| Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 413 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 424 offline tests, plus live scenarios on a real server that make no model calls |
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their

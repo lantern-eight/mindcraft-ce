@@ -27,7 +27,7 @@ async function sortRoom(setup, { arrange = () => {}, sorter = {}, hands: handOpt
     const before = room.totals();
     arrange(room, bot);
     const stackSize = name => bot.registry.itemsByName[name].stackSize;
-    const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0, openTimeoutMs: 40, ...handOptions });
+    const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0, settleMs: 0, openTimeoutMs: 40, ...handOptions });
     const options = { stackSize, groupOf, groupOrder: GROUPS, carry: hands.free() };
     const report = await runSort(room.descriptors(), { hands, ...options, ...sorter });
     // `totals: false` is for a test where someone adds things half way: it counts for itself.
@@ -216,7 +216,7 @@ test('a cancelled sort stops at once, closes the chest, and loses nothing', asyn
             if (where === 'in the middle of a move' && clicks === 2) cancel();   // one stack is on the cursor
             if (clicks === 4) cancelled = true;
         };
-        const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0 });
+        const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0, settleMs: 0 });
         const checkpoint = () => { if (cancelled) throw new Error('Action cancelled'); };
         await assert.rejects(runSort(room.descriptors(), { hands, stackSize: () => 64, groupOf, groupOrder: GROUPS, checkpoint }), /cancelled/, where);
         assert.equal(bot.currentWindow, null, `${where}: the chest is closed`);
@@ -231,7 +231,7 @@ test('either half of a double chest opens it', async () => {
     const seen = [];
     // The first half is out of reach or hidden; the hands try the other one.
     const blockAt = pos => { seen.push(pos.z); return pos.z === 0 ? null : room.blockAt(pos); };
-    const hands = botHands(bot, { goTo: room.goTo, blockAt, pauseMs: 0 });
+    const hands = botHands(bot, { goTo: room.goTo, blockAt, pauseMs: 0, settleMs: 0 });
     const report = await runSort(room.descriptors(), { hands, stackSize: () => 64, groupOf, groupOrder: GROUPS });
     assert.equal(report.done, true);
     assert.deepEqual(seen.slice(0, 2), [0, 1]);
@@ -242,7 +242,7 @@ test('a chest within reach is opened from where the bot stands; it walks only to
     const chests = { '2,64,0': row(9, ['dirt x3', null, 'dirt x4']), '9,64,0': row(9, ['oak_log x3', null, 'oak_log x4']) };
     const { bot, room } = fakeChestBot({ chests });
     bot.entity = { position: { x: 0.5, y: 64, z: 0.5 }, eyeHeight: 1.62 };
-    const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0 });
+    const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0, settleMs: 0 });
     const report = await runSort(room.descriptors(), { hands, stackSize: () => 64, groupOf, groupOrder: GROUPS });
     assert.equal(report.done, true);
     assert.deepEqual([...new Set(room.walks)], ['9,64,0'], 'the near chest was never walked to');
@@ -254,7 +254,7 @@ test('a chest in reach that will not open from where the bot stands is walked up
     bot.entity = { position: { x: 0.5, y: 64, z: 0.5 }, eyeHeight: 1.62 };
     // Out of sight from here: the first try fails, and after the walk it opens.
     room.onOpen = (id, times) => { if (times === 1) room.blocked.add(id); else room.blocked.delete(id); };
-    const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0 });
+    const hands = botHands(bot, { goTo: room.goTo, blockAt: room.blockAt, pauseMs: 0, settleMs: 0 });
     const report = await runSort(room.descriptors(), { hands, stackSize: () => 64, groupOf, groupOrder: GROUPS });
     assert.deepEqual([report.done, report.skipped.length], [true, 0]);
     assert.deepEqual(room.walks, ['2,64,0'], 'one walk, when the first try failed');
@@ -267,7 +267,7 @@ test('a walk that fails leaves the chest out, unless it brought the chest within
         const { bot, room } = fakeChestBot({ chests });
         bot.entity = { position: { x: 0.5, y: 64, z: 0.5 }, eyeHeight: 1.62 };
         const goTo = async () => { bot.entity.position.x = stopsAt; throw new Error('the way is blocked'); };
-        const hands = botHands(bot, { goTo, blockAt: room.blockAt, pauseMs: 0 });
+        const hands = botHands(bot, { goTo, blockAt: room.blockAt, pauseMs: 0, settleMs: 0 });
         const report = await runSort(room.descriptors(), { hands, stackSize: () => 64, groupOf, groupOrder: GROUPS });
         assert.equal(report.chests.length, opened ? 1 : 0, `a walk that stops at x = ${stopsAt}`);
         if (!opened) assert.match(report.skipped[0].reason, /the way is blocked/);

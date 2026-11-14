@@ -145,7 +145,7 @@ const deps = (room, { book = createChestBook({ scope: 'test' }), hidden = [], ..
     blockAt: (bot, pos) => room.blockAt(pos),
     goTo: async (bot, chest) => room.goTo(chest),
     inView: (bot, found) => !hidden.includes(found.id),
-    hands: { pauseMs: 0 },
+    hands: { pauseMs: 0, settleMs: 0 },
     book, name: 'Sorter',
     ...rest,
 });
@@ -373,10 +373,10 @@ test('the setting turns the chest commands on, and what the bot is told about ch
     const config = { chest_sorting: true, host: 'localhost', port: 25565, world_id: 'test' };
     const { book: _, name: __, ...finding } = deps(room);
     const installed = installStorage(agent, { config, deps: finding, bookDir });
-    assert.deepEqual(installed.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests']);
+    assert.deepEqual(installed.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt']);
     for (const name of installed.commands) assert.ok(getCommands().includes(getCommand(name)), name);
     // Sorting takes over from what the bot is doing; listing and marking answer at once.
-    assert.deepEqual(installed.commands.map(isAction), [false, false, false, true, true]);
+    assert.deepEqual(installed.commands.map(isAction), [false, false, false, true, true, true, true, true]);
     assert.deepEqual(parseCommandMessage('!sortChests("Alice", 8)'), { commandName: '!sortChests', args: ['Alice', 8] });
     assert.match(parseCommandMessage('!sortChests("Alice", 200)'), /must be an element of/);
     assert.deepEqual(parseCommandMessage('!markChest(0, 64, 0, "Alice", "always")'), { commandName: '!markChest', args: [0, 64, 0, 'Alice', 'always'] });
@@ -397,6 +397,13 @@ test('the setting turns the chest commands on, and what the bot is told about ch
     const structured = await getCommand('!sortChest').perform.structured(agent, 0, 64, 0);
     assert.equal(structured.status, 'ok');
     assert.match(structured.text, /already in order/);
+    assert.equal(agent.actions.executing, false);
+    // One chest, named by where it is: looked in, taken from and put into as actions of the bot.
+    assert.match(await getCommand('!viewChestAt').perform(agent, 0, 64, 0), /^The chest at 0, 64, 0, which is Alice's, holds \(2 of 27 slots used\):\n- oak_log 3\n- dirt 20$/);
+    assert.equal(await getCommand('!takeFromChestAt').perform(agent, 0, 64, 0, 'dirt', 5), 'Took 5 dirt from the chest at 0, 64, 0, which is Alice\'s.');
+    const put = await getCommand('!putInChestAt').perform.structured(agent, 0, 64, 0, 'dirt', 2);
+    assert.equal(put.status, 'ok');
+    assert.equal(put.text, 'Put 2 dirt in the chest at 0, 64, 0, which is Alice\'s.');
     assert.equal(agent.actions.executing, false);
 
     // It was written down as it happened, in a folder for this server, world and dimension.

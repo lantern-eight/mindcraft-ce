@@ -37,7 +37,7 @@ const installed = installStorage(agent, {
         blockAt: (b, pos) => room.blockAt(pos),
         goTo: async (b, chest) => room.goTo(chest),
         inView: () => true,
-        hands: { pauseMs: 0 },
+        hands: { pauseMs: 0, settleMs: 0 },
     },
 });
 const book = () => installed.book();

@@ -14,7 +14,8 @@
 //
 // The last steps are a room that several players share: two owners, a shared chest, one nobody has
 // claimed, one behind a wall, and one the bot places itself. They check that a sort touches only the
-// chests it was approved for, and leaves every other one slot for slot as it was.
+// chests it was approved for, and leaves every other one slot for slot as it was. The last of them
+// looks in, takes from and puts into one chest named by where it is.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -77,7 +78,7 @@ try {
     assert.ok(handle?.memory, 'fair play and world memory are on');
     const bookDir = mkdtempSync(path.join(tmpdir(), 'storage-live-book-'));
     const storage = installStorage(agent, { bookDir });
-    assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests'], 'chest sorting is on');
+    assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt'], 'chest sorting is on');
     // The last few things the bot did with a chest, kept so that a run that goes wrong can say where.
     const lately = [];
     const note = text => { lately.push(text); if (lately.length > 12) lately.shift(); };
@@ -439,6 +440,26 @@ try {
         assert.doesNotMatch(list, /41, 70, 6/, list);
         assert.equal(storage.book().at(41, 70, 6), null);
         assert.equal(storage.book().at(41, 70, 4)?.owner, 'Bob', 'the chests still standing are still known');
+    });
+
+    await step('one chest named by where it is: the bot looks in it, takes from it, and puts what it took into another, saying whose each is', async () => {
+        const view = await sorting('!viewChestAt', [41, 70, 4]);
+        assert.equal(view.status, 'ok', view.text);
+        assert.match(view.text, /^The chest at 41, 70, 4, which is Bob's, holds \(2 of 27 slots used\):\n- stone 3\n- sand 30/, view.text);
+        const took = await sorting('!takeFromChestAt', [41, 70, 4, 'sand', 10]);
+        assert.equal(took.status, 'ok', took.text);
+        assert.match(took.text, /^Took 10 sand from the chest at 41, 70, 4, which is Bob's\./, took.text);
+        assert.deepEqual(show(await read([41, 70, 4])), ['stone x3', 'sand x20']);
+        assert.ok(pockets().includes('sand x10'), `the bot has the sand: ${pockets()}`);
+        const put = await sorting('!putInChestAt', [41, 70, 2, 'sand', 99]);
+        assert.equal(put.status, 'ok', put.text);
+        assert.match(put.text, /^Put 10 sand in the chest at 41, 70, 2, which is Bob's\. That was all you had\./, put.text);
+        assert.deepEqual(show(await read([41, 70, 2])).sort(), ['dirt x10', 'dirt x12', 'sand x10']);
+        assert.ok(!pockets().some(item => item.startsWith('sand')), `the bot has no sand left: ${pockets()}`);
+        // There is no chest in the gap between two of them.
+        const missing = await sorting('!viewChestAt', [41, 70, 3]);
+        assert.equal(missing.status, 'failed');
+        assert.match(missing.text, /don't know of a chest or barrel at 41, 70, 3/);
     });
 
     await step('after all of that, the server log shows no command issued by the bot', () => {

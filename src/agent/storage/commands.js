@@ -9,6 +9,9 @@
 //   !sortChests(whose, distance)                tidies one owner's chests in view together: part
 //                                               stacks merged, each kind of item together, related
 //                                               kinds in the same chest
+//   !viewChestAt(x, y, z)                       what one chest holds, and whose it is
+//   !takeFromChestAt(x, y, z, item_name, num)   takes an item out of one chest
+//   !putInChestAt(x, y, z, item_name, num)      puts an item the bot carries into one chest
 //
 // Nothing is sorted unless that was approved for the chest: a player asks now, or the chest is marked
 // "always". Which chests a request may touch is decided in permit.js from what the chest book
@@ -418,6 +421,92 @@ export async function sortChestAt(bot, pos, deps = {}) {
     return sortPools(bot, picked, {}, env);
 }
 
+// ---- One chest, named by where it is: looking in, taking out, putting in ----
+//
+// The commands the bot came with for this use the nearest chest, whichever that is. In a room of
+// chests the model needs to say which one, and !chests gives it the positions to say it with. These
+// open the chest the way a sort does: from where the bot stands when it is within reach, and
+// otherwise after a walk that neither digs nor places. They say whose the chest is. They refuse
+// nothing: whose chests the bot may take from is not decided here.
+
+const NO_CHEST_AT = pos => `You don't know of a chest or barrel at ${at(pos)}. Use !chests to see the ones you know of.`;
+const whoseText = (book, chest) => { const owner = book.ownerOf(chest); return owner === null ? 'which has no known owner' : `which is ${ownerLabel(owner)}`; };
+/** "oak_log 70, bread 3": what is in some slots, added up by kind, in the order the kinds first appear. */
+function contentsOf(slots) {
+    const totals = new Map();
+    for (const stack of slots) if (stack) totals.set(stack.name, (totals.get(stack.name) ?? 0) + stack.count);
+    return [...totals].map(([name, count]) => `${name} ${count}`);
+}
+const countOfItem = (slots, name) => slots.reduce((n, stack) => n + (stack?.name === name ? stack.count : 0), 0);
+
+/**
+ * Opens the chest at a spot, hands it to `use`, and closes it again whatever happens.
+ * @returns {Promise<{status: string, text: string}>} what `use` returned, or why the chest could not be opened
+ */
+async function withChestAt(bot, pos, env, use) {
+    const chest = chestAt(bot, pos, env);
+    if (!chest) return toolResult('failed', NO_CHEST_AT(pos));
+    const hands = botHands(bot, { goTo: found => env.goTo(bot, found), blockAt: cell => env.blockAt(bot, cell), isChest: isSortable, ...env.hands });
+    let opened;
+    try { opened = await hands.open(chest); }
+    catch (error) {
+        assertActionOwner(bot);     // stopped, which is not the same as a chest that will not open
+        return toolResult('failed', `Could not open the ${labelOf(chest)}: ${error.message}`);
+    }
+    try { return await use(opened, chest, `${labelOf(chest)}, ${whoseText(env.book, chest)}`); }
+    finally { await opened.close(); }
+}
+
+/** !viewChestAt: what the chest at a spot holds, and whose it is. */
+export async function viewChestAt(bot, pos, deps = {}) {
+    const env = { ...real, ...deps };
+    return withChestAt(bot, pos, env, async (opened, chest, label) => {
+        const slots = opened.slots(), used = slots.filter(Boolean).length;
+        if (!used) return toolResult('ok', `The ${label}, is empty.`);
+        return toolResult('ok', `The ${label}, holds (${used} of ${slots.length} slots used):\n${contentsOf(slots).map(line => `- ${line}`).join('\n')}`);
+    });
+}
+
+/** !takeFromChestAt: takes up to `num` of an item out of the chest at a spot. */
+export async function takeFromChestAt(bot, pos, itemName, num, deps = {}) {
+    const env = { ...real, ...deps };
+    return withChestAt(bot, pos, env, async (opened, chest, label) => {
+        const had = countOfItem(opened.slots(), itemName);
+        if (!had) {
+            const holds = contentsOf(opened.slots());
+            return toolResult('failed', `There is no ${itemName} in the ${label}. ${holds.length ? `It holds: ${holds.join(', ')}.` : 'It is empty.'}`);
+        }
+        const want = Math.min(num, had);
+        try { await opened.withdraw(itemName, want); }
+        catch { assertActionOwner(bot); /* not all of it fitted: what did is counted below */ }
+        // The bot's own copy of the window is a guess. What moved is what the server says is left.
+        await opened.settle();
+        const taken = had - countOfItem(opened.slots(), itemName);
+        if (taken <= 0) return toolResult('failed', `Could not take any ${itemName} from the ${labelOf(chest)}: your inventory has no room for it.`);
+        if (taken < want) return toolResult('partial', `Took ${taken} of the ${want} ${itemName} asked for from the ${label}: your inventory has no room for more.`);
+        return toolResult('ok', `Took ${taken} ${itemName} from the ${label}.${num > had ? ' That was all of it.' : ''}`);
+    });
+}
+
+/** !putInChestAt: puts up to `num` of an item the bot carries into the chest at a spot. */
+export async function putInChestAt(bot, pos, itemName, num, deps = {}) {
+    const env = { ...real, ...deps };
+    // What a chest window can reach: the bot's main inventory and hotbar. Checked first, so the bot
+    // does not walk to a chest with nothing to put in it.
+    const carried = (bot.inventory?.slots ?? []).slice(9, 45).reduce((n, item) => n + (item?.name === itemName ? item.count : 0), 0);
+    if (!carried) return toolResult('failed', `You have no ${itemName} to put in a chest.`);
+    return withChestAt(bot, pos, env, async (opened, chest, label) => {
+        const before = countOfItem(opened.slots(), itemName), want = Math.min(num, carried);
+        try { await opened.deposit(itemName, want); }
+        catch { assertActionOwner(bot); /* not all of it fitted: what did is counted below */ }
+        await opened.settle();
+        const put = countOfItem(opened.slots(), itemName) - before;
+        if (put <= 0) return toolResult('failed', `Could not put any ${itemName} in the ${labelOf(chest)}: it has no room for it.`);
+        if (put < want) return toolResult('partial', `Put ${put} of the ${want} ${itemName} asked for in the ${label}: it has no room for more.`);
+        return toolResult('ok', `Put ${put} ${itemName} in the ${label}.${num > carried ? ' That was all you had.' : ''}`);
+    });
+}
+
 // ---- The commands, as the model calls them ----
 
 /**
@@ -467,6 +556,10 @@ export function storageCommands({ book, save = () => {}, asker = () => ({}), dep
         try { return await fn(agent, ...args); }
         finally { save(agent); }
     });
+    const item = what => ({
+        'item_name': { type: 'ItemName', description: `The name of the item to ${what}.` },
+        'num': { type: 'int', description: `How many to ${what}. A number larger than what is there moves all of it.`, domain: [1, Number.MAX_SAFE_INTEGER] },
+    });
     return [
         { action: false, command: {
             name: '!chests',
@@ -507,6 +600,24 @@ export function storageCommands({ book, save = () => {}, asker = () => ({}), dep
                 'distance': { type: 'int', description: 'How far from you to look for chests, in blocks.', domain: [1, 32, '[]'] },
             },
             perform: sorting('sortChests', (agent, whose, distance) => sortChestsHere(agent.bot, whose, distance, env(agent))),
+        } },
+        { action: true, command: {
+            name: '!viewChestAt',
+            description: 'Look in the chest or barrel at these coordinates: what it holds and whose it is. !chests lists the chests you know of and where they are.',
+            params: COORDS,
+            perform: asAction('viewChestAt', (agent, x, y, z) => viewChestAt(agent.bot, { x, y, z }, env(agent))),
+        } },
+        { action: true, command: {
+            name: '!takeFromChestAt',
+            description: 'Take an item out of the chest or barrel at these coordinates. Use this when it matters which chest: !takeFromChest uses whichever chest is nearest.',
+            params: { ...COORDS, ...item('take') },
+            perform: asAction('takeFromChestAt', (agent, x, y, z, itemName, num) => takeFromChestAt(agent.bot, { x, y, z }, itemName, num, env(agent))),
+        } },
+        { action: true, command: {
+            name: '!putInChestAt',
+            description: 'Put an item you carry into the chest or barrel at these coordinates. Use this when it matters which chest: !putInChest uses whichever chest is nearest.',
+            params: { ...COORDS, ...item('put in') },
+            perform: asAction('putInChestAt', (agent, x, y, z, itemName, num) => putInChestAt(agent.bot, { x, y, z }, itemName, num, env(agent))),
         } },
     ];
 }
