@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
+The bot remembers the world it has seen, and walks back the way it came. Built on the same Mindcraft-CE
+commit as 0.1.0.
+
 ### Added
 
 - **World memory.** The bot remembers the world the way a player who has been there does. It is on by
@@ -120,6 +125,7 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lantern-eight/mindcraft-ce/releases/tag/v0.1.0
