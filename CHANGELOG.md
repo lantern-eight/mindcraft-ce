@@ -22,6 +22,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   - A chest within reach is opened from where the bot stands. It walks only to one it cannot reach.
   - If a chest changes while the bot works, it notices, puts down what it is carrying and plans again.
     A chest that will not open is left out and named. Nothing is lost either way.
+- Live scenarios for chest sorting (`tests/live/storage_scenarios.js`), on a real server with no model
+  calls: the server console fills the chests and reads them back itself.
 
 ## [0.2.0] - 2026-11-14
 

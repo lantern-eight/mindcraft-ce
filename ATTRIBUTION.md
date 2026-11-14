@@ -67,8 +67,9 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`
-- `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`
-- `docs/fair-play.md`, `docs/world-memory.md`, `docs/core-hooks.md`
+- `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
+  `tests/live/storage_scenarios.js`
+- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/core-hooks.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file
 
 `docs/setup.md` is Mindcraft-CE's setup guide with its links adjusted, and stays under MIT.
