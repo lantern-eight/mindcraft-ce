@@ -11,6 +11,10 @@
 // The server console is the "director". It builds the room, fills the chests, and afterwards reads
 // each chest back itself, so nothing the bot believes is taken on trust. The bot is given the same
 // commands a model would call: it is told whose a chest is, and then asked to sort.
+//
+// The last steps are a room that several players share: two owners, a shared chest, one nobody has
+// claimed, one behind a wall, and one the bot places itself. They check that a sort touches only the
+// chests it was approved for, and leaves every other one slot for slot as it was.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -44,6 +48,9 @@ try {
     const { MemoryBank } = await import('../../src/agent/memory_bank.js');
     const { planSort } = await import('../../src/agent/storage/sort_plan.js');
     const { GROUPS, grouper } = await import('../../src/agent/storage/item_groups.js');
+    const { loadChestBook } = await import('../../src/agent/storage/chest_book.js');
+    const { scopeDir } = await import('../../src/agent/memory/files.js');
+    const skills = await import('../../src/agent/library/skills.js');
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -55,7 +62,9 @@ try {
         name: NAME, bot, task: null, shut_up: true, last_sender: null, blocked_actions: [], memory_bank: new MemoryBank(),
         prompter: { profile: {}, getInitModes: () => ({}) },
         self_prompter: { isActive: () => false, stopLoop: () => {} },
-        openChat: () => {}, handleMessage: () => {},
+        // A message here is a piece of the test to run while that message is being handled: that is
+        // how the bot is told who is behind what it does (a player's name, or "system" for its own idea).
+        openChat: () => {}, handleMessage: async (source, run) => (typeof run === 'function' ? run() : undefined),
         clearBotLogs: () => { bot.output = ''; bot.interrupt_code = false; },
         requestInterrupt: () => {
             bot.interrupt_code = true; bot.stopDigging(); bot.pathfinder.setGoal(null); bot.clearControlStates(); bot.pvp?.stop();
@@ -66,7 +75,8 @@ try {
     initModes(agent);
     const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'storage-live-')) });
     assert.ok(handle?.memory, 'fair play and world memory are on');
-    const storage = installStorage(agent, { bookDir: mkdtempSync(path.join(tmpdir(), 'storage-live-book-')) });
+    const bookDir = mkdtempSync(path.join(tmpdir(), 'storage-live-book-'));
+    const storage = installStorage(agent, { bookDir });
     assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests'], 'chest sorting is on');
     // The last few things the bot did with a chest, kept so that a run that goes wrong can say where.
     const lately = [];
@@ -93,6 +103,8 @@ try {
     const sortChests = (whose, distance) => sorting('!sortChests', [whose, distance]);
     /** What a player would tell the bot about chests, through the commands a model would use for it. */
     const say = (command, ...args) => getCommand(command).perform(agent, ...args);
+    /** Runs a piece of the test while a message from `source` is being handled. */
+    const during = (source, run) => agent.handleMessage(source, run);
     const settled = async () => { await delay(400); await waitFor(() => !handle.recorder.busy, 20000, () => 'the look-around never finished'); await delay(300); };
 
     // ---- The director's side: filling chests and reading them back through the console ----
@@ -291,6 +303,142 @@ try {
         const result = await sortChests('approved', 4);
         assert.equal(result.status, 'failed');
         assert.match(result.text, /don't see or remember a chest or barrel within 4 blocks/);
+    });
+
+    // ---- A room that several players share ----
+    //
+    // A second platform, too far from the first for a sort here to reach any chest there. Seven chests
+    // stand in a row in front of where the bot will stand. An eighth is behind a wall at its back: the
+    // bot is shown it first, so it knows of it, but cannot see it from the room.
+    await cmd('forceload add 30 -10 50 10');
+    await cmd('fill 30 69 -10 50 69 10 stone');
+    await cmd('fill 30 70 -10 50 80 10 air');
+    const ROOM = {
+        aliceOne: [[41, 70, -4]], aliceTwo: [[41, 70, -2]], aliceNever: [[41, 70, 0]], bob: [[41, 70, 2]], bobAlways: [[41, 70, 4]],
+        shared: [[41, 70, 6]], unclaimed: [[41, 70, -6]], aliceHidden: [[35, 70, 0]],
+    };
+    const only = (...ids) => Object.fromEntries(ids.map(id => [id, ROOM[id]]));
+    for (const [[x, y, z]] of Object.values(ROOM)) await cmd(`setblock ${x} ${y} ${z} chest[facing=west,type=single]`);
+    await cmd('fill 36 70 -3 36 73 3 stone');
+    const OWN = [38, 70, 3];        // where the bot will put a chest of its own
+
+    await step('a room that several players share: the bot is told whose each chest is, and its list says so', async () => {
+        await fill(ROOM.aliceOne[0], { 0: 'cobblestone x20', 5: 'oak_log x10', 9: 'iron_ingot x5' });
+        await fill(ROOM.aliceTwo[0], { 1: 'cobblestone x30', 4: 'oak_log x20', 8: 'bread x4' });
+        await fill(ROOM.aliceNever[0], { 3: 'cobblestone x7', 12: 'cobblestone x9' });
+        await fill(ROOM.bob[0], { 2: 'dirt x10', 6: 'dirt x12' });
+        await fill(ROOM.bobAlways[0], { 4: 'sand x10', 9: 'sand x20', 13: 'stone x3' });
+        await fill(ROOM.shared[0], { 5: 'coal x4', 7: 'coal x5' });
+        await fill(ROOM.unclaimed[0], { 2: 'stick x3', 8: 'stick x4' });
+        await fill(ROOM.aliceHidden[0], { 4: 'cobblestone x3', 11: 'cobblestone x4' });
+        // Behind the wall first, to see the chest there. One chest named by where it is need not be in view.
+        await cmd(`tp ${NAME} 33.5 70 0.5 -90 0`);
+        await delay(1500);
+        await settled();
+        assert.match(say('!markChest', 35, 70, 0, 'Alice', 'same'), /is now Alice's, sorted only when asked/);
+        await cmd(`tp ${NAME} 38.5 70 0.5 -90 0`);
+        await delay(1500);
+        await settled();
+        assert.match(say('!markChest', 41, 70, -4, 'Alice', 'same'), /is now Alice's/);
+        assert.match(say('!markChest', 41, 70, -2, 'alice', 'same'), /is now Alice's/, 'one owner, however the name is typed');
+        assert.match(say('!markChest', 41, 70, 0, 'Alice', 'never'), /is now Alice's, never sorted/);
+        assert.match(say('!markChest', 41, 70, 2, 'Bob', 'same'), /is now Bob's, sorted only when asked/);
+        assert.match(say('!markChest', 41, 70, 4, 'Bob', 'always'), /is now Bob's, may always be sorted/);
+        assert.match(say('!markChest', 41, 70, 6, 'shared', 'same'), /is now shared, sorted only when asked/);
+        const list = say('!chests', 8);
+        assert.match(list, /^CHESTS YOU KNOW WITHIN 8 BLOCKS/, list);
+        assert.equal(list.split('\n').length, 9, list);
+        assert.match(list, /- chest at 41, 70, 0: Alice's\. Never sorted/, list);
+        assert.match(list, /- chest at 41, 70, 4: Bob's\. May always be sorted/, list);
+        assert.match(list, /- chest at 41, 70, 6: shared\. Sorted only when asked/, list);
+        assert.match(list, /- chest at 41, 70, -6: owner unknown\. Sorted only when asked/, list);
+        assert.match(list, /- chest at 35, 70, 0: Alice's\. Sorted only when asked\. Out of sight from here/, list);
+        return { list: list.split('\n') };
+    });
+
+    await step('O1, O3, O6: Alice asks for her chests: the two she can be seen to own are sorted together; her chest marked never, her chest behind the wall, and everyone else\'s are slot for slot as they were', async () => {
+        const hers = only('aliceOne', 'aliceTwo'), others = only('aliceNever', 'bob', 'bobAlways', 'shared', 'unclaimed', 'aliceHidden');
+        const before = await readAll(hers), untouched = await readAll(others);
+        const own = pockets();
+        const result = await during('Alice', () => sortChests('Alice', 8));
+        assert.equal(result.status, 'ok', result.text);
+        const after = await readAll(hers);
+        assert.deepEqual(totals(after), totals(before), 'nothing gained or lost between her two chests');
+        assert.ok(inOrder(after), `a second sort would move nothing: ${layout(after)}`);
+        for (const chest of after) assert.ok(packed(chest.slots), `${chest.id} is packed from the first slot`);
+        assert.deepEqual(await readAll(others), untouched, 'every other chest is slot for slot as it was');
+        assert.match(result.text, /^Sorted 2 chests \(Alice's\) in \d+ moves: 6 stacks are now 4\./, result.text);
+        assert.match(result.text, /\nLeft alone within 8 blocks:\n/, result.text);
+        assert.match(result.text, /- 1 chest of Alice's marked never sort: 41, 70, 0/, result.text);
+        assert.match(result.text, /- 2 chests of Bob's/, result.text);
+        assert.match(result.text, /- 1 shared chest/, result.text);
+        assert.match(result.text, /- 1 chest with no known owner: 41, 70, -6\. Ask whose it is before sorting it\./, result.text);
+        assert.match(result.text, /- 1 more Alice's is nearby but out of sight from here\./, result.text);
+        assert.equal(storage.book().at(41, 70, -4).lastSorted.by, 'Alice', 'who asked is kept');
+        assert.deepEqual(pockets(), own);
+        return { report: result.text.split('\n') };
+    });
+
+    await step('O4: a chest the bot places is written down as it is placed: a player\'s when a player asked for it, its own on its own idea; one it digs up is forgotten', async () => {
+        const acting = (label, fn) => agent.actions.runAction(`action:${label}`, fn);
+        const place = () => acting('placeChest', () => skills.placeBlock(bot, 'chest', ...OWN));
+        const said = result => String(result.message ?? result.text ?? '');
+        await cmd(`give ${NAME} chest 1`);
+        await delay(500);
+        const forAlice = await during('Alice', place);
+        assert.match(said(forAlice), /The chest at 38, 70, 3 is noted as Alice's, because you placed it while doing what Alice asked: it is sorted only when asked\./, said(forAlice));
+        assert.equal(storage.book().at(...OWN)?.owner, 'Alice');
+        assert.equal(storage.book().at(...OWN)?.madeBy, 'me');
+
+        const dug = await during('Alice', () => acting('breakChest', () => skills.breakBlockAt(bot, ...OWN)));
+        await delay(500);
+        assert.equal(storage.book().at(...OWN), null, `a chest the bot dug up is forgotten: ${said(dug)}`);
+
+        await cmd(`give ${NAME} chest 1`);
+        await delay(500);
+        const own = await during('system', place);
+        assert.match(said(own), /The chest at 38, 70, 3 is noted as your own, because you placed it on your own idea: it may always be sorted\./, said(own));
+        assert.equal(storage.book().at(...OWN)?.owner, 'me');
+        // What a bot started afresh would read from its folder.
+        const scope = storage.book().scope;
+        const saved = loadChestBook(scopeDir(bookDir, scope), { scope });
+        assert.equal(saved.at(...OWN)?.owner, 'me', 'it is on disk, so it outlasts a restart of the bot');
+        assert.equal(saved.at(41, 70, 4)?.sorting, 'always');
+        await settled();
+        assert.match(say('!chests', 8), /- chest at 38, 70, 3: your own \(you placed it\)\. May always be sorted/);
+        return { placed: said(own).split('\n') };
+    });
+
+    await step('O2: on its own idea the bot sorts only what may always be sorted: its own chest and the one Bob marked always. Asked by nobody for Alice\'s, it refuses', async () => {
+        await fill(OWN, { 2: 'torch x5', 7: 'torch x6' });
+        const others = only('aliceOne', 'aliceTwo', 'aliceNever', 'bob', 'shared', 'unclaimed', 'aliceHidden');
+        const untouched = await readAll(others), bobBefore = await readAll(only('bobAlways'));
+        const refused = await during('system', () => sortChests('Alice', 8));
+        assert.equal(refused.status, 'failed', refused.text);
+        assert.match(refused.text, /- 2 chests of Alice's: nobody asked for these to be sorted\./, refused.text);
+        const result = await during('system', () => sortChests('approved', 8));
+        assert.equal(result.status, 'ok', result.text);
+        const bobAfter = await readAll(only('bobAlways'));
+        assert.deepEqual(totals(bobAfter), totals(bobBefore));
+        assert.equal(bobAfter[0].slots.filter(Boolean).length, 2, 'the two part stacks of sand are one');
+        assert.ok(inOrder(bobAfter) && packed(bobAfter[0].slots), layout(bobAfter));
+        assert.deepEqual(show(await read(OWN)), ['torch x11']);
+        assert.deepEqual(await readAll(others), untouched, 'every chest not marked always is slot for slot as it was');
+        assert.match(result.text, /Sorted 1 chest \(Bob's\) in \d+ moves?: 3 stacks are now 2\./, result.text);
+        assert.match(result.text, /Sorted 1 chest \(your own\) in \d+ moves?: 2 stacks are now 1\./, result.text);
+        assert.match(result.text, /- 1 chest of Alice's marked never sort: 41, 70, 0/, result.text);
+        assert.match(result.text, /- 2 chests of Alice's, sorted only when asked/, result.text);
+        return { report: result.text.split('\n') };
+    });
+
+    await step('O5: a chest that is gone is dropped from the list, and from what the bot was told', async () => {
+        await cmd('setblock 41 70 6 air');
+        await delay(500);
+        await settled();
+        const list = say('!chests', 8);
+        assert.doesNotMatch(list, /41, 70, 6/, list);
+        assert.equal(storage.book().at(41, 70, 6), null);
+        assert.equal(storage.book().at(41, 70, 4)?.owner, 'Bob', 'the chests still standing are still known');
     });
 
     await step('after all of that, the server log shows no command issued by the bot', () => {
