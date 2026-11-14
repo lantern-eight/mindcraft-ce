@@ -18,6 +18,7 @@ offer back.
 |---|---|
 | **What it is** | Mindcraft-CE's agent (native tool calling, optional Brain, Task and RP agents) with fair play added |
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
+| **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Minecraft** | Java Edition, up to 1.21.11 |
 | **Runs on** | Node 22 |
 | **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
@@ -49,20 +50,19 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Area | Mindcraft-CE `agent-system` | This fork |
 |---|---|---|
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
-| Memory of the world | Named places the model chooses to save | Also remembers notable blocks it has seen, per world. The model asks with `!recall` |
-| World memory (optional, `world_memory: true`) | | Every block the bot has seen, what was in the chests it opened, places it found, the ways it has walked, and a note when a place has changed. See [docs/world-memory.md](docs/world-memory.md) |
+| Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
+| Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 283 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 303 offline tests, plus live scenarios on a real server that make no model calls |
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
-animals), limiting the pathfinder's choice of route to blocks the bot has seen, and following the
-remembered trail on long trips. The guide lists every
-[known limit](docs/fair-play.md#known-limits).
+animals), and limiting the pathfinder's choice of route to blocks the bot has seen on a trip to somewhere
+it has not been. The guide lists every [known limit](docs/fair-play.md#known-limits).
 
 ## Quick Start
 
@@ -88,6 +88,7 @@ In `settings.js`:
 "fair_play_custom": {
     // "ores_through_walls": true,   // one rule turned off, to measure what x-ray is worth
 },
+"world_memory": true,       // what the bot has seen, chests, places and the ways it walked; false turns it off
 ```
 
 For fair play to mean anything the bot must not be a server operator, and under `strict` it stops and says

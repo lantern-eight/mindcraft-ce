@@ -155,7 +155,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     const handle = {
         policy, chatGuard,
         perception: null, seenMap: null,
-        memory: null, recorder: null, scope: null, // world memory, when `world_memory` is on
+        memory: null, recorder: null, navigator: null, scope: null, // world memory, when `world_memory` is on
         get violation() { return violation; },
         // The reach guard wraps the bot's own methods (see reach_guard.js), so it covers skills and
         // generated code alike. This hook is where good-neighbor rules will plug in; the code runner calls it.
@@ -200,6 +200,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     };
     let runner = null;
 
+    // The shipped settings turn world memory on. A config that leaves the key out gets the seen-world
+    // map instead, the same way a config that leaves `fair_play` out gets no fair play.
     const worldMemory = config.world_memory === true;
     const mapDir = seenDir ?? `./bots/${agent.name}/seen`;
     const worldDir = memoryDir ?? `./bots/${agent.name}/memory`;

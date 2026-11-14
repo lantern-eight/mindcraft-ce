@@ -103,7 +103,8 @@ upstream authors and fork owners is fine and needed where their licenses ask for
   or `bot.players[…].entity` directly; use `world.*`. A lint test enforces this.
 - World memory records only what was in view. The memory store (`cells.js`, `things.js`, `trail.js`,
   `places.js`, `changes.js`) never touches the game and keeps names, never the game's numbers for blocks
-  or states; only `recorder.js` reads the world, and only `kinds.js` knows what a chest or a door is.
+  or states; only `recorder.js` reads the world, only `navigator.js` drives the pathfinder, and only
+  `kinds.js` knows what a chest or a door is.
 - Good-neighbor rules are enforced in code: don't break player builds, loot protected chests, or attack
   players and their animals.
 - Keep code writing (`allow_insecure_coding`) off unless it runs inside the fair-play code runner.

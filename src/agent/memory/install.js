@@ -6,8 +6,32 @@
 // already makes a perception service at every spawn. Each server, world and dimension gets its own
 // memory: a spawn in a new dimension closes one and opens another.
 import { createPerception } from '../fairplay/perception.js';
+import { setTravelGuide } from '../library/travel_guide.js';
+import { moveKindOf } from './kinds.js';
+import { createNavigator, pathfinderLegs, targetOf } from './navigator.js';
 import { createRecorder } from './recorder.js';
 import { openMemory } from './store.js';
+
+// One navigator per bot, for the world it is in now. Travel has a single hook for every bot in the
+// process, so the guide installed there looks the bot's own navigator up here.
+const navigators = new WeakMap();
+
+/**
+ * The guide travel calls before it plans a walk: follows the trail when this bot knows a way.
+ * Anything that goes wrong is logged and left to ordinary travel, except an interrupt, which has to
+ * reach the caller so the walk really stops.
+ */
+async function guide(bot, goal, log) {
+    const navigator = navigators.get(bot);
+    const target = navigator ? targetOf(goal) : null;
+    if (!target) return;
+    try {
+        await navigator.follow(target, { say: text => log(bot, text) });
+    } catch (error) {
+        if (bot.interrupt_code) throw error;
+        console.warn('[world memory] Could not follow the trail:', error.message);
+    }
+}
 
 /**
  * Opens the memory for a scope, and starts the recorder that fills it and the perception that answers
@@ -18,7 +42,7 @@ import { openMemory } from './store.js';
  * @param {string} options.scope - `host:port/world/dimension`
  * @param {string} options.baseDir - the folder holding every scope's memory
  * @param {object} [options.perceptionOptions] - passed on to createPerception
- * @returns {{memory: object, recorder: object, perception: object}}
+ * @returns {{memory: object, recorder: object, perception: object, navigator: object|null}}
  */
 export function attachWorldMemory({ bot, policy, scope, baseDir, perceptionOptions = {} }) {
     // The recorder and perception need each other: perception answers from what the recorder wrote,
@@ -28,7 +52,15 @@ export function attachWorldMemory({ bot, policy, scope, baseDir, perceptionOptio
     recorder = createRecorder({ bot, memory });
     const perception = createPerception({ bot, policy, seenMap: recorder.view, backgroundPass: false, ...perceptionOptions });
     recorder.attach(perception);
-    return { memory, recorder, perception };
+    // Travel follows the trail from here on. A bot without the pathfinder (a test stub) simply has none.
+    // A remembered block stands in the way when it is solid and is not a door or gate, which opens.
+    const blocksWay = name => bot.registry.blocksByName[name]?.boundingBox === 'block' && moveKindOf(name) !== 'door';
+    const navigator = bot.pathfinder ? createNavigator({ memory, legs: pathfinderLegs(bot), blocksWay }) : null;
+    if (navigator) {
+        navigators.set(bot, navigator);
+        setTravelGuide(guide);
+    } else navigators.delete(bot);
+    return { memory, recorder, perception, navigator };
 }
 
 /**

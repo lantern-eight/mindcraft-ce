@@ -10,6 +10,9 @@
 //
 // The throwaway server has anti-xray off, so the bot is sent every buried ore. Passing here means the
 // bot-side rules hold with no help from the server.
+//
+// World memory is on, as it is in the shipped settings, so these are the rules as a person runs them.
+// `--no-world-memory` runs the same scenes on the smaller seen-world map that stands in when it is off.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -21,6 +24,7 @@ import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55922);
+const worldMemory = !process.argv.includes('--no-world-memory');
 const NAME = 'FairPlayer';
 const results = [];
 const step = async (name, fn) => {
@@ -34,7 +38,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline', fair_play: 'strict' });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline', fair_play: 'strict', world_memory: worldMemory });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -63,8 +67,13 @@ try {
     agent.actions = new ActionManager(agent);
     bot.on('mining_progress', ({ message }) => agent.actions.reportProgress(message));
     initModes(agent);
-    const handle = installFairPlay(agent, { seenDir: mkdtempSync(path.join(tmpdir(), 'fair-live-')) });
+    // What the bot remembers goes to a throwaway folder either way, never into this repository.
+    const handle = installFairPlay(agent, {
+        seenDir: mkdtempSync(path.join(tmpdir(), 'fair-live-')),
+        memoryDir: mkdtempSync(path.join(tmpdir(), 'fair-live-memory-')),
+    });
     assert.ok(handle, 'fair play installed');
+    assert.equal(Boolean(handle.memory), worldMemory, 'world memory is on or off as asked');
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 1 });
     const rawName = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name; // the test may peek at the truth; the bot may not
     const count = item => bot.inventory.items().filter(i => i.name === item).reduce((n, i) => n + i.count, 0);
@@ -202,7 +211,7 @@ try {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });
 
-    console.log(JSON.stringify({ status: 'passed', steps: results.length }));
+    console.log(JSON.stringify({ status: 'passed', steps: results.length, worldMemory }));
 } catch (error) {
     console.error(error);
     console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: results.length }));

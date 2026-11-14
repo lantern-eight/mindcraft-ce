@@ -9,32 +9,47 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
+The bot remembers the world it has seen, and walks back the way it came. Built on the same Mindcraft-CE
+commit as 0.1.0.
+
 ### Added
 
-- **World memory** (`world_memory: true`, off by default; needs fair play on). The bot remembers the world
-  the way a player who has been there does. See `docs/world-memory.md`.
+- **World memory.** The bot remembers the world the way a player who has been there does. It is on by
+  default, needs fair play on, and `world_memory: false` turns it off. See `docs/world-memory.md`.
   - **Every block it has seen,** not only notable ones, per server, world and dimension.
   - **Things:** containers, workstations, doors, beds, signs, portals and ores, with their state and when
     they were last seen. A double chest, a bed and a door are each one thing.
   - **Container contents,** taken when the bot opens a container and again when it closes it.
   - **Fields and herds:** crops per area with how many were ripe, and the animals it saw.
   - **A trail** of where it has walked, which `!recall` uses to say how long a known way takes.
+  - **Travel follows the trail.** A trip to somewhere the bot has been walks the way it came, in hops
+    that neither dig nor place, instead of digging in a straight line. Every command and skill that
+    walks does this by itself. A way found blocked is said once, and the bot looks for a way past.
   - **Places:** chests, workstations, beds, doors and signs close together become a site with no one
     having to save it, and it can be named later.
   - **Change notes:** when a place is not as the bot remembers it, one sentence is added to the result of
     the action it was doing, such as "Noticed at the base: Gone: chest 2. New: oak_planks 42."
 - `!places` lists the places the bot knows and what is at each. `!namePlace` names the place it stands in.
-- Live scenarios for world memory (`tests/live/memory_scenarios.js`), on a real server with no model calls.
+- Live scenarios for world memory (`tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`),
+  on a real server with no model calls.
 
 ### Changed
 
-- With world memory on, `!recall` takes any text: a block type, a kind of thing ("chest", "door"), an
-  item in the containers the bot opened ("iron"), an animal, a crop, a place name, or "changes". With
-  world memory off it is unchanged.
-- With world memory on, `!rememberHere` and `!goToRememberedPlace` keep their names as places in world
-  memory. Places saved earlier are carried over, and nothing is lost if world memory is turned off again.
-- With world memory on, searches such as `!searchForBlock` remember every kind of block the bot has
-  seen, not only notable ones.
+World memory is on by default, so each of these applies unless `world_memory` is set to `false`:
+
+- `!recall` takes any text: a block type, a kind of thing ("chest", "door"), an item in the containers
+  the bot opened ("iron"), an animal, a crop, a place name, or "changes". With world memory off it is
+  unchanged.
+- `!rememberHere` and `!goToRememberedPlace` keep their names as places in world memory. Places saved
+  earlier are carried over, and nothing is lost if world memory is turned off again.
+- Searches such as `!searchForBlock` remember every kind of block the bot has seen, not only notable
+  ones.
+- Every command and skill that walks follows the trail when the bot knows a way, as described above.
+- The notable blocks remembered by earlier versions (under `bots/<name>/seen/`) are not carried into
+  world memory, which starts from what the bot sees from now on. That file is left as it is, and is
+  used again if world memory is turned off.
 
 ## [0.1.1] - 2026-11-13
 
@@ -110,6 +125,7 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lantern-eight/mindcraft-ce/releases/tag/v0.1.0

@@ -5,28 +5,29 @@ where, what was in the chests it opened, where its base is, the ways it has walk
 is as it left it.
 
 Without it, the bot remembers a short list of notable blocks. With it, the bot can answer "where is the
-iron?", walk back to "the base", and say "two chests are gone" when it comes home.
+iron?", walk back to "the base" by the way it came, and say "two chests are gone" when it comes home.
 
-- [Turning It On](#turning-it-on)
+- [Turning It On or Off](#turning-it-on-or-off)
 - [What the Bot Remembers](#what-the-bot-remembers)
 - [What the Model Can Ask](#what-the-model-can-ask)
+- [Finding the Way](#finding-the-way)
 - [Noticing Changes](#noticing-changes)
 - [Is It Fair?](#is-it-fair)
 - [Speed and Size](#speed-and-size)
 - [Known Limits](#known-limits)
 - [For Developers](#for-developers)
 
-## Turning It On
+## Turning It On or Off
 
-In `settings.js`:
+World memory is **on by default**. To turn it off, in `settings.js`:
 
 ```javascript
-"world_memory": true,
+"world_memory": false,
 ```
 
-It is **off by default** while it is new. It needs `fair_play` to be on (`"strict"` or `"custom"`),
-because it sees through fair play's eyes. With `world_memory` off, nothing here runs and the bot behaves
-as before.
+It needs `fair_play` to be on (`"strict"` or `"custom"`), because it sees through fair play's eyes. With
+fair play off it does nothing, whatever this setting says. With `world_memory` off, nothing here runs:
+the bot remembers a short list of notable blocks, and every walk is planned afresh.
 
 Memory is kept per server, world and dimension, under `bots/<name>/memory/`. The Nether never mixes with
 the overworld, and one server's base is never looked for on another. Deleting that folder makes the bot
@@ -40,7 +41,7 @@ forget.
 | **Things** | Single objects a player uses, with their state and when they were last seen: containers, workstations, doors, beds, signs, portals, spawners, ores | "an oak door, open, seen an hour ago" |
 | **Contents** | What was in a container, taken when the bot opens it and again when it closes it | "chest: iron_ingot 30, bread 6" |
 | **Fields and herds** | Per area: how many plants of a crop and how many were ripe; which animals and how many | "wheat x12, 5 ripe", "cow x4" |
-| **Trail** | Where the bot has walked, as spots joined by links it can route over | "about 40 seconds on foot by a way you know" |
+| **Trail** | Where the bot has walked, as spots joined by links it can route over and walk again | "about 40 seconds on foot by a way you know" |
 | **Places** | Sites it found (things a player uses, close together) or was told the name of | "the base: chest 4, furnace 2, red_bed 1" |
 | **Changes** | Short notes for when a place is not as it remembers it | "Gone: chest 2. New: oak_planks 42" |
 
@@ -77,6 +78,35 @@ IN CONTAINERS YOU OPENED
 
 Searches such as `!searchForBlock` use the same memory, for every kind of block.
 
+## Finding the Way
+
+Without world memory, a long walk is planned over blocks, and when that runs out of thinking time the
+bot digs in a straight line at the target. With it, **a trip to somewhere the bot has been follows the
+way it walked**: out of the cave by the tunnel, round the hill, through the door.
+
+Nothing new to ask for. Every command and skill that walks does this by itself.
+
+- **It follows the trail in hops.** Each hop goes to the farthest spot ahead it can reach **without
+  digging or placing anything**. The trail is ground the bot crossed, so needing to dig means the way
+  has changed.
+- **It cuts corners it can see.** Where the way doubles back and a later part is close and walkable, it
+  goes straight there.
+- **Ordinary travel finishes the trip.** Where the trail stops short of the target, the rest is planned
+  as before. Where the bot knows no way, nothing changes.
+- **A blocked way is said, once:** "The way you walked before is blocked near 22, 70, 2." The bot then
+  tries an ordinary path past the blockage, which may dig, and after that another way it knows. The
+  blocked stretch is avoided for a day, or until the bot walks it again.
+
+When the trail is used:
+
+| The target | The trail is used |
+|---|---|
+| A spot the bot has stood at, or within 3 blocks of one | Yes, however long the way round is |
+| A chest, door or other remembered thing | Yes, to where the bot saw it from |
+| Somewhere beyond what it has walked | Only when the trail is a fairly direct way to get much closer |
+| A spot with a wall the bot remembers between it and the trail | No. Being near through a wall is not a way there |
+| A player or animal being followed, or moving away from something | No. Those are left to ordinary travel |
+
 ## Noticing Changes
 
 When the bot looks at a place again and what it sees differs from what it remembers, the differences are
@@ -108,7 +138,8 @@ World memory holds only what a player in the bot's place could know:
 - **Blocks and things** are recorded only when in view, by the same sight test as the rest of
   [fair play](fair-play.md). Buried ore is never recorded.
 - **Container contents** are only what the bot saw by opening the container.
-- **The trail** is the bot's own past positions.
+- **The trail** is the bot's own past positions, and a route is made only of spots it has stood on.
+  That is fairer than ordinary travel, whose pathfinder plans over every loaded block.
 - **A change** is only noticed by looking again.
 
 It does remember perfectly, which a person doesn't. A player has coordinates on the debug screen and can
@@ -138,6 +169,10 @@ Measured with the bot standing in a normal world (one laptop; your numbers will 
 | The text of a `!recall` answer | Under 0.01 ms |
 | A route across a trail of 1,000 spots (4 km walked) | 0.5 ms |
 | A route across 100,000 spots (400 km walked) | 24 ms |
+| Deciding whether one hop can be walked | At most 200 ms, in slices of 10 ms with the game running in between |
+
+On a real server, a trip of 84 blocks round a corridor took 15 seconds along the trail and broke
+nothing. The same trip without it took 6 seconds, by digging through the wall.
 
 | Stored | Size |
 |---|---|
@@ -150,8 +185,12 @@ load only when something asks about that part of the world.
 
 ## Known Limits
 
-- **The trail is recorded but not yet walked.** `!recall` says how long a known way takes, but travel
-  still uses the pathfinder alone. Following the trail on long trips is planned.
+- **The trail leads only where the bot has been.** To a spot it has only seen from afar, such as sand
+  across a valley, travel is planned as before unless the trail happens to lead much closer.
+- **Getting past a blockage may dig.** The bot does not yet tell a cave-in from a wall someone built.
+- **Ordinary travel can stand still at a tight corner.** The pathfinder this fork inherits plans a
+  diagonal step past a solid corner and then cannot walk it. Hops along the trail avoid this; a walk
+  planned the ordinary way, in a tunnel one block wide, may not.
 - **It needs fair play on.** Recording with fair play off is planned.
 - **Only names are kept for ordinary blocks,** not which way a stair faces or how grown one plant is.
   Things (chests, doors, beds) keep their full state.
@@ -178,12 +217,15 @@ All of it lives in `src/agent/memory/`:
 | `block_state.js` | Block states to named properties and back |
 | `store.js` | Opens the five layers for one world and saves them together |
 | `recorder.js` | **The only part that touches the game.** Writes what the bot sees and does into the store |
+| `navigator.js` | **The only part that drives the pathfinder.** Chooses where a trip ends and each hop along the trail |
 | `commands.js` | What the model can ask, and how the answers read |
 | `install.js` | Starts it for one agent, and stands in for the saved-places bank |
 | `files.js` | Folders per world, atomic writes, damaged files set aside |
 
 **The store never touches the game.** The five layers are plain data handed names, positions and a clock,
-which is why their tests need no server. Only the recorder reads the world, through perception.
+which is why their tests need no server. Only the recorder reads the world, through perception. The
+navigator's choices are kept apart from its walking in the same way: it is handed a small set of "legs",
+and the real ones wrap the pathfinder.
 
 **Staying apart from the game.** The store keeps names, positions and times, never the game's numbers for
 blocks, states or items, which change with every game version. A world saved under one version loads
@@ -191,15 +233,17 @@ under the next; a block name the new version dropped simply never matches. When 
 a tweak, `kinds.js` is where it goes.
 
 **How it hooks in.** Perception takes world memory as its memory in place of the seen-world map, and
-leaves the looking around to the recorder. No Mindcraft file is edited for this beyond the new setting:
-saved places are swapped in through a stand-in with the same calls as the place bank. See
-[`core-hooks.md`](core-hooks.md).
+leaves the looking around to the recorder. Saved places are swapped in through a stand-in with the same
+calls as the place bank. Travel has one line added: before it plans a walk, it asks a guide whether the
+bot knows a way, and the navigator is that guide. See [`core-hooks.md`](core-hooks.md).
 
 **Tests.** `tests/memory_*.test.js` cover each layer and the recorder on hand-built worlds.
-`tests/live/memory_scenarios.js` runs the whole thing on a real server with no model calls:
+`tests/live/memory_scenarios.js` and `tests/live/navigator_scenarios.js` run the whole thing on a real
+server with no model calls:
 
 ```bash
 export MC_TEST_JAVA=/path/to/java
 export MC_TEST_SERVER_JAR=/path/to/server.jar
 node tests/live/memory_scenarios.js
+node tests/live/navigator_scenarios.js
 ```

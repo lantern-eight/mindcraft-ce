@@ -46,12 +46,12 @@ Details that matter:
   brightness turned up. Both can be tightened later.
 - **A mob that steps out of view stays known for 3 seconds,** so reflexes don't flicker when something
   walks behind a tree.
-- **Memory is per server, world and dimension,** saved under `bots/<name>/seen/`. It records "notable"
-  blocks: ores, logs, sand, gravel, clay, containers, crafting stations, beds, doors, crops and a few
-  rarer ones. Other blocks are known only while in view.
-- **With [world memory](world-memory.md) on, the bot remembers much more:** every block it has seen,
-  what was in the chests it opened, places, the ways it has walked, and whether a place has changed. It
-  takes the place of the memory described above and follows the same rule: only what was in view.
+- **Memory is per server, world and dimension.** With [world memory](world-memory.md) on, which is the
+  default, the bot remembers every block it has seen, what was in the chests it opened, places, the ways
+  it has walked, and whether a place has changed. It records only what was in view.
+- **With world memory off, the bot remembers less:** only "notable" blocks, saved under
+  `bots/<name>/seen/`. Those are ores, logs, sand, gravel, clay, containers, crafting stations, beds,
+  doors, crops and a few rarer ones. Other blocks are known only while in view.
 - **Coordinates are fair.** Players have them on the debug screen.
 
 This applies to everything that decides what the bot does: the state summary the model reads each turn,
@@ -137,7 +137,8 @@ Fair play is honest about what it doesn't cover yet:
 
 - **Route planning.** The pathfinder still plans with every loaded block, so its *choice of route* can use
   terrain the bot hasn't seen. Targets always come from what the bot perceives; only the path between
-  uses more.
+  uses more. With [world memory](world-memory.md) on (the default), a trip to somewhere the bot has been
+  follows the way it walked, which uses nothing it hasn't seen.
 - **The pathfinder and the combat plugin aren't held to the reach rule.** They act from their own timers
   while carrying out an action that was itself checked.
 - **A few skills name a block before the bot has looked at it** when given exact coordinates
@@ -181,6 +182,7 @@ modules. Don't send slash commands, write the bot's position, or touch `bot._cli
 ```bash
 npm test                                      # all unit tests; fair-play ones are tests/fairplay_*.test.js
 node tests/live/fairplay_scenarios.js         # the whole stack on a real server, about 90 seconds
+node tests/live/fairplay_scenarios.js --no-world-memory   # the same, with world memory off
 node tests/live/fairplay_perception_smoke.js  # perception alone on a real server
 ```
 
