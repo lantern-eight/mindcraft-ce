@@ -153,6 +153,9 @@ try {
         await act('test:walk', () => skills.goToPosition(bot, 0, 70, 0, 0));
         await settled();
         // The director takes the bot far away, changes the place, waits out the minute, and brings it back.
+        // The place stays loaded meanwhile: a vanilla server unloads a chunk the player has left, and an edit
+        // made while it is unloading is lost, so the bot would come back to the place as it was.
+        await cmd('forceload add -16 -16 16 16');
         await cmd(`tp ${NAME} 300.5 70 300.5`);
         await cmd('fill 295 69 295 305 69 305 stone');
         await delay(1500);
