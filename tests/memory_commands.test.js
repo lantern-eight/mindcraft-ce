@@ -154,7 +154,7 @@ test('world_memory: true turns it all on through the fair-play installer, per wo
     try {
         assert.ok(handle.memory, 'world memory is open');
         assert.equal(handle.seenMap, null, 'in place of the seen-world map');
-        assert.equal(handle.memory.scope, 'localhost:1/w1/overworld');
+        assert.equal(handle.memory.scope, 'world:w1/overworld');
         handle.recorder.tick({ budgetMs: Infinity });
         assert.equal(handle.memory.cells.read(3, 1, 3), 'chest');
         assert.equal(handle.memory.cells.read(8, 1, 0), null, 'the sand behind the wall was not seen');
@@ -171,10 +171,10 @@ test('world_memory: true turns it all on through the fair-play installer, per wo
         // A new dimension gets a memory of its own; the old one is saved on the way out.
         bot.game.dimension = 'the_nether';
         bot.emit('spawn');
-        assert.equal(handle.memory.scope, 'localhost:1/w1/the_nether');
+        assert.equal(handle.memory.scope, 'world:w1/the_nether');
         assert.equal(handle.memory.cells.read(3, 1, 3), null);
-        assert.equal(existsSync(path.join(scopeDir(memoryDir, 'localhost:1/w1/overworld'), 'things.json')), true);
-        assert.equal(openMemory({ baseDir: memoryDir, scope: 'localhost:1/w1/overworld' }).places.byName('hut').id, 1);
+        assert.equal(existsSync(path.join(scopeDir(memoryDir, 'world:w1/overworld'), 'things.json')), true);
+        assert.equal(openMemory({ baseDir: memoryDir, scope: 'world:w1/overworld' }).places.byName('hut').id, 1);
     } finally {
         bot.emit('end');
         setWorldQueries(null);

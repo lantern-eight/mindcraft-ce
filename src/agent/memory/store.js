@@ -24,7 +24,7 @@ const CHANGES_FILE = 'changes.json';
  * Opens (or starts) the memory for one scope.
  * @param {object} options
  * @param {string} options.baseDir - the folder holding every scope's memory
- * @param {string} options.scope - `host:port/world/dimension`
+ * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js
  * @param {() => number} [options.now]
  * @param {(a, b) => boolean} [options.canWalkStraight] - the trail's question; see trail.js
  */

@@ -461,25 +461,74 @@ export async function collectBlock(bot, blockType, num=1, exclude=null) {
 }
 
 
+// The goal for fetching a dropped item: be close enough to pick it up, not in the item's own cell.
+//
+// A player picks an item up from about a block away. The pickup box is the player's own, one block wider on
+// each side and half a block taller and deeper. So any cell in the 3 by 3 columns round the item will do, at
+// the item's own height or one block below it: one below covers an item at rest on the lip of the hole its ore
+// left. One block above it will not do, since the box reaches only half a block under the feet, so an item in
+// a pit beside the bot still means stepping down into the pit.
+//
+// GoalFollow keeps track of the item if it slides, and plans again once it has moved more than a block.
+class GoalPickUp extends pf.goals.GoalFollow {
+    constructor(item) {
+        super(item, 1);
+    }
+
+    isEnd(node) {
+        const below = this.y - node.y; // how far the bot's feet are under the item's cell
+        return Math.abs(this.x - node.x) <= 1 && Math.abs(this.z - node.z) <= 1 && (below === 0 || below === 1);
+    }
+}
+
+// Walks the last half step to an item the bot stands next to but can't quite reach.
+//
+// "Next to" is counted in whole cells, but neither the bot nor the item has to be in the middle of its cell. An
+// item that slid to the back of a notch in a wall can sit just out of reach of a bot stopped at the near edge of
+// the cell beside it. A player walks on into the wall; so does the bot, for a moment, looking at the item.
+// It sneaks while it does, which keeps it from stepping off an edge, and a wall simply stops it.
+async function stepToward(bot, item, maxMs = 800) {
+    await bot.lookAt(item.position.offset(0, 0.1, 0), true);
+    bot.setControlState('sneak', true);
+    bot.setControlState('forward', true);
+    try {
+        const until = Date.now() + maxMs;
+        while (Date.now() < until && bot.entities[item.id] && !bot.interrupt_code) {
+            const dx = item.position.x - bot.entity.position.x, dz = item.position.z - bot.entity.position.z;
+            if (dx * dx + dz * dz < 0.25) break; // on top of it: nowhere further to go
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+    } finally {
+        bot.setControlState('forward', false);
+        bot.setControlState('sneak', false);
+    }
+}
+
 export async function pickupNearbyItems(bot, allowDig=false) {
     assertActionOwner(bot);
     /**
      * Pick up nearby dropped items with bounded navigation and cancellation.
      * @param {MinecraftBot} bot, reference to the Minecraft bot.
-     * @param {boolean} allowDig, allow reaching items through blocks. Defaults to false.
+     * @param {boolean} allowDig, allow digging or placing blocks to reach an item that walking can't get close to. Defaults to false.
      * @returns {Promise<boolean>} whether any item pickup was attempted.
      * @example
      * await skills.pickupNearbyItems(bot);
      **/
     const previous = bot.pathfinder.movements;
-    const movements = new pf.Movements(bot);
-    movements.canDig = allowDig;
-    movements.allow1by1towers = false;
+    // The first try for each item only walks: no digging, no placing. Most drops lie within a step or two,
+    // and changing the world to fetch one (a block placed to climb onto a ledge, a hole dug under it) is
+    // work nobody asked for. The second try may dig and place, and only when the caller allows it.
+    const walking = new pf.Movements(bot);
+    walking.canDig = false;
+    walking.scafoldingBlocks = [];
+    walking.allow1by1towers = false;
+    const digging = new pf.Movements(bot);
+    digging.canDig = true;
+    digging.allow1by1towers = false;
     let pickedUp = 0;
     const restore = () => { if (previous) bot.pathfinder.setMovements(previous); };
     const unregister = onActionCleanup(bot, restore);
     try {
-        bot.pathfinder.setMovements(movements);
         // The block update can arrive before the drop entity; do not leave immediately.
         await new Promise(resolve => setTimeout(resolve, 350));
         const deadline = Date.now() + 7000;
@@ -489,11 +538,17 @@ export async function pickupNearbyItems(bot, allowDig=false) {
             const nearest = world.getNearestEntityWhere(bot, entity => entity.name === 'item' &&
                 (attempts.get(entity.id) || 0) < 2, 8);
             if (!nearest) break;
-            attempts.set(nearest.id, (attempts.get(nearest.id) || 0) + 1);
+            const tries = attempts.get(nearest.id) || 0;
+            attempts.set(nearest.id, tries + 1);
+            bot.pathfinder.setMovements(tries > 0 && allowDig ? digging : walking);
             try {
-                await cancellable(bot, () => bot.pathfinder.goto(new pf.goals.GoalFollow(nearest, 0)),
+                await cancellable(bot, () => bot.pathfinder.goto(new GoalPickUp(nearest)),
                     3000, () => bot.pathfinder.setGoal(null));
                 await new Promise(resolve => setTimeout(resolve, 400));
+                if (bot.entities[nearest.id]) {
+                    await stepToward(bot, nearest);
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
                 if (!bot.entities[nearest.id]) pickedUp++;
             } catch (error) {
                 if (bot.interrupt_code) break;
@@ -1042,6 +1097,50 @@ export async function giveToPlayer(bot, itemType, username, num=1) {
     return false;
 }
 
+// Searches for a path to the goal for up to timeoutMs, and returns the pathfinder's last result.
+//
+// bot.pathfinder.getPathTo(movements, goal, timeout) looks like it searches for `timeout` ms, but it runs
+// only the first slice of the search: the pathfinder stops after bot.pathfinder.tickTimeout (40 ms) and
+// reports "partial", expecting to be called again. So any route that takes longer than 40 ms to find came
+// back as not found. This keeps going until the search succeeds, fails or runs out of time, and lets the
+// game run between slices so the bot does not freeze while it thinks.
+//
+// The comment sits outside the function body on purpose: only functions with a doc block inside are
+// described to the model as skills, and this is a helper, not a skill.
+export async function searchPath(bot, movements, goal, timeoutMs) {
+    movements.updateLavaAvoidance?.(); // getPathTo does this before searching; keep the same behavior
+    let last = null;
+    for (const { result } of bot.pathfinder.getPathFromTo(movements, bot.entity.position, goal, { timeout: timeoutMs })) {
+        last = result;
+        if (result.status !== 'partial' || bot.interrupt_code) break;
+        await new Promise(resolve => setImmediate(resolve));
+    }
+    return last;
+}
+
+// Keeps a pathfinder Movements object from planning a diagonal step past a solid corner, and returns it.
+//
+// The pathfinder allows a diagonal step when only one of the two cells beside it is open. Its walker then
+// can't make the step, because the bot is too wide to cut the corner: it stands still, says "stuck" every few
+// seconds, and plans the same step again. In a tunnel one block wide that is every turn, and the bot digs such
+// tunnels itself. With this, a diagonal is planned only when both sides are open; otherwise the bot goes round
+// the corner in two straight steps, which costs almost nothing. It changes this one Movements object, not
+// the pathfinder.
+//
+// The comment sits outside the function body on purpose: only functions with a doc block inside are
+// described to the model as skills, and this is a helper, not a skill.
+export function squareCorners(movements) {
+    const diagonal = movements.getMoveDiagonal;
+    movements.getMoveDiagonal = function (node, dir, neighbors) {
+        // The two cells the bot would brush past, at feet and head height.
+        for (const [dx, dz] of [[dir.x, 0], [0, dir.z]]) {
+            if (this.getBlock(node, dx, 0, dz).physical || this.getBlock(node, dx, 1, dz).physical) return;
+        }
+        return diagonal.call(this, node, dir, neighbors);
+    };
+    return movements;
+}
+
 export async function goToGoal(bot, goal) {
     assertActionOwner(bot);
     /**
@@ -1054,7 +1153,7 @@ export async function goToGoal(bot, goal) {
     // planning below then carries on from wherever that left the bot. See travel_guide.js.
     await followKnownWay(bot, goal, log);
 
-    const nonDestructiveMovements = new pf.Movements(bot);
+    const nonDestructiveMovements = squareCorners(new pf.Movements(bot));
     const dontBreakBlocks = ['glass', 'glass_pane'];
     for (let block of dontBreakBlocks) {
         nonDestructiveMovements.blocksCantBreak.add(mc.getBlockId(block));
@@ -1062,16 +1161,16 @@ export async function goToGoal(bot, goal) {
     nonDestructiveMovements.placeCost = 2;
     nonDestructiveMovements.digCost = 10;
 
-    const destructiveMovements = new pf.Movements(bot);
+    const destructiveMovements = squareCorners(new pf.Movements(bot));
 
     let final_movements = destructiveMovements;
 
     const pathfind_timeout = 1000;
-    if (await bot.pathfinder.getPathTo(nonDestructiveMovements, goal, pathfind_timeout).status === 'success') {
+    if ((await searchPath(bot, nonDestructiveMovements, goal, pathfind_timeout)).status === 'success') {
         final_movements = nonDestructiveMovements;
         log(bot, `Found non-destructive path.`);
     }
-    else if (await bot.pathfinder.getPathTo(destructiveMovements, goal, pathfind_timeout).status === 'success') {
+    else if ((await searchPath(bot, destructiveMovements, goal, pathfind_timeout)).status === 'success') {
         log(bot, `Found destructive path.`);
     }
     else {

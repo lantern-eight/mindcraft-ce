@@ -116,6 +116,10 @@ export MC_TEST_SERVER_JAR=/path/to/server.jar
 node tests/live/fairplay_scenarios.js
 ```
 
+What the server jar unpacks on its first start (and for Paper, downloads and patches) is kept in
+`server_data/jar-cache` and shared by every run after. `MC_TEST_JAR_CACHE` picks another folder; `off` gives
+each server its own copy again. Run the live scripts one at a time: they share a port and that folder.
+
 ## Documentation
 
 | Page | What it covers |

@@ -406,8 +406,8 @@ test('the setting turns the chest commands on, and what the bot is told about ch
     assert.equal(put.text, 'Put 2 dirt in the chest at 0, 64, 0, which is Alice\'s.');
     assert.equal(agent.actions.executing, false);
 
-    // It was written down as it happened, in a folder for this server, world and dimension.
-    const scope = 'localhost:25565/test/unknown';
+    // It was written down as it happened, in a folder for this world and dimension.
+    const scope = 'world:test/unknown';
     assert.equal(installed.book().scope, scope);
     const kept = loadChestBook(scopeDir(bookDir, scope), { scope });
     assert.equal(kept.ownerOf(found('0,64,0')), 'Alice');

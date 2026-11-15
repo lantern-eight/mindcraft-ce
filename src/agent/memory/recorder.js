@@ -414,7 +414,13 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const p = bot.entity?.position;
         if (!corner || !p || (Math.abs(corner.x + 8 - p.x) <= radius + 8 && Math.abs(corner.z + 8 - p.z) <= radius + 8)) worldChanged = true;
     };
-    const onDeath = () => trail.breakStretch();
+    // A death breaks the trail: the bot comes back somewhere else. It also costs the recorder its ear for
+    // digging. mineflayer's digging plugin removes every 'diggingCompleted' listener when the bot dies, this
+    // one included, and without it the cells the bot digs afterwards are not marked as its own doing, so they
+    // can come back as "this place changed". The listener is put back once the death has been dealt with, in a
+    // microtask, so it lands after mineflayer's removal whichever of the two heard of the death first.
+    const listenForDigs = () => { bot.off?.('diggingCompleted', onDug); if (listening) bot.on?.('diggingCompleted', onDug); };
+    const onDeath = () => { trail.breakStretch(); queueMicrotask(listenForDigs); };
     const listeners = [['move', onMove], ['windowClose', onWindowClose], ['diggingCompleted', onDug], ['blockPlaced', onPlaced],
         ['blockUpdate', onBlockUpdate], ['chunkColumnLoad', onChunkLoad], ['death', onDeath]];
 

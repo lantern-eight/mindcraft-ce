@@ -147,7 +147,7 @@ test('installing strict on a spawned bot makes world.js fair and saves the map w
     });
     assert.ok(handle.perception && handle.seenMap);
     assert.equal(agent.fairPlay, handle);
-    assert.equal(handle.seenMap.scope, 'localhost:1/w1/overworld');
+    assert.equal(handle.seenMap.scope, 'world:w1/overworld');
     const found = world.getNearestBlocksWhere(bot, b => b.name === 'diamond_ore', 32, 5);
     assert.deepEqual(found.map(b => b.position.x), [-6]);
     bot.emit('end');
@@ -228,7 +228,7 @@ test('a new dimension gets its own seen-world map on respawn', () => {
     bot.game.dimension = 'the_nether';
     bot.emit('spawn');
     assert.notEqual(handle.seenMap, first);
-    assert.equal(handle.seenMap.scope, 'localhost:1/w1/the_nether');
+    assert.equal(handle.seenMap.scope, 'world:w1/the_nether');
     bot.emit('end');
     setWorldQueries(null);
 });

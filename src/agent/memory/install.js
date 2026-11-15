@@ -39,7 +39,7 @@ async function guide(bot, goal, log) {
  * @param {object} options
  * @param {object} options.bot - the mineflayer bot, spawned
  * @param {object} options.policy - the fair-play policy perception works under
- * @param {string} options.scope - `host:port/world/dimension`
+ * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js
  * @param {string} options.baseDir - the folder holding every scope's memory
  * @param {object} [options.perceptionOptions] - passed on to createPerception
  * @returns {{memory: object, recorder: object, perception: object, navigator: object|null}}

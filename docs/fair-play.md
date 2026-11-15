@@ -46,7 +46,7 @@ Details that matter:
   brightness turned up. Both can be tightened later.
 - **A mob that steps out of view stays known for 3 seconds,** so reflexes don't flicker when something
   walks behind a tree.
-- **Memory is per server, world and dimension.** With [world memory](world-memory.md) on, which is the
+- **Memory is per world and dimension.** With [world memory](world-memory.md) on, which is the
   default, the bot remembers every block it has seen, what was in the chests it opened, places, the ways
   it has walked, and whether a place has changed. It records only what was in view.
 - **With world memory off, the bot remembers less:** only "notable" blocks, saved under

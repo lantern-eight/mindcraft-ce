@@ -9,6 +9,35 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-15
+
+A world keeps its memory and chest owners across LAN sessions, and travel and item pickup stop digging and
+stalling where they had no need to. Built on the same Mindcraft-CE commit as 0.1.0.
+
+### Changed
+
+- World memory and the chest book follow the world, not the server's address. A world opened to LAN gets a new
+  port every session, and the bot used to start over each time, forgetting even whose chests were whose. A world
+  is now known by its seed, or by the `world_id` setting. Memory saved under the old address is carried over the
+  first time the bot is back in that world, and the old folder is left as it was.
+
+### Fixed
+
+- After the bot's first death, world memory stopped marking the blocks it dug as its own, so a hole it dug
+  itself could later be reported as a place that had changed. It now keeps track however often the bot dies.
+
+These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
+
+- Travel no longer gives up looking for a walkable route after 40 ms. `goToGoal` meant to search for a
+  second, but read only the pathfinder's first slice, so a route that took longer to find counted as none and
+  the bot dug and towered its way in a straight line instead.
+- Travel no longer stalls at the turns of a tunnel one block wide. The pathfinder planned a diagonal step past
+  the corner that the bot is too wide to take, stood still and planned it again; `goToGoal` now goes round
+  such corners in two straight steps.
+- Fetching dropped items no longer digs or places blocks to stand in the item's own cell. The bot walks to
+  where it can reach the item, as a player would, and digs or places only when walking can't get close and
+  the caller allows it (as mining does).
+
 ## [0.3.0] - 2026-11-14
 
 The bot sorts chests, keeps whose each chest is, and can be told which chest to use. Built on the same
@@ -172,7 +201,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.0...v0.1.1

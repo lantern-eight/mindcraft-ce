@@ -37,7 +37,7 @@ export function seenMapFile(dir, scope) {
 
 /**
  * @param {object} options
- * @param {string} options.scope - `host:port/world/dimension`, from AgentSystem.scope(); one map per scope
+ * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js; one map per scope
  * @param {() => number} [options.now]
  * @param {number} [options.maxPerType] - entries kept per block type; the least recently seen go first
  */

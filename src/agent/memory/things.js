@@ -27,7 +27,7 @@ const distanceTo = (thing, from) => Math.hypot(thing.x + 0.5 - from.x, thing.y +
 
 /**
  * @param {object} options
- * @param {string} options.scope - `host:port/world/dimension`; one store per scope
+ * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js; one store per scope
  * @param {() => number} [options.now]
  * @param {(name: string) => string|null} [options.kindOf]
  * @param {number} [options.maxPerName] - things kept per block name; the least recently seen go first

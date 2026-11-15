@@ -65,3 +65,4 @@ These inherited files are also changed, with no effect on how the bot behaves:
 | `README.md` | Rewritten for this fork. Mindcraft-CE's setup and configuration guide moved to `docs/setup.md` |
 | `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses |
 | `.gitignore` | Ignores `plans/`, the folder for private working notes |
+| `tests/live/vanilla_fixture.js` | Passes `-DbundlerRepoDir` from `tests/helpers/server_jar_cache.js`, so every throwaway server shares one folder for what the server jar unpacks on first start (`server_data/jar-cache`; `MC_TEST_JAR_CACHE` picks another, `off` turns it off) |
