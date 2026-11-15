@@ -45,16 +45,16 @@ const EARTH = set(`dirt coarse_dirt rooted_dirt grass_block podzol mycelium mud 
 const PLANTS = set(`wheat sugar_cane bamboo cactus kelp vine lily_pad pumpkin carved_pumpkin melon bone_meal dandelion
     golden_dandelion poppy blue_orchid allium azure_bluet oxeye_daisy cornflower lily_of_the_valley sunflower lilac peony fern
     short_grass tall_grass seagrass nether_wart cocoa_beans hay_block torchflower pitcher_plant pitcher_pod azalea
-    flowering_azalea spore_blossom glow_lichen`);
+    flowering_azalea spore_blossom glow_lichen red_shrub`);
 
 const TOOL_ENDS = /_(pickaxe|axe|shovel|hoe)$|bucket$/;
 const COMBAT_ENDS = /_(sword|helmet|chestplate|leggings|boots|horse_armor)$|arrow$/;
 const MINERAL_ENDS = /_(ore|ingot|nugget)$|^raw_/;
 const REDSTONE_ENDS = /_(button|pressure_plate)$|rail$|minecart$/;
 const BUILDING_ENDS = new RegExp('_(stairs|slab|wall|fence|fence_gate|door|trapdoor|sign|bricks|tiles|glass|glass_pane|concrete'
-    + '|concrete_powder|terracotta|wool|carpet|bed|banner|candle|shulker_box|lamp)$');
+    + '|concrete_powder|terracotta|wool|carpet|bed|banner|candle|shulker_box|lamp|cushion)$');
 const WOOD_ENDS = /_(log|wood|planks|stem|hyphae)$/;
-const STONE_ENDS = /(stone|deepslate|andesite|diorite|granite|tuff|calcite|basalt|netherrack|obsidian)$/;
+const STONE_ENDS = /(stone|deepslate|andesite|diorite|granite|tuff|calcite|basalt|netherrack|obsidian|sulfur|cinnabar)$/;
 const PLANT_ENDS = /_(seeds|sapling|leaves|propagule|tulip|mushroom|roots|vines|fungus|bush)$/;
 
 /**

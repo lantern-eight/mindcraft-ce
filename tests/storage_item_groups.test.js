@@ -11,12 +11,15 @@ test('common items land in the group a player would expect', () => {
         food: ['bread', 'cooked_beef', 'apple', 'golden_carrot', 'baked_potato', 'porkchop'],
         minerals: ['iron_ore', 'deepslate_diamond_ore', 'raw_iron', 'raw_gold_block', 'iron_ingot', 'gold_nugget', 'coal', 'diamond', 'iron_block'],
         wood: ['oak_log', 'stripped_birch_log', 'spruce_planks', 'crimson_stem', 'stick'],
-        stone: ['cobblestone', 'stone', 'deepslate', 'polished_andesite', 'sandstone', 'netherrack', 'obsidian'],
+        stone: ['cobblestone', 'stone', 'deepslate', 'polished_andesite', 'sandstone', 'netherrack', 'obsidian', 'sulfur',
+            'potent_sulfur', 'polished_cinnabar'],
         earth: ['dirt', 'sand', 'gravel', 'clay_ball', 'grass_block', 'flint'],
-        plants: ['wheat_seeds', 'oak_sapling', 'wheat', 'sugar_cane', 'birch_leaves', 'poppy', 'golden_dandelion', 'bone_meal'],
+        plants: ['wheat_seeds', 'oak_sapling', 'wheat', 'sugar_cane', 'birch_leaves', 'poppy', 'golden_dandelion', 'red_shrub',
+            'bone_meal'],
         mob_drops: ['bone', 'string', 'rotten_flesh', 'gunpowder', 'ender_pearl', 'leather', 'feather'],
         redstone: ['redstone', 'repeater', 'sticky_piston', 'hopper', 'stone_button', 'oak_pressure_plate', 'powered_rail', 'minecart'],
-        building: ['oak_stairs', 'stone_bricks', 'glass', 'white_wool', 'iron_door', 'oak_fence', 'torch', 'chest', 'crafting_table', 'ladder'],
+        building: ['oak_stairs', 'stone_bricks', 'glass', 'white_wool', 'iron_door', 'oak_fence', 'torch', 'chest', 'crafting_table', 'ladder',
+            'white_cushion', 'straw_bed'],
     };
     for (const [group, names] of Object.entries(expected)) {
         for (const name of names) assert.equal(groupOf(name), group, name);
