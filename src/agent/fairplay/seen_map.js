@@ -40,8 +40,10 @@ export function seenMapFile(dir, scope) {
  * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js; one map per scope
  * @param {() => number} [options.now]
  * @param {number} [options.maxPerType] - entries kept per block type; the least recently seen go first
+ * @param {string} [options.gameVersion] - the game version the bot plays, saved with the map. Block state
+ *   numbers belong to one game version, so a map loaded under another keeps its blocks but not their states.
  */
-export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {}) {
+export function createSeenMap({ scope, now = Date.now, maxPerType = 4000, gameVersion = null } = {}) {
     if (!scope) throw new Error('A seen-world map needs a scope (server/world/dimension)');
     const byKey = new Map();   // "x,y,z" -> entry
     const byName = new Map();  // block name -> Set of keys
@@ -244,7 +246,7 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
 
         toJSON() {
             return {
-                version: FORMAT_VERSION, scope, savedAt: now(),
+                version: FORMAT_VERSION, scope, gameVersion, savedAt: now(),
                 blocks: [...byKey.values()].map(e => [e.x, e.y, e.z, e.name, e.firstSeen, e.lastSeen, e.provenance,
                     e.reportedBy ?? null, e.goneAt ?? null, e.stateId ?? null]),
                 explored: [...explored].map(([k, t]) => [...k.split(',').map(Number), t]),
@@ -264,11 +266,17 @@ export function createSeenMap({ scope, now = Date.now, maxPerType = 4000 } = {})
 
         /** Internal: restores entries from a saved file's data. */
         _restore(data) {
+            // A game update renumbers block states: the same number can name another block, or the same block
+            // in another state (a door open instead of closed). Saved under another version (or before the
+            // version was saved, which means an older game), the states are dropped and the blocks kept, so
+            // perception falls back to the block's plain form until the bot looks again.
+            const statesHold = (data.gameVersion ?? null) === gameVersion;
             for (const [x, y, z, name, firstSeen, lastSeen, provenance, reportedBy, goneAt, stateId] of data.blocks ?? []) {
                 const entry = { x, y, z, name, firstSeen, lastSeen, provenance };
                 if (reportedBy) entry.reportedBy = reportedBy;
                 if (goneAt) entry.goneAt = goneAt;
-                if (Number.isInteger(stateId)) entry.stateId = stateId; // absent in files written before states were kept
+                // Absent in files written before states were kept.
+                if (statesHold && Number.isInteger(stateId)) entry.stateId = stateId;
                 put(entry);
             }
             for (const [sx, sy, sz, t] of data.explored ?? []) explored.set(keyOf(sx, sy, sz), t);

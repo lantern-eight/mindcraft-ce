@@ -257,7 +257,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
             Object.assign(handle, attachWorldMemory({ bot, policy, scope, baseDir: worldDir, perceptionOptions }), { seenMap: null });
             handle.recorder.start();
         } else {
-            handle.seenMap = loadSeenMap(mapDir, scope);
+            handle.seenMap = loadSeenMap(mapDir, scope, { gameVersion: bot.version });
             handle.perception = createPerception({ bot, policy, seenMap: handle.seenMap, ...perceptionOptions });
         }
         handle.perception.start();

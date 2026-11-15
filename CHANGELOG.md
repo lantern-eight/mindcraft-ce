@@ -26,6 +26,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   into chunks it had not been sent.
 - Only mobs the bot knows of make a route cost more. A mob behind a wall used to count.
 
+### Fixed
+
+- With `world_memory` off, a game update no longer brings remembered blocks back in the wrong state. The
+  seen-world map saved each block's state as the game's number for it, and an update renumbers them, so a
+  door could come back open, or a crop grown, though the bot had seen otherwise. The map now saves the game
+  version, and under another version it keeps the blocks but not their states.
+
 ## [0.4.0] - 2026-11-15
 
 A world keeps its memory and chest owners across LAN sessions, and travel and item pickup stop digging and
