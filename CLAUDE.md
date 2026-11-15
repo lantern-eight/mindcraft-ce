@@ -73,21 +73,27 @@ the fix branches too.
 
 **Mindcraft-CE's own code:**
 
-1. **Branch from `upstream/agent-system`, not from `main`.** Name it `fix/<what-it-fixes>`. Starting
-   from Mindcraft-CE's code means the branch holds the fix and nothing else.
+1. **Branch from Mindcraft-CE's code, not from `main`:** from `git merge-base upstream/develop
+   upstream/agent-system`, the last commit the two share. Name it `fix/<what-it-fixes>`. Mindcraft-CE
+   takes pull requests on `develop`, its default branch, while this fork is built on `agent-system`;
+   starting from the commit they share means the branch holds the fix and nothing else, applies to
+   `develop`, and brings nothing extra into `main`. If the code being fixed exists only on
+   `agent-system`, branch from `upstream/agent-system` instead and ask the maintainer where to offer it.
 2. **Commit the fix and its test there.** Nothing from this fork goes in: no fork modules or helpers, no
    fork docs, no `CHANGELOG.md` line. The test must pass on Mindcraft-CE's code and any new tests written
    for the bug.
 3. **Merge the branch into `main`** with a merge commit, so this fork has the fix now. Add the
    `CHANGELOG.md` line on `main`.
 4. **Offer it when the maintainer says so:** push the branch to `origin` and open a pull request from it to
-   Mindcraft-CE's `agent-system`. **One fix per pull request**. More fixes go together only when they are
-   the same mistake in the same place.
-5. When Mindcraft-CE merges it, the next merge of `upstream/agent-system` into `main` brings a change
-   `main` already has, and goes in cleanly.
+   Mindcraft-CE's `develop`. **One fix per pull request**. More fixes go together only when they are
+   the same mistake in the same place. Search Mindcraft-CE's pull requests first: one it already closed
+   for the same change means it was declined.
+5. When Mindcraft-CE merges it, the next merge of its code into `main` brings a change `main` already
+   has, and goes in cleanly.
 
 A fix that is already on `main` but not on its own branch is offered by cherry-picking it onto a new
-branch from `upstream/agent-system`.
+branch from that same shared commit. A test that leans on this fork's code is rewritten to use only
+Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node --test tests/*.test.js`.
 
 **Libraries** (mineflayer, minecraft-protocol, minecraft-data, prismarine-*, the pathfinder):
 
