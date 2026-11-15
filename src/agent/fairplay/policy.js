@@ -22,6 +22,7 @@ export const STRICT_RULES = Object.freeze({
     sight_distance: 'server',       // 'server' (whatever is loaded) or a number of blocks
     entity_distance: 64,
     hearing_radius: 16,
+    route_planning: 'seen',         // 'seen' (routes are planned over what the bot has seen) | 'all' (over every loaded block)
     // Actions
     interact_through_walls: false,
     reach_blocks: 4.5,              // how far a survival player can click or dig a block, eye to block
@@ -40,6 +41,7 @@ export const OFF_RULES = Object.freeze({
     stations_through_walls: true,
     mobs_through_walls: true,
     players_through_walls: true,
+    route_planning: 'all',
     interact_through_walls: true,
     slash_commands: true,
     cheat_mode: true,
@@ -49,6 +51,7 @@ export const OFF_RULES = Object.freeze({
 const CHOICES = {
     sight: ['rays', 'open_face', 'all'],
     players_through_walls: ['nametag', true, false],
+    route_planning: ['seen', 'all'],
     generated_code: ['off', 'wrapped', 'raw'],
 };
 

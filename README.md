@@ -35,6 +35,8 @@ With fair play on, the bot is held to what a survival player in its place could 
 
 - **It knows** what it touches, what a straight line from its eyes reaches, what it remembers seeing, and
   what it hears. Buried ore, a chest in a sealed room and a zombie behind a wall are unknown to it.
+- **It finds its way** over ground it has seen. What it has not seen it takes for open ground, and looks
+  when it gets there.
 - **It does** what a player's hands can: reach is a survival player's reach, and the target has to be in
   view.
 - **It never** runs a slash command, turns on cheat mode, or acts while it is an operator or outside
@@ -53,6 +55,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
 | Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
 | Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
+| Route planning | The pathfinder plans over every loaded block, seen or not | It plans over what the bot has seen, takes what it has not seen for open ground, and plans again as the way ahead comes into view |
 | Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
@@ -63,8 +66,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
-animals), and limiting the pathfinder's choice of route to blocks the bot has seen on a trip to somewhere
-it has not been. The guide lists every [known limit](docs/fair-play.md#known-limits).
+animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
 
 ## Quick Start
 

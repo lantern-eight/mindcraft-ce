@@ -22,6 +22,7 @@
 //
 // Interface used by the rest of fair play:
 //   blockAt(pos)            the block the bot knows there (live or remembered), else null
+//   believedAt(x, y, z)     the same for route planning, which also needs "known to be empty" told from "never seen"
 //   findBlocks(options)     mineflayer findBlocks options; positions of known matching blocks, nearest first
 //   entities()              live entities the bot perceives (not itself)
 //   seesCell / seesFace / seesEntity   what is in view this instant, for the reach guard
@@ -252,6 +253,35 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
             return live;
         }
         return remembered(x, y, z);
+    }
+
+    /**
+     * What the bot believes fills a cell, for planning a route (fair_legs.js). Unlike blockAt it tells
+     * "I know this is empty" from "I have never seen this", which is the difference between a drop and
+     * ground the bot simply has not looked at yet.
+     *
+     *   - a cell it touches, or sees right now within `range` blocks: the live block. A route search asks
+     *     about thousands of cells, and a sight check on a far one is a long line to walk, so beyond
+     *     `range` only memory answers. With `sight: "all"` there is no limit, as there is none on sight;
+     *   - a block it remembers: a stand-in built from memory, as in blockAt;
+     *   - a cell it remembers as open space: a stand-in block of air;
+     *   - anything else: null, never seen.
+     *
+     * @returns {object|null}
+     */
+    function believedAt(x, y, z, range = Infinity) {
+        if (!bot.entity?.position) return null;
+        beginLook();
+        const inRange = policy.sight === 'all'
+            || (x + 0.5 - eyeNow.x) ** 2 + (y + 0.5 - eyeNow.y) ** 2 + (z + 0.5 - eyeNow.z) ** 2 <= range * range;
+        if (touching(x, y, z) || (inRange && visibleNow(x, y, z))) {
+            const live = bot.blockAt(new Vec3(x, y, z));
+            if (live) {
+                noteSeen(x, y, z, live.name, live.stateId);
+                return live;
+            }
+        }
+        return remembered(x, y, z) ?? (seenMap?.sawOpen?.(x, y, z) ? standIn({ name: 'air', x, y, z, lastSeen: 0 }) : null);
     }
 
     const worldBounds = () => {
@@ -533,7 +563,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     }
 
     return {
-        eye, blockAt, findBlocks, entities, heard, tick, start, stop, hearSound, invalidate,
+        eye, blockAt, believedAt, findBlocks, entities, heard, tick, start, stop, hearSound, invalidate,
         canSeeBlock: pos => {
             beginLook();
             return sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), viewOpts);

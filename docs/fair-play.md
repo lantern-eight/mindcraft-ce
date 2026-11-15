@@ -55,7 +55,8 @@ Details that matter:
 - **Coordinates are fair.** Players have them on the debug screen.
 
 This applies to everything that decides what the bot does: the state summary the model reads each turn,
-every command's result, every skill choosing a target, every reflex, and model-written code.
+every command's result, every skill choosing a target, every reflex, model-written code, and the route
+the bot plans to get somewhere.
 
 ## What the Bot Can Do
 
@@ -70,6 +71,37 @@ every command's result, every skill choosing a target, every reflex, and model-w
 A refusal is a message the model can act on, for example:
 
 > You can't see the block at 3, 1, 0 from here, so you can't open it. Move to where you can see it.
+
+## How the Bot Plans a Route
+
+The pathfinder turns "go there" into steps. Stock, it plans over every loaded block, so its choice of
+route used caves the bot had never entered, knew how thick a hill was before digging into it, and stepped
+round lava that was still behind rock. With fair play on, it plans over what the bot knows:
+
+| A cell that is | Counts as |
+|---|---|
+| In view right now (within 24 blocks), or touched | The block that is there |
+| Seen before | The block as it was last seen. This is [world memory](world-memory.md): without it only what is in view is known |
+| Seen to be empty, now or earlier | Air |
+| Never seen | **Open ground:** the bot may walk through it and may stand on it |
+
+Open ground is the optimism a person walks with: "I have not been over that ridge, so I will assume I can
+walk there, and look when I get to it."
+
+- **A trip into country the bot has not seen is planned straight at the goal,** at once, even to beyond
+  the chunks the server has sent.
+- **It looks as it goes.** A few times a second the next steps of the route are checked against what is
+  now in view. When a step turns out to be a drop or a rock face, the route is planned again from where
+  the bot stands. It waits for the bot to land or to finish a block it is digging first.
+- **What it has seen, it plans round from the first step.** A wall it met yesterday is walked round today,
+  not walked up to.
+- **A wall is believed to be as thick as what the bot has seen of it.** Digging in can look cheaper than
+  it turns out to be, and lava behind a rock face is no reason not to dig until the bot has seen it.
+- **Only mobs the bot knows of** make a route cost more.
+
+Skills, commands, mining, combat and the trail all plan through the same pathfinder, so this covers them
+all. The walking itself, the step-by-step physics, still feels the real ground under the bot, as a
+player's legs do.
 
 ## What Changes for the Model
 
@@ -115,6 +147,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `sight_distance` | `"server"` (whatever is loaded) | a number of blocks |
 | `entity_distance` | `64` | blocks |
 | `hearing_radius` | `16` | blocks |
+| `route_planning` | `"seen"` | `"all"` (routes are planned over every loaded block, as stock Mindcraft does) |
 | `interact_through_walls` | `false` | `true` (keeps the reach limit, drops the "in view" rule) |
 | `reach_blocks`, `reach_entities` | `4.5`, `3` | blocks |
 | `slash_commands` | `false` | `true` |
@@ -135,10 +168,20 @@ a server where the bot is an operator.
 
 Fair play is honest about what it doesn't cover yet:
 
-- **Route planning.** The pathfinder still plans with every loaded block, so its *choice of route* can use
-  terrain the bot hasn't seen. Targets always come from what the bot perceives; only the path between
-  uses more. With [world memory](world-memory.md) on (the default), a trip to somewhere the bot has been
-  follows the way it walked, which uses nothing it hasn't seen.
+- **Route planning is optimistic, and pays for it sometimes.** The bot may dig into a hill expecting it to
+  be thin, or walk up to a drop it could not have known about and turn aside there. Having started to
+  dig, it tends to keep digging: at every step the rock ahead is again believed to be as thick as what
+  is in view.
+- **Open air the bot looked through is kept only for the session.** World memory keeps the blocks, and
+  knows the air over ground the bot looked down on. A drop whose bottom it never saw is remembered until
+  the bot restarts, and then met again.
+- **Without world memory the bot forgets a wall once it is out of view,** and may walk back to it.
+- **For planning, "in view" reaches 24 blocks,** as far as the bot looks around. A wall across an open
+  field is planned for when the bot is that close, not from the far side of the field.
+- **The walking still reads the real blocks:** where exactly to stand on a step, and whether a jump can
+  be made. So does the pathfinder's test of whether a block to be mined, or a spot to build on, could be
+  reached from where a route would end. The target itself was seen; the cells between are not asked of
+  perception.
 - **The pathfinder and the combat plugin aren't held to the reach rule.** They act from their own timers
   while carrying out an action that was itself checked.
 - **A few skills name a block before the bot has looked at it** when given exact coordinates
@@ -163,6 +206,7 @@ All of it lives in `src/agent/fairplay/`:
 | `policy.js` | Turns the settings into one frozen object of rules |
 | `fair_queries.js` | The provider plugged into `world.js`, where the through-walls switches are applied |
 | `reach_guard.js` | Reach and line of sight for clicking, digging, placing and hitting |
+| `fair_legs.js` | What the pathfinder is told while it plans a route, and the watch on the way ahead |
 | `fair_bot.js`, `code_runner.js` | The stand-in bot and the compartment for model-written code |
 | `commands.js` | `!recall` (world memory registers a fuller one in its place when it is on), and the "not found means not seen" sentence |
 | `install.js` | Switches all of the above on for one agent |
@@ -172,7 +216,17 @@ Those calls now pass through one swappable provider (`world_queries.js`), and fa
 That is why commands, skills, reflexes and prompts all became fair without being edited one by one. Every
 edit to a Mindcraft file is listed in [`core-hooks.md`](core-hooks.md).
 
-**Writing or porting a skill.** Find blocks and entities with `world.*`, never with `bot.findBlocks`,
+**How route planning hooks in.** The pathfinder's `Movements` class reads the world in one method,
+`getBlock`, and every route search by every skill and plugin goes through it. `fair_legs.js` replaces that
+method on the class at run time, for bots under fair play only, and answers from perception (`believedAt`).
+No file of the pathfinder or of Mindcraft is edited. The rules for what can be walked through or stood on
+stay the library's: its own `getBlock` is run on a copy of the `Movements` object whose `bot` answers from
+what the bot believes. Two more methods are wrapped: `getNeighbors`, to add level slantwise steps over
+unseen ground, and `updateCollisionIndex`, so that only mobs the bot knows of are counted. See "Replaced
+Pieces" in [`core-hooks.md`](core-hooks.md).
+
+**Writing or porting a skill.** Plan walks with the pathfinder, never with a search of your own over
+`bot.blockAt`, so that fair legs cover them. Find blocks and entities with `world.*`, never with `bot.findBlocks`,
 `bot.findBlock`, `bot.nearestEntity`, `bot.entities` or `bot.players[name].entity`. A test
 (`tests/fairplay_raw_search_lint.test.js`) fails the build if one of those appears outside the fair-play
 modules. Don't send slash commands, write the bot's position, or touch `bot._client`.
@@ -183,6 +237,7 @@ modules. Don't send slash commands, write the bot's position, or touch `bot._cli
 npm test                                      # all unit tests; fair-play ones are tests/fairplay_*.test.js
 node tests/live/fairplay_scenarios.js         # the whole stack on a real server, about 90 seconds
 node tests/live/fairplay_scenarios.js --no-world-memory   # the same, with world memory off
+node tests/live/legs_scenarios.js             # route planning: a wall and a trench not seen from the start, and a long trip
 node tests/live/fairplay_perception_smoke.js  # perception alone on a real server
 ```
 

@@ -96,7 +96,8 @@ Nothing new to ask for. Every command and skill that walks does this by itself.
 - **It cuts corners it can see.** Where the way doubles back and a later part is close and walkable, it
   goes straight there.
 - **Ordinary travel finishes the trip.** Where the trail stops short of the target, the rest is planned
-  as before. Where the bot knows no way, nothing changes.
+  as before. Where the bot knows no way, nothing changes. Ordinary travel plans over the blocks the bot
+  remembers too, so a wall it has seen is walked round even where it has never walked.
 - **A blocked way is said, once:** "The way you walked before is blocked near 22, 70, 2." The bot then
   tries an ordinary path past the blockage, which may dig, and after that another way it knows. The
   blocked stretch is avoided for a day, or until the bot walks it again.
@@ -143,7 +144,8 @@ World memory holds only what a player in the bot's place could know:
   [fair play](fair-play.md). Buried ore is never recorded.
 - **Container contents** are only what the bot saw by opening the container.
 - **The trail** is the bot's own past positions, and a route is made only of spots it has stood on.
-  That is fairer than ordinary travel, whose pathfinder plans over every loaded block.
+  Ordinary travel is held to what the bot has seen as well, but has to guess at what it has not
+  ([how the bot plans a route](fair-play.md#how-the-bot-plans-a-route)). The trail guesses at nothing.
 - **A change** is only noticed by looking again.
 
 It does remember perfectly, which a person doesn't. A player has coordinates on the debug screen and can
@@ -237,7 +239,8 @@ under the next; a block name the new version dropped simply never matches. When 
 a tweak, `kinds.js` is where it goes.
 
 **How it hooks in.** Perception takes world memory as its memory in place of the seen-world map, and
-leaves the looking around to the recorder. Saved places are swapped in through a stand-in with the same
+leaves the looking around to the recorder. Route planning asks perception in turn, so the pathfinder plans
+over remembered blocks, and over the air above ground the bot has looked down on (`seenOpen` in `cells.js`). Saved places are swapped in through a stand-in with the same
 calls as the place bank. Travel has one line added: before it plans a walk, it asks a guide whether the
 bot knows a way, and the navigator is that guide. See [`core-hooks.md`](core-hooks.md).
 

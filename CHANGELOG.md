@@ -9,6 +9,28 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-15
+
+Under fair play the bot plans its routes over what it has seen, not over every loaded block. Built on the
+same Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- Fair legs: under fair play the bot plans its routes over what it has seen, not over every loaded block.
+  The pathfinder used to know of caves the bot had never entered, how thick a hill was before digging into
+  it, and where lava lay behind rock. Now a cell the bot has never seen counts as open ground, to walk
+  through or stand on. The bot sets out straight for the goal, and plans again when the way ahead comes
+  into view and is not as it believed. A wall it has seen before is walked round from the first step. Every
+  command, skill and plugin that walks is covered. `"route_planning": "all"` in `fair_play_custom` gives
+  the old planning back. See [How the Bot Plans a Route](docs/fair-play.md#how-the-bot-plans-a-route).
+
+### Changed
+
+- A trip to beyond the chunks the server has sent is planned at once. It used to end in "Path not found,
+  but attempting to navigate anyway using destructive movements", because the pathfinder could not plan
+  into chunks it had not been sent.
+- Only mobs the bot knows of make a route cost more. A mob behind a wall used to count.
+
 ## [0.4.0] - 2026-11-15
 
 A world keeps its memory and chest owners across LAN sessions, and travel and item pickup stop digging and
@@ -201,7 +223,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0

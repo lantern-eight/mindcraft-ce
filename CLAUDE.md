@@ -145,10 +145,14 @@ Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node 
 ## Fair Play
 
 - Everything that *decides* (the model's prompt, command results, skill target choice, reflexes, generated
-  code) gets world information only through `src/agent/fairplay/` perception. The pathfinder and physics
-  ("the legs") may read raw world data for now, but text about routes must not name unseen things.
+  code, and the route a walk takes) gets world information only through `src/agent/fairplay/` perception.
+- Route planning is covered by `fair_legs.js`, which answers the pathfinder's questions about blocks and
+  mobs from perception and takes a cell never seen for open ground. Only the walking itself (the
+  step-by-step physics, and where exactly to stand) reads raw world data. Text about routes must not name
+  unseen things.
 - New or ported skills must not call `bot.findBlocks`, `bot.findBlock`, `bot.nearestEntity`, `bot.entities`
-  or `bot.players[…].entity` directly; use `world.*`. A lint test enforces this.
+  or `bot.players[…].entity` directly; use `world.*`. A lint test enforces this. They plan walks with the
+  pathfinder, never with a search of their own over `bot.blockAt`, so that fair legs cover them.
 - World memory records only what was in view. The memory store (`cells.js`, `things.js`, `trail.js`,
   `places.js`, `changes.js`) never touches the game and keeps names, never the game's numbers for blocks
   or states; only `recorder.js` reads the world, only `navigator.js` drives the pathfinder, and only

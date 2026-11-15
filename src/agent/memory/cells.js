@@ -312,6 +312,30 @@ export function createCells({ storage = memoryStorage(), now = Date.now, maxLoad
             cube.region.dirty = true;
         },
 
+        /**
+         * Does the bot remember open space at this cell? Either it saw the cell itself empty, or, when a
+         * `depth` is given, it never saw the cell but saw empty space straight below it, within that
+         * many cells, and remembers nothing in between.
+         *
+         * The second part is how air the bot merely looked through is known at all, since that air is
+         * not recorded cell by cell. A bot that looked down on lower ground saw the top of that ground,
+         * which marks the cell just above it as empty; everything over that, up to where the bot stood,
+         * was the air it looked through. A block remembered in between ends it: what is over a roof is
+         * not known to be open because the room under the roof was seen.
+         */
+        seenOpen(x, y, z, depth = 0) {
+            for (let at = y; at >= y - depth;) {
+                const cube = getCube(x >> 4, at >> 4, z >> 4, false);
+                // Nothing is remembered anywhere in this cube: on to the one below.
+                if (!cube?.cells) { at = (at >> 4) * 16 - 1; continue; }
+                const value = cube.cells[cellIndex(x, at, z)];
+                if (value === EMPTY) return true;
+                if (value !== NEVER) return false;
+                at--;
+            }
+            return false;
+        },
+
         /** Does the bot remember any cell in this cube? */
         hasCells(cx, cy, cz) { return Boolean(getCube(cx, cy, cz, false)?.cells); },
 
