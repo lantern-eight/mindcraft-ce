@@ -53,6 +53,33 @@ test('open air is only recorded where a block was remembered', () => {
     assert.equal(cells.write(3, 64, 3, 'oak_planks'), 'air', 'so a block turning up there is known to be new');
 });
 
+test('seenOpen: open space is what was seen empty, and what lies over it with nothing known between', () => {
+    const cells = createCells();
+    cells.write(0, 60, 0, 'stone');   // ground the bot looked down on...
+    cells.sawEmpty(0, 61, 0);         // ...through the air just above it
+    assert.equal(cells.seenOpen(0, 61, 0), true, 'the cell it saw empty');
+    assert.equal(cells.seenOpen(0, 70, 0), false, 'a cell over it is not asked about unless a depth is given');
+    assert.equal(cells.seenOpen(0, 70, 0, 24), true, 'the air over ground it looked down on');
+    assert.equal(cells.seenOpen(0, 90, 0, 24), false, 'but only so far up');
+    assert.equal(cells.seenOpen(0, 60, 0, 24), false, 'the ground itself is a block');
+    assert.equal(cells.seenOpen(0, 59, 0, 24), false, 'and under it nothing is known');
+
+    // A block remembered in between ends it: what is over a roof is not known to be open because the
+    // room under the roof was seen.
+    cells.write(0, 65, 0, 'oak_planks');
+    assert.equal(cells.seenOpen(0, 70, 0, 24), false);
+    assert.equal(cells.seenOpen(0, 63, 0, 24), true, 'the room under the roof still is');
+
+    // A column the bot knows nothing of, and one where it knows only a block.
+    assert.equal(cells.seenOpen(40, 70, 40, 24), false);
+    cells.write(8, 60, 8, 'stone');
+    assert.equal(cells.seenOpen(8, 61, 8, 24), false, 'a block with nothing seen over it says nothing about the air');
+
+    // It works across cube edges, downwards through cubes nothing is remembered in.
+    cells.sawEmpty(-3, 3, -3);
+    assert.equal(cells.seenOpen(-3, 20, -3, 24), true);
+});
+
 test('C2: the summary of a cube matches its cells: counts, boxes and an example', () => {
     const cells = createCells();
     fill(cells, [0, 62, 0], [9, 63, 4], 'sand');           // 10 x 2 x 5 = 100

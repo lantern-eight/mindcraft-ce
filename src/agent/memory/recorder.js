@@ -454,6 +454,13 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
             return cells.nearest(wanted, point, { maxDistance, limit: count })
                 .map(hit => view.get(hit.x, hit.y, hit.z)).filter(Boolean);
         },
+        /**
+         * Does the bot remember open space at a cell: seen empty, or over empty space it looked down on?
+         * Route planning asks this, to tell a drop it has seen from ground it has not (see cells.seenOpen).
+         * It reaches down as far as a look-around reaches, since nothing farther down was ever recorded
+         * from above.
+         */
+        sawOpen: (x, y, z) => cells.seenOpen(x, y, z, radius),
         within: () => [],
         markExplored() {},
         recordBiome: (pos, name) => things.recordBiome(pos, name),
