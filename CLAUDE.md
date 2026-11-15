@@ -62,8 +62,25 @@ upstream authors and fork owners is fine and needed where their licenses ask for
   code, put it in its own module and leave a small hook in the inherited file. Never rewrite the
   inherited logic where it stands: an upstream change to it would then merge cleanly and do nothing. Add
   the piece to "Replaced Pieces" in `docs/core-hooks.md`.
-- **Branches:** `main` is the integration branch. Work happens on a branch named for what it adds, and is
-  merged when it is tested.
+- **Branches:** `main` is the integration branch, and targets Java Edition. `bedrock` is its twin for
+  Bedrock Edition (see "Two Editions, Two Branches"). Work happens on a branch named for what it adds, and
+  is merged when it is tested.
+
+## Two Editions, Two Branches
+
+Minecraft's two editions speak different protocols, and the libraries for Bedrock Edition are younger than
+the ones for Java. So each edition has its own long-lived branch, and a Bedrock problem can't break the Java
+bot.
+
+- **`main` targets Java Edition. `bedrock` targets Bedrock Edition.** Each branch's `README.md` says which
+  game version it works with. Keep that line true when the version moves.
+- **`bedrock` is `main` plus the Bedrock work:** its own library pins, the Bedrock modules, and their tests.
+  Merge `main` into `bedrock` often, with a merge commit. Never merge `bedrock` into `main`.
+- **A change that isn't about Bedrock is made for `main`,** on a branch cut from it, and reaches `bedrock`
+  with the next merge. Only Bedrock work is committed on `bedrock` or on a branch cut from it.
+- **Keep the difference between the two short and listed.** Bedrock code lives in its own module behind a
+  setting, with hooks in `docs/core-hooks.md` like any other.
+- Every rule in this file holds on both branches.
 
 ## Fixes to Inherited Code
 

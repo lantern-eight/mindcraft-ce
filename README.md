@@ -8,6 +8,9 @@ its `agent-system` branch. Mindcraft-CE stays the core. This fork adds its own m
 its edits to the core small, so upstream updates stay easy to merge and pieces of this work stay easy to
 offer back.
 
+**This branch, `main`, targets Minecraft Java Edition, currently 26.3.** The `bedrock` branch is the same
+bot for Minecraft Bedrock Edition; its README says which Bedrock version it works with.
+
 > [!CAUTION]
 > Do not connect this bot to public servers with coding enabled. With `allow_insecure_coding` on, a model
 > writes code that runs on your computer. Code writing is off by default.
@@ -20,7 +23,8 @@ offer back.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
-| **Minecraft** | Java Edition 26.3, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
+| **Minecraft** | **Java Edition 26.3** on this branch (`main`), through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
+| **Bedrock Edition** | Not on this branch. The `bedrock` branch carries the Bedrock work, and takes every change made here |
 | **Runs on** | Node 22 |
 | **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
 | **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
