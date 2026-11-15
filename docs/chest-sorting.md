@@ -294,7 +294,9 @@ The code is in `src/agent/storage/`.
 | `commands.js` | The eight commands and the text of their results |
 | `install.js` | Turns it on for an agent, from the `chest_sorting` setting. Opens and saves the chest book |
 
-The chest book is saved under `bots/<name>/storage/`, one `chests.json` per server, world and dimension.
+The chest book is saved under `bots/<name>/storage/`, one `chests.json` per world and dimension, so a world
+opened to LAN keeps whose chests are whose from one session to the next. A world is known the same way as
+for world memory (see [world-memory.md](world-memory.md)), and a book saved by an older version is carried over.
 
 `asker.js` wraps `handleMessage` on the agent it is given, and reads who a running task is for. It edits
 no inherited file. It errs one way on purpose: a player anywhere in the picture counts as asked, and

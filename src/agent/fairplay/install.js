@@ -29,6 +29,7 @@ import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
 import { recallCommand, withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
+import { adoptFormerScope } from '../memory/files.js';
 import { namePlaceCommand, placesCommand, recallCommand as memoryRecallCommand, withNotes } from '../memory/commands.js';
 import { registerCommand } from '../commands/index.js';
 import * as skills from '../library/skills.js';
@@ -107,9 +108,32 @@ export function watchPermissions(bot, { onViolation, onClear }) {
     return { check, get violation() { return current; } };
 }
 
-/** The memory scope: same shape as AgentSystem.scope(), so it works with or without native tools. */
+/**
+ * The memory scope: which world, and which dimension of it, the bot is in. Memory and the chest book are kept
+ * one per scope.
+ *
+ * A world is named by the `world_id` setting, or else by its seed as the server shares it (hashed). Not by
+ * the server's address: a world opened to LAN gets a new port every session, and memory keyed by the address
+ * started empty each time, losing chest owners players had told the bot about, which it can't see again for
+ * itself. Only when there is no seed to go by (some servers hide it by sending zero) is the address used, as
+ * the one thing that tells worlds apart.
+ */
 export function scopeOf(bot, config = settings) {
-    return `${config.host}:${config.port}/${config.world_id || bot.worldIdentity || 'unknown'}/${bot.game?.dimension || 'unknown'}`;
+    const dimension = bot.game?.dimension || 'unknown';
+    const seed = bot.worldIdentity && !/^[0,]+$/.test(String(bot.worldIdentity)) ? String(bot.worldIdentity) : null;
+    const world = config.world_id || seed;
+    return world ? `world:${world}/${dimension}` : `${config.host}:${config.port}/unknown/${dimension}`;
+}
+
+/**
+ * Whether `old` is how `scope` used to be written, before scopes left out the address:
+ * `host:port/<world>/<dimension>` for the same world and dimension, at any address.
+ */
+export function isFormerScope(old, scope) {
+    const match = /^world:(.+)\/([^/]+)$/.exec(scope);
+    if (!match || old.startsWith('world:')) return false;
+    const [, world, dimension] = match;
+    return old.endsWith(`/${world}/${dimension}`) && old.slice(0, -(world.length + dimension.length + 2)).includes(':');
 }
 
 /**
@@ -223,6 +247,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         handle.perception?.stop();
         handle.scope = scope;
         if (worldMemory) {
+            // Memory kept under this world's old name (scopes once included the address) is brought along.
+            adoptFormerScope(worldDir, scope, { isFormer: old => isFormerScope(old, scope), say: note => console.log(`[world memory] ${note}`) });
             // World memory takes the seen-world map's place: perception answers from it instead.
             Object.assign(handle, attachWorldMemory({ bot, policy, scope, baseDir: worldDir, perceptionOptions }), { seenMap: null });
             handle.recorder.start();

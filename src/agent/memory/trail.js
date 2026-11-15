@@ -38,7 +38,7 @@ const NONE = [];
 
 /**
  * @param {object} options
- * @param {string} options.scope - `host:port/world/dimension`; one trail per scope
+ * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js; one trail per scope
  * @param {() => number} [options.now]
  * @param {(a, b) => boolean} [options.canWalkStraight] - could the bot walk in a straight line between
  *   these two spots? Asked before reusing an old crumb, so that two tunnels either side of a wall never

@@ -30,7 +30,7 @@ function gapTo(place, p) {
 
 /**
  * @param {object} options
- * @param {string} options.scope - `host:port/world/dimension`; one set of places per scope
+ * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js; one set of places per scope
  * @param {() => number} [options.now]
  * @param {number} [options.joinDistance] - a thing this close to a place belongs to it
  */

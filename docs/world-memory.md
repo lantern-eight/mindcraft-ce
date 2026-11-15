@@ -29,8 +29,12 @@ It needs `fair_play` to be on (`"strict"` or `"custom"`), because it sees throug
 fair play off it does nothing, whatever this setting says. With `world_memory` off, nothing here runs:
 the bot remembers a short list of notable blocks, and every walk is planned afresh.
 
-Memory is kept per server, world and dimension, under `bots/<name>/memory/`. The Nether never mixes with
-the overworld, and one server's base is never looked for on another. Deleting that folder makes the bot
+Memory is kept per world and dimension, under `bots/<name>/memory/`. The Nether never mixes with the
+overworld, and one world's base is never looked for in another. A world is known by its seed, as the server
+shares it, not by the server's address, so a world opened to LAN keeps its memory though it gets a new port
+every session. The `world_id` setting names a world instead; only a server that hides its seed is told apart
+by its address. Memory saved by an older version, which went by the address, is carried over the first time
+the bot is in that world again, and the old folder is left as it was. Deleting the folder makes the bot
 forget.
 
 ## What the Bot Remembers

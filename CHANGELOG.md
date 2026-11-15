@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- World memory and the chest book follow the world, not the server's address. A world opened to LAN gets a new
+  port every session, and the bot used to start over each time, forgetting even whose chests were whose. A world
+  is now known by its seed, or by the `world_id` setting. Memory saved under the old address is carried over the
+  first time the bot is back in that world, and the old folder is left as it was.
+
 ### Fixed
 
 - After the bot's first death, world memory stopped marking the blocks it dug as its own, so a hole it dug

@@ -10,9 +10,9 @@
 // the chest book, one file per server, world and dimension, under the bot's own folder.
 import settings from '../settings.js';
 import { registerCommand } from '../commands/index.js';
-import { scopeOf } from '../fairplay/install.js';
+import { isFormerScope, scopeOf } from '../fairplay/install.js';
 import { log } from '../library/skills.js';
-import { scopeDir } from '../memory/files.js';
+import { adoptFormerScope, scopeDir } from '../memory/files.js';
 import { requestWatcher } from './asker.js';
 import { loadChestBook } from './chest_book.js';
 import { storageCommands } from './commands.js';
@@ -45,6 +45,8 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
         const scope = scopeOf(agent.bot, config);
         if (book?.scope !== scope) {
             save();
+            // Chest owners kept under this world's old name (scopes once included the address) come along.
+            adoptFormerScope(baseDir, scope, { isFormer: old => isFormerScope(old, scope), say: note => console.log(`[chest sorting] ${note}`) });
             book = loadChestBook(scopeDir(baseDir, scope), { scope });
         }
         return book;

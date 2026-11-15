@@ -42,7 +42,7 @@ export const defaultSorting = owner => (sameOwner(owner, ME) ? 'always' : 'asked
 
 /**
  * @param {object} options
- * @param {string} options.scope - `host:port/world/dimension`; one book per scope
+ * @param {string} options.scope - which world and dimension, from `scopeOf` in fairplay/install.js; one book per scope
  * @param {() => number} [options.now]
  * @param {number} [options.history] - how many changes are remembered per chest
  */
