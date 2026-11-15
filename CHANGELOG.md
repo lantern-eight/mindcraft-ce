@@ -37,6 +37,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   door could come back open, or a crop grown, though the bot had seen otherwise. The map now saves the game
   version, and under another version it keeps the blocks but not their states.
 
+These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
+
+- Builders use the wood they carry when a blueprint names none. Dark oak counted as oak, and a dark oak tree
+  as a wood called "dark", so the bot went looking for oak. Pale oak and poplar are known woods too.
+
 ## [0.4.0] - 2026-11-15
 
 A world keeps its memory and chest owners across LAN sessions, and travel and item pickup stop digging and
