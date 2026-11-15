@@ -41,6 +41,7 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 
 - Builders use the wood they carry when a blueprint names none. Dark oak counted as oak, and a dark oak tree
   as a wood called "dark", so the bot went looking for oak. Pale oak and poplar are known woods too.
+- `useDoor` finds copper, pale oak and poplar doors. Its list of doors predated them.
 
 ## [0.4.0] - 2026-11-15
 
