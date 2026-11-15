@@ -17,10 +17,48 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   GitHub, pinned by commit to the open 26.3 work (listed in
   [Dependencies Pinned to a Branch](docs/core-hooks.md#dependencies-pinned-to-a-branch)). They go back to
   npm releases once those support 26.3.
+
+### Fixed
+
+These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
+
+- On 26.3 the bot is no longer kicked with "Invalid move player packet received" soon after it starts
+  walking. Mindcraft-CE holds back a position packet sent too soon after the last and sends it later; with a
+  client that ends each game tick itself, as the 26.3 libraries do, that moved the packet into the next tick
+  beside that tick's own, which 26.3 servers refuse. Such a client is no longer throttled.
+
+## [0.6.0] - 2026-11-15
+
+The bot plays Minecraft 26.1, and builders and `useDoor` know the newer woods and doors. Built on the same
+Mindcraft-CE commit as 0.1.0.
+
+### Added
+
 - Minecraft Java Edition 26.1 (26.1, 26.1.1 and 26.1.2). `minecraft_version` in `settings.js` is now
   `26.1.2`; set it to match your server, or to `"auto"`. The live tests run a 26.1.2 server and need Java 25.
   `minecraft-data` moves to 3.119.0, which fixes 26.1's list of entity attributes (the bot misread its own
   movement speed with 3.117.0).
+
+### Fixed
+
+- With `world_memory` off, a game update no longer brings remembered blocks back in the wrong state. The
+  seen-world map saved each block's state as the game's number for it, and an update renumbers them, so a
+  door could come back open, or a crop grown, though the bot had seen otherwise. The map now saves the game
+  version, and under another version it keeps the blocks but not their states.
+
+These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
+
+- Builders use the wood they carry when a blueprint names none. Dark oak counted as oak, and a dark oak tree
+  as a wood called "dark", so the bot went looking for oak. Pale oak and poplar are known woods too.
+- `useDoor` finds copper, pale oak and poplar doors. Its list of doors predated them.
+
+## [0.5.0] - 2026-11-15
+
+Under fair play the bot plans its routes over what it has seen, not over every loaded block. Built on the
+same Mindcraft-CE commit as 0.1.0.
+
+### Added
+
 - Fair legs: under fair play the bot plans its routes over what it has seen, not over every loaded block.
   The pathfinder used to know of caves the bot had never entered, how thick a hill was before digging into
   it, and where lava lay behind rock. Now a cell the bot has never seen counts as open ground, to walk
@@ -35,23 +73,6 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   but attempting to navigate anyway using destructive movements", because the pathfinder could not plan
   into chunks it had not been sent.
 - Only mobs the bot knows of make a route cost more. A mob behind a wall used to count.
-
-### Fixed
-
-- With `world_memory` off, a game update no longer brings remembered blocks back in the wrong state. The
-  seen-world map saved each block's state as the game's number for it, and an update renumbers them, so a
-  door could come back open, or a crop grown, though the bot had seen otherwise. The map now saves the game
-  version, and under another version it keeps the blocks but not their states.
-
-These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
-
-- On 26.3 the bot is no longer kicked with "Invalid move player packet received" soon after it starts
-  walking. Mindcraft-CE holds back a position packet sent too soon after the last and sends it later; with a
-  client that ends each game tick itself, as the 26.3 libraries do, that moved the packet into the next tick
-  beside that tick's own, which 26.3 servers refuse. Such a client is no longer throttled.
-- Builders use the wood they carry when a blueprint names none. Dark oak counted as oak, and a dark oak tree
-  as a wood called "dark", so the bot went looking for oak. Pale oak and poplar are known woods too.
-- `useDoor` finds copper, pale oak and poplar doors. Its list of doors predated them.
 
 ## [0.4.0] - 2026-11-15
 
@@ -245,7 +266,9 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0
