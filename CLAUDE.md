@@ -53,8 +53,10 @@ upstream authors and fork owners is fine and needed where their licenses ask for
 - **One feature or one fix per commit**, so Mindcraft-CE's maintainers can take pieces one at a time. A fix
   to Mindcraft-CE's own code gets its own commit, with nothing from this fork mixed in.
 - **New features are modules behind a setting**, working without the rest of this fork's code.
-- **Never patch the protocol layer** (mineflayer, minecraft-data, prismarine-*) beyond the patches
-  Mindcraft-CE already pins. Keeping clear of it is what keeps a Minecraft update cheap.
+- **Never edit the protocol layer here** (mineflayer, minecraft-protocol, minecraft-data, prismarine-*,
+  the pathfinder): no changed files and no patch files beyond the ones Mindcraft-CE already pins. Fixes
+  and newer game versions come from those projects, from a branch if they aren't released yet (see
+  "Fixes to Inherited Code"). Keeping clear of it is what keeps a Minecraft update cheap.
 - **Core edits are hooks only**, each listed in `docs/core-hooks.md`.
 - **Replace by module, not in place.** When this fork's version of something takes over from inherited
   code, put it in its own module and leave a small hook in the inherited file. Never rewrite the
@@ -62,6 +64,44 @@ upstream authors and fork owners is fine and needed where their licenses ask for
   the piece to "Replaced Pieces" in `docs/core-hooks.md`.
 - **Branches:** `main` is the integration branch. Work happens on a branch named for what it adds, and is
   merged when it is tested.
+
+## Fixes to Inherited Code
+
+A fix to code this fork inherited is made so it can be offered back exactly as it stands, while this fork
+gets it straight away. No second fork is needed: this repository is a GitHub fork of Mindcraft-CE and holds
+the fix branches too.
+
+**Mindcraft-CE's own code:**
+
+1. **Branch from `upstream/agent-system`, not from `main`.** Name it `fix/<what-it-fixes>`. Starting
+   from Mindcraft-CE's code means the branch holds the fix and nothing else.
+2. **Commit the fix and its test there.** Nothing from this fork goes in: no fork modules or helpers, no
+   fork docs, no `CHANGELOG.md` line. The test must pass on Mindcraft-CE's code and any new tests written
+   for the bug.
+3. **Merge the branch into `main`** with a merge commit, so this fork has the fix now. Add the
+   `CHANGELOG.md` line on `main`.
+4. **Offer it when the maintainer says so:** push the branch to `origin` and open a pull request from it to
+   Mindcraft-CE's `agent-system`. **One fix per pull request**. More fixes go together only when they are
+   the same mistake in the same place.
+5. When Mindcraft-CE merges it, the next merge of `upstream/agent-system` into `main` brings a change
+   `main` already has, and goes in cleanly.
+
+A fix that is already on `main` but not on its own branch is offered by cherry-picking it onto a new
+branch from `upstream/agent-system`.
+
+**Libraries** (mineflayer, minecraft-protocol, minecraft-data, prismarine-*, the pathfinder):
+
+- **When a fix or a newer game version exists upstream but isn't released,** point `package.json` at it: a
+  `github:` dependency pinned to a commit, plus `overrides` so every package in the tree uses the same
+  copy. This is how this fork gets work other people have done without patching anything itself.
+- **Point at the library's own branch** when one branch has everything. When the pieces are in several
+  places (open pull requests, or a fix of this fork's own), fork that library, combine them on a branch
+  there, and point at that. Offer this fork's own fix to the library as its own pull request, the same way
+  as above.
+- **If Mindcraft-CE pins a patch for that library,** redo the patch for the new commit, or carry it on the
+  fork branch.
+- **List every pin** under "Dependencies Pinned to a Branch" in `docs/core-hooks.md`: what, which commit,
+  why, and which release will replace it. **Go back to the npm release** as soon as one has the change.
 
 ## Licenses and Credit
 

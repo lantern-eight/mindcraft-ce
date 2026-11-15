@@ -47,6 +47,15 @@ Add a row whenever a new feature takes over from inherited code. Keep the takeov
 module with a small hook in the inherited file, so that most upstream edits to that code show up as a
 conflict instead of passing silently.
 
+## Dependencies Pinned to a Branch
+
+Libraries that `package.json` takes from a commit on GitHub instead of an npm release, because a fix or a
+newer game version is not released yet. Each goes back to the npm release as soon as one has the change.
+
+| Package | Pinned to | Why | Back to npm when |
+|---|---|---|---|
+| none yet | | | |
+
 ## Housekeeping Edits
 
 These inherited files are also changed, with no effect on how the bot behaves:
