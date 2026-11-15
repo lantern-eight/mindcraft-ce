@@ -37,12 +37,23 @@ license. The ones this fork's additions lean on most:
 
 | Library | Used for | License |
 |---|---|---|
-| [Mineflayer](https://github.com/PrismarineJS/mineflayer) and the PrismarineJS libraries | Speaking the Minecraft protocol; the bot itself | MIT |
+| [Mineflayer](https://github.com/PrismarineJS/mineflayer) and the PrismarineJS libraries | The bot itself, its game data and physics | MIT |
+| [minecraft-protocol](https://github.com/PrismarineJS/node-minecraft-protocol) (PrismarineJS) | Speaking the Minecraft protocol | BSD-3-Clause |
 | [mineflayer-pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder) | Walking | MIT |
 | [SES](https://github.com/endojs/endo) (Hardened JavaScript) | The compartment that model-written code runs in | Apache-2.0 |
 
+Until npm releases support the newest game version, mineflayer and some PrismarineJS libraries are installed
+from forks under [`lantern-eight`](https://github.com/lantern-eight), listed in
+[Dependencies Pinned to a Branch](docs/core-hooks.md#dependencies-pinned-to-a-branch). The forks keep the
+libraries' own licenses.
+
 The files in `patches/` are inherited from Mindcraft-CE. They are small changes to some of these libraries,
 applied at install time, and fall under the license of the library each one patches.
+
+Two packages deep in the dependency tree are under GPL-3.0: `@nxg-org/mineflayer-util-plugin` and
+`node-aabb`. They come in through `mineflayer-auto-eat`, a dependency inherited from Mindcraft-CE that lets
+the bot eat. npm installs them; none of their code is in this repository, so its files stay MIT and CC0. A
+bundle that ships them, such as a packaged app with its `node_modules`, falls under their terms.
 
 ## Ideas and Methods
 
@@ -92,3 +103,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   before copying, keep its notice with the code, and add a row here naming the project, the files and the
   license.
 - An idea taken from someone else's work, with no code copied, gets a line under "Ideas and Methods".
+- No strong copyleft. Code under GPL-2.0, GPL-3.0 or AGPL-3.0 is never copied or closely ported here, so that
+  this repository stays MIT and CC0. Code is copied only from permissive licenses (MIT, BSD, ISC,
+  Apache-2.0, CC0, Unlicense). A new direct dependency is checked the same way and gets a row under
+  "Libraries".

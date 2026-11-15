@@ -116,6 +116,13 @@ Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node 
   to the list in `ATTRIBUTION.md`.
 - **Before copying code from another project, check its license allows it.** Keep that project's notice with
   the code and add a row to `ATTRIBUTION.md`. An idea taken without code gets a line there too.
+- **No strong copyleft.** The repository stays MIT and CC0, and a strong copyleft license would pull the work
+  that uses it under its own terms. Never copy or closely port code under GPL-2.0, GPL-3.0 or AGPL-3.0 (or
+  "or later" versions of them). Copy only from permissive licenses: MIT, BSD, ISC, Apache-2.0, CC0,
+  Unlicense. For weak copyleft (LGPL, MPL), or a project with no license at all, ask the maintainer first.
+- **Check a new dependency's license before adding it.** A new direct dependency must not be under a strong
+  copyleft license, and gets a row under "Libraries" in `ATTRIBUTION.md`. A library pinned to a fork keeps
+  the library's license; check that the fork does too.
 
 ## Changelog and Versions
 
