@@ -13,7 +13,7 @@ test('common items land in the group a player would expect', () => {
         wood: ['oak_log', 'stripped_birch_log', 'spruce_planks', 'crimson_stem', 'stick'],
         stone: ['cobblestone', 'stone', 'deepslate', 'polished_andesite', 'sandstone', 'netherrack', 'obsidian'],
         earth: ['dirt', 'sand', 'gravel', 'clay_ball', 'grass_block', 'flint'],
-        plants: ['wheat_seeds', 'oak_sapling', 'wheat', 'sugar_cane', 'birch_leaves', 'poppy', 'bone_meal'],
+        plants: ['wheat_seeds', 'oak_sapling', 'wheat', 'sugar_cane', 'birch_leaves', 'poppy', 'golden_dandelion', 'bone_meal'],
         mob_drops: ['bone', 'string', 'rotten_flesh', 'gunpowder', 'ender_pearl', 'leather', 'feather'],
         redstone: ['redstone', 'repeater', 'sticky_piston', 'hopper', 'stone_button', 'oak_pressure_plate', 'powered_rail', 'minecart'],
         building: ['oak_stairs', 'stone_bricks', 'glass', 'white_wool', 'iron_door', 'oak_fence', 'torch', 'chest', 'crafting_table', 'ladder'],

@@ -117,6 +117,26 @@ test('a remembered block keeps the exact state it was seen in', () => {
     assert.equal(loadSeenMap(dir, 's', { now }).get(3, 64, 3).stateId, 4328);
 });
 
+test('a map saved under another game version keeps its blocks but forgets their state numbers', () => {
+    // State numbers are the game's own and are renumbered when a version adds blocks, so number 4328
+    // may be another block, or the same block in another state, after an update.
+    const now = clock();
+    const map = createSeenMap({ scope: 's', now, gameVersion: '1.21.11' });
+    map.observeBlock({ x: 3, y: 64, z: 3 }, 'wheat', 'observed', 4328);
+    const dir = mkdtempSync(path.join(tmpdir(), 'seen-version-'));
+    map.save(dir);
+    assert.equal(loadSeenMap(dir, 's', { now, gameVersion: '1.21.11' }).get(3, 64, 3).stateId, 4328, 'same version: kept');
+    const updated = loadSeenMap(dir, 's', { now, gameVersion: '26.1.2' });
+    assert.equal(updated.get(3, 64, 3).name, 'wheat', 'the block itself is still remembered');
+    assert.equal(updated.get(3, 64, 3).stateId, undefined, 'its state number is dropped');
+
+    // A file from before the version was saved can only have come from an older game.
+    const old = createSeenMap({ scope: 'o', now });
+    old.observeBlock({ x: 1, y: 64, z: 1 }, 'oak_door', 'observed', 12345);
+    old.save(dir);
+    assert.equal(loadSeenMap(dir, 'o', { now, gameVersion: '26.1.2' }).get(1, 64, 1).stateId, undefined);
+});
+
 test('per-type caps drop the least recently seen entries first', () => {
     const now = clock();
     const map = createSeenMap({ scope: 's', now, maxPerType: 3 });

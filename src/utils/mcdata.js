@@ -55,7 +55,11 @@ function enableFabricRegistrySync(bot) {
  * @typedef {string} BlockName
 */
 
-export const WOOD_TYPES = ['oak', 'spruce', 'birch', 'jungle', 'acacia', 'dark_oak', 'mangrove', 'cherry'];
+// Woods whose trees have logs. Newer woods are listed with the version that added them; on an older
+// version their names match nothing, so the list can run ahead of the game.
+export const WOOD_TYPES = ['oak', 'spruce', 'birch', 'jungle', 'acacia', 'dark_oak', 'mangrove', 'cherry',
+    'pale_oak', // 1.21.4+
+    'poplar'];  // 26.3+
 export const MATCHING_WOOD_BLOCKS = [
     'log',
     'planks',
@@ -87,6 +91,16 @@ export const WOOL_COLORS = [
     'green',
     'red',
     'black'
+]
+// Doors a hand can open (iron doors need redstone). Newer ones are listed with the version that added
+// them; on an older version their names match nothing, so the list can run ahead of the game.
+export const HAND_OPENED_DOORS = [
+    'oak_door', 'spruce_door', 'birch_door', 'jungle_door', 'acacia_door', 'dark_oak_door',
+    'mangrove_door', 'cherry_door', 'bamboo_door', 'crimson_door', 'warped_door',
+    'copper_door', 'exposed_copper_door', 'weathered_copper_door', 'oxidized_copper_door', // 1.21+
+    'waxed_copper_door', 'waxed_exposed_copper_door', 'waxed_weathered_copper_door', 'waxed_oxidized_copper_door', // 1.21+
+    'pale_oak_door', // 1.21.4+
+    'poplar_door', // 26.3+
 ]
 
 

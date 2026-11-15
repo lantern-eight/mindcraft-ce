@@ -4,6 +4,7 @@ import path from 'node:path';
 import {once} from 'node:events';
 // Fork hook: reuse what the server jar unpacks on first start (see the helper).
 import {jarCacheArgs} from '../helpers/server_jar_cache.js';
+import {GAME_VERSION} from '../helpers/game_version.js';
 export const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export async function waitFor(check,timeout=30000,detail=()=> '') {
     const started=Date.now();
@@ -15,10 +16,10 @@ export async function waitFor(check,timeout=30000,detail=()=> '') {
 export async function vanillaFixture(port=55918) {
     const dir=path.resolve(`server_data/agent-verification-${Date.now()}`);
     const jar=path.resolve(process.env.MC_TEST_SERVER_JAR||'server_data/local-test/server.jar');
-    if(!existsSync(jar)) throw new Error('Set MC_TEST_SERVER_JAR to a Minecraft Java 1.21.11 server jar');
+    if(!existsSync(jar)) throw new Error(`Set MC_TEST_SERVER_JAR to a Minecraft Java ${GAME_VERSION} server jar`);
     mkdirSync(dir,{recursive:true});writeFileSync(path.join(dir,'eula.txt'),'eula=true\n');
     writeFileSync(path.join(dir,'server.properties'),`server-ip=127.0.0.1\nserver-port=${port}\nonline-mode=false\nenforce-secure-profile=false\nlevel-type=minecraft:flat\ngamemode=survival\ndifficulty=peaceful\nspawn-protection=0\nview-distance=3\nsimulation-distance=3\nmax-tick-time=120000\npause-when-empty-seconds=0\n`);
-    const server=spawn(process.env.MC_TEST_JAVA||'/usr/lib/jvm/java-21-openjdk-amd64/bin/java',
+    const server=spawn(process.env.MC_TEST_JAVA||'/usr/lib/jvm/java-25-openjdk-amd64/bin/java',
         ['-Djava.net.preferIPv4Stack=true',...jarCacheArgs(),'-Xms256M','-Xmx1G','-jar',jar,'nogui'],{cwd:dir,stdio:['pipe','pipe','pipe']});
     let log='';server.stdout.on('data',data=>{log+=data;});server.stderr.on('data',data=>{log+=data;});
     await waitFor(()=>log.includes('Done ('),90000,()=>log.slice(-1800));

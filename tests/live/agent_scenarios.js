@@ -6,6 +6,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import {io} from 'socket.io-client';
 import {vanillaFixture,delay,waitFor} from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const live=process.argv.includes('--live-model');
 const fixture=await vanillaFixture(55918);
@@ -41,7 +42,7 @@ try {
             model_selection:{enabled:true,default_task_model:'worker',models:[{id:'worker',model:replay,notes:'Recorded Task endpoint'}]}};
     const profilePath=path.join(fixture.dir,'profile.json');writeFileSync(profilePath,JSON.stringify(profile));
     child=spawn(process.execPath,['main.js','--profiles',profilePath],{env:{...process.env,SETTINGS_JSON:JSON.stringify({
-        host:'127.0.0.1',port:fixture.port,mindserver_port:mindPort,minecraft_version:'1.21.11',auth:'offline',init_message:'',
+        host:'127.0.0.1',port:fixture.port,mindserver_port:mindPort,minecraft_version:GAME_VERSION,auth:'offline',init_message:'',
         num_examples:0,max_messages:100,load_memory:false,brain_check_in_seconds:60,agent_max_steps:20,agent_max_tool_calls:40,
     })},stdio:['pipe','pipe','pipe']});
     const capture=data=>{log+=data;appendFileSync(path.join(fixture.dir,'agent-log.txt'),data);};

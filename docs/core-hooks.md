@@ -64,6 +64,8 @@ These inherited files are also changed, with no effect on how the bot behaves:
 | File | Change |
 |---|---|
 | `README.md` | Rewritten for this fork. Mindcraft-CE's setup and configuration guide moved to `docs/setup.md` |
-| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses |
+| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses. `minecraft-data` is 3.119.0 (Mindcraft-CE pins 3.117.0): its 26.1 protocol data has the right list of entity attributes, which 3.117.0 had shifted from movement speed on |
 | `.gitignore` | Ignores `plans/`, the folder for private working notes |
 | `tests/live/vanilla_fixture.js` | Passes `-DbundlerRepoDir` from `tests/helpers/server_jar_cache.js`, so every throwaway server shares one folder for what the server jar unpacks on first start (`server_data/jar-cache`; `MC_TEST_JAR_CACHE` picks another, `off` turns it off) |
+| `settings.js` | `minecraft_version` is `26.1.2`, the game version this fork is tested on (Mindcraft-CE's is `1.21.6`) |
+| `tests/live/*.js`, `tests/gameplay_reliability.test.js` | The live scenarios take the game version from `tests/helpers/game_version.js` instead of each naming `1.21.11`, and need Java 25 as 26.1 does. The tool-speed test also checks 26.1's data |

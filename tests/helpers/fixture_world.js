@@ -9,8 +9,9 @@
 import { EventEmitter } from 'node:events';
 import minecraftData from 'minecraft-data';
 import Vec3 from 'vec3';
+import { GAME_VERSION } from './game_version.js';
 
-export function fixtureWorld({ version = '1.21.11', min = [-32, -16, -32], max = [32, 32, 32] } = {}) {
+export function fixtureWorld({ version = GAME_VERSION, min = [-32, -16, -32], max = [32, 32, 32] } = {}) {
     const registry = minecraftData(version);
     const cells = new Map();
     const unloaded = [];

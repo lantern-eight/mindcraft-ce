@@ -215,8 +215,8 @@ node tests/live/agent_scenarios.js --live-model
 ```
 
 Use Node 22.13+ (tested: 22.23.3). Default tests use local stubs and no paid
-inference; discovery tests need loopback permission. Live tests need Java 21 and
-a Minecraft Java 1.21.11 jar at `server_data/local-test/server.jar`, or set
+inference; discovery tests need loopback permission. Live tests need Java 25 and
+a Minecraft Java 26.1.2 jar at `server_data/local-test/server.jar`, or set
 `MC_TEST_SERVER_JAR`/`MC_TEST_JAVA`. Separate ignored worlds use 55918 and
 MindServer 8083, preserving the existing local world. Keep test ports free.
 

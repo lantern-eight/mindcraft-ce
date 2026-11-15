@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live smoke test for fair-play perception against a real server (no model calls, free to run).
 //   node tests/live/fairplay_perception_smoke.js
-// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
+// Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The unit tests prove the geometry on hand-built worlds. This checks the parts only a real server can:
 // reading block states from real chunk columns, entity data and sounds from real packets, and how long a
@@ -13,6 +13,7 @@ import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay } from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55918);
 const results = [];
@@ -27,7 +28,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline' });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline' });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { createPerception } = await import('../../src/agent/fairplay/perception.js');
     const { createSeenMap } = await import('../../src/agent/fairplay/seen_map.js');

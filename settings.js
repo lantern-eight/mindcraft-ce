@@ -1,5 +1,5 @@
 const settings = {
-    "minecraft_version": "1.21.6", // or specific version like "1.21.6"
+    "minecraft_version": "26.1.2", // or "auto" to use whatever version the server runs
     "host": "localhost", // or "localhost", "your.ip.address.here"
     "port": 55916, // set to -1 to automatically scan for open ports
     "auth": "offline", // or "microsoft"

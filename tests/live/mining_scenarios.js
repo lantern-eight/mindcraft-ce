@@ -7,15 +7,16 @@ import { once } from 'node:events';
 import assert from 'node:assert/strict';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55918);
 const dir = path.resolve(`server_data/verification-${Date.now()}`);
 const jar = path.resolve(process.env.MC_TEST_SERVER_JAR || 'server_data/local-test/server.jar');
-if (!existsSync(jar)) throw new Error('Set MC_TEST_SERVER_JAR to a Minecraft Java 1.21.11 server jar.');
+if (!existsSync(jar)) throw new Error(`Set MC_TEST_SERVER_JAR to a Minecraft Java ${GAME_VERSION} server jar.`);
 mkdirSync(dir, {recursive:true});
 writeFileSync(path.join(dir,'eula.txt'),'eula=true\n');
 writeFileSync(path.join(dir,'server.properties'), `server-ip=127.0.0.1\nserver-port=${port}\nonline-mode=false\nenforce-secure-profile=false\nlevel-type=minecraft:flat\ngamemode=survival\ndifficulty=peaceful\nspawn-protection=0\nview-distance=3\nsimulation-distance=3\nmax-tick-time=120000\npause-when-empty-seconds=0\n`);
-const java=process.env.MC_TEST_JAVA || '/usr/lib/jvm/java-21-openjdk-amd64/bin/java';
+const java=process.env.MC_TEST_JAVA || '/usr/lib/jvm/java-25-openjdk-amd64/bin/java';
 const server=spawn(java,['-Djava.net.preferIPv4Stack=true','-Xms256M','-Xmx1G','-jar',jar,'nogui'],{cwd:dir,stdio:['pipe','pipe','pipe']});
 let log='',bot;
 const results=[];
@@ -37,7 +38,7 @@ async function scenario(name, fn) {
 }
 try {
     await waitFor(()=>log.includes('Done ('),90000);
-    setSettings({...rootSettings,host:'127.0.0.1',port,minecraft_version:'1.21.11',auth:'offline'});
+    setSettings({...rootSettings,host:'127.0.0.1',port,minecraft_version:GAME_VERSION,auth:'offline'});
     const {initBot}=await import('../../src/utils/mcdata.js');
     const {ActionManager}=await import('../../src/agent/action_manager.js');
     const {collectBlockResult,smeltItem}=await import('../../src/agent/library/skills.js');

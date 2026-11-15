@@ -43,7 +43,7 @@ const BUILDING = set(`glass bricks ladder torch soul_torch lantern soul_lantern 
 const EARTH = set(`dirt coarse_dirt rooted_dirt grass_block podzol mycelium mud sand red_sand gravel clay clay_ball
     flint snow snow_block snowball ice packed_ice blue_ice soul_sand soul_soil moss_block`);
 const PLANTS = set(`wheat sugar_cane bamboo cactus kelp vine lily_pad pumpkin carved_pumpkin melon bone_meal dandelion
-    poppy blue_orchid allium azure_bluet oxeye_daisy cornflower lily_of_the_valley sunflower lilac peony fern
+    golden_dandelion poppy blue_orchid allium azure_bluet oxeye_daisy cornflower lily_of_the_valley sunflower lilac peony fern
     short_grass tall_grass seagrass nether_wart cocoa_beans hay_block torchflower pitcher_plant pitcher_pod azalea
     flowering_azalea spore_blossom glow_lichen`);
 

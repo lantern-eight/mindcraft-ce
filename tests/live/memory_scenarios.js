@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live world-memory scenarios against a real server (no model calls, free to run).
 //   node tests/live/memory_scenarios.js [--port=55924]
-// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
+// Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The unit tests check each layer on hand-built worlds with a stand-in bot. These check what only a real
 // server can: real chunk data, a real double chest, a real container window, the bot's real movement.
@@ -17,6 +17,7 @@ import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55924);
 const NAME = 'Rememberer';
@@ -32,7 +33,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline', fair_play: 'strict', world_memory: true });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline', fair_play: 'strict', world_memory: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -152,6 +153,9 @@ try {
         await act('test:walk', () => skills.goToPosition(bot, 0, 70, 0, 0));
         await settled();
         // The director takes the bot far away, changes the place, waits out the minute, and brings it back.
+        // The place stays loaded meanwhile: a vanilla server unloads a chunk the player has left, and an edit
+        // made while it is unloading is lost, so the bot would come back to the place as it was.
+        await cmd('forceload add -16 -16 16 16');
         await cmd(`tp ${NAME} 300.5 70 300.5`);
         await cmd('fill 295 69 295 305 69 305 stone');
         await delay(1500);

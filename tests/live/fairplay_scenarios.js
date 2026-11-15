@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live fair-play scenarios against a real server (no model calls, free to run).
 //   node tests/live/fairplay_scenarios.js [--port=55922]
-// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
+// Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The unit tests check each rule on hand-built worlds. These check the whole thing put together the way
 // a real agent runs it: fair play installed by its normal hook, CE's real skills and reflexes, real
@@ -22,6 +22,7 @@ import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55922);
 const worldMemory = !process.argv.includes('--no-world-memory');
@@ -38,7 +39,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline', fair_play: 'strict', world_memory: worldMemory });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline', fair_play: 'strict', world_memory: worldMemory });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live chest-sorting scenarios against a real server (no model calls, free to run).
 //   node tests/live/storage_scenarios.js [--port=55928]
-// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
+// Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The unit tests check the sort plan exactly, and the carrying out of it against a fake room. These
 // check what only a real server can: that real clicks in a real chest window do what the plan says,
@@ -24,6 +24,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55928);
 const NAME = 'Sorter';
@@ -39,7 +40,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline', fair_play: 'strict', world_memory: true, chest_sorting: true });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline', fair_play: 'strict', world_memory: true, chest_sorting: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -127,6 +128,19 @@ try {
         }
         return out;
     };
+    /** The `components: {...}` part of one printed item, up to its own closing brace. Where it stands among
+     *  the item's other fields depends on the game version (26.1 prints it first), so it is cut out by
+     *  counting braces rather than by a pattern that runs to the item's last brace. */
+    const componentsOf = entry => {
+        const at = entry.indexOf('components: {');
+        if (at < 0) return null;
+        const start = entry.indexOf('{', at);
+        for (let i = start, depth = 0; i < entry.length; i++) {
+            if (entry[i] === '{') depth++;
+            else if (entry[i] === '}' && --depth === 0) return entry.slice(start, i + 1);
+        }
+        return null;
+    };
     /** What is really in a container block, slot by slot, as the server tells its console. */
     const read = async ([x, y, z], size = 27) => {
         const mark = server.log.length;
@@ -136,7 +150,7 @@ try {
         const slots = new Array(size).fill(null);
         for (const entry of entries(server.log.slice(mark).match(answer)[1])) {
             const name = entry.match(/id: "minecraft:([a-z0-9_]+)"/)[1];
-            const extra = entry.match(/components: (\{.*\})/)?.[1];
+            const extra = componentsOf(entry);
             // An item with data of its own (a worn tool) is its own kind, as it is for the bot.
             slots[Number(entry.match(/Slot: (\d+)b/)[1])] = { name, count: Number(entry.match(/count: (\d+)/)?.[1] ?? 1), key: extra ? `${name}#${extra}` : name };
         }

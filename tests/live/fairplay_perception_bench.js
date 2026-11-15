@@ -6,9 +6,10 @@
 import { once } from 'node:events';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55916);
-setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline' });
+setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline' });
 const { initBot } = await import('../../src/utils/mcdata.js');
 const { createPerception } = await import('../../src/agent/fairplay/perception.js');
 const { createSeenMap } = await import('../../src/agent/fairplay/seen_map.js');

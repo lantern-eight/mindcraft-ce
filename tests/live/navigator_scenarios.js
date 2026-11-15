@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live travel scenarios against a real server (no model calls, free to run).
 //   node tests/live/navigator_scenarios.js [--port=55926]
-// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
+// Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The unit tests check the navigator's choices with pretend legs. These check it with the real
 // pathfinder, the real recorder laying the trail, and the real travel skill a command would call.
@@ -19,6 +19,7 @@ import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55926);
 const NAME = 'Wayfinder';
@@ -42,7 +43,7 @@ const inWall = (x, y, z) => (y === 70 || y === 71) && z === 1 && x >= 0 && x < L
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline', fair_play: 'strict', world_memory: true });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline', fair_play: 'strict', world_memory: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
