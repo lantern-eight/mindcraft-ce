@@ -128,6 +128,16 @@ try {
         assert.equal(result.broken, 1, result.text);
         assert.equal(count('diamond'), 1, result.text);
         for (const [x, y, z] of buried) assert.equal(rawName(x, y, z), 'diamond_ore', `the buried diamond at ${x}, ${y}, ${z} is still there`);
+        // Fetching the drop took no digging or placing: the diamond's notch is the only change to the lump, and
+        // the bot still has all its dirt. (The drop tends to slide to the back of the notch, where an older
+        // pickup dug the stone above to climb in after it.)
+        const dug = [];
+        for (let x = 5; x <= 9; x++) for (let y = 70; y <= 74; y++) for (let z = -2; z <= 2; z++) {
+            const expected = x === 5 && y === 71 && z === 0 ? 'air' : buried.some(([bx, by, bz]) => bx === x && by === y && bz === z) ? 'diamond_ore' : 'stone';
+            if (rawName(x, y, z) !== expected) dug.push(`${x},${y},${z}:${rawName(x, y, z)}`);
+        }
+        assert.deepEqual(dug, [], 'only the diamond was dug');
+        assert.equal(count('dirt'), 8, 'no block was placed');
         const recall = getCommand('!recall').perform(agent, 'diamond_ore');
         for (const [x, y, z] of buried) assert.ok(!recall.includes(`${x}, ${y}, ${z}`), recall);
         return { text: result.text.replace(SEARCH_HINT, '').trim() };
