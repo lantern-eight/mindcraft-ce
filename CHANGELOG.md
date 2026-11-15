@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
+
+- Travel no longer gives up looking for a walkable route after 40 ms. `goToGoal` meant to search for a
+  second, but read only the pathfinder's first slice, so a route that took longer to find counted as none and
+  the bot dug and towered its way in a straight line instead.
+
 ## [0.3.0] - 2026-11-14
 
 The bot sorts chests, keeps whose each chest is, and can be told which chest to use. Built on the same
