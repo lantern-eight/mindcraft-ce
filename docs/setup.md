@@ -9,7 +9,7 @@ applies to this fork unchanged. For what this fork adds, see the [README](../REA
 # Getting Started
 ## Requirements
 
-- [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc) (26.1, 26.1.1 or 26.1.2; set `minecraft_version` in `settings.js` to match, or to `"auto"`)
+- [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc) (26.3; set `minecraft_version` in `settings.js` to match, or to `"auto"`)
 - [Node.js Installed](https://nodejs.org/) (use Node 22, v22.13 or newer; `nvm use` selects this branch's configured version)
 - An available model from a [supported provider](#model-customization). The default profile uses Andy API; local Ollama and LM Studio are also supported. Provider credentials are needed only when your chosen service requires them.
 

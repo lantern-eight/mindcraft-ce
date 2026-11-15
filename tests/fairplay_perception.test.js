@@ -260,8 +260,9 @@ test('hearing reads the server\'s sound packets and names each sound from the ri
     const sounds = world.registry.soundsByName, first = world.registry.soundsArray[0].id;
     // The protocol counts sounds from 0, wherever minecraft-data starts counting.
     const moo = sounds['entity.cow.ambient'].id - first;
-    // The trap this avoids: indexing the table with that number directly gives a different sound.
-    assert.notEqual(world.registry.sounds[moo]?.name, 'entity.cow.ambient');
+    // The trap this avoids: where minecraft-data counts from 1 (up to 26.1), indexing the table with that
+    // number directly gives a different sound. From 26.3 it counts from 0 and the two agree.
+    if (first !== 0) assert.notEqual(world.registry.sounds[moo]?.name, 'entity.cow.ambient');
 
     bot._client.emit('sound_effect', { sound: { soundId: moo }, x: 6 * 8, y: 1 * 8, z: 0 }); // a sound at a spot, by number
     bot._client.emit('sound_effect', { sound: { data: { soundName: 'minecraft:entity.zombie.ambient' } }, x: 0, y: 8, z: -6 * 8 }); // by name

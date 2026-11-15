@@ -24,7 +24,7 @@ test('overhead visibility goals measure reach from the bot eye rather than raisi
 });
 
 test('modern ore speed uses effective tools while preserving harvest restrictions and ineffective tools', () => {
-    for (const version of ['1.21.1', '1.21.4', '1.21.11', '26.1']) {
+    for (const version of ['1.21.1', '1.21.4', '1.21.11', '26.1', '26.3']) {
         const mc = minecraftData(version), Block = blockFactory(version);
         const make = name => Block.fromStateId(mc.blocksByName[name].minStateId, 0);
         const diamond = mc.itemsByName.diamond_pickaxe.id;
@@ -45,6 +45,10 @@ test('dig resolves only after an authoritative block update and abort removes li
     bot.swingArm = () => {};
     bot.lookAt = () => Promise.resolve();
     bot._updateBlockState = () => assert.fail('speculative air is forbidden');
+    // Newer mineflayer digging asks which version's action ids to send, and numbers each packet.
+    bot.supportFeature = () => false;
+    let sequence = 0;
+    bot._nextSequence = () => ++sequence;
     require('mineflayer/lib/plugins/digging.js')(bot);
     bot.digTime = () => 5;
     let done = false;

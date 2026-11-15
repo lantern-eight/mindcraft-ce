@@ -11,6 +11,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Added
 
+- Minecraft Java Edition 26.3, the current release. `minecraft_version` in `settings.js` is now `26.3`;
+  set it to match your server, or to `"auto"`. The live tests run a 26.3 server and need Java 25. No
+  mineflayer release supports 26.3 yet, so mineflayer and four of the libraries under it come from
+  GitHub, pinned by commit to the open 26.3 work (listed in
+  [Dependencies Pinned to a Branch](docs/core-hooks.md#dependencies-pinned-to-a-branch)). They go back to
+  npm releases once those support 26.3.
 - Minecraft Java Edition 26.1 (26.1, 26.1.1 and 26.1.2). `minecraft_version` in `settings.js` is now
   `26.1.2`; set it to match your server, or to `"auto"`. The live tests run a 26.1.2 server and need Java 25.
   `minecraft-data` moves to 3.119.0, which fixes 26.1's list of entity attributes (the bot misread its own

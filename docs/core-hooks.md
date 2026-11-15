@@ -53,9 +53,17 @@ conflict instead of passing silently.
 Libraries that `package.json` takes from a commit on GitHub instead of an npm release, because a fix or a
 newer game version is not released yet. Each goes back to the npm release as soon as one has the change.
 
+All are forks under `lantern-eight`, on a branch named `pc26_3-combined`, pinned by commit. Each fork branch
+holds exactly the upstream work named below, so the commits stay reachable whatever happens to the branches
+they came from. `overrides` in `package.json` make every package in the tree use the same copy.
+
 | Package | Pinned to | Why | Back to npm when |
 |---|---|---|---|
-| none yet | | | |
+| `mineflayer` | `lantern-eight/mineflayer` `ad4af12` | Minecraft 26.3. The head of PrismarineJS/mineflayer#4206 (26.3 branch `pc26_3` with master and the open 26.3 fixes merged). Mindcraft-CE's `patches/mineflayer+4.39.0.patch` applies to it unchanged | A mineflayer release lists 26.3 |
+| `minecraft-protocol` | `lantern-eight/node-minecraft-protocol` `3473413` | 26.3 packets, including the stepped entity-move encoding. The head of PrismarineJS/node-minecraft-protocol#1553 | A minecraft-protocol release lists 26.3 |
+| `prismarine-chunk` | `lantern-eight/prismarine-chunk` `a96fd70` | 26.2 and 26.3 chunk mapping and light masks. The head of PrismarineJS/prismarine-chunk#347 | A release maps 26.3 |
+| `prismarine-physics` | `lantern-eight/prismarine-physics` `e641ceb` | 26.3's liquid gravity. PrismarineJS/prismarine-physics#145 merged onto master | A release has #145 |
+| `minecraft-data` | `lantern-eight/node-minecraft-data` `194d7f6` | 26.3 game data. Release 3.119.0 with its data folder taken from `lantern-eight/minecraft-data` `cf005a2`: PrismarineJS/minecraft-data#1345, merged with the 3.119.0 data, plus this fork's fix of the 26.2 and 26.3 entity attribute lists (the 1.21 list, so movement speed was read under the wrong name). The data is checked in as files, not a submodule, because npm installs a GitHub dependency from a tarball, which has no submodules | A minecraft-data release has 26.3 with the attribute fix |
 
 ## Housekeeping Edits
 
@@ -64,8 +72,8 @@ These inherited files are also changed, with no effect on how the bot behaves:
 | File | Change |
 |---|---|
 | `README.md` | Rewritten for this fork. Mindcraft-CE's setup and configuration guide moved to `docs/setup.md` |
-| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses. `minecraft-data` is 3.119.0 (Mindcraft-CE pins 3.117.0): its 26.1 protocol data has the right list of entity attributes, which 3.117.0 had shifted from movement speed on |
+| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses. `mineflayer` and `minecraft-data` come from GitHub, and `overrides` pin `minecraft-protocol`, `prismarine-chunk` and `prismarine-physics` the same way, for Minecraft 26.3 (see [Dependencies Pinned to a Branch](#dependencies-pinned-to-a-branch)) |
 | `.gitignore` | Ignores `plans/`, the folder for private working notes |
 | `tests/live/vanilla_fixture.js` | Passes `-DbundlerRepoDir` from `tests/helpers/server_jar_cache.js`, so every throwaway server shares one folder for what the server jar unpacks on first start (`server_data/jar-cache`; `MC_TEST_JAR_CACHE` picks another, `off` turns it off) |
-| `settings.js` | `minecraft_version` is `26.1.2`, the game version this fork is tested on (Mindcraft-CE's is `1.21.6`) |
-| `tests/live/*.js`, `tests/gameplay_reliability.test.js` | The live scenarios take the game version from `tests/helpers/game_version.js` instead of each naming `1.21.11`, and need Java 25 as 26.1 does. The tool-speed test also checks 26.1's data |
+| `settings.js` | `minecraft_version` is `26.3`, the game version this fork is tested on (Mindcraft-CE's is `1.21.6`) |
+| `tests/live/*.js`, `tests/gameplay_reliability.test.js` | The live scenarios take the game version from `tests/helpers/game_version.js` instead of each naming `1.21.11`, and need Java 25 as 26.1 does. The tool-speed test also checks 26.1's and 26.3's data, and its stand-in bot has the two methods newer mineflayer's digging calls |

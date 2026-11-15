@@ -20,7 +20,7 @@ offer back.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
-| **Minecraft** | Java Edition 26.1 (26.1.2 is what the tests run). Older versions may work with `minecraft_version: "auto"`, untested |
+| **Minecraft** | Java Edition 26.3, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Runs on** | Node 22 |
 | **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
 | **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
@@ -72,7 +72,7 @@ animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
 
 1. Install [Node.js 22](https://nodejs.org/) (`nvm use` picks the right version) and have
    [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc)
-   26.1, 26.1.1 or 26.1.2.
+   26.3.
 2. Clone this repository and run `npm install` in it.
 3. Copy `keys.example.json` to `keys.json` and fill in what your model provider needs. Choose the model in
    `andy.json` or another profile. The default profile and local providers need no paid key.
@@ -110,7 +110,7 @@ npm test
 runs the offline tests. They need no server and no model.
 
 The scripts in `tests/live/` start a throwaway Minecraft server, build each scene from the server console,
-and check the bot against it. They make no model calls. They need Java 25 and a Minecraft 26.1.2 server jar:
+and check the bot against it. They make no model calls. They need Java 25 and a Minecraft 26.3 server jar:
 
 ```bash
 export MC_TEST_JAVA=/path/to/java

@@ -241,7 +241,7 @@ node tests/live/legs_scenarios.js             # route planning: a wall and a tre
 node tests/live/fairplay_perception_smoke.js  # perception alone on a real server
 ```
 
-The live tests need Node 22, Java 25, and `MC_TEST_SERVER_JAR` pointing at a Minecraft 26.1.2 server jar
+The live tests need Node 22, Java 25, and `MC_TEST_SERVER_JAR` pointing at a Minecraft 26.3 server jar
 (`MC_TEST_VERSION` names another version, for a jar of that version).
 They start their own throwaway server, build each scene from the server console, and make no model calls.
 `tests/live/fairplay_perception_bench.js` times perception against a server that is already running.
