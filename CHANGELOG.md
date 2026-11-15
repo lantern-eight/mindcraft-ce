@@ -19,6 +19,9 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - Travel no longer stalls at the turns of a tunnel one block wide. The pathfinder planned a diagonal step past
   the corner that the bot is too wide to take, stood still and planned it again; `goToGoal` now goes round
   such corners in two straight steps.
+- Fetching dropped items no longer digs or places blocks to stand in the item's own cell. The bot walks to
+  where it can reach the item, as a player would, and digs or places only when walking can't get close and
+  the caller allows it (as mining does).
 
 ## [0.3.0] - 2026-11-14
 

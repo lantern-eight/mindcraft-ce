@@ -30,6 +30,16 @@ const ALLOWED = [
         why: 'Confirms that a dropped item the bot just walked onto is gone. It learns nothing about where anything is.',
     },
     {
+        file: 'src/agent/library/skills.js',
+        line: 'if (bot.entities[nearest.id]) {',
+        why: 'The same check before the last half step to an item the bot found through world.*: is it still there.',
+    },
+    {
+        file: 'src/agent/library/skills.js',
+        line: 'while (Date.now() < until && bot.entities[item.id] && !bot.interrupt_code) {',
+        why: 'Stops that half step as soon as the item is picked up. Again only "is it gone", for an item already found fairly.',
+    },
+    {
         file: 'src/agent/memory/recorder.js',
         line: 'for (const entity of perception.entities()) {',
         why: 'Asks perception, which gives only the animals the bot can perceive. It is the fair list, not the raw entity table.',
