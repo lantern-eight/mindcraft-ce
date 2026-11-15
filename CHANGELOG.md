@@ -11,6 +11,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- After the bot's first death, world memory stopped marking the blocks it dug as its own, so a hole it dug
+  itself could later be reported as a place that had changed. It now keeps track however often the bot dies.
+
 These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
 
 - Travel no longer gives up looking for a walkable route after 40 ms. `goToGoal` meant to search for a

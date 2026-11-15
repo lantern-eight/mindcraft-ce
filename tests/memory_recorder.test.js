@@ -166,6 +166,36 @@ test('A5: the bot\'s own digging and placing, and what it watched change, make n
     assert.deepEqual(notes(), [], 'it saw those cells a moment ago: it watched them change');
 });
 
+// mineflayer's digging plugin drops every 'diggingCompleted' listener when the bot dies, the recorder's
+// among them. The plugin may have registered its own 'death' handler before the recorder or after it.
+for (const order of ['before', 'after']) {
+    test(`after a death (mineflayer's handler registered ${order} the recorder's) the bot still knows its own digging`, async () => {
+        const dropDigListeners = bot => bot.on('death', () => bot.removeAllListeners('diggingCompleted'));
+        const { world, bot, memory, recorder, lookAround } = setup(w => w.fill('stone', [5, 1, -2], [5, 3, 2]), {
+            prepare: order === 'before' ? dropDigListeners : () => {},
+        });
+        if (order === 'after') dropDigListeners(bot);
+        lookAround();
+
+        bot.emit('death');
+        await new Promise(resolve => setImmediate(resolve));
+        world.set('air', 5, 2, 0);
+        bot.emit('diggingCompleted', { position: new Vec3(5, 2, 0) });
+        assert.equal(memory.cells.tagOf(5, 2, 0), 'dug', 'the cell it dug is marked as its own doing');
+
+        // Twice over, and never twice heard: one listener, however many deaths.
+        bot.emit('death');
+        await new Promise(resolve => setImmediate(resolve));
+        assert.equal(bot.listenerCount('diggingCompleted'), 1);
+
+        // Once stopped, a death does not bring the listener back.
+        recorder.stop();
+        bot.emit('death');
+        await new Promise(resolve => setImmediate(resolve));
+        assert.equal(bot.listenerCount('diggingCompleted'), 0);
+    });
+}
+
 test('A6: a chest gone from a known place is a note, however little else changed', () => {
     const { world, memory, lookAround, notes, now } = setup(w => {
         w.set('chest', 4, 1, 0, { facing: 'west' });
