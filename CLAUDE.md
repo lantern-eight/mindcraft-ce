@@ -138,7 +138,7 @@ Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node 
   chest-sorting tests are `tests/storage_*.test.js` (the runner globs `tests/*.test.js`); helpers go in
   `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
-  to run. They need Java 25 and a 26.1.2 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
+  to run. They need Java 25 and a 26.3 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
 - **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve
   a model report a success rate over several runs, not a single pass or fail.
 

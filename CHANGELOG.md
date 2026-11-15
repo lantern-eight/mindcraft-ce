@@ -9,6 +9,29 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-15
+
+The bot plays Minecraft 26.3, on mineflayer and the libraries under it pinned to their open 26.3 work.
+Built on the same Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- Minecraft Java Edition 26.3, the current release. `minecraft_version` in `settings.js` is now `26.3`;
+  set it to match your server, or to `"auto"`. The live tests run a 26.3 server and need Java 25. No
+  mineflayer release supports 26.3 yet, so mineflayer and four of the libraries under it come from
+  GitHub, pinned by commit to the open 26.3 work (listed in
+  [Dependencies Pinned to a Branch](docs/core-hooks.md#dependencies-pinned-to-a-branch)). They go back to
+  npm releases once those support 26.3.
+
+### Fixed
+
+These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so it can be offered upstream.
+
+- On 26.3 the bot is no longer kicked with "Invalid move player packet received" soon after it starts
+  walking. Mindcraft-CE holds back a position packet sent too soon after the last and sends it later; with a
+  client that ends each game tick itself, as the 26.3 libraries do, that moved the packet into the next tick
+  beside that tick's own, which 26.3 servers refuse. Such a client is no longer throttled.
+
 ## [0.6.0] - 2026-11-15
 
 The bot plays Minecraft 26.1, and builders and `useDoor` know the newer woods and doors. Built on the same
@@ -248,7 +271,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...v0.4.0

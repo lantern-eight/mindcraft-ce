@@ -7,4 +7,4 @@
 // move to a newer game version changes one line here rather than every scenario.
 //
 // MC_TEST_VERSION picks another, to run the live scenarios against an older or newer server jar.
-export const GAME_VERSION = process.env.MC_TEST_VERSION || '26.1.2';
+export const GAME_VERSION = process.env.MC_TEST_VERSION || '26.3';

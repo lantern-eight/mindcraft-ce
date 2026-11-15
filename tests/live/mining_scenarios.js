@@ -15,7 +15,7 @@ const jar = path.resolve(process.env.MC_TEST_SERVER_JAR || 'server_data/local-te
 if (!existsSync(jar)) throw new Error(`Set MC_TEST_SERVER_JAR to a Minecraft Java ${GAME_VERSION} server jar.`);
 mkdirSync(dir, {recursive:true});
 writeFileSync(path.join(dir,'eula.txt'),'eula=true\n');
-writeFileSync(path.join(dir,'server.properties'), `server-ip=127.0.0.1\nserver-port=${port}\nonline-mode=false\nenforce-secure-profile=false\nlevel-type=minecraft:flat\ngamemode=survival\ndifficulty=peaceful\nspawn-protection=0\nview-distance=3\nsimulation-distance=3\nmax-tick-time=120000\npause-when-empty-seconds=0\n`);
+writeFileSync(path.join(dir,'server.properties'), `server-ip=127.0.0.1\nserver-port=${port}\nonline-mode=false\nwhite-list=false\nenforce-secure-profile=false\nlevel-type=minecraft:flat\ngamemode=survival\ndifficulty=peaceful\nspawn-protection=0\nview-distance=3\nsimulation-distance=3\nmax-tick-time=120000\npause-when-empty-seconds=0\n`);
 const java=process.env.MC_TEST_JAVA || '/usr/lib/jvm/java-25-openjdk-amd64/bin/java';
 const server=spawn(java,['-Djava.net.preferIPv4Stack=true','-Xms256M','-Xmx1G','-jar',jar,'nogui'],{cwd:dir,stdio:['pipe','pipe','pipe']});
 let log='',bot;
