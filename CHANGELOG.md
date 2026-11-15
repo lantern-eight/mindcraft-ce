@@ -16,6 +16,9 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - Travel no longer gives up looking for a walkable route after 40 ms. `goToGoal` meant to search for a
   second, but read only the pathfinder's first slice, so a route that took longer to find counted as none and
   the bot dug and towered its way in a straight line instead.
+- Travel no longer stalls at the turns of a tunnel one block wide. The pathfinder planned a diagonal step past
+  the corner that the bot is too wide to take, stood still and planned it again; `goToGoal` now goes round
+  such corners in two straight steps.
 
 ## [0.3.0] - 2026-11-14
 
