@@ -2,7 +2,7 @@
 // Chest owners and sorting through the whole agent: MindServer, the agent process, a real server.
 //   node tests/live/storage_agent_scenarios.js                       recorded replies, no model, free
 //   node tests/live/storage_agent_scenarios.js --live-model --runs=5 the model in andy.json (paid)
-// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
+// Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The other chest tests call the commands directly. This one is told things in plain words, the way
 // players do: "that chest is mine", "sort my chests", "keep them tidy". With recorded replies it
@@ -20,6 +20,7 @@ import assert from 'node:assert/strict';
 import { io } from 'socket.io-client';
 import { planSort } from '../../src/agent/storage/sort_plan.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const live = process.argv.includes('--live-model');
 const runs = live ? Number(process.argv.find(a => a.startsWith('--runs='))?.split('=')[1] || 3) : 1;
@@ -106,7 +107,7 @@ async function converse(run) {
     writeFileSync(profilePath, JSON.stringify(profile));
     log = '';
     child = spawn(process.execPath, ['main.js', '--profiles', profilePath], { env: { ...process.env, SETTINGS_JSON: JSON.stringify({
-        host: '127.0.0.1', port: fixture.port, mindserver_port: MIND_PORT, minecraft_version: '1.21.11', auth: 'offline', init_message: '',
+        host: '127.0.0.1', port: fixture.port, mindserver_port: MIND_PORT, minecraft_version: GAME_VERSION, auth: 'offline', init_message: '',
         num_examples: 0, max_messages: 100, load_memory: false, agent_max_steps: 20, agent_max_tool_calls: 40,
         fair_play: 'strict', world_memory: true, chest_sorting: true,
     }) }, stdio: ['pipe', 'pipe', 'pipe'] });

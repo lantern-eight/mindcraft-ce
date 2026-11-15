@@ -9,6 +9,7 @@ import blockFactory from 'prismarine-block';
 import Vec3 from 'vec3';
 import pf from 'mineflayer-pathfinder';
 import { stubBot } from './fixture_world.js';
+import { GAME_VERSION } from './game_version.js';
 
 /**
  * @param {object} world - from fixtureWorld
@@ -18,7 +19,7 @@ import { stubBot } from './fixture_world.js';
 export function walkerBot(world, options = {}) {
     const bot = stubBot(world, options);
     const Block = blockFactory(world.registry);
-    bot.version = world.registry.version?.minecraftVersion ?? '1.21.11';
+    bot.version = world.registry.version?.minecraftVersion ?? GAME_VERSION;
     bot.blockAt = pos => {
         const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
         const id = world.getStateId(x, y, z);

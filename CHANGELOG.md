@@ -11,6 +11,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Added
 
+- Minecraft Java Edition 26.1 (26.1, 26.1.1 and 26.1.2). `minecraft_version` in `settings.js` is now
+  `26.1.2`; set it to match your server, or to `"auto"`. The live tests run a 26.1.2 server and need Java 25.
+  `minecraft-data` moves to 3.119.0, which fixes 26.1's list of entity attributes (the bot misread its own
+  movement speed with 3.117.0).
 - Fair legs: under fair play the bot plans its routes over what it has seen, not over every loaded block.
   The pathfinder used to know of caves the bot had never entered, how thick a hill was before digging into
   it, and where lava lay behind rock. Now a cell the bot has never seen counts as open ground, to walk

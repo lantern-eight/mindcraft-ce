@@ -2,7 +2,7 @@
 // Live checks of ordinary travel (goToGoal) and of fetching dropped items, against a real server (no model
 // calls, free to run).
 //   node tests/live/travel_scenarios.js [--port=55930]
-// Needs Node 22, Java 21 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
+// Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The travel scene is a tunnel one block wide cut into solid stone, shaped like a U: east along z = 0, north along
 // x = ARM, then back west along z = ARM. Its two ends are ARM blocks apart through the stone and three times
@@ -27,6 +27,7 @@ import pf from 'mineflayer-pathfinder';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay } from './vanilla_fixture.js';
+import { GAME_VERSION } from '../helpers/game_version.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55930);
 const NAME = 'Walker';
@@ -49,7 +50,7 @@ const inTunnel = (x, y, z) => (y === Y || y === Y + 1) && (
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: '1.21.11', auth: 'offline', fair_play: 'off', world_memory: false });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline', fair_play: 'off', world_memory: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const skills = await import('../../src/agent/library/skills.js');
 

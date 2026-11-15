@@ -24,7 +24,7 @@ test('overhead visibility goals measure reach from the bot eye rather than raisi
 });
 
 test('modern ore speed uses effective tools while preserving harvest restrictions and ineffective tools', () => {
-    for (const version of ['1.21.1', '1.21.4', '1.21.11']) {
+    for (const version of ['1.21.1', '1.21.4', '1.21.11', '26.1']) {
         const mc = minecraftData(version), Block = blockFactory(version);
         const make = name => Block.fromStateId(mc.blocksByName[name].minStateId, 0);
         const diamond = mc.itemsByName.diamond_pickaxe.id;
