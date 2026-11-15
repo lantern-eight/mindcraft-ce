@@ -78,7 +78,8 @@ animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
 1. Install [Node.js 22](https://nodejs.org/) (`nvm use` picks the right version) and have
    [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc)
    26.3.
-2. Clone this repository and run `npm install` in it.
+2. Clone this repository and run `SKIP_BUILD=1 npm install` in it. The variable skips a build that needs
+   CMake and that the bot does not need ([why](docs/core-hooks.md#for-bedrock-edition)).
 3. Copy `keys.example.json` to `keys.json` and fill in what your model provider needs. Choose the model in
    `andy.json` or another profile. The default profile and local providers need no paid key.
 4. Start a Minecraft Java server, or open a world to LAN. Set `host`, `port` and `auth` in `settings.js` to

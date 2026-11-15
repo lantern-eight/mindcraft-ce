@@ -9,6 +9,19 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- **Bedrock branch only.** The libraries that speak Minecraft Bedrock Edition 1.26.60 are installed:
+  mineflayer with the Bedrock edition adapter, the libraries under it with their Bedrock changes, and the
+  `bedrock-protocol` transport. None of it is released, so each is pinned by commit to a branch that holds
+  the Bedrock work on top of the 26.3 work (listed under
+  [For Bedrock Edition](docs/core-hooks.md#for-bedrock-edition)). The bot does not use them yet: it still
+  plays Java Edition exactly as before, and can't join a Bedrock server.
+- **Bedrock branch only.** Installing has two new wrinkles. npm warns that three packages want Node 24;
+  they run on Node 22. And one of the new packages builds a binary with CMake on most machines (Apple
+  silicon and current Linux among them), which fails `npm install` where CMake is missing. Run
+  `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
+
 ## [0.7.0] - 2026-11-15
 
 The bot plays Minecraft 26.3, on mineflayer and the libraries under it pinned to their open 26.3 work.

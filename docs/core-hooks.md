@@ -65,6 +65,43 @@ they came from. `overrides` in `package.json` make every package in the tree use
 | `prismarine-physics` | `lantern-eight/prismarine-physics` `e641ceb` | 26.3's liquid gravity. PrismarineJS/prismarine-physics#145 merged onto master | A release has #145 |
 | `minecraft-data` | `lantern-eight/node-minecraft-data` `194d7f6` | 26.3 game data. Release 3.119.0 with its data folder taken from `lantern-eight/minecraft-data` `cf005a2`: PrismarineJS/minecraft-data#1345, merged with the 3.119.0 data, plus this fork's fix of the 26.2 and 26.3 entity attribute lists (the 1.21 list, so movement speed was read under the wrong name). The data is checked in as files, not a submodule, because npm installs a GitHub dependency from a tarball, which has no submodules | A minecraft-data release has 26.3 with the attribute fix |
 
+### For Bedrock Edition
+
+This branch plays Bedrock Edition, and no released mineflayer does. The work for it is unmerged and spread
+over several people's forks, so each library below is a branch named `bedrock-combined` on a fork under
+`lantern-eight`, pinned by commit. Each one is **the 26.3 commit from the table above with the Bedrock work
+merged in**, so one install serves both editions and the Java tests keep running here. Where the table
+above and this one name the same package, this one is what `package.json` installs.
+
+| Package | Pinned to | What it is | Back to npm when |
+|---|---|---|---|
+| `mineflayer` | `lantern-eight/mineflayer` `4422a45` | `ad4af12` (26.3) with the Bedrock edition adapter merged in: the proof of concept from PrismarineJS/mineflayer#4145, branch `feat/bedrock-edition-adapter` of `Pix3lPirat3/mineflayer` at `b24015a`. One conflict, the list of tested versions in `lib/version.js`. Mindcraft-CE's `patches/mineflayer+4.39.0.patch` applies unchanged; it patches Java plugins only | A mineflayer release has Bedrock support and 26.3 |
+| `prismarine-registry` | `lantern-eight/prismarine-registry` `9f6206a` | The head of PrismarineJS/prismarine-registry#57, unchanged. It turns the block ids a current Bedrock server sends, which are hashes, into blocks | A release has #57 |
+| `prismarine-chunk` | `lantern-eight/prismarine-chunk` `51132c7` | `a96fd70` (26.3) with PrismarineJS/prismarine-chunk#335, #337 and #338 merged: Bedrock 1.26 chunks, hashed ids on block writes, zero-bit palettes. The only conflicts were in `test/bedrock.test.js`, where each adds a test | A release has all three and maps 26.3 |
+| `prismarine-block` | `lantern-eight/prismarine-block` `e4fcd1c` | The head of PrismarineJS/prismarine-block#129, unchanged: a block's states and shapes when ids are hashes | A release has #129 |
+| `prismarine-physics` | `lantern-eight/prismarine-physics` `81b4157` | `e641ceb` (26.3) with PrismarineJS/prismarine-physics#152 merged: Bedrock's walking numbers. #152 is a draft. One conflict, in a comment | A release has #145 and #152 |
+| `mineflayer-pathfinder` | `lantern-eight/mineflayer-pathfinder` `ee36727` | Release 2.4.5 with the one commit of PrismarineJS/mineflayer-pathfinder#388 on top: sorting Bedrock blocks into fences, carpets and the rest. It starts from the release, not from master, because Mindcraft-CE's patch is made for the release | A release has #388. Mindcraft-CE's patch is for 2.4.5 and will need redoing for it |
+| `bedrock-protocol` | npm release `3.61.0`, named in `overrides` | Not a fork. mineflayer asks for `^3.59.0`, and on Node 22 npm picks 3.59.0, the newest release whose `engines` field allows Node 22. That one cannot reach a current server, which speaks the NetherNet transport added in 3.60.0. 3.61.0 asks for Node 24 but runs on Node 22: a login over each transport was checked | mineflayer asks for 3.61.0 or later, or this fork moves to Node 24 |
+
+`minecraft-data` needs nothing more: the pin in the table above is release 3.119.0, which has Bedrock data up
+to 1.26.60.
+
+**When a pin in the first table moves,** the matching `bedrock-combined` branch has to be merged again on
+top of the new commit, and its pin here moved too. `tests/bedrock_stack.test.js` checks the installed set as
+a whole.
+
+**Two patches had to move.** patch-package places a change by its exact line number, and the Bedrock work
+adds lines above two of Mindcraft-CE's patches: 22 lines in `prismarine-block`'s `index.js`, 3 in the
+pathfinder's `lib/movements.js`. The patch files here have the new line numbers and are otherwise as
+Mindcraft-CE wrote them. Going back to an npm release moves them back.
+
+**Installing.** npm warns that `bedrock-protocol` and two packages under it want Node 24; they run on
+Node 22. `raknet-native`, which `bedrock-protocol` brings in for the transport older servers speak, ships a
+built binary only for Windows on x64 and for older Linux and macOS on x64. Anywhere else, Apple silicon and
+current Linux included, its install step builds the binary with CMake, and `npm install` fails if CMake is
+missing. `SKIP_BUILD=1 npm install` skips that build. Nothing is lost for now: current Bedrock servers speak
+the other transport, and without the binary `bedrock-protocol` falls back to a JavaScript one.
+
 ## Housekeeping Edits
 
 These inherited files are also changed, with no effect on how the bot behaves:
@@ -72,8 +109,9 @@ These inherited files are also changed, with no effect on how the bot behaves:
 | File | Change |
 |---|---|
 | `README.md` | Rewritten for this fork. Mindcraft-CE's setup and configuration guide moved to `docs/setup.md` |
-| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses. `mineflayer` and `minecraft-data` come from GitHub, and `overrides` pin `minecraft-protocol`, `prismarine-chunk` and `prismarine-physics` the same way, for Minecraft 26.3 (see [Dependencies Pinned to a Branch](#dependencies-pinned-to-a-branch)) |
+| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses. `mineflayer` and `minecraft-data` come from GitHub, and `overrides` pin `minecraft-protocol`, `prismarine-chunk` and `prismarine-physics` the same way, for Minecraft 26.3 (see [Dependencies Pinned to a Branch](#dependencies-pinned-to-a-branch)). On this branch the pins are the Bedrock set: `mineflayer-pathfinder` comes from GitHub too, and `overrides` also pin `prismarine-registry`, `prismarine-block` and the `bedrock-protocol` release |
 | `.gitignore` | Ignores `plans/`, the folder for private working notes |
+| `patches/prismarine-block+1.23.0.patch`, `patches/mineflayer-pathfinder+2.4.5.patch` | Line numbers moved to fit the Bedrock branches of those two libraries (see [For Bedrock Edition](#for-bedrock-edition)). The changes they make are untouched |
 | `tests/live/vanilla_fixture.js` | Passes `-DbundlerRepoDir` from `tests/helpers/server_jar_cache.js`, so every throwaway server shares one folder for what the server jar unpacks on first start (`server_data/jar-cache`; `MC_TEST_JAR_CACHE` picks another, `off` turns it off) |
 | `settings.js` | `minecraft_version` is `26.3`, the game version this fork is tested on (Mindcraft-CE's is `1.21.6`) |
 | `tests/live/*.js`, `tests/gameplay_reliability.test.js` | The live scenarios take the game version from `tests/helpers/game_version.js` instead of each naming `1.21.11`, and need Java 25 as 26.1 does. The tool-speed test also checks 26.1's and 26.3's data, and its stand-in bot has the two methods newer mineflayer's digging calls |

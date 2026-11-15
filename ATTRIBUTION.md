@@ -40,12 +40,20 @@ license. The ones this fork's additions lean on most:
 | [Mineflayer](https://github.com/PrismarineJS/mineflayer) and the PrismarineJS libraries | The bot itself, its game data and physics | MIT |
 | [minecraft-protocol](https://github.com/PrismarineJS/node-minecraft-protocol) (PrismarineJS) | Speaking the Minecraft protocol | BSD-3-Clause |
 | [mineflayer-pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder) | Walking | MIT |
+| [bedrock-protocol](https://github.com/PrismarineJS/bedrock-protocol) (PrismarineJS) | Speaking the Bedrock Edition protocol. Installed through mineflayer | MIT |
 | [SES](https://github.com/endojs/endo) (Hardened JavaScript) | The compartment that model-written code runs in | Apache-2.0 |
 
 Until npm releases support the newest game version, mineflayer and some PrismarineJS libraries are installed
 from forks under [`lantern-eight`](https://github.com/lantern-eight), listed in
 [Dependencies Pinned to a Branch](docs/core-hooks.md#dependencies-pinned-to-a-branch). The forks keep the
 libraries' own licenses.
+
+The Bedrock Edition work is unmerged, so on this branch those forks also carry it: the Bedrock edition
+adapter for mineflayer and the Bedrock changes to prismarine-chunk, prismarine-block, prismarine-physics and
+mineflayer-pathfinder by [Pix3lPirat3](https://github.com/Pix3lPirat3), and the Bedrock block-state support
+in prismarine-registry by [mc-zuri](https://github.com/mc-zuri). Each is offered to its library as a pull
+request or a design proposal, under that library's MIT license.
+[For Bedrock Edition](docs/core-hooks.md#for-bedrock-edition) names every one.
 
 The files in `patches/` are inherited from Mindcraft-CE. They are small changes to some of these libraries,
 applied at install time, and fall under the license of the library each one patches.
@@ -54,6 +62,11 @@ Two packages deep in the dependency tree are under GPL-3.0: `@nxg-org/mineflayer
 `node-aabb`. They come in through `mineflayer-auto-eat`, a dependency inherited from Mindcraft-CE that lets
 the bot eat. npm installs them; none of their code is in this repository, so its files stay MIT and CC0. A
 bundle that ships them, such as a packaged app with its `node_modules`, falls under their terms.
+
+`bedrock-protocol` brings in about two hundred more packages. All are under permissive licenses except two.
+`mediabunny` is under MPL-2.0, a file-level copyleft: it comes in through `werift`, the WebRTC library the
+Bedrock transport uses. `buffers`, an old package that states no license, comes in through the build tool
+of `raknet-native`. As above, npm installs them and none of their code is in this repository.
 
 ## Ideas and Methods
 
@@ -84,7 +97,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/goto_path_search.test.js`,
   `tests/goto_square_corners.test.js`, `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
-  `tests/door_types.test.js`
+  `tests/door_types.test.js`, `tests/bedrock_stack.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
