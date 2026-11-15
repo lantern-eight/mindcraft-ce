@@ -69,7 +69,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/goto_square_corners.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
-  `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`
+  `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/core-hooks.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file
 
