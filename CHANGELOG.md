@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
+The bot sorts chests, keeps whose each chest is, and can be told which chest to use. Built on the same
+Mindcraft-CE commit as 0.1.0.
+
 ### Added
 
 - **Chest sorting.** One instruction and the bot tidies a player's chests, trapped chests and barrels:
@@ -167,7 +172,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lantern-eight/mindcraft-ce/releases/tag/v0.1.0
