@@ -9,6 +9,23 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Fair legs: under fair play the bot plans its routes over what it has seen, not over every loaded block.
+  The pathfinder used to know of caves the bot had never entered, how thick a hill was before digging into
+  it, and where lava lay behind rock. Now a cell the bot has never seen counts as open ground, to walk
+  through or stand on. The bot sets out straight for the goal, and plans again when the way ahead comes
+  into view and is not as it believed. A wall it has seen before is walked round from the first step. Every
+  command, skill and plugin that walks is covered. `"route_planning": "all"` in `fair_play_custom` gives
+  the old planning back. See [How the Bot Plans a Route](docs/fair-play.md#how-the-bot-plans-a-route).
+
+### Changed
+
+- A trip to beyond the chunks the server has sent is planned at once. It used to end in "Path not found,
+  but attempting to navigate anyway using destructive movements", because the pathfinder could not plan
+  into chunks it had not been sent.
+- Only mobs the bot knows of make a route cost more. A mob behind a wall used to count.
+
 ## [0.4.0] - 2026-11-15
 
 A world keeps its memory and chest owners across LAN sessions, and travel and item pickup stop digging and

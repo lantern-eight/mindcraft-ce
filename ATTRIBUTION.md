@@ -50,6 +50,11 @@ No code was copied for these. They are credited because the work builds on them.
 
 - **Ray walking through a grid of cells** follows J. Amanatides and A. Woo, *A Fast Voxel Traversal
   Algorithm for Ray Tracing* (Eurographics 1987). Used by the sight test in `src/agent/fairplay/sight.js`.
+- **Taking ground that has not been seen for passable, and planning again as it comes into view** is the
+  freespace assumption of robot navigation in unknown terrain (A. Stentz, *Optimal and Efficient Path
+  Planning for Partially-Known Environments*, 1994; S. Koenig and M. Likhachev, *D\* Lite*, 2002). Used by
+  the route planning in `src/agent/fairplay/fair_legs.js`, which searches afresh each time where those
+  repair the last search.
 - **Keeping what a player told the bot apart from what the bot has seen** comes from the place registry in
   the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by the seen-world
   map in `src/agent/fairplay/seen_map.js`.
@@ -68,9 +73,11 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/goto_path_search.test.js`,
   `tests/goto_square_corners.test.js`, `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`
-- `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`
+- `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
+  `tests/helpers/walker_bot.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
-  `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`
+  `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
+  `tests/live/legs_scenarios.js`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/core-hooks.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file
 

@@ -18,6 +18,8 @@
 //   7. World memory, when `world_memory` is on: in place of the seen-world map, the bot remembers every
 //      block it has seen, things, places, a trail and changes (src/agent/memory/). It adds !places and
 //      !namePlace, and saved places move into it.
+//   8. Fair legs, on the first spawn: the pathfinder plans its routes over what the bot has seen, not
+//      over every loaded block (fair_legs.js).
 // With `fair_play: "off"` (the default when the setting is absent) nothing is installed.
 import settings from '../settings.js';
 import { resolvePolicy } from './policy.js';
@@ -27,6 +29,7 @@ import { fairQueries, registerFairPlay } from './fair_queries.js';
 import { setWorldQueries } from '../library/world_queries.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
+import { installFairLegs } from './fair_legs.js';
 import { recallCommand, withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
 import { adoptFormerScope } from '../memory/files.js';
@@ -180,6 +183,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         policy, chatGuard,
         perception: null, seenMap: null,
         memory: null, recorder: null, navigator: null, scope: null, // world memory, when `world_memory` is on
+        legs: null, // route planning over what the bot has seen, unless the policy says `route_planning: "all"`
         get violation() { return violation; },
         // The reach guard wraps the bot's own methods (see reach_guard.js), so it covers skills and
         // generated code alike. This hook is where good-neighbor rules will plug in; the code runner calls it.
@@ -262,13 +266,18 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // By the first spawn the bot's plugins are loaded, so its methods exist to be wrapped.
         handle.reach ??= createReachGuard({ policy, getPerception: () => handle.perception });
         installReachGuard(bot, handle.reach);
+        // And the pathfinder is there to be told what the bot has seen. The legs ask for perception each
+        // time they need it, so they keep working when a new dimension brings a new one.
+        if (policy.route_planning === 'seen' && bot.pathfinder) {
+            handle.legs ??= installFairLegs(bot, { getPerception: () => handle.perception, getEntities: () => fairQueries.entities(bot) });
+        }
     };
     bot.on('spawn', onSpawn);
     if (bot.entity?.position && bot.registry) onSpawn(); // already spawned (tests, late install)
 
     const saveTimer = setInterval(saveMap, saveEveryMs);
     saveTimer.unref?.();
-    bot.on('end', () => { clearInterval(saveTimer); handle.recorder?.stop(); handle.perception?.stop(); saveMap({ budgetMs: Infinity }); });
+    bot.on('end', () => { clearInterval(saveTimer); handle.legs?.stop(); handle.recorder?.stop(); handle.perception?.stop(); saveMap({ budgetMs: Infinity }); });
 
     // The model's way to ask what the bot remembers. World memory brings a fuller one.
     registerCommand(worldMemory ? memoryRecallCommand : recallCommand);
