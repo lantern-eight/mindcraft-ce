@@ -128,6 +128,19 @@ try {
         }
         return out;
     };
+    /** The `components: {...}` part of one printed item, up to its own closing brace. Where it stands among
+     *  the item's other fields depends on the game version (26.1 prints it first), so it is cut out by
+     *  counting braces rather than by a pattern that runs to the item's last brace. */
+    const componentsOf = entry => {
+        const at = entry.indexOf('components: {');
+        if (at < 0) return null;
+        const start = entry.indexOf('{', at);
+        for (let i = start, depth = 0; i < entry.length; i++) {
+            if (entry[i] === '{') depth++;
+            else if (entry[i] === '}' && --depth === 0) return entry.slice(start, i + 1);
+        }
+        return null;
+    };
     /** What is really in a container block, slot by slot, as the server tells its console. */
     const read = async ([x, y, z], size = 27) => {
         const mark = server.log.length;
@@ -137,7 +150,7 @@ try {
         const slots = new Array(size).fill(null);
         for (const entry of entries(server.log.slice(mark).match(answer)[1])) {
             const name = entry.match(/id: "minecraft:([a-z0-9_]+)"/)[1];
-            const extra = entry.match(/components: (\{.*\})/)?.[1];
+            const extra = componentsOf(entry);
             // An item with data of its own (a worn tool) is its own kind, as it is for the bot.
             slots[Number(entry.match(/Slot: (\d+)b/)[1])] = { name, count: Number(entry.match(/count: (\d+)/)?.[1] ?? 1), key: extra ? `${name}#${extra}` : name };
         }
