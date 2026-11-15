@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-15
+
+A world keeps its memory and chest owners across LAN sessions, and travel and item pickup stop digging and
+stalling where they had no need to. Built on the same Mindcraft-CE commit as 0.1.0.
+
 ### Changed
 
 - World memory and the chest book follow the world, not the server's address. A world opened to LAN gets a new
@@ -196,7 +201,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.0...v0.1.1
