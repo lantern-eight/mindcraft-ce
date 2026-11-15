@@ -9,6 +9,53 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
+The bot sorts chests, keeps whose each chest is, and can be told which chest to use. Built on the same
+Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- **Chest sorting.** One instruction and the bot tidies a player's chests, trapped chests and barrels:
+  part stacks are merged, each kind of item is put together from the first slot, and related kinds (tools,
+  food, minerals, wood and so on) share a chest. It is on by default, works with fair play on or off, and
+  `chest_sorting: false` leaves the commands out. See `docs/chest-sorting.md`.
+  - **Nothing is sorted by default.** The bot keeps whose each chest is (a player, `shared`, its own, or
+    unknown) and how it may be sorted: `asked` (only when a player asks), `always`, or `never`. Players
+    tell it, and the latest word wins.
+  - `!sortChests(whose, distance)` sorts one owner's chests together, or with `approved` every chest
+    marked `always`. `!sortChest(x, y, z)` sorts one chest by itself. `!chests(distance)` lists the chests
+    the bot knows of. `!markChest` and `!markChests` record what a player says about one chest or about
+    all the ones in view.
+  - A sort never moves items between the chests of different owners, and covers only chests the bot can
+    see from where it stands: "sort my chests" means the ones in this room.
+  - Every sort ends by saying which chests it left alone and why, so the bot can ask whose an unclaimed
+    chest is.
+  - On its own idea the bot sorts only its own chests and those marked `always`. A player is never
+    refused.
+  - A chest the bot places is its own when that was its own idea, and the player's when it was doing what
+    a player asked. One it digs up is forgotten.
+  - A double chest is one chest. A full chest is sorted by swapping, so no free slot is needed.
+  - A group of items stays in the chest that already holds most of it. Otherwise it goes to the chest
+    that is least full for its size.
+  - The bot's own inventory is left as it was: it carries chest items only in slots that were empty.
+  - A chest within reach is opened from where the bot stands. It walks only to one it cannot reach, and
+    that walk never digs or places a block.
+  - If a chest changes while the bot works, it notices, puts down what it is carrying and plans again.
+    A chest that will not open is left out and named. Nothing is lost either way.
+- **Chest commands that say which chest.** `!viewChestAt(x, y, z)`, `!takeFromChestAt(x, y, z, item_name,
+  num)` and `!putInChestAt(x, y, z, item_name, num)` look in, take from and put into the chest, trapped
+  chest or barrel at a position, where `!viewChest`, `!takeFromChest` and `!putInChest` use whichever
+  chest is nearest. They say whose the chest is, walk to it without digging or placing, and report
+  what really moved when not all of it fitted. They come with chest sorting (`chest_sorting`).
+- Live scenarios for chest sorting (`tests/live/storage_scenarios.js`), on a real server with no model
+  calls: the server console fills the chests and reads them back itself. In a room several players
+  share, every chest a sort was not approved for is checked to be slot for slot as it was.
+- A scenario that tells the whole agent about chests in plain words (`tests/live/storage_agent_scenarios.js`):
+  "that chest is mine", "sort my chests", "keep them tidy". It runs on recorded replies with no model.
+  With `--live-model` it uses the model in `andy.json`, which costs money, and reports how often each
+  step came out right over several runs.
+
 ## [0.2.0] - 2026-11-14
 
 The bot remembers the world it has seen, and walks back the way it came. Built on the same Mindcraft-CE
@@ -125,7 +172,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/lantern-eight/mindcraft-ce/releases/tag/v0.1.0
