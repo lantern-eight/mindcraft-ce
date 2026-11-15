@@ -38,6 +38,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- On 26.3 the bot is no longer kicked with "Invalid move player packet received" soon after it starts
+  walking. Mindcraft-CE holds back a position packet sent too soon after the last and sends it later; with a
+  client that ends each game tick itself, as the 26.3 libraries do, that moved the packet into the next tick
+  beside that tick's own, which 26.3 servers refuse. Such a client is no longer throttled.
 - With `world_memory` off, a game update no longer brings remembered blocks back in the wrong state. The
   seen-world map saved each block's state as the game's number for it, and an update renumbers them, so a
   door could come back open, or a crop grown, though the bot had seen otherwise. The map now saves the game
