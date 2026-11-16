@@ -61,7 +61,8 @@ version some days after it is released. What that means in practice:
 ## How the Connection Works
 
 A Bedrock bot is started by its own module, `src/agent/bedrock/connect.js`. Inherited start-up code hands
-over to it in three small places ([Hooks for Bedrock Edition](core-hooks.md#hooks-for-bedrock-edition)).
+over to it in three small places, and a fourth hook gives one skill Bedrock's name for a bed
+([Hooks for Bedrock Edition](core-hooks.md#hooks-for-bedrock-edition)).
 Under it, mineflayer's Bedrock edition adapter turns Bedrock's packets into the same `bot` the Java code
 uses. None of those libraries are released with Bedrock support yet;
 [For Bedrock Edition](core-hooks.md#for-bedrock-edition) lists where each comes from.

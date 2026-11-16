@@ -43,6 +43,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** On Bedrock the bot can till soil and plant on it. A click on a block now waits,
   for a moment at most, until the bot has seen what the click did. Code written for Java sends the next
   click straight away, and a Bedrock server ignores a click that still names the block from before.
+- **Bedrock branch only.** On Bedrock the bot finds a bed to sleep in. Bedrock has one bed block for
+  every color, named `bed`; the skill looked only for Java's names, which end in `_bed`.
 - **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
   yet, and the bot stopped with an error when it built its status for the model.
 
