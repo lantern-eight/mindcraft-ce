@@ -33,6 +33,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** On Bedrock the bot can use an item it just crafted, and an item it just took
   out of a chest. Both were refused by the server: the Bedrock adapter lost the number the server gives
   each stack. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock a click on a block is no longer ignored when the block changed after
+  the bot looked it up. A Bedrock click names the block it lands on, and the adapter named the one it was
+  handed, not the one that is there. Fixed in the pinned mineflayer branch.
 - **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
   yet, and the bot stopped with an error when it built its status for the model.
 
