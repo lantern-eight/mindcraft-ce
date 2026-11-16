@@ -1641,8 +1641,9 @@ export async function goToBed(bot) {
      * @example
      * await skills.goToBed(bot);
      **/
-    // not includes('bed'), which also matches bedrock
-    const beds = world.getNearestBlocksWhere(bot, block => block.name.endsWith('_bed'), 32, 1);
+    // not includes('bed'), which also matches bedrock. Bedrock Edition has one block for every color of
+    // bed, named just "bed" (docs/core-hooks.md).
+    const beds = world.getNearestBlocksWhere(bot, block => block.name.endsWith('_bed') || block.name === 'bed', 32, 1);
     if (beds.length === 0) {
         log(bot, `Could not find a bed to sleep in.`);
         return false;

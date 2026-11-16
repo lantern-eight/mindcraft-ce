@@ -9,6 +9,15 @@
         "description": "The version of Minecraft to use. Set to 'auto' to automatically detect the version.",
         "default": "auto"
     },
+    "minecraft_edition": {
+        "type": "string",
+        "description": "Which Minecraft the server runs: Java Edition or Bedrock Edition. For bedrock, minecraft_version is a Bedrock version such as 1.26.60 (or auto), and port is the Bedrock server's, 19132 unless it was changed.",
+        "default": "java",
+        "options": [
+            "java",
+            "bedrock"
+        ]
+    },
     "host": {
         "type": "string",
         "description": "The minecraft server host address to connect to",

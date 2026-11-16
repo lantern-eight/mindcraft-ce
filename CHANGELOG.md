@@ -9,6 +9,79 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- **Bedrock branch only.** A setting, `minecraft_edition`: `"java"` (the default) or `"bedrock"`. Set to
+  `"bedrock"`, the bot is started for a Bedrock Edition server: `minecraft_version` is then a Bedrock
+  version such as `"1.26.60"` (or `"auto"`), a port of `-1` means Bedrock's usual 19132, and
+  `auth: "microsoft"` signs in with an Xbox account. A Java version left in `minecraft_version` is refused
+  with a message that says what to set. This is the connection only: fair play, world memory and chest
+  sorting have not been made to work on Bedrock yet.
+- **Bedrock branch only.** The bot can join a current Bedrock Dedicated Server. Servers from 1.26.60 take
+  a direct connection through a short HTTP exchange on their game port, which no released
+  `bedrock-protocol` speaks; the open upstream work for it is now part of the pinned set. Checked against
+  a dedicated server on 1.26.60: the bot joins, spawns in survival, reads the blocks around it and chats.
+  The server shows a key during that exchange. The bot accepts it and prints it; a stock server makes a
+  new key at every start, so there is nothing to compare it with.
+- **Bedrock branch only.** [docs/bedrock.md](docs/bedrock.md): what works on Bedrock Edition, what doesn't,
+  how to try it, and how to test it. A live test, `tests/live/bedrock_smoke.js`, runs against a throwaway
+  Bedrock server: joining, seeing blocks, chat, walking, digging, placing, a chest and crafting. It passes
+  on 1.26.60 and on 1.26.63, which speaks the same protocol. The whole agent was also started there and
+  answered a player through a model.
+- **Bedrock branch only.** A second live test, `tests/live/bedrock_skills.js`, runs Mindcraft's stock
+  skills on a throwaway Bedrock server, each in a scene of its own, and checks the world afterwards. All
+  31 scenes pass on 1.26.63 with fair play off: gathering, building, crafting, smelting, chests, farming,
+  fighting, sleeping, doors, buckets, and walking to, following and handing things to another player.
+  [docs/bedrock.md](docs/bedrock.md#skills) lists the skills, and the few not tried.
+- **Bedrock branch only.** A Bedrock bot eats when it is hungry, as the Java bot does. The plugin that
+  does it on Java can't be loaded on Bedrock, so the Bedrock module has its own, with the same switches
+  and the same numbers: it eats the most filling food it holds that isn't on the banned list, then holds
+  again what it held before.
+- **Bedrock branch only.** A chest opened on Bedrock is the same kind of object as on Java, with
+  `deposit`, `withdraw` and `close` on it, so code written for Java chests has something to work with.
+- **Bedrock branch only.** On Bedrock the bot can use an item it just crafted, and an item it just took
+  out of a chest. Both were refused by the server: the Bedrock adapter lost the number the server gives
+  each stack. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock a click on a block is no longer ignored when the block changed after
+  the bot looked it up. A Bedrock click names the block it lands on, and the adapter named the one it was
+  handed, not the one that is there. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock a block put back where the bot dug stays there. The server was
+  never told that the bot had let go of a block it broke, and kept breaking whatever turned up in that
+  spot next, leaving an item on the ground each time. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock the bot no longer hangs in the air beside a hole. When the bot
+  stops walking, the pathfinder shifts it to the middle of its block; a Bedrock server refuses that, and
+  the adapter took only the height from the server's answer. The two then disagreed about where the bot
+  stood, and at the rim of a hole it fell and was put back up without end. A bot that is standing still
+  now goes where the server says it is, so after a walk it may stand a little off the middle of its
+  block. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock the bot can fill a bucket and empty one. Bedrock wants a bucket
+  used on the water or the block in view, and the adapter used it in the air. Fixed in the pinned
+  mineflayer branch.
+- **Bedrock branch only.** On Bedrock the stock crafting skill works, in the bot's own grid and at a
+  crafting table. A Bedrock server sends its recipes when the bot joins, and the adapter keeps them in a
+  layout of its own; the skills now get them in the layout they have on Java, a recipe that takes "any
+  planks" included.
+- **Bedrock branch only.** On Bedrock the bot can till soil and plant on it. A click on a block now waits,
+  for a moment at most, until the bot has seen what the click did. Code written for Java sends the next
+  click straight away, and a Bedrock server ignores a click that still names the block from before.
+- **Bedrock branch only.** On Bedrock the bot finds a bed to sleep in. Bedrock has one bed block for
+  every color, named `bed`; the skill looked only for Java's names, which end in `_bed`.
+- **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
+  yet, and the bot stopped with an error when it built its status for the model.
+
+### Changed
+
+- **Bedrock branch only.** The libraries that speak Minecraft Bedrock Edition 1.26.60 are installed:
+  mineflayer with the Bedrock edition adapter, the libraries under it with their Bedrock changes, and the
+  `bedrock-protocol` transport. None of it is released, so each is pinned by commit to a branch that holds
+  the Bedrock work on top of the 26.3 work (listed under
+  [For Bedrock Edition](docs/core-hooks.md#for-bedrock-edition)). The bot uses them only when
+  `minecraft_edition` is `"bedrock"`; left at `"java"`, it plays Java Edition exactly as before.
+- **Bedrock branch only.** Installing has two new wrinkles. npm warns that three packages want Node 24;
+  they run on Node 22. And one of the new packages builds a binary with CMake on most machines (Apple
+  silicon and current Linux among them), which fails `npm install` where CMake is missing. Run
+  `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
+
 ## [0.7.0] - 2026-11-15
 
 The bot plays Minecraft 26.3, on mineflayer and the libraries under it pinned to their open 26.3 work.

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { createMindServer, registerAgent, numStateListeners } from './mindserver.js';
 import { AgentProcess } from '../process/agent_process.js';
 import { getServer } from './mcserver.js';
+import { isBedrock, bedrockServer } from '../agent/bedrock/connect.js';
 import open from 'open';
 import { mindServerClientUrl, resolveControlToken } from './security.js';
 
@@ -75,7 +76,11 @@ export async function createAgent(settings) {
     let init_message = settings.init_message || null;
 
     try {
-        try {
+        // Bedrock Edition (docs/core-hooks.md): the lookup below asks the server what it is in Java's
+        // protocol, which a Bedrock server doesn't answer. So on Bedrock the settings are used as they
+        // stand, and a version that can't work fails the agent here instead of in its own process.
+        if (isBedrock(settings)) Object.assign(settings, bedrockServer(settings));
+        else try {
             const server = await getServer(settings.host, settings.port, settings.minecraft_version);
             settings.host = server.host;
             settings.port = server.port;

@@ -1,7 +1,7 @@
 diff --git a/node_modules/prismarine-block/index.js b/node_modules/prismarine-block/index.js
 --- a/node_modules/prismarine-block/index.js
 +++ b/node_modules/prismarine-block/index.js
-@@ -309 +309,10 @@
+@@ -331 +331,10 @@
 -      const materialToolMultipliers = registry.materials[this.material]
 +      let materialToolMultipliers = registry.materials[this.material]
 +      // Modern tier-restriction tags describe drops, not mining speed. Resolve

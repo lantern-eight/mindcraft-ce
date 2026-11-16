@@ -12,6 +12,8 @@ play**: the bot may only know and do what a human survival player could.
 - New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
   the `world_memory` setting) and `src/agent/storage/` (chest sorting, behind the `chest_sorting`
   setting).
+- On the `bedrock` branch, the Bedrock Edition code lives in `src/agent/bedrock/`, behind the
+  `minecraft_edition` setting.
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
@@ -163,6 +165,9 @@ Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node 
   `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
   to run. They need Java 25 and a 26.3 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
+- The Bedrock live scripts, `tests/live/bedrock_*.js`, can't start their own server: they are pointed at a
+  throwaway Bedrock server that is already running (`docs/bedrock.md`, "Testing"). They make no model
+  calls either. Never point them at a world worth keeping.
 - **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve
   a model report a success rate over several runs, not a single pass or fail.
 
