@@ -17,6 +17,7 @@
 // bot's own movement. Nothing runs while the bot stands still and no block near it changes.
 import { buildStopsSightTable } from '../fairplay/sight.js';
 import { scanSection, sectionsInRange } from '../fairplay/block_scan.js';
+import { editionOf } from '../edition/index.js';
 import { propsOfState } from './block_state.js';
 import { AIR, OTHER_NAME } from './cells.js';
 import { isCrop, isHerdAnimal, isRipe, kindOf, moveKindOf, partnerOffset, startsPlace } from './kinds.js';
@@ -46,18 +47,19 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         ({ sight, readState, columnAt } = eyes);
     }
     if (perception) attach(perception);
+    const edition = editionOf(registry);
     const stopsSight = buildStopsSightTable(registry);
     const VIEW = { maxDistance: radius + 2 };
 
-    // What the recorder needs to know about each block state, worked out once.
-    const isAir = new Uint8Array(stopsSight.length);
-    const isSolid = new Uint8Array(stopsSight.length);   // a full block the bot can't walk through
-    const holdsUp = new Uint8Array(stopsSight.length);    // something to stand on or in: solid, water, a ladder
+    // What the recorder needs to know about each block state, worked out once. Each is a table with a 1
+    // for the states that are so (see src/agent/edition/).
+    const isAir = edition.stateTable(registry);
+    const isSolid = edition.stateTable(registry);   // a full block the bot can't walk through
+    const holdsUp = edition.stateTable(registry);   // something to stand on or in: solid, water, a ladder
     for (const block of registry.blocksArray) {
-        const range = [block.minStateId, block.maxStateId + 1];
-        if (block.name === 'air' || block.name === 'cave_air' || block.name === 'void_air') isAir.fill(1, ...range);
-        if (block.boundingBox === 'block') { isSolid.fill(1, ...range); holdsUp.fill(1, ...range); }
-        if (moveKindOf(block.name) !== 'walk' && moveKindOf(block.name) !== 'door') holdsUp.fill(1, ...range);
+        if (block.name === 'air' || block.name === 'cave_air' || block.name === 'void_air') isAir.setBlock(block, 1);
+        if (block.boundingBox === 'block') { isSolid.setBlock(block, 1); holdsUp.setBlock(block, 1); }
+        if (moveKindOf(block.name) !== 'walk' && moveKindOf(block.name) !== 'door') holdsUp.setBlock(block, 1);
     }
     const kinds = new Map();   // block name -> kind, so kinds.js is asked once per name
     const kindFor = name => { let kind = kinds.get(name); if (kind === undefined) kinds.set(name, kind = kindOf(name)); return kind; };
@@ -104,7 +106,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     /** Is this cell in view? Gives the face it was seen through when there is one, else true, else null. */
     function look(x, y, z, stateId) {
         if (touching(x, y, z)) return true;
-        if (!stopsSight[stateId] && sight.canSeePoint(eye, { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, VIEW)) return true;
+        if (!stopsSight.get(stateId) && sight.canSeePoint(eye, { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, VIEW)) return true;
         return sight.canSeeBlock(eye, x, y, z, VIEW)?.face ?? null;
     }
 
@@ -161,7 +163,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     function record(x, y, z, stateId) {
         const type = registry.blocksByStateId[stateId];
         if (!type) return;
-        const name = isAir[stateId] ? AIR : type.name;
+        const name = isAir.get(stateId) ? AIR : type.name;
         const t = now();
         const before = cells.write(x, y, z, name);
         const kind = name === AIR ? null : kindFor(name);
@@ -229,15 +231,15 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const whole = Math.hypot(reach(cx * 16, feet.x), reach(cy * 16, feet.y), reach(cz * 16, feet.z)) <= radius;
         pass.cube = { cx, cy, cz, whole, crops: new Set(), ripe: new Map() };
         const remembered = cells.hasCells(cx, cy, cz);
-        if (column.sections?.[cy - (pass.minY >> 4)]?.solidBlockCount === 0 && !remembered) return; // open air, and nothing to check
+        if (edition.sectionSummary(column, cy, pass.minY)?.empty && !remembered) return; // open air, and nothing to check
         const r2 = radius * radius;
-        scanSection(column, cx, cy, cz, pass.minY, () => true, (x, y, z, stateId) => {
+        scanSection(edition, column, cx, cy, cz, pass.minY, () => true, (x, y, z, stateId) => {
             if ((x - feet.x) ** 2 + (y - feet.y) ** 2 + (z - feet.z) ** 2 > r2) return;
-            if (isAir[stateId]) {
+            if (isAir.get(stateId)) {
                 if (!remembered) return;
                 const was = cells.read(x, y, z);
                 if (was === null || was === AIR) return;
-            } else if (stopsSight[stateId] && !sight.hasOpenFace(x, y, z) && !touching(x, y, z)) {
+            } else if (stopsSight.get(stateId) && !sight.hasOpenFace(x, y, z) && !touching(x, y, z)) {
                 return;
             }
             pass.queue.push(x, y, z, stateId);
@@ -309,7 +311,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
                     // The cell in front of the face it saw: the bot looked straight through it.
                     const fx = x + seen[0], fy = y + seen[1], fz = z + seen[2];
                     const front = readState(fx, fy, fz);
-                    if (front != null && isAir[front]) cells.sawEmpty(fx, fy, fz);
+                    if (front != null && isAir.get(front)) cells.sawEmpty(fx, fy, fz);
                 }
             } else if (pass.cube) {
                 finishCube(pass.cube);
@@ -351,7 +353,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
             for (const level of [y, y + 1, y - 1]) {
                 const feetCell = readState(x, level, z), head = readState(x, level + 1, z), ground = readState(x, level - 1, z);
                 if (feetCell == null || head == null || ground == null) return false; // not loaded: can't tell
-                if (!isSolid[feetCell] && !isSolid[head] && (holdsUp[ground] || holdsUp[feetCell])) { room = true; break; }
+                if (!isSolid.get(feetCell) && !isSolid.get(head) && (holdsUp.get(ground) || holdsUp.get(feetCell))) { room = true; break; }
             }
             if (!room) return false;
         }

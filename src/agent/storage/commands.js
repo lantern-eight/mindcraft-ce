@@ -22,6 +22,7 @@ import Vec3 from 'vec3';
 import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { buildStopsSightTable, createSight } from '../fairplay/sight.js';
+import { editionOf } from '../edition/index.js';
 import * as world from '../library/world.js';
 import { worldQueries } from '../library/world_queries.js';
 import { ago } from '../memory/commands.js';
@@ -175,11 +176,12 @@ const sights = new WeakMap();
 function sightOf(bot) {
     if (!sights.has(bot)) {
         const local = { x: 0, y: 0, z: 0 };
+        const edition = editionOf(bot.registry);
         const getStateId = (x, y, z) => {
             const column = bot.world?.getColumn?.(x >> 4, z >> 4);
             if (!column) return null;       // not loaded: nothing is seen through it
             local.x = x & 15; local.y = y; local.z = z & 15;
-            return column.getBlockStateId(local);
+            return edition.readStateId(column, local);
         };
         sights.set(bot, createSight({ getStateId, stopsSight: buildStopsSightTable(bot.registry) }));
     }

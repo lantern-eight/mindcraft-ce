@@ -10,9 +10,10 @@
 //   - getStateId(x, y, z): the block state id at a cell, or null/undefined when the client doesn't
 //     have that cell (an unloaded chunk). Unknown cells block sight: guessing "air" would let the bot
 //     see into chunks it has never received.
-//   - stopsSight: a Uint8Array from buildStopsSightTable(), 1 for state ids that hide what's behind.
+//   - stopsSight: a table from buildStopsSightTable(), 1 for state ids that hide what's behind.
 // That keeps the hot loop allocation-free (numbers in, numbers out) and lets unit tests run on tiny
 // hand-built worlds instead of a server.
+import { editionOf } from '../edition/index.js';
 
 // The six face directions of a block, as [x, y, z] unit normals.
 const FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
@@ -37,7 +38,8 @@ const ENTITY_SAMPLE_HEIGHTS = [0.1, 0.5, 0.9];
 const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[0].join(',') === '0,0,0,1,1,1';
 
 /**
- * Builds the table of block states that hide what's behind them: full, opaque cubes.
+ * Builds the table of block states that hide what's behind them: full, opaque cubes. How the table is
+ * kept depends on how the game numbers block states (src/agent/edition/); it is read with `get(stateId)`.
  *
  * minecraft-data's `transparent` flag can't be used alone for this: it marks chests, slabs, stairs,
  * fences and farmland as non-transparent although you can plainly see past them. Two rules together
@@ -50,22 +52,22 @@ const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[
  * since a bottom slab does hide the lower half of what's behind it, and can be tightened later.
  *
  * @param {object} registry - minecraft-data or bot.registry
- * @returns {Uint8Array} indexed by state id; 1 = blocks sight
+ * @returns {{get:(stateId:number) => number}} 1 for a state that blocks sight, else 0
  */
 export function buildStopsSightTable(registry) {
-    let maxState = 0;
-    for (const block of registry.blocksArray) maxState = Math.max(maxState, block.maxStateId);
-    const table = new Uint8Array(maxState + 1);
+    const edition = editionOf(registry);
+    const table = edition.stateTable(registry);
     const shapes = registry.blockCollisionShapes;
     for (const block of registry.blocksArray) {
         if (SEE_THROUGH_OVERRIDES.has(block.name)) continue;
         if (block.boundingBox === 'block' && block.filterLight === 15) {
-            table.fill(1, block.minStateId, block.maxStateId + 1);
+            table.setBlock(block, 1);
         } else if (!block.transparent && shapes) {
             const perState = shapes.blocks[block.name];
             const shapeOf = offset => shapes.shapes[Array.isArray(perState) ? perState[offset] : perState];
-            for (let id = block.minStateId; id <= block.maxStateId; id++)
-                if (isFullCube(shapeOf(id - block.minStateId))) table[id] = 1;
+            edition.stateIdsOf(block).forEach((stateId, offset) => {
+                if (isFullCube(shapeOf(offset))) table.set(stateId, 1);
+            });
         }
     }
     return table;
@@ -84,17 +86,17 @@ export function viewDirection(yaw, pitch) {
  * Creates the sight checks over one world.
  * @param {object} options
  * @param {(x:number, y:number, z:number) => number|null|undefined} options.getStateId
- * @param {Uint8Array} options.stopsSight - from buildStopsSightTable
+ * @param {{get:(stateId:number) => number}} options.stopsSight - from buildStopsSightTable
  */
 export function createSight({ getStateId, stopsSight }) {
     if (typeof getStateId !== 'function') throw new Error('createSight needs getStateId(x, y, z)');
-    if (!(stopsSight instanceof Uint8Array)) throw new Error('createSight needs a stopsSight table');
+    if (typeof stopsSight?.get !== 'function') throw new Error('createSight needs a stopsSight table');
 
     /** True when the cell hides what's behind it, including cells the client doesn't have. */
     function blocksSight(x, y, z) {
         const id = getStateId(x, y, z);
         if (id === null || id === undefined) return true;
-        return stopsSight[id] === 1;
+        return stopsSight.get(id) === 1;
     }
 
     /**
