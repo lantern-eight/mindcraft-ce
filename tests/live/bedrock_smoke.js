@@ -36,6 +36,9 @@ async function clearArea() {
     if (!server.hasConsole) return;
     await server.command(`fill ${xyz(at(-2, 0, -3))} ${xyz(at(14, 3, 3))} air`);
     await server.command(`fill ${xyz(at(-2, -1, -3))} ${xyz(at(14, -1, 3))} grass_block`);
+    // Dirt under the grass, so the hole the bot digs has a floor. A test world can have a hollow under
+    // its ground (a scene cleared from a platform built lower), and the drop then falls out of reach.
+    await server.command(`fill ${xyz(at(-2, -4, -3))} ${xyz(at(14, -2, 3))} dirt`);
     await server.command(`clear ${NAME}`);
 }
 
