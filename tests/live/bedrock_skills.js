@@ -335,6 +335,24 @@ const walk = [
             await cmd('difficulty peaceful', 1200);
         }
     } },
+    { name: 'eating by itself: a hungry bot eats what it holds', async run() {
+        // Not a skill: the agent switches this on when it starts, and from then on nobody calls it. Hunger
+        // only falls outside peaceful, and falls fast under the hunger effect.
+        await give('bread', 3);
+        bot.autoEat.setOpts({ minHunger: 14 });
+        bot.autoEat.enableAuto();
+        await cmd('difficulty normal');
+        try {
+            await cmd(`effect ${NAME} hunger 30 255`);
+            const deadline = Date.now() + 40000;
+            while (Date.now() < deadline && count('bread') === 3) await delay(500);
+            assert.ok(count('bread') < 3, `the bot is at ${bot.food} of 20 hunger and still holds all its bread`);
+        } finally {
+            bot.autoEat.disableAuto();
+            await cmd(`effect ${NAME} clear`);
+            await cmd('difficulty peaceful', 1200);
+        }
+    } },
 
     // The scenes with a second player come last. Joining makes the second bot the one the game data is read
     // from (there is one bot to a process when the agent runs), which is harmless here and would not be

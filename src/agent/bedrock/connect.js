@@ -17,6 +17,7 @@ import { plugin as collectblock } from 'mineflayer-collectblock';
 import armorManager from 'mineflayer-armor-manager';
 import { guardBotActions } from '../action_context.js';
 import { javaShapes, recipesLikeGameData } from './java_shapes.js';
+import { bedrockEater } from './eating.js';
 
 const require = createRequire(import.meta.url);
 
@@ -166,15 +167,6 @@ export function gameDataFor(registry, bot = null) {
     });
 }
 
-// The plugin that makes the Java bot eat when it is hungry can't be loaded on Bedrock. It stops while
-// loading, on a helper that compares the game version with Java version numbers, and past that it eats by
-// writing Java packets itself. The agent sets it up by name when it starts, so it gets this in its place:
-// the same switches, connected to nothing. Until eating is written for Bedrock, a bot there doesn't eat
-// by itself.
-function noAutoEat() {
-    return { setOpts() {}, enableAuto() {}, disableAuto() {}, cancelEat() {}, isEating: false };
-}
-
 /**
  * Create the bot for a Bedrock server and wire up what every bot needs.
  *
@@ -199,13 +191,16 @@ export function initBedrockBot(username, settings, useGameData, { createBot = cr
     acceptServerKey(bot._client);
 
     // The same plugins as on Java, in the same order, except the one that eats. Each of these four was
-    // reported working on the Bedrock adapter by the adapter's author.
+    // reported working on the Bedrock adapter by the adapter's author. The one that eats can't be loaded
+    // on Bedrock: it stops while loading, on a helper that compares the game version with Java version
+    // numbers. The agent sets eating up by name when it starts, so this fork's own eater for Bedrock is
+    // put where it looks (eating.js).
     bot.loadPlugin(pathfinder);
     bot.loadPlugin(pvp);
     bot.loadPlugin(collectblock);
     bot.loadPlugin(armorManager);
     bot.loadPlugin(javaShapes); // where the adapter's answers have another shape than on Java
-    bot.autoEat = noAutoEat();
+    bot.autoEat = bedrockEater(bot);
 
     bot.once('spawn', () => guardBotActions(bot));
     bot.once('resourcePack', () => {

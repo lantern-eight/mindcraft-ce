@@ -16,7 +16,7 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   version such as `"1.26.60"` (or `"auto"`), a port of `-1` means Bedrock's usual 19132, and
   `auth: "microsoft"` signs in with an Xbox account. A Java version left in `minecraft_version` is refused
   with a message that says what to set. This is the connection only: fair play, world memory and chest
-  sorting have not been made to work on Bedrock yet, and a Bedrock bot does not eat by itself.
+  sorting have not been made to work on Bedrock yet.
 - **Bedrock branch only.** The bot can join a current Bedrock Dedicated Server. Servers from 1.26.60 take
   a direct connection through a short HTTP exchange on their game port, which no released
   `bedrock-protocol` speaks; the open upstream work for it is now part of the pinned set. Checked against
@@ -33,6 +33,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   31 scenes pass on 1.26.63 with fair play off: gathering, building, crafting, smelting, chests, farming,
   fighting, sleeping, doors, buckets, and walking to, following and handing things to another player.
   [docs/bedrock.md](docs/bedrock.md#skills) lists the skills, and the few not tried.
+- **Bedrock branch only.** A Bedrock bot eats when it is hungry, as the Java bot does. The plugin that
+  does it on Java can't be loaded on Bedrock, so the Bedrock module has its own, with the same switches
+  and the same numbers: it eats the most filling food it holds that isn't on the banned list, then holds
+  again what it held before.
 - **Bedrock branch only.** A chest opened on Bedrock is the same kind of object as on Java, with
   `deposit`, `withdraw` and `close` on it, so code written for Java chests has something to work with.
 - **Bedrock branch only.** On Bedrock the bot can use an item it just crafted, and an item it just took

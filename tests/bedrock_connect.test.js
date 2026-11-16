@@ -106,17 +106,23 @@ test('the bot is created with the Bedrock options and the plugins that work ther
     assert.equal(calls.options.version, 'bedrock_1.26.60');
     // Walking, fighting, collecting and armor, then this fork's own plugin that evens out the adapter's
     // shapes. The fifth plugin of the Java bot, the one that eats, is not among them: it can't be loaded
-    // on Bedrock.
+    // on Bedrock, and this fork's own eater stands in its place.
     assert.equal(calls.plugins.length, 5);
     assert.ok(calls.plugins.every(plugin => typeof plugin === 'function'));
 });
 
-test('the agent can still set up eating by name, though nothing eats yet', () => {
-    // The agent calls these two when it starts, on either edition. Without a stand-in it would stop there.
+test('the agent sets up eating by name, as on Java, and finds the Bedrock eater there', () => {
+    // The agent calls these two when it starts, on either edition. tests/bedrock_eating.test.js has what
+    // the eater then does.
     const { bot, createBot } = fakeMineflayer();
     initBedrockBot('andy', bedrockSettings(), () => {}, { createBot });
     bot.autoEat.setOpts({ minHunger: 14 });
+    assert.equal(bot.autoEat.opts.minHunger, 14);
+    assert.equal(bot.autoEat.enabled, false, 'nothing eats until the agent says so');
     bot.autoEat.enableAuto();
+    assert.equal(bot.autoEat.enabled, true);
+    assert.equal(bot.autoEat.isEating, false);
+    bot.autoEat.disableAuto();
 });
 
 test("the rest of the code is handed the bot's own registry at login, once", () => {
