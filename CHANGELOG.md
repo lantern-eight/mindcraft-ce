@@ -15,8 +15,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `"bedrock"`, the bot is started for a Bedrock Edition server: `minecraft_version` is then a Bedrock
   version such as `"1.26.60"` (or `"auto"`), a port of `-1` means Bedrock's usual 19132, and
   `auth: "microsoft"` signs in with an Xbox account. A Java version left in `minecraft_version` is refused
-  with a message that says what to set. This is the connection only. The skills, fair play, world memory
-  and chest sorting have not been made to work on Bedrock yet, and a Bedrock bot does not eat by itself.
+  with a message that says what to set. This is the connection only: fair play, world memory and chest
+  sorting have not been made to work on Bedrock yet, and a Bedrock bot does not eat by itself.
 - **Bedrock branch only.** The bot can join a current Bedrock Dedicated Server. Servers from 1.26.60 take
   a direct connection through a short HTTP exchange on their game port, which no released
   `bedrock-protocol` speaks; the open upstream work for it is now part of the pinned set. Checked against
@@ -28,6 +28,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   Bedrock server: joining, seeing blocks, chat, walking, digging, placing, a chest and crafting. It passes
   on 1.26.60 and on 1.26.63, which speaks the same protocol. The whole agent was also started there and
   answered a player through a model.
+- **Bedrock branch only.** A second live test, `tests/live/bedrock_skills.js`, runs Mindcraft's stock
+  skills on a throwaway Bedrock server, each in a scene of its own, and checks the world afterwards. All
+  31 scenes pass on 1.26.63 with fair play off: gathering, building, crafting, smelting, chests, farming,
+  fighting, sleeping, doors, buckets, and walking to, following and handing things to another player.
+  [docs/bedrock.md](docs/bedrock.md#skills) lists the skills, and the few not tried.
 - **Bedrock branch only.** A chest opened on Bedrock is the same kind of object as on Java, with
   `deposit`, `withdraw` and `close` on it, so code written for Java chests has something to work with.
 - **Bedrock branch only.** On Bedrock the bot can use an item it just crafted, and an item it just took

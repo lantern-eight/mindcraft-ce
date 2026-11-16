@@ -13,11 +13,31 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 
 | | |
 |---|---|
-| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Putting items in a chest, taking them out and putting them back. Crafting in the bot's own 2x2 grid, also with something it just crafted. The whole agent starts, hears a player and answers through a model |
-| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play can't be relied on, world memory and chest sorting are not ported, most skills are untried and some are known to fail, and the bot does not eat by itself |
-| **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots |
+| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). The whole agent starts, hears a player and answers through a model |
+| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play can't be relied on, world memory and chest sorting are not ported, and the bot does not eat by itself |
+| **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots. A few skills, named under [Skills](#skills) |
 
 Treat a Bedrock bot as something to experiment with on a world you can afford to lose.
+
+## Skills
+
+The skills are Mindcraft's own. They were written for Java Edition, and there is one copy of them for both
+editions. Each one below was run on a Bedrock server with fair play off, in a small scene of its own, and
+the world was checked afterwards:
+
+| | |
+|---|---|
+| **Gathering and building** | `collectBlock`, `breakBlockAt`, `placeBlock`, `digDown`, `pickupNearbyItems`, `tillAndSow` |
+| **Making things** | `craftRecipe` (in the bot's own grid, and at a crafting table), `smeltItem`, `clearNearestFurnace` |
+| **Items** | `equip` (a tool, armor), `discard`, `consume`, `putInChest`, `takeFromChest`, `viewChest`, `useToolOn` (shears on a sheep, a bucket on water) |
+| **Getting around** | `goToPosition`, `goToNearestBlock`, `goToNearestEntity`, `goToSurface`, `moveAway`, `stay`, `wait`, `useDoor`, `activateNearestBlock`, `goToBed` |
+| **Other players** | `goToPlayer`, `followPlayer`, `giveToPlayer` |
+| **Fighting** | `attackNearest`, `defendSelf` |
+
+**Not tried:** `avoidEnemies`, the two villager trading skills, and the mining goals.
+
+One scene on flat ground shows that a skill works, not that it works everywhere. The scenes are in
+`tests/live/bedrock_skills.js` ([Testing](#testing)).
 
 ## Trying It
 
@@ -91,33 +111,42 @@ stay.
 |---|---|
 | **Fair play** | Don't rely on it. Perception runs, but in a first check the bot named blocks under the ground it stood on, which a player could not see. The lists of what can be seen through are written for Java's blocks, and sounds, reach and world identity each read something Java-only. Set `fair_play: "off"` for now |
 | **World memory, chest sorting** | Not ported. World memory keeps Java's names for block states; chest sorting moves items the way Java's windows work |
-| **Eating** | The bot does not eat by itself. The plugin that does it on Java can't be loaded |
+| **Eating** | The bot does not eat by itself. The plugin that does it on Java can't be loaded. Told to eat, it does |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's |
-| **Recipes for a crafting table, furnaces, combat, sleeping, farming** | Not tried from this repo |
+| **A few skills** | `avoidEnemies`, villager trading and the mining goals are not tried. See [Skills](#skills) |
 
 ## Testing
 
 `npm test` covers how the bot is started (`tests/bedrock_connect.test.js`) and that the installed
 libraries work together (`tests/bedrock_stack.test.js`). Neither needs a server.
 
-The live test needs a real one:
+The two live tests need a real one. Both take the same three variables, make no model calls, and print
+one line of JSON for each step:
 
 ```bash
-BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132 \
-BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command" \
-node tests/live/bedrock_smoke.js
+export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
+export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
+
+node tests/live/bedrock_smoke.js                       # the layer under the skills
+node tests/live/bedrock_skills.js                      # every skill, a scene each
+node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
 ```
 
-It joins through the repo's own start-up code and goes through everything in the "Works" row above,
-one step each, printing one line of JSON per step. It makes no model calls. Steps that hand out items use
-the server console and are skipped without `BEDROCK_TEST_CONSOLE`. A step marked as a known gap reports
-what happens and never fails the run, and when it starts passing the output says so.
-`tests/live/bedrock_fixture.js` explains each variable.
+- **`bedrock_smoke.js`** joins through the repo's own start-up code and checks what every skill leans on:
+  seeing blocks, chat, walking, digging, picking up, placing, a chest, crafting. Steps that hand out items
+  use the server console and are skipped without `BEDROCK_TEST_CONSOLE`.
+- **`bedrock_skills.js`** calls each stock skill the way the agent does, with fair play off, and checks
+  the world afterwards. It builds each scene from the console, so it needs one. A second bot joins for
+  the skills that need another player. For the one scene with a monster it sets the difficulty to normal
+  and back to peaceful.
 
-**Never point it at a world you care about.** It digs, builds, hands out items and clears the bot's
-inventory.
+A step marked as a known gap reports what happens and never fails the run, and when it starts passing
+the output says so. `tests/live/bedrock_fixture.js` explains each variable.
+
+**Never point them at a world you care about.** They dig, build, hand out items, clear inventories,
+summon and kill animals, and change the time and the difficulty.
 
 ### A Throwaway Server
 
@@ -153,11 +182,11 @@ services:
 ```
 
 `docker compose up -d` starts it and `docker compose down` stops it; deleting the folder removes the
-world. The console command for the test is then `docker exec bedrock-test send-command`, with
+world. The console command for the tests is then `docker exec bedrock-test send-command`, with
 `ssh <machine>` in front when the server is on another machine.
 
-The console line passes through a shell on its way, so the test only sends lines made of letters, digits,
-spaces and `_ . : -`, and writes coordinates out in full.
+The console line passes through a shell on its way, so the tests only send lines made of letters, digits,
+spaces and `_ . : -`, and write coordinates out in full.
 
 ## Where Things Are
 
@@ -166,5 +195,6 @@ spaces and `_ . : -`, and writes coordinates out in full.
 | `src/agent/bedrock/connect.js` | Starting a Bedrock bot: the options, the server's key, what is left out, the game data the rest of the code reads |
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, and a click on a block |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
-| `tests/live/bedrock_fixture.js`, `tests/live/bedrock_smoke.js` | The live test and where it finds its server |
+| `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js` | The live tests: the layer under the skills, and the skills |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files, and the pinned libraries |

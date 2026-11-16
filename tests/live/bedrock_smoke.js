@@ -10,40 +10,18 @@
 // is tested. Fair play is not involved: this is the layer under it.
 //
 // Steps that need items or blocks handed out use the server console, and are skipped when there is none.
-// A step marked "known gap" is something that does not work yet and is written down in docs/bedrock.md. It
-// never fails the run; when one starts passing, the output says so, and the docs want updating.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import Vec3 from 'vec3';
 import pathfinderPlugin from 'mineflayer-pathfinder';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
 
 const { Movements, goals } = pathfinderPlugin;
 const NAME = 'BedrockSmoke';
 
-const results = [];
-const record = (name, status, started, details) => {
-    const result = { name, status, durationMs: Date.now() - started, ...(details || {}) };
-    results.push(result);
-    console.log(JSON.stringify(result));
-};
-const step = async (name, fn) => {
-    const started = Date.now();
-    record(name, 'passed', started, await fn());
-};
-const skip = (name, why) => record(name, 'skipped', Date.now(), { why });
-// Something known not to work yet. Reported either way, and never the reason a run fails.
-const knownGap = async (name, fn) => {
-    const started = Date.now();
-    try {
-        const details = await fn();
-        record(name, 'passed', started, { ...(details || {}), note: 'This known gap is closed. Update docs/bedrock.md.' });
-    } catch (error) {
-        record(name, 'known_gap', started, { error: error.message });
-    }
-};
+const { step, skip, summary, passed } = createReport();
 
 const server = bedrockTestServer();
 let bot;
@@ -144,13 +122,14 @@ try {
         // the bot walks to wherever the drop is, as often as it takes, for a few seconds.
         const hole = at(12, -1, 0);
         const deadline = Date.now() + 10000;
+        const lying = () => Object.values(bot.entities).find(entity => entity.name === 'item' && entity.position.distanceTo(hole) < 4);
+        const where = position => (position ? `${position.x.toFixed(1)} ${position.y.toFixed(1)} ${position.z.toFixed(1)}` : 'nowhere to be seen');
         while (bot.inventory.items().length === 0 && Date.now() < deadline) {
-            const drop = Object.values(bot.entities).find(entity => entity.name === 'item' && entity.position.distanceTo(hole) < 4);
-            const target = drop ? drop.position.floored() : hole;
+            const target = lying()?.position.floored() ?? hole;
             await bot.pathfinder.goto(new goals.GoalNear(target.x, target.y, target.z, 0)).catch(() => {});
             await delay(700);
         }
-        assert.ok(bot.inventory.items().length > 0, 'nothing was picked up');
+        assert.ok(bot.inventory.items().length > 0, `nothing was picked up: the bot is at ${where(bot.entity.position)}, the drop is ${where(lying()?.position)}, and the bot takes the hole to hold ${bot.blockAt(hole)?.name}`);
         carried = bot.inventory.items()[0].name;
         return { inventory: names() };
     });
@@ -231,17 +210,10 @@ try {
         });
     }
 
-    const failed = results.filter(result => result.status === 'failed').length;
-    console.log(JSON.stringify({
-        status: 'passed',
-        steps: results.filter(result => result.status === 'passed').length,
-        skipped: results.filter(result => result.status === 'skipped').length,
-        knownGaps: results.filter(result => result.status === 'known_gap').map(result => result.name),
-        failed,
-    }));
+    console.log(JSON.stringify(summary()));
 } catch (error) {
     console.error(error);
-    console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: results.filter(result => result.status === 'passed').length }));
+    console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: passed() }));
     process.exitCode = 1;
 } finally {
     try {

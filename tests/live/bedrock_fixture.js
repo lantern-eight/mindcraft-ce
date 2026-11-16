@@ -13,7 +13,8 @@
 //                         last argument. For a server in the itzg/minecraft-bedrock-server image:
 //                           docker exec <container> send-command
 //                         and for the same on another machine, put `ssh <that machine>` in front.
-//                         Without it the scripts still run, and skip the steps that need the console.
+//                         Without it the smoke test still runs and skips the steps that need the console.
+//                         The skills walk builds every scene from the console and does not run without it.
 //
 // NEVER point these at a world you care about. They dig, build, hand out items and move players around.
 import { spawn } from 'node:child_process';
@@ -58,4 +59,60 @@ export function bedrockTestServer(env = process.env) {
 /** The settings a bot needs to join that server, to be laid over the repo's own. */
 export function bedrockTestSettings(server) {
     return { minecraft_edition: 'bedrock', minecraft_version: server.version, host: server.host, port: server.port, auth: 'offline' };
+}
+
+/**
+ * The steps of a live script, printed one line of JSON each, the way the Java live scripts print theirs.
+ *
+ * `step` is something that has to work: a failure throws and ends the run. `attempt` has to work too, but
+ * a failure is only recorded, so the rest of a list is still tried. `knownGap` is something known
+ * not to work yet and written down in docs/bedrock.md: it is reported either way and never ends the run,
+ * and when it starts passing the line says so, because the docs then want updating. `skip` is a step that
+ * could not be tried.
+ */
+export function createReport() {
+    const results = [];
+    const record = (name, status, started, details) => {
+        const result = { name, status, durationMs: Date.now() - started, ...(details || {}) };
+        results.push(result);
+        console.log(JSON.stringify(result));
+    };
+    const countOf = status => results.filter(result => result.status === status).length;
+    return {
+        results,
+        async step(name, fn) {
+            const started = Date.now();
+            record(name, 'passed', started, await fn());
+        },
+        skip(name, why) {
+            record(name, 'skipped', Date.now(), { why });
+        },
+        /** Like `step`, but a failure is recorded and the run goes on: for a list where every item should be tried. */
+        async attempt(name, fn) {
+            const started = Date.now();
+            try {
+                record(name, 'passed', started, await fn());
+            } catch (error) {
+                record(name, 'failed', started, { error: String(error.message).split('\n')[0] });
+            }
+        },
+        async knownGap(name, fn) {
+            const started = Date.now();
+            try {
+                const details = await fn();
+                record(name, 'passed', started, { ...(details || {}), note: 'This known gap is closed. Update docs/bedrock.md.' });
+            } catch (error) {
+                record(name, 'known_gap', started, { error: String(error.message).split('\n')[0] });
+            }
+        },
+        passed: () => countOf('passed'),
+        failed: () => countOf('failed'),
+        summary: () => ({
+            status: countOf('failed') ? 'failed' : 'passed',
+            steps: countOf('passed'),
+            failed: results.filter(result => result.status === 'failed').map(result => result.name),
+            skipped: countOf('skipped'),
+            knownGaps: results.filter(result => result.status === 'known_gap').map(result => result.name),
+        }),
+    };
 }
