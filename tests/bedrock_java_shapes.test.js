@@ -13,13 +13,15 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // A bot as the Bedrock adapter leaves it: openContainer clicks and hands back nothing, the window turns
 // up a moment later as bot.currentWindow, and items are moved by calls on the bot.
-function adapterBot({ opens = true } = {}) {
+function adapterBot({ opens = true, ignoredClicks = 0 } = {}) {
     const calls = [];
+    let clicks = 0;
     const bot = {
         currentWindow: null,
         openContainer(block) {
             calls.push(['click', block.name]);
-            if (opens) setTimeout(() => { bot.currentWindow = { type: 'minecraft:container', containerItems: () => [] }; }, 20);
+            // The server ignores the first few clicks when told to: they named the block as it no longer is.
+            if (opens && ++clicks > ignoredClicks) setTimeout(() => { bot.currentWindow = { type: 'minecraft:container', containerItems: () => [] }; }, 20);
         },
         deposit: async (...args) => { calls.push(['deposit', ...args]); },
         withdraw: async (...args) => { calls.push(['withdraw', ...args]); },
@@ -56,6 +58,25 @@ test('every way of opening goes through bot.openBlock, so one wrapper sees them 
 test('a chest that does not open is an error for the caller who waits', async () => {
     const { bot } = adapterBot({ opens: false });
     await assert.rejects(bot.openContainer({ name: 'chest' }), /chest did not open/);
+});
+
+test('a click the server ignored is made once more, a moment later', async () => {
+    // As with a barrel opened again straight after it was closed: the first click named it still open.
+    const { bot, calls } = adapterBot({ ignoredClicks: 1 });
+    const started = Date.now();
+    const barrel = await bot.openContainer({ name: 'barrel' });
+    assert.equal(barrel, bot.currentWindow);
+    assert.deepEqual(calls, [['click', 'barrel'], ['click', 'barrel']]);
+    assert.ok(Date.now() - started >= 900, 'not before a window could have come back');
+});
+
+test('an open still waiting gives way to a newer one, and never takes its window', async () => {
+    const { bot } = adapterBot({ ignoredClicks: 1 });
+    const older = bot.openContainer({ name: 'barrel' });
+    await delay(100);
+    const newer = bot.openContainer({ name: 'barrel' });
+    await assert.rejects(older, /Something else was opened while waiting for the barrel/);
+    assert.equal(await newer, bot.currentWindow);
 });
 
 test('and is not one for a caller who does not wait', async () => {

@@ -16,6 +16,9 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // How long a chest gets to open. The adapter waits three seconds for the same thing.
 const OPEN_TIMEOUT_MS = 5000;
+// How long before a click that opened nothing is made again. A window comes back in a tenth of a second
+// or so; a click the server ignored never brings one.
+const RECLICK_MS = 1000;
 
 /**
  * Chests, barrels and the like.
@@ -33,6 +36,13 @@ const OPEN_TIMEOUT_MS = 5000;
  *
  * As on Java, the first two go through `bot.openBlock`, looked up when they are called. World memory
  * wraps `bot.openBlock` to note what was in a chest, and that one wrapper has to see every way in.
+ *
+ * A click that names a block in a state the server no longer has is ignored. A barrel is a different
+ * block state open and shut, and for a moment after it is closed the bot still sees it open, so a click
+ * to open it again straight away was ignored and the chest sorter, which does just that, gave up on the
+ * barrel. So a click that brings no window is made once more, a second later, when the bot sees the
+ * block as it is. And only the latest open waits for a window: an older one that is still waiting gives
+ * way, instead of taking the window the newer one opened and handing it to a caller that gave up on it.
  */
 function chestsLikeJava(bot) {
     if (typeof bot.openContainer !== 'function') return; // an adapter without containers: nothing to shape
@@ -47,13 +57,21 @@ function chestsLikeJava(bot) {
         return promise;
     };
 
+    let latest = 0; // the open asked for last
     async function openAndWait(block) {
+        const ticket = ++latest;
         const before = bot.currentWindow;
         click(block);
         const deadline = Date.now() + OPEN_TIMEOUT_MS;
+        let again = Date.now() + RECLICK_MS;
         while (Date.now() < deadline) {
+            if (ticket !== latest) throw new Error(`Something else was opened while waiting for the ${block?.name ?? 'container'}`);
             const window = bot.currentWindow;
             if (window && window !== before) return withHands(window);
+            if (again && Date.now() >= again) {
+                again = 0;
+                click(block); // the adapter names the block as the bot sees it now
+            }
             await delay(50);
         }
         throw new Error(`The ${block?.name ?? 'container'} did not open`);

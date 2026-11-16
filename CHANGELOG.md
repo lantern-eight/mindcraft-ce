@@ -102,6 +102,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- **Bedrock branch only.** On Bedrock a barrel opened again just after it was closed opens. The click named
+  the barrel as still open, which it no longer was, and the server ignored it; now a click that brings no
+  window is made once more, a second later. And an open that was given up on no longer takes the window of
+  the open after it and closes it.
 - **Bedrock branch only.** Code the model writes runs on a Bedrock bot. Once the bot had joined a current
   Bedrock server, the sandbox that code runs in could not be set up, so `!newAction` failed every time,
   with fair play on or off: a library the connection loads leaves a property on JavaScript's `Reflect`
