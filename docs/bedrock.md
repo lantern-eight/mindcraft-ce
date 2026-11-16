@@ -34,7 +34,8 @@ the world was checked afterwards:
 | **Other players** | `goToPlayer`, `followPlayer`, `giveToPlayer` |
 | **Fighting** | `attackNearest`, `defendSelf` |
 
-**Not tried:** `avoidEnemies`, the two villager trading skills, and the mining goals.
+`avoidEnemies` runs in `bedrock_fair_play.js` instead, with fair play on: the reflex that flees a monster
+in view calls it. **Not tried:** the two villager trading skills, and the mining goals.
 
 One scene on flat ground shows that a skill works, not that it works everywhere. The scenes are in
 `tests/live/bedrock_skills.js` ([Testing](#testing)).
@@ -115,7 +116,7 @@ stay.
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's |
-| **A few skills** | `avoidEnemies`, villager trading and the mining goals are not tried. See [Skills](#skills) |
+| **A few skills** | Villager trading and the mining goals are not tried. See [Skills](#skills) |
 
 ## Testing
 
