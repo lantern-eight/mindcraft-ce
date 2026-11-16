@@ -58,6 +58,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** On Bedrock the bot can fill a bucket and empty one. Bedrock wants a bucket
   used on the water or the block in view, and the adapter used it in the air. Fixed in the pinned
   mineflayer branch.
+- **Bedrock branch only.** On Bedrock the bot no longer stops short of where it walks after a pause. When
+  the bot had been busy for a moment (looking around for a door, say), the adapter made up every tick it
+  had missed in one step, and the bot jumped ahead of where the server had it. The walk counted itself
+  done there, and a second later the server pulled the bot back to where it started. So `useDoor` stopped
+  short of the door, and shearing a sheep sometimes did nothing. Fixed in the pinned mineflayer branch.
 - **Bedrock branch only.** On Bedrock the stock crafting skill works, in the bot's own grid and at a
   crafting table. A Bedrock server sends its recipes when the bot joins, and the adapter keeps them in a
   layout of its own; the skills now get them in the layout they have on Java, a recipe that takes "any
