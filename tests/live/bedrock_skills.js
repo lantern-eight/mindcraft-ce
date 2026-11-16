@@ -151,6 +151,66 @@ const walk = [
         assert.ok(ok, said());
         assert.equal(count('oak_log'), 2, said());
     } },
+    // The cases of the Java mining scenarios (tests/live/mining_scenarios.js), each a scene here. The skill
+    // is collectBlock's own (collectBlockResult), which reports how many blocks it broke and what it gained.
+    { name: 'collectBlock: a log above the bot\'s head, reached without building up', async run() {
+        await setblock(0, 3, 0, 'oak_log');
+        const result = await withinTime(skills.collectBlockResult(bot, 'oak_log', 1), 40000, 'collectBlock');
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(result.broken, 1, result.text);
+        assert.equal(count('oak_log'), 1, said());
+    } },
+    { name: 'collectBlock: iron ore in view, and deepslate iron ore buried in stone', async run() {
+        await give('stone_pickaxe', 1);
+        await setblock(3, 0, 0, 'iron_ore');
+        await cmd(`fill ${xyz(at(5, 0, -1))} ${xyz(at(7, 2, 1))} stone`);
+        await setblock(6, 1, 0, 'deepslate_iron_ore');
+        const result = await withinTime(skills.collectBlockResult(bot, 'iron_ore', 2), 90000, 'collectBlock');
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(result.broken, 2, result.text);
+        assert.ok(count('raw_iron') >= 2, `the bot holds ${count('raw_iron')} raw iron; ${said()}`);
+    } },
+    { name: 'collectBlock: obsidian with a diamond pickaxe', async run() {
+        await give('diamond_pickaxe', 1);
+        await setblock(2, 0, 1, 'obsidian');
+        const result = await withinTime(skills.collectBlockResult(bot, 'obsidian', 1), 60000, 'collectBlock');
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(count('obsidian'), 1, said());
+    } },
+    { name: 'collectBlock: stopped in the middle of obsidian, then asked again', async run() {
+        await give('diamond_pickaxe', 1);
+        await setblock(2, 0, 1, 'obsidian');
+        const pending = skills.collectBlockResult(bot, 'obsidian', 1);
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline && bot.targetDigBlock?.name !== 'obsidian') await delay(100);
+        assert.equal(bot.targetDigBlock?.name, 'obsidian', 'the bot never started on the obsidian');
+        await delay(1500);
+        // What the agent does when told to stop: raise the flag, stop digging and walking.
+        bot.interrupt_code = true;
+        bot.stopDigging();
+        bot.pathfinder.setGoal(null);
+        const stopped = await withinTime(pending, 20000, 'the stopped collectBlock');
+        assert.equal(stopped.status, 'cancelled', stopped.text);
+        assert.equal(blockName(2, 0, 1), 'obsidian', 'the obsidian went anyway');
+        bot.interrupt_code = false;
+        bot.output = '';
+        const again = await withinTime(skills.collectBlockResult(bot, 'obsidian', 1), 60000, 'collectBlock, asked again');
+        assert.equal(again.status, 'ok', again.text);
+        assert.equal(count('obsidian'), 1, said());
+    } },
+    { name: 'collectBlock: an enchanted pickaxe digs at its own speed', async run() {
+        await give('diamond_pickaxe', 1);
+        await setblock(2, 0, 1, 'obsidian');
+        assert.ok(await skills.equip(bot, 'diamond_pickaxe'), said());
+        await delay(500);
+        const plain = bot.digTime(bot.blockAt(at(2, 0, 1)));
+        await cmd(`enchant ${NAME} efficiency 5`, 1200);
+        const fast = bot.digTime(bot.blockAt(at(2, 0, 1)));
+        assert.ok(fast < plain / 2, `obsidian takes ${plain} ms with a plain diamond pickaxe and ${fast} ms with efficiency V`);
+        const result = await withinTime(skills.collectBlockResult(bot, 'obsidian', 1), 30000, 'collectBlock');
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(count('obsidian'), 1, said());
+    } },
     { name: 'craftRecipe: planks from a log, in the bot\'s own grid', async run() {
         await give('oak_log', 1);
         const ok = await withinTime(skills.craftRecipe(bot, 'oak_planks', 1), 30000, 'craftRecipe');
@@ -350,7 +410,11 @@ const walk = [
             assert.ok(await withinTime(skills.useToolOn(bot, 'shears', 'sheep'), 40000, 'useToolOn'), said());
             await delay(1500);
             const wool = Object.values(bot.entities).some(entity => entity.name === 'item' && /wool/.test(entity.item?.name ?? ''));
-            assert.ok(wool || count('white_wool') > 0, `no wool came off the sheep; ${said()}`);
+            // What the bot saw, for when it fails: whether the sheep was sheared at all, and what lies about.
+            const sheared = nearest('sheep')?.metadata?.flags?.sheared;
+            const lying = Object.values(bot.entities).filter(entity => entity.name === 'item').map(entity => entity.item?.name ?? '?');
+            assert.ok(wool || count('white_wool') > 0,
+                `no wool came off the sheep (sheared: ${sheared}; lying about: ${lying.join(', ') || 'nothing'}); ${said()}`);
         } finally {
             await putDown('sheep');
         }

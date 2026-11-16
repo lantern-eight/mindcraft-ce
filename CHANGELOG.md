@@ -31,9 +31,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   answered a player through a model.
 - **Bedrock branch only.** A second live test, `tests/live/bedrock_skills.js`, runs Mindcraft's stock
   skills on a throwaway Bedrock server, each in a scene of its own, and checks the world afterwards. All
-  31 scenes pass on 1.26.63 with fair play off: gathering, building, crafting, smelting, chests, farming,
-  fighting, sleeping, doors, buckets, and walking to, following and handing things to another player.
-  [docs/bedrock.md](docs/bedrock.md#skills) lists the skills, and the few not tried.
+  39 scenes pass on 1.26.63 with fair play off: gathering and mining, building, crafting, smelting,
+  chests, farming, fighting, sleeping, doors, buckets, villagers, and walking to, following and handing
+  things to another player. [docs/bedrock.md](docs/bedrock.md#skills) lists the skills, and the one that
+  doesn't work yet.
 - **Bedrock branch only.** A Bedrock bot eats when it is hungry, as the Java bot does. The plugin that
   does it on Java can't be loaded on Bedrock, so the Bedrock module has its own, with the same switches
   and the same numbers: it eats the most filling food it holds that isn't on the banned list, then holds
