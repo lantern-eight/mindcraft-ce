@@ -13,8 +13,8 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 
 | | |
 |---|---|
-| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, and chest sorting. The whole agent starts, hears a player and answers through a model |
-| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, and world memory is ported only in part |
+| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, world memory and chest sorting. The whole agent starts, hears a player and answers through a model |
+| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, and code that reads a block's properties expects Java's names for them |
 | **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots. A few skills, named under [Skills](#skills) |
 
 Treat a Bedrock bot as something to experiment with on a world you can afford to lose.
@@ -112,7 +112,7 @@ stay.
 | **Fair play** | Works, with the two limits in the next rows. Checked on a server by `bedrock_perception.js`: sight (the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet), hearing a mob's cry from behind a wall, and noticing that the server made the bot an operator. And by `bedrock_fair_play.js`, as the agent runs it: what the model is told, skills that find and walk to only what the bot has seen, the reach guard, the reflex to flee a monster in view, model-written code, refusing to act as an operator or in creative mode, and no slash command sent. Reach uses Java's numbers |
 | **Mobs' everyday noises** | Not heard. A Bedrock client makes a mob's moos and groans up by itself, and the server never sends them, so the bot hears a mob only when it is hurt or dies, or does something the server plays a sound for |
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
-| **World memory** | In part. **Works,** checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. Each world has its own memory, named by a hash of the seed the server sends. **Not checked on Bedrock yet:** noticing changes, the trail and travel along it, places, signs, and what the model is told |
+| **World memory** | Works. Checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. And by `bedrock_memory_scenarios.js`, as the agent runs it: a chest opened and walked away from is recalled with what was in it and the way back; the trail, saved places, what a sign says, and the changes found after a minute out of sight, told once; memory saved to disk. Each world has its own memory, named by a hash of the seed the server sends |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's |
@@ -138,7 +138,8 @@ node tests/live/bedrock_smoke.js                       # the layer under the ski
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
 node tests/live/bedrock_perception.js                  # fair play's sight and hearing
-node tests/live/bedrock_memory.js                      # world memory
+node tests/live/bedrock_memory.js                      # world memory's look-around
+node tests/live/bedrock_memory_scenarios.js            # world memory as the agent runs it (about 3 minutes)
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
 ```
@@ -158,6 +159,11 @@ node tests/live/bedrock_storage.js                     # chest sorting
 - **`bedrock_memory.js`** puts a door, a bed, a double chest and a crop on such a platform, runs world
   memory's look-around, and checks what it kept: each thing as one thing, nothing buried, and the door
   as it was once the bot is walled in.
+- **`bedrock_memory_scenarios.js`** installs world memory with fair play, the way the agent does, and checks
+  what the bot is told: a double chest it opened and walked away from, recalled with what was in it and
+  how far it is; the trail it walked back there; a place it saved; what a sign says; and, after a minute
+  boxed in where it can see nothing, the hut that went up and the chest that went away, told once.
+  Then that memory is saved and that no command was sent. The Bedrock twin of `memory_scenarios.js`.
 - **`bedrock_fair_play.js`** installs fair play the way the agent does, with world memory, and runs
   Mindcraft's real skills and reflexes on such a platform: diamonds buried in rock and one in view, a chest
   in a sealed room, a zombie in a pit under a lid. It checks that the bot finds and digs only what it has
@@ -171,6 +177,10 @@ node tests/live/bedrock_storage.js                     # chest sorting
   back. The Bedrock twin of
   the sorting steps of `storage_scenarios.js`; the rules about whose chest is sorted are the same code on
   both editions and are left to that one.
+
+For a server on another machine, `BEDROCK_TEST_CONSOLE` starts with `ssh <that machine>`. The scenes
+send hundreds of console lines, and ssh's connection sharing (`-o ControlMaster=auto -o
+ControlPath=<a short path>/%C -o ControlPersist=120`) about halves the time each one takes.
 
 A step marked as a known gap reports what happens and never fails the run, and when it starts passing
 the output says so. `tests/live/bedrock_fixture.js` explains each variable.
@@ -232,5 +242,5 @@ spaces and `_ . : -`, and write coordinates out in full.
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, and the `move` event on every tick the bot moves |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
-| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files, and the pinned libraries |

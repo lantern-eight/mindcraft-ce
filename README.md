@@ -10,8 +10,8 @@ offer back.
 
 **This branch, `bedrock`, targets Minecraft Bedrock Edition, currently 1.26.60.** The port is in progress.
 Set to Bedrock, the bot joins a Bedrock Dedicated Server (checked on 1.26.60 and 1.26.63), answers
-players in chat, and Mindcraft's stock skills work there. Fair play, world memory and chest sorting are
-not made to work there yet. [docs/bedrock.md](docs/bedrock.md) says what works, what doesn't and how
+players in chat, and Mindcraft's stock skills work there, and so do fair play, world memory and chest
+sorting, each with a few gaps. [docs/bedrock.md](docs/bedrock.md) says what works, what doesn't and how
 to try it. The rest of this page describes the Java Edition bot this branch is built from, which lives on
 the `main` branch (Java Edition 26.3) and runs from this branch too.
 
@@ -27,7 +27,7 @@ the `main` branch (Java Edition 26.3) and runs from this branch too.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
-| **Minecraft** | **Bedrock Edition 1.26.60** is this branch's target (`bedrock`), and 1.26.61 to 1.26.63 work the same. In progress: the bot joins, chats and runs the stock skills; [fair play and the rest are not ported yet](docs/bedrock.md#known-gaps) |
+| **Minecraft** | **Bedrock Edition 1.26.60** is this branch's target (`bedrock`), and 1.26.61 to 1.26.63 work the same. In progress: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps) |
 | **Java Edition** | On the `main` branch, currently 26.3. This branch takes every change made there, and still runs on Java Edition as `main` does ([pinned libraries](docs/core-hooks.md#dependencies-pinned-to-a-branch)) |
 | **Runs on** | Node 22 |
 | **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |

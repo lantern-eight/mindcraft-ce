@@ -93,6 +93,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   holds a request to. A new live test, `tests/live/bedrock_storage.js`, sorts a chest of part stacks, a
   full chest, and a chest, a double chest, a barrel and a trapped chest together on a server, and takes
   from and puts into a chest by name. It passes on 1.26.60.
+- **Bedrock branch only.** World memory works on Bedrock as the agent runs it. A new live test,
+  `tests/live/bedrock_memory_scenarios.js`, installs it with fair play on a Bedrock server and checks what
+  the bot is told: a double chest opened and walked away from, recalled with what was in it and the way
+  back; the trail; a saved place; what a sign says; and the hut that went up and the chest that went away
+  while the bot could not see, told once. It passes on 1.26.60.
 
 ### Changed
 
