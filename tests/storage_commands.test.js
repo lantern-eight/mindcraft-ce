@@ -46,6 +46,25 @@ test('the two halves of a double chest are one chest, whichever half is seen', (
     assert.deepEqual(chestsFrom([{ name: 'chest', position: { x: 1, y: 2, z: 3 } }])[0].also, null);
 });
 
+test('a game that keeps the pairing of a double chest outside its state says where the other half is', () => {
+    // As on Bedrock: the state says only which way a chest faces, and the block entity names its partner.
+    const paired = (x, z, other) => ({ name: 'chest', position: { x, y: 70, z }, entity: { other }, getProperties: () => ({ facing: 'north' }) });
+    const otherHalfOf = block => block.entity?.other ?? null;
+    const east = paired(3, 0, { x: 2, y: 70, z: 0 });
+    const west = paired(2, 0, { x: 3, y: 70, z: 0 });
+    const lone = paired(6, 0, null);
+    const found = chestsFrom([east, west, lone], { otherHalfOf });
+    assert.deepEqual(found, [
+        { id: '2,70,0', x: 2, y: 70, z: 0, also: { x: 3, y: 70, z: 0 }, name: 'chest' },
+        { id: '6,70,0', x: 6, y: 70, z: 0, also: null, name: 'chest' },
+    ]);
+    assert.deepEqual(chestsFrom([east], { otherHalfOf }), [found[0]], 'either half alone names the same chest');
+    // Where the state does say, the state is what counts.
+    const stated = block('chest', 4, 70, 1, { facing: 'west', type: 'left' });
+    const [fromState] = chestsFrom([stated], { otherHalfOf: () => ({ x: 99, y: 70, z: 99 }) });
+    assert.deepEqual([fromState.id, fromState.also], ['4,70,0', { x: 4, y: 70, z: 1 }]);
+});
+
 const chest = (x, slots, extra = {}) => ({ id: `${x},64,0`, x, y: 64, z: 0, also: null, name: 'chest', slots, ...extra });
 const s = (name, count) => ({ name, count, key: name });
 

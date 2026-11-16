@@ -185,4 +185,31 @@ export const javaEdition = Object.freeze({
         const states = Array.isArray(section.palette) ? section.palette : empty ? [0] : null;
         return { empty, states };
     },
+
+    /**
+     * Where the other half of a two-block thing is, when the game keeps that outside the block's state.
+     * Java keeps it in the state (a chest's `type`, a door's `half`), where world memory's kinds.js reads
+     * it, so here there is never anything more to say.
+     *
+     * @param {{position: {x:number, y:number, z:number}, entity?: object}} block - a block the bot can see
+     * @returns {{x:number, y:number, z:number}|null}
+     */
+    otherHalfOf(block) {
+        return null;
+    },
+
+    /**
+     * Moves the stack in one slot of an open window onto another slot, the way a player does it with the
+     * mouse: pick it up, click the other slot, and put back whatever came off. Onto an empty slot it is
+     * put down; onto the same kind of item it is poured in, and what doesn't fit goes back; onto
+     * anything else the two swap. Slots are numbered the way the window numbers them.
+     *
+     * (mineflayer has a helper for this, but it looks for the cursor on the bot's own inventory, which is
+     * not where the cursor is while a chest is open, so a swap would leave a stack hanging in the air.)
+     */
+    async moveStack(bot, window, from, to) {
+        await bot.clickWindow(from, 0, 0);
+        await bot.clickWindow(to, 0, 0);
+        if (window.selectedItem) await bot.clickWindow(from, 0, 0);
+    },
 });

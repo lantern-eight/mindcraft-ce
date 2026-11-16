@@ -2,10 +2,9 @@
 // The bot's hands on a real chest: getting to it, opening it, reading what is in each slot, clicking.
 // This is the only file in chest sorting that touches the bot's windows.
 //
-// One move of the sort plan is three left clicks, the way a player makes it with the mouse: pick the
-// stack up, click the other slot, and put back whatever is on the cursor after that. (mineflayer has a
-// helper for this, but it looks for the cursor on the bot's own inventory, which is not where the
-// cursor is while a chest is open, so a swap would leave a stack hanging in the air.)
+// One move of the sort plan is the move a player makes with the mouse: pick the stack up, click the
+// other slot, and put back whatever is on the cursor after that. How a bot makes it depends on the
+// edition of the game (on Java, three left clicks), so it is asked of the edition seam (moveStack).
 //
 // The bot carries chest items only in main inventory slots that were empty when the sort began, and
 // never in the hotbar. What it was holding and carrying before stays exactly where it was. Stacks are
@@ -17,6 +16,7 @@
 // again, which is the truth, and tidies up a stack left on the cursor by a wrong guess.
 import { createHash } from 'node:crypto';
 import { onActionCleanup } from '../action_context.js';
+import { editionOf } from '../edition/index.js';
 
 // The bot's main inventory, in its own slot numbers. The nine hotbar slots follow it.
 const MAIN_START = 9, MAIN_END = 36;
@@ -189,9 +189,7 @@ export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARM
                     const a = op === 'put' ? inWindow(handSlots[from]) : from;
                     const b = op === 'take' ? inWindow(handSlots[to]) : to;
                     last = a;
-                    await bot.clickWindow(a, 0, 0);
-                    await bot.clickWindow(b, 0, 0);
-                    if (window.selectedItem) await bot.clickWindow(a, 0, 0);
+                    await editionOf(bot.registry).moveStack(bot, window, a, b);
                     if (pauseMs > 0) await wait(pauseMs);
                 },
                 /**

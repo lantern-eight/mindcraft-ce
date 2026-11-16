@@ -114,6 +114,18 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         try { return bot.blockAt({ x, y, z })?.getSignText?.().join(' / ').trim() || undefined; } catch { return undefined; }
     }
 
+    /**
+     * Where the other half of a two-block thing is: from its state where the game keeps it there, else
+     * from what the edition finds elsewhere (a Bedrock double chest names its partner in its block
+     * entity). The block is only built if the edition asks for what it holds.
+     */
+    function otherHalf(x, y, z, name, state) {
+        const offset = partnerOffset(name, state);
+        if (offset) return { x: x + offset.x, y: y + offset.y, z: z + offset.z };
+        const block = { position: { x, y, z }, get entity() { try { return bot.blockAt({ x, y, z })?.entity; } catch { return undefined; } } };
+        return edition.otherHalfOf(block);
+    }
+
     // ---- Writing one seen cell ----
 
     const isMine = (x, y, z, after) => {
@@ -174,11 +186,10 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         let secondHalf = false;
         if (kind) {
             const state = propsFor(stateId);
-            const offset = partnerOffset(name, state);
             const { thing, isNew } = things.see({ x, y, z }, name, {
                 state, from: trail.current, fromDistance: Math.hypot(x + 0.5 - eyeOrFeet().x, y + 0.5 - eyeOrFeet().y, z + 0.5 - eyeOrFeet().z),
                 day: bot.time?.day ?? null,
-                partner: offset ? { x: x + offset.x, y: y + offset.y, z: z + offset.z } : null,
+                partner: otherHalf(x, y, z, name, state),
                 ...(kind === 'sign' ? { text: signText(x, y, z) } : {}),
             });
             if (isNew && startsPlace(kind)) places.noteThing(thing);

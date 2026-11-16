@@ -21,10 +21,14 @@ const comesFirst = (a, b) => a.x - b.x || a.y - b.y || a.z - b.z;
  *
  * @param {object[]} blocks - blocks as the bot knows them, each with `name`, `position` and, when it
  *   can say how it is turned, `getProperties()`
+ * @param {object} [options]
+ * @param {(block: object) => ({x: number, y: number, z: number}|null)} [options.otherHalfOf] - where the
+ *   other half of a double chest is, for a game that keeps that outside the block's state (the edition
+ *   seam's answer). A block the bot only remembers can't say; it is taken as it was seen
  * @returns {{id: string, x: number, y: number, z: number, also: {x: number, y: number, z: number}|null, name: string}[]}
  *   `also` is the other half of a double chest
  */
-export function chestsFrom(blocks) {
+export function chestsFrom(blocks, { otherHalfOf = () => null } = {}) {
     const chests = new Map();
     for (const block of blocks ?? []) {
         if (!block?.position || !isSortable(block.name)) continue;
@@ -34,7 +38,8 @@ export function chestsFrom(blocks) {
         let state = null;
         try { state = block.getProperties?.() ?? null; } catch { /* a single chest, then */ }
         const offset = partnerOffset(block.name, state);
-        const other = offset ? { x: here.x + offset.x, y: here.y + offset.y, z: here.z + offset.z } : null;
+        const outside = offset ? null : otherHalfOf(block);
+        const other = offset ? { x: here.x + offset.x, y: here.y + offset.y, z: here.z + offset.z } : outside ? cell(outside) : null;
         const [first, second] = other && comesFirst(other, here) < 0 ? [other, here] : [here, other];
         const id = `${first.x},${first.y},${first.z}`;
         if (!chests.has(id)) chests.set(id, { id, ...first, also: second, name: block.name });

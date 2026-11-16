@@ -212,10 +212,11 @@ All of it lives in `src/agent/fairplay/`:
 | `install.js` | Switches all of the above on for one agent |
 
 **What depends on the edition of the game.** How block states are numbered and what their properties are
-called, how a chunk section lists the blocks it holds, which sounds the server sends and how it tells the bot it is an operator are asked for by
-name from `src/agent/edition/` (`editionOf(registry)`), never read straight from game data, chunks or
-packets. Sight's tables, the block search, hearing, the operator check and world memory's look-around all
-go through it. `edition/java.js` gives Java Edition's answers; another edition of the game registers its
+called, how a chunk section lists the blocks it holds, which sounds the server sends, how it tells the bot
+it is an operator, where it keeps which two blocks make a double chest, and how a stack is moved in an open
+chest are asked for by name from `src/agent/edition/` (`editionOf(registry)`), never read straight from
+game data, chunks or packets. Sight's tables, the block search, hearing, the operator check, world
+memory's look-around and chest sorting's hands all go through it. `edition/java.js` gives Java Edition's answers; another edition of the game registers its
 own.
 
 **How it hooks into Mindcraft.** Nearly every search in Mindcraft goes through `src/agent/library/world.js`.

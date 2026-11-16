@@ -231,9 +231,13 @@ const real = {
     },
 };
 
+// Some games keep which two chest blocks make one double chest outside the blocks' states; the edition
+// says where. Asked of the blocks the bot knows, so a remembered chest is taken as it was seen.
+const halvesOn = bot => ({ otherHalfOf: block => editionOf(bot.registry).otherHalfOf(block) });
+
 /** The chests the bot knows of within `distance`, nearest first, each marked with whether it is in view now. */
 function chestsAround(bot, distance, env) {
-    return chestsFrom(env.nearestBlocks(bot, distance)).map(chest => ({ ...chest, inView: Boolean(env.inView(bot, chest)) }));
+    return chestsFrom(env.nearestBlocks(bot, distance), halvesOn(bot)).map(chest => ({ ...chest, inView: Boolean(env.inView(bot, chest)) }));
 }
 
 /** The chest at a spot, as far as the bot knows: either half of a double chest names it. Null when there is none. */
@@ -243,7 +247,7 @@ function chestAt(bot, pos, env) {
     if (feet && Math.hypot(cell.x + 0.5 - feet.x, cell.y + 0.5 - feet.y, cell.z + 0.5 - feet.z) > NAMED_CHEST_RANGE) return null;
     const block = env.blockAt(bot, cell);
     if (!block || !isSortable(block.name)) return null;
-    return chestsFrom([{ name: block.name, position: cell, getProperties: () => block.getProperties?.() ?? null }])[0];
+    return chestsFrom([{ name: block.name, position: cell, entity: block.entity, getProperties: () => block.getProperties?.() ?? null }], halvesOn(bot))[0];
 }
 
 /**
