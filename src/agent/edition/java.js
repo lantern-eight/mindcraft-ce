@@ -51,6 +51,10 @@ function soundNameOf(registry, packet) {
     return Number.isInteger(id) ? registry?.sounds?.[id + base]?.name ?? null : null;
 }
 
+// The values a block property can take, in the order Java counts them.
+const valuesOf = property => property.values
+    ?? (property.type === 'bool' ? ['true', 'false'] : Array.from({ length: property.num_values }, (_, i) => String(i)));
+
 // Worked out once per game data: one more than the highest state number.
 const tableSizes = new WeakMap();
 function tableSize(registry) {
@@ -80,6 +84,49 @@ export const javaEdition = Object.freeze({
      */
     readStateId(column, pos) {
         return column.getBlockStateId(pos);
+    },
+
+    /**
+     * The named properties of a block state, every value a string, or null for a block with none
+     * (src/agent/memory/block_state.js). A Java state number is the block's first number plus an offset
+     * that packs one digit per property, the last property in the lowest place.
+     */
+    propsOfState(registry, stateId) {
+        const block = registry.blocksByStateId[stateId];
+        if (!block?.states?.length) return null;
+        let rest = stateId - block.minStateId;
+        const props = {};
+        for (let i = block.states.length - 1; i >= 0; i--) {
+            const property = block.states[i];
+            props[property.name] = valuesOf(property)[rest % property.num_values];
+            rest = Math.floor(rest / property.num_values);
+        }
+        return props;
+    },
+
+    /**
+     * The state number for a block name with these properties (src/agent/memory/block_state.js): the
+     * block's default state with each property given replaced. A property the block doesn't have, or a
+     * value it can't take, is ignored. Null for a block name the game data doesn't know.
+     */
+    stateOfProps(registry, name, props) {
+        const block = registry.blocksByName[name];
+        if (!block) return null;
+        const base = block.defaultState ?? block.minStateId;
+        const states = block.states ?? [];
+        if (!props || !states.length) return base;
+        const digits = [];
+        let rest = base - block.minStateId;
+        for (let i = states.length - 1; i >= 0; i--) {
+            digits[i] = rest % states[i].num_values;
+            rest = Math.floor(rest / states[i].num_values);
+        }
+        let offset = 0;
+        states.forEach((property, i) => {
+            const wanted = props[property.name] === undefined ? -1 : valuesOf(property).indexOf(String(props[property.name]));
+            offset = offset * property.num_values + (wanted >= 0 ? wanted : digits[i]);
+        });
+        return block.minStateId + offset;
     },
 
     /** An empty table with one entry per block state of this game data (see StateTable above). */

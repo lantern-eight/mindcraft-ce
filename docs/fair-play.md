@@ -211,8 +211,8 @@ All of it lives in `src/agent/fairplay/`:
 | `commands.js` | `!recall` (world memory registers a fuller one in its place when it is on), and the "not found means not seen" sentence |
 | `install.js` | Switches all of the above on for one agent |
 
-**What depends on the edition of the game.** How block states are numbered, how a chunk section lists the
-blocks it holds, which sounds the server sends and how it tells the bot it is an operator are asked for by
+**What depends on the edition of the game.** How block states are numbered and what their properties are
+called, how a chunk section lists the blocks it holds, which sounds the server sends and how it tells the bot it is an operator are asked for by
 name from `src/agent/edition/` (`editionOf(registry)`), never read straight from game data, chunks or
 packets. Sight's tables, the block search, hearing, the operator check and world memory's look-around all
 go through it. `edition/java.js` gives Java Edition's answers; another edition of the game registers its
