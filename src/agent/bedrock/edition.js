@@ -12,6 +12,10 @@
 //   - **What a chunk holds.** A section the server reported as all air is never made, so reading a cell
 //     there gives nothing, where Java gives air. And a section keeps one palette per layer (the second
 //     layer is mostly the water a block stands in), each entry an object that holds the state number.
+//   - **Sounds.** A Bedrock client makes most mob noises itself. The server sends a sound for some things
+//     a mob does, and only an event when a mob is hurt or dies, from which the client plays the cry. It
+//     never sends a mob's everyday noises (a cow's moo): the client makes those up as it goes.
+//   - **Operator rights,** which a Bedrock server gives as a permission level, not an entity status.
 //
 // Read with Java's answers, a hashed state number fits no table: nothing blocked sight, and a search over
 // the chunks found nothing. That is why the bot named the dirt under a grass floor it was standing on.
@@ -106,6 +110,21 @@ class HashedStateTable {
     }
 }
 
+// ---- Sounds ----
+
+// What a Bedrock sound is called, as the word Java uses in its sound names, where the two differ. Hearing
+// reads the Java name ("entity.creeper.primed" is a creeper about to blow).
+const SOUND_WORDS = { fuse: 'primed' };
+// Sounds the server sends that a player doesn't hear: a mob that appears makes no noise.
+const SILENT = new Set(['spawn']);
+// The mob events a Bedrock client plays a cry for, as the word in Java's sound name.
+const CRIES = { hurt_animation: 'hurt', death_animation: 'death' };
+
+// ---- Operator rights ----
+
+// A Bedrock server's command permission levels, in order: their place is the level the operator check reports, 0 for none.
+const COMMAND_LEVELS = ['normal', 'operator', 'automation', 'host', 'owner', 'internal'];
+
 // ---- Chunks ----
 
 const airStates = new WeakMap(); // registry -> air's state number
@@ -137,6 +156,46 @@ export const bedrockEdition = Object.freeze({
 
     stateTable(registry) {
         return hasStateRuns(registry) ? java.stateTable(registry) : new HashedStateTable(slotsOf(registry));
+    },
+
+    /**
+     * Sounds by their Java names ("entity.cow.hurt"), from the two things a Bedrock server sends about mob
+     * noises: a sound it plays for a mob, and the event the client plays a hurt or death cry for. The
+     * bot's own cries are left out. Only listens.
+     */
+    onSound(bot, hear) {
+        const played = packet => {
+            const kind = String(packet?.entity_type ?? '').replace(/^minecraft:/, '');
+            if (!kind || typeof packet.sound_id !== 'string' || SILENT.has(packet.sound_id)) return;
+            hear(`entity.${kind}.${SOUND_WORDS[packet.sound_id] ?? packet.sound_id}`, packet.position);
+        };
+        const cried = packet => {
+            const cry = CRIES[packet?.event_id];
+            if (!cry) return;
+            const mob = bot.entities?.[Number(packet.runtime_entity_id)];
+            if (!mob?.name || mob === bot.entity) return;
+            hear(`entity.${mob.name}.${cry}`, mob.position);
+        };
+        bot._client?.on?.('level_sound_event', played);
+        bot._client?.on?.('entity_event', cried);
+        return () => {
+            bot._client?.off?.('level_sound_event', played);
+            bot._client?.off?.('entity_event', cried);
+        };
+    },
+
+    /**
+     * The operator level from the permissions a Bedrock server gives the bot, which mineflayer's Bedrock
+     * adapter hands on as `abilities`: the command permission's place in COMMAND_LEVELS, and at least 1
+     * for a player the server calls an operator.
+     */
+    onOperatorLevel(bot, report) {
+        const listener = abilities => {
+            const command = Math.max(0, COMMAND_LEVELS.indexOf(abilities?.commandPermission));
+            report(abilities?.permissionLevel === 'operator' ? Math.max(1, command) : command);
+        };
+        bot.on?.('abilities', listener);
+        return () => bot.off?.('abilities', listener);
     },
 
     /**

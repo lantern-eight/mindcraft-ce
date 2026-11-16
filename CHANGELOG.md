@@ -71,8 +71,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** Fair play's sight works on Bedrock. With fair play on, the bot knew blocks it
   could not have seen, such as the ground under its feet and ore inside rock: Bedrock numbers block
   states by hash, and fair play's list of what hides what came out empty. It now knows only what is in
-  view, as on Java; a new live test, `tests/live/bedrock_perception.js`, checks it on a server. Hearing,
-  the operator check and world memory are not ported yet, so fair play as a whole isn't either.
+  view, as on Java. A new live test, `tests/live/bedrock_perception.js`, checks it on a server.
+- **Bedrock branch only.** With fair play on, a Bedrock bot hears a mob cry out when it is hurt or dies,
+  as a direction and a rough distance, and notices when the server makes it an operator. Both listened
+  for Java's packets only. A mob's everyday noises are still not heard: a Bedrock client makes those up
+  itself, and the server never sends them.
 
 ### Changed
 

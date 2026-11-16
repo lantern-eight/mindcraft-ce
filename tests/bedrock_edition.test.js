@@ -165,3 +165,60 @@ test('standing on a flat grass floor, the bot knows the grass and not the dirt o
     assert.deepEqual(find('diamond_ore').map(p => [p.x, p.y, p.z]), [[5, -60, 0]]);
     perception.stop();
 });
+
+// ---- Hearing and operator rights ----
+
+function listeningBot() {
+    const bot = new EventEmitter();
+    bot._client = new EventEmitter();
+    bot.entity = { id: 1, name: 'player', position: new Vec3(0, -60, 0) };
+    bot.entities = { 1: bot.entity, 40: { id: 40, name: 'cow', position: new Vec3(0.5, -60, -9.5) } };
+    return bot;
+}
+
+test('a mob is heard from what a Bedrock server sends: its sounds, and its hurt and death cries', () => {
+    const bot = listeningBot();
+    const heard = [];
+    const stop = bedrockEdition.onSound(bot, (name, position) => heard.push([name, position]));
+    const at = { x: 3.5, y: -59, z: 1.5 };
+    bot._client.emit('level_sound_event', { sound_id: 'spawn', position: at, entity_type: 'minecraft:cow' }); // makes no noise
+    bot._client.emit('level_sound_event', { sound_id: 'fuse', position: at, entity_type: 'minecraft:creeper' });
+    bot._client.emit('level_sound_event', { sound_id: 'place', position: at, entity_type: '' });             // a block, not a mob
+    bot._client.emit('entity_event', { runtime_entity_id: '40', event_id: 'hurt_animation', data: 4 });      // sent as a big number
+    bot._client.emit('entity_event', { runtime_entity_id: '40', event_id: 'death_animation', data: 0 });
+    bot._client.emit('entity_event', { runtime_entity_id: '40', event_id: 'eat_grass_animation', data: 0 }); // silent
+    bot._client.emit('entity_event', { runtime_entity_id: '1', event_id: 'hurt_animation', data: 4 });       // the bot itself
+    bot._client.emit('entity_event', { runtime_entity_id: '77', event_id: 'hurt_animation', data: 4 });      // nothing it knows of
+    assert.deepEqual(heard.map(([name]) => name), ['entity.creeper.primed', 'entity.cow.hurt', 'entity.cow.death']);
+    assert.deepEqual(heard[0][1], at);
+    assert.deepEqual(heard[1][1], bot.entities[40].position);
+    stop();
+    assert.deepEqual(['level_sound_event', 'entity_event'].map(p => bot._client.listenerCount(p)), [0, 0]);
+});
+
+test('perception turns a Bedrock cry into what a player would make of it', () => {
+    const registry = bedrockRegistry();
+    const bot = Object.assign(bedrockBot(registry, flatColumns(registry), [0.5, -60, 0.5]), { _client: new EventEmitter() });
+    bot.entities[40] = { id: 40, name: 'creeper', type: 'hostile', position: new Vec3(0.5, -60, -9.5), height: 1.7 };
+    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), searchBudgetMs: Infinity, tickBudgetMs: Infinity });
+    perception.start();
+    bot._client.emit('entity_event', { runtime_entity_id: '40', event_id: 'hurt_animation', data: 4 });
+    bot._client.emit('level_sound_event', { sound_id: 'fuse', position: { x: 0.5, y: -60, z: -9.5 }, entity_type: 'minecraft:creeper' });
+    const heard = perception.heard().map(h => `${h.subject} (${h.direction}, ${h.distance})`).sort();
+    perception.stop();
+    assert.deepEqual(heard, ['creeper (hissing) (north, close)', 'creeper (north, close)']);
+});
+
+test('the operator level comes from the permissions a Bedrock server gives', () => {
+    const bot = listeningBot();
+    const levels = [];
+    const stop = bedrockEdition.onOperatorLevel(bot, level => levels.push(level));
+    bot.emit('abilities', { permissionLevel: 'member', commandPermission: 'normal' });
+    bot.emit('abilities', { permissionLevel: 'operator', commandPermission: 'normal' });
+    bot.emit('abilities', { permissionLevel: 'operator', commandPermission: 'operator' });
+    bot.emit('abilities', { permissionLevel: 'custom', commandPermission: 'owner' });
+    bot.emit('abilities', { permissionLevel: 'visitor' });
+    assert.deepEqual(levels, [0, 1, 1, 4, 0]);
+    stop();
+    assert.equal(bot.listenerCount('abilities'), 0);
+});

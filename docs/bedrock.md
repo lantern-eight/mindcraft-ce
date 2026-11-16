@@ -109,9 +109,10 @@ stay.
 
 | Gap | What happens today |
 |---|---|
-| **Fair play** | Only in part, so keep `fair_play: "off"` for now. **Sight works:** the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet (checked on a server by `bedrock_perception.js`). **Not yet:** hearing (Bedrock sends sounds in its own packet, so the bot hears nothing), noticing that the server made it an operator (the game mode check works), and reach uses Java's numbers |
+| **Fair play** | Only in part, so keep `fair_play: "off"` for now. **Works,** checked on a server by `bedrock_perception.js`: sight (the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet), hearing a mob's cry from behind a wall, and noticing that the server made the bot an operator. **Not checked on Bedrock yet:** the rest of fair play working with the agent (route planning, the reach guard, model-written code). Reach uses Java's numbers |
+| **Mobs' everyday noises** | Not heard. A Bedrock client makes a mob's moos and groans up by itself, and the server never sends them, so the bot hears a mob only when it is hurt or dies, or does something the server plays a sound for |
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
-| **World memory, chest sorting** | Not ported. World memory keeps Java's names for block states; chest sorting moves items the way Java's windows work |
+| **World memory, chest sorting** | Not ported. World memory reads block states the way Java numbers them; chest sorting moves items the way Java's windows work. |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's |

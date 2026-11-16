@@ -17,7 +17,7 @@ import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
 
 const NAME = 'BedrockSight';
-const { step, knownGap, summary } = createReport();
+const { step, summary } = createReport();
 const server = bedrockTestServer();
 if (!server.hasConsole) throw new Error('The scene is built from the server console: set BEDROCK_TEST_CONSOLE');
 const cmd = server.command;
@@ -73,6 +73,7 @@ try {
     const { fairQueries, registerFairPlay } = await import('../../src/agent/fairplay/fair_queries.js');
     const { setWorldQueries } = await import('../../src/agent/library/world_queries.js');
     const world = await import('../../src/agent/library/world.js');
+    const { watchPermissions } = await import('../../src/agent/fairplay/install.js');
 
     await step('the bot joins, and the scene is built', async () => {
         bot = initBot(NAME);
@@ -151,13 +152,30 @@ try {
         return { tickMs: Math.round(tickMs), nearbyBlocksMs: Math.round(nearbyMs), nearbyKnown: near.length };
     });
 
-    await knownGap('the cow in the sealed pen is heard, though it is not seen', async () => {
-        perception.start(); // listens for the server's sound packets
-        await delay(15000); // cows moo now and then
-        const heard = perception.heard({ withinMs: 15000 });
+    // A Bedrock server never sends a mob's everyday noises (the client makes those up itself), so the cow
+    // is made to cry out: the walls of its pen close in on it. Mob loot is off first, so it leaves nothing.
+    await step('the cow in the sealed pen is heard crying out, from the north, though it is not seen', async () => {
+        perception.start(); // listens for what the server sends about sounds
+        await cmd('gamerule domobloot false');
+        await fill([0, 2, -10], [0, 3, -10], 'stone');
+        await delay(4000);
+        const heard = perception.heard({ withinMs: 10000 });
         perception.stop();
-        assert.ok(heard.some(h => h.subject === 'cow'), `heard ${JSON.stringify(heard)}`);
+        assert.ok(heard.some(h => h.subject === 'cow' && h.direction === 'north'), `heard ${JSON.stringify(heard)}`);
+        assert.equal(perception.entities().filter(e => e.name === 'cow').length, 1, 'still only the cow behind glass is seen');
         return { heard: heard.map(h => `${h.subject} (${h.text})`) };
+    });
+
+    await step('made an operator, the bot notices; made a member again, it is cleared', async () => {
+        const events = [];
+        const watch = watchPermissions(bot, { onViolation: reason => events.push(reason), onClear: () => events.push('cleared') });
+        assert.equal(watch.violation, null, 'a member is not an operator');
+        await cmd(`op ${NAME}`, 1500);
+        const asOperator = watch.violation;
+        await cmd(`deop ${NAME}`, 1500);
+        assert.match(String(asOperator), /operator/, `while op: ${asOperator}`);
+        assert.equal(watch.violation, null, `after deop: ${watch.violation}`);
+        return { events };
     });
 } catch (error) {
     console.error(error);
