@@ -114,6 +114,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- **Bedrock branch only.** On Bedrock `useDoor` finds an oak door by itself, and walks through a door that
+  is already open. It looked for the oak door by Java's name, `oak_door` (Bedrock's is `wooden_door`), and
+  read whether a door was open from Java's `open`, so it took every Bedrock door for shut and closed an
+  open one in its own way.
 - **Bedrock branch only.** On Bedrock `!entities` names each villager's job and level and lists children
   apart, and `!showVillagerTrades` shows a villager's trades. Bedrock names villagers `villager_v2` and
   keeps the job and level in fields of its own, which Mindcraft read the Java way, and showing a jobless

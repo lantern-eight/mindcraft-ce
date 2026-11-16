@@ -103,6 +103,7 @@ export const HAND_OPENED_DOORS = [
     'waxed_copper_door', 'waxed_exposed_copper_door', 'waxed_weathered_copper_door', 'waxed_oxidized_copper_door', // 1.21+
     'pale_oak_door', // 1.21.4+
     'poplar_door', // 26.3+
+    'wooden_door', // Bedrock Edition's name for the oak door (docs/core-hooks.md, B5)
 ]
 
 

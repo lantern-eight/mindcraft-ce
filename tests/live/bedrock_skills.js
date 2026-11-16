@@ -278,6 +278,20 @@ const walk = [
         // it started from. In the doorway or beyond means the door opened and the bot went in.
         assert.ok(bot.entity.position.x > at(3, 0, 0).x + 0.2, `the bot is at x ${bot.entity.position.x.toFixed(1)}, still in front of the door at x ${at(3, 0, 0).x}`);
     } },
+    { name: 'useDoor: find a door by itself, and pass one already open', async run() {
+        await cmd(`fill ${xyz(at(3, 0, -3))} ${xyz(at(3, 1, 3))} cobblestone`);
+        await cmd(`fill ${xyz(at(3, 0, 0))} ${xyz(at(3, 1, 0))} air`);
+        await setblock(3, 0, 0, 'wooden_door');
+        await delay(500);
+        await bot.activateBlock(bot.blockAt(at(3, 0, 0)));
+        const deadline = Date.now() + 3000;
+        while (Date.now() < deadline && !bot.blockAt(at(3, 0, 0))?._properties?.open_bit) await delay(100);
+        assert.ok(bot.blockAt(at(3, 0, 0))?._properties?.open_bit, 'the door did not open for the scene');
+        // No position: the skill looks for the nearest door by name. It mustn't shut this one first.
+        const ok = await withinTime(skills.useDoor(bot), 30000, 'useDoor');
+        assert.ok(ok, said());
+        assert.ok(bot.entity.position.x > at(3, 0, 0).x + 0.2, `the bot is at x ${bot.entity.position.x.toFixed(1)}, still in front of the door at x ${at(3, 0, 0).x}`);
+    } },
     { name: 'digDown: dig straight down', async run() {
         await give('iron_shovel', 1);
         const before = bot.entity.position.y;

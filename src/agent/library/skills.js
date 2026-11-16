@@ -1620,7 +1620,8 @@ export async function useDoor(bot, door_pos=null) {
     
     let door_block = bot.blockAt(door_pos);
     await bot.lookAt(door_pos);
-    if (!door_block._properties.open)
+    // Bedrock Edition keeps a door's open state as open_bit (docs/core-hooks.md, B5).
+    if (!(door_block._properties.open ?? door_block._properties.open_bit))
         await bot.activateBlock(door_block);
     
     bot.setControlState("forward", true);
