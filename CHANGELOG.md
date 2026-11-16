@@ -76,6 +76,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   as a direction and a rough distance, and notices when the server makes it an operator. Both listened
   for Java's packets only. A mob's everyday noises are still not heard: a Bedrock client makes those up
   itself, and the server never sends them.
+- **Bedrock branch only.** World memory keeps a Bedrock world's files apart from other worlds', by a hash
+  of the seed the server sends. Before, every Bedrock world was told apart only by the server's address.
+  World memory itself is not ported to Bedrock yet.
 
 ### Changed
 

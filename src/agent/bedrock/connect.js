@@ -8,6 +8,7 @@
 // start-up code needs one line to hand over (see docs/core-hooks.md) and stays as it is for Java.
 //
 // This file decides nothing about what the bot may know or do. It only gets it connected.
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import minecraftData from 'minecraft-data';
 import { createBot as createMineflayerBot } from 'mineflayer';
@@ -169,6 +170,24 @@ export function gameDataFor(registry, bot = null) {
 }
 
 /**
+ * A name for the world the bot joined, from what a Bedrock server says when the bot joins, or null when
+ * it gives nothing to go by.
+ *
+ * World memory keeps one set of files per world, and tells worlds apart by this name (`bot.worldIdentity`).
+ * A Java server sends a hash of the world's seed for it. A Bedrock server sends the seed itself, which a
+ * file name has no need to show, so it is hashed here. The level's name is no use: it is often a dedicated
+ * server's default, the same on every server. A seed of 0 is what a server sends to keep its seed to itself; then the world
+ * is told apart by the server's address, as on Java.
+ */
+export function worldIdentityOf(startGame) {
+    const seed = startGame?.seed; // a 64-bit number, as two 32-bit halves or as one big number
+    if (seed === undefined || seed === null) return null;
+    const text = Array.isArray(seed) ? seed.join(':') : String(seed);
+    if (/^[0:]+$/.test(text)) return null;
+    return createHash('sha256').update(text).digest('hex').slice(0, 16);
+}
+
+/**
  * Create the bot for a Bedrock server and wire up what every bot needs.
  *
  * `useGameData` is given the bot's game data once the bot knows its version. On Bedrock the server hands
@@ -181,9 +200,8 @@ export function gameDataFor(registry, bot = null) {
  *   - the position-packet throttle: it works around a Java server's packet limit, and Bedrock movement
  *     is a different packet on a fixed tick;
  *   - the filter for unreadable packets: it names errors of the Java protocol library;
- *   - the world's seed from the login packet, which world memory uses to tell worlds apart: Bedrock's
- *     login has no such field. Until a Bedrock source for it is added, a world is told apart by the
- *     server's address, or by `world_id` where that is set.
+ *   - the world's seed from Java's login packet, which world memory uses to tell worlds apart. Bedrock
+ *     sends its seed when the game starts instead, and worldIdentityOf makes the name from that.
  *
  * `createBot` is only a parameter so that a test can stand in for mineflayer.
  */
@@ -208,6 +226,10 @@ export function initBedrockBot(username, settings, useGameData, { createBot = cr
         bot.acceptResourcePack();
     });
     bot.once('login', () => useGameData(gameDataFor(bot.registry, bot)));
+    bot._client?.once?.('start_game', packet => {
+        const identity = worldIdentityOf(packet);
+        if (identity) bot.worldIdentity = identity;
+    });
 
     return bot;
 }

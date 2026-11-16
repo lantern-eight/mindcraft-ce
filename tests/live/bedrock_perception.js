@@ -86,6 +86,8 @@ try {
         await buildScene(); // straight above the bot, in chunks it already has
         await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y + 1} ${origin.z + 0.5}`, 2500);
         assert.equal(bot.blockAt(at(0, 0, 0))?.name, 'stone', 'the bot stands on the platform');
+        // World memory keeps its files per world, by this name.
+        assert.match(String(bot.worldIdentity), /^[0-9a-f]{16}$/, `world name ${bot.worldIdentity}`);
     });
 
     const policy = resolvePolicy({ fair_play: 'strict' });

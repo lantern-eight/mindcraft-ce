@@ -10,7 +10,7 @@ import agentSettings, { setSettings } from '../src/agent/settings.js';
 import { initBot } from '../src/utils/mcdata.js';
 import { createAgent } from '../src/mindcraft/mindcraft.js';
 import {
-    DEFAULT_BEDROCK_PORT, isBedrock, bedrockVersion, bedrockServer, bedrockBotOptions, initBedrockBot, acceptServerKey,
+    DEFAULT_BEDROCK_PORT, isBedrock, bedrockVersion, bedrockServer, bedrockBotOptions, initBedrockBot, acceptServerKey, worldIdentityOf,
     gameDataFor,
 } from '../src/agent/bedrock/connect.js';
 
@@ -184,7 +184,23 @@ test('none of the Java-only wiring touches the connection', () => {
     initBedrockBot('andy', bedrockSettings(), () => {}, { createBot });
     assert.equal(bot._client.write, write);
     assert.equal(bot._client.emit, emit);
-    assert.equal(bot._client.eventNames().length, 0);
+    assert.deepEqual(bot._client.eventNames(), ['start_game'], 'only the Bedrock packet that names the world');
+});
+
+test('the world is named by a hash of the seed the server sends, and by nothing when there is none', () => {
+    const name = worldIdentityOf({ seed: [393228526, -1366742413] });
+    assert.match(name, /^[0-9a-f]{16}$/);
+    assert.ok(!name.includes('393228526'), 'the seed itself is not shown');
+    assert.equal(worldIdentityOf({ seed: [393228526, -1366742413] }), name, 'the same world, the same name');
+    assert.notEqual(worldIdentityOf({ seed: [393228526, 1] }), name);
+    assert.equal(worldIdentityOf({ seed: 12345n }), worldIdentityOf({ seed: 12345n }));
+    for (const hidden of [{ seed: [0, 0] }, { seed: 0n }, { seed: 0 }, {}, null]) assert.equal(worldIdentityOf(hidden), null);
+
+    const { bot, createBot } = fakeMineflayer();
+    bot._client = new EventEmitter();
+    initBedrockBot('andy', bedrockSettings(), () => {}, { createBot });
+    bot._client.emit('start_game', { seed: [393228526, -1366742413] });
+    assert.equal(bot.worldIdentity, name);
 });
 
 test("the server's key is accepted and printed, and no transport is forced by it", () => {
