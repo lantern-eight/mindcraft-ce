@@ -145,7 +145,7 @@ A step marked as a known gap reports what happens and never fails the run, and w
 the output says so. `tests/live/bedrock_fixture.js` explains each variable.
 
 **Never point them at a world you care about.** They dig, build, hand out items, clear inventories,
-summon and kill animals, and change the time and the difficulty.
+summon and kill animals, change the time and the difficulty, and turn off mobs spawning by themselves.
 
 ### A Throwaway Server
 

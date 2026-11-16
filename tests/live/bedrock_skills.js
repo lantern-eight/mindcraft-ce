@@ -194,10 +194,14 @@ const walk = [
     { name: 'attackNearest: kill an animal', async run() {
         await give('iron_sword', 1);
         await cmd(`summon pig ${xyz(at(4, 0, 3))}`, 1500);
+        // Counted, not "no pig in sight": an animal that wandered in by itself is not this scene's.
+        const pigs = () => Object.values(bot.entities).filter(entity => entity.name === 'pig');
+        const before = pigs().length;
+        assert.ok(before > 0, 'the pig did not appear');
         const ok = await withinTime(skills.attackNearest(bot, 'pig', true), 60000, 'attackNearest');
         assert.ok(ok, said());
         await delay(1000);
-        assert.ok(!Object.values(bot.entities).some(entity => entity.name === 'pig' && entity.position.distanceTo(bot.entity.position) < 16), 'the pig is still there');
+        assert.equal(pigs().length, before - 1, `there were ${before} pigs and there are ${pigs().length}; ${said()}`);
     } },
     { name: 'goToPosition and goToNearestBlock', async run() {
         await setblock(6, 0, 5, 'chest');
@@ -414,6 +418,9 @@ try {
     });
     joined = true;
     origin = bot.entity.position.floored();
+    // Animals and monsters that turn up by themselves would walk into the scenes. The ones a scene needs
+    // are summoned. This is left off afterwards: the server is a throwaway.
+    await cmd('gamerule domobspawning false');
 
     for (const scene of walk) {
         if (only && !only.some(word => scene.name.startsWith(word))) continue;
