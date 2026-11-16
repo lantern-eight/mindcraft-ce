@@ -93,6 +93,7 @@ stay.
 | **World memory, chest sorting** | Not ported. World memory keeps Java's names for block states; chest sorting moves items the way Java's windows work |
 | **Eating** | The bot does not eat by itself. The plugin that does it on Java can't be loaded |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
+| **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's |
 | **Recipes for a crafting table, furnaces, combat, sleeping, farming** | Not tried from this repo |
 

@@ -114,14 +114,17 @@ try {
         const distance = bot.entity.position.distanceTo(from);
         const speed = distance / seconds;
         // A server that thinks the bot moved too fast pulls it back. Standing still afterwards shows it:
-        // the position would jump.
+        // the position would jump. A jump of under half a block is something else and is expected: when
+        // the pathfinder stops it shifts the bot to the middle of its block, a Bedrock server does not
+        // go along with that, and the bot takes the server's word for where it is.
         const stopped = bot.entity.position.clone();
         await delay(1500);
         const pulledBack = bot.entity.position.distanceTo(stopped);
-        assert.ok(distance > 9, `walked ${distance.toFixed(2)} blocks`);
+        const settled = bot.entity.position.distanceTo(from);
+        assert.ok(settled > 9, `walked ${settled.toFixed(2)} blocks`);
         assert.ok(speed > 3 && speed < 7, `speed ${speed.toFixed(2)} blocks a second`);
-        assert.ok(pulledBack < 0.2, `the server moved the bot ${pulledBack.toFixed(2)} blocks after it stopped`);
-        return { blocks: Number(distance.toFixed(2)), blocksPerSecond: Number(speed.toFixed(2)), pulledBack: Number(pulledBack.toFixed(3)) };
+        assert.ok(pulledBack < 0.6, `the server moved the bot ${pulledBack.toFixed(2)} blocks after it stopped`);
+        return { blocks: Number(settled.toFixed(2)), blocksPerSecond: Number(speed.toFixed(2)), pulledBack: Number(pulledBack.toFixed(3)) };
     });
 
     let dug;
@@ -162,10 +165,19 @@ try {
     });
 
     if (!server.hasConsole) {
+        skip('a block put back where the bot dug stays there', 'no server console');
         skip('the bot puts items in a chest and takes some back', 'no server console');
         skip('the bot crafts in its own grid', 'no server console');
         skip('the bot crafts with what it just crafted', 'no server console');
     } else {
+        await step('a block put back where the bot dug stays there', async () => {
+            // The server has to hear that the bot let go of the block it broke. One that still has the bot
+            // down as breaking that spot breaks whatever turns up there next, and leaves its item lying in
+            // the hole. The bot is still in reach of the hole here, which is when that happens.
+            await server.command(`setblock ${xyz(at(12, -1, 0))} grass_block`, 1500);
+            assert.equal(bot.blockAt(at(12, -1, 0))?.name, 'grass_block');
+        });
+
         await step('the bot puts items in a chest and takes some back', async () => {
             // Written the way the skills use a chest on Java: the opened chest is an object with deposit,
             // withdraw and close on it. The adapter's own answer has another shape, which the Bedrock

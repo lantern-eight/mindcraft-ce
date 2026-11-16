@@ -36,6 +36,18 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** On Bedrock a click on a block is no longer ignored when the block changed after
   the bot looked it up. A Bedrock click names the block it lands on, and the adapter named the one it was
   handed, not the one that is there. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock a block put back where the bot dug stays there. The server was
+  never told that the bot had let go of a block it broke, and kept breaking whatever turned up in that
+  spot next, leaving an item on the ground each time. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock the bot no longer hangs in the air beside a hole. When the bot
+  stops walking, the pathfinder shifts it to the middle of its block; a Bedrock server refuses that, and
+  the adapter took only the height from the server's answer. The two then disagreed about where the bot
+  stood, and at the rim of a hole it fell and was put back up without end. A bot that is standing still
+  now goes where the server says it is, so after a walk it may stand a little off the middle of its
+  block. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock the bot can fill a bucket and empty one. Bedrock wants a bucket
+  used on the water or the block in view, and the adapter used it in the air. Fixed in the pinned
+  mineflayer branch.
 - **Bedrock branch only.** On Bedrock the stock crafting skill works, in the bot's own grid and at a
   crafting table. A Bedrock server sends its recipes when the bot joins, and the adapter keeps them in a
   layout of its own; the skills now get them in the layout they have on Java, a recipe that takes "any
