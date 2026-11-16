@@ -1,10 +1,11 @@
 const settings = {
-    "minecraft_version": "26.3", // or "auto" to use whatever version the server runs
-    // Which Minecraft the server runs: "java" or "bedrock". For "bedrock", minecraft_version is a Bedrock
-    // version such as "1.26.60" (or "auto"), and port is the Bedrock server's: 19132 unless it was changed.
-    "minecraft_edition": "java",
+    "minecraft_version": "auto", // or a Bedrock version such as "1.26.60"; for Java, such as "26.3"
+    // Which Minecraft the server runs: "bedrock" (this branch's default) or "java". For "bedrock",
+    // minecraft_version is a Bedrock version or "auto", and port is the Bedrock server's: 19132 unless it
+    // was changed. For "java", set the Java server's version and port (-1 scans for open ports).
+    "minecraft_edition": "bedrock",
     "host": "localhost", // or "localhost", "your.ip.address.here"
-    "port": 55916, // set to -1 to automatically scan for open ports
+    "port": 19132,
     "auth": "offline", // or "microsoft"
 
     // the mindserver manages all agents and hosts the UI

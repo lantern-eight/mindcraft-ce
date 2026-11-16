@@ -35,6 +35,14 @@ test('the edition setting is listed for MindServer, with the same default as set
     assert.equal(spec.minecraft_edition.default, settings.minecraft_edition);
 });
 
+test('on this branch a bot is made for a Bedrock server unless told otherwise', () => {
+    assert.equal(settings.minecraft_edition, 'bedrock');
+    assert.equal(isBedrock(settings), true);
+    assert.equal(settings.port, 19132, 'a Bedrock server\'s usual port');
+    assert.equal(settings.minecraft_version, 'auto', 'whatever the server runs');
+    assert.equal(spec.port.default, settings.port, 'and MindServer offers the same');
+});
+
 test('a version is given to game data with the bedrock_ prefix and to the protocol without it', () => {
     assert.deepEqual(bedrockVersion('1.26.60'), { number: '1.26.60', dataName: 'bedrock_1.26.60' });
     assert.deepEqual(bedrockVersion('bedrock_1.26.60'), { number: '1.26.60', dataName: 'bedrock_1.26.60' });

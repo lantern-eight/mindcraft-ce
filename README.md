@@ -9,11 +9,12 @@ its edits to the core small, so upstream updates stay easy to merge and pieces o
 offer back.
 
 **This branch, `bedrock`, targets Minecraft Bedrock Edition, currently 1.26.60.** The port is in progress.
-Set to Bedrock, the bot joins a Bedrock Dedicated Server (checked on 1.26.60 and 1.26.63), answers
+Out of the box it is set for Bedrock, and it joins a Bedrock Dedicated Server (checked on 1.26.60 and 1.26.63), answers
 players in chat, and Mindcraft's stock skills work there, and so do fair play, world memory and chest
 sorting, each with a few gaps. [docs/bedrock.md](docs/bedrock.md) says what works, what doesn't and how
 to try it. The rest of this page describes the Java Edition bot this branch is built from, which lives on
-the `main` branch (Java Edition 26.3) and runs from this branch too.
+the `main` branch (Java Edition 26.3) and runs from this branch too, with `minecraft_edition` set to
+`"java"`.
 
 > [!CAUTION]
 > Do not connect this bot to public servers with coding enabled. With `allow_insecure_coding` on, a model

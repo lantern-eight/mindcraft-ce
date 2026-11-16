@@ -38,7 +38,7 @@ async function scenario(name, fn) {
 }
 try {
     await waitFor(()=>log.includes('Done ('),90000);
-    setSettings({...rootSettings,host:'127.0.0.1',port,minecraft_version:GAME_VERSION,auth:'offline'});
+    setSettings({...rootSettings,host:'127.0.0.1',port,minecraft_version:GAME_VERSION,minecraft_edition:'java',auth:'offline'});
     const {initBot}=await import('../../src/utils/mcdata.js');
     const {ActionManager}=await import('../../src/agent/action_manager.js');
     const {collectBlockResult,smeltItem}=await import('../../src/agent/library/skills.js');

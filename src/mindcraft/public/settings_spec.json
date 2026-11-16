@@ -12,7 +12,7 @@
     "minecraft_edition": {
         "type": "string",
         "description": "Which Minecraft the server runs: Java Edition or Bedrock Edition. For bedrock, minecraft_version is a Bedrock version such as 1.26.60 (or auto), and port is the Bedrock server's, 19132 unless it was changed.",
-        "default": "java",
+        "default": "bedrock",
         "options": [
             "java",
             "bedrock"
@@ -25,8 +25,8 @@
     },
     "port": {
         "type": "number",
-        "description": "The minecraft server port to connect to. -1 for auto-detect.",
-        "default": 55916
+        "description": "The minecraft server port to connect to. 19132 is Bedrock's usual port. -1 for auto-detect (Java).",
+        "default": 19132
     },
     "auth": {
         "type": "string",

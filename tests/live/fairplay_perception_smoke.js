@@ -28,7 +28,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline' });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline' });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { createPerception } = await import('../../src/agent/fairplay/perception.js');
     const { createSeenMap } = await import('../../src/agent/fairplay/seen_map.js');

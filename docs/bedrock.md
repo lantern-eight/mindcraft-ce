@@ -4,8 +4,9 @@ The `bedrock` branch is this bot for Minecraft Bedrock Edition, the edition on c
 Windows. The port is **in progress**. This page says what works today, what doesn't, how to try it, and how
 to test it.
 
-The Java Edition bot lives on the `main` branch and is not affected by anything here. With
-`minecraft_edition` left at `"java"`, this branch behaves as `main` does.
+The Java Edition bot lives on the `main` branch and is not affected by anything here. On this branch a bot
+is made for a Bedrock server unless `minecraft_edition` is set to `"java"`; set so, with a Java server's
+version and port, this branch behaves as `main` does.
 
 ## Status
 
@@ -45,7 +46,8 @@ One scene on flat ground shows that a skill works, not that it works everywhere.
 ## Trying It
 
 1. Install as the [README](../README.md#quick-start) says, on this branch.
-2. In `settings.js` set:
+2. `settings.js` on this branch already says `"minecraft_edition": "bedrock"`, `"minecraft_version":
+   "auto"` and `"port": 19132`. Set the server:
 
    ```js
    "minecraft_edition": "bedrock",
@@ -59,7 +61,7 @@ One scene on flat ground shows that a skill works, not that it works everywhere.
 
 | Setting | On Bedrock |
 |---|---|
-| `minecraft_edition` | `"bedrock"`. Anything else, or leaving it out, means Java |
+| `minecraft_edition` | `"bedrock"`, this branch's default. `"java"` plays Java Edition, as on `main` |
 | `minecraft_version` | A Bedrock version, or `"auto"` to take the server's. A Java version left here is refused when the bot starts, with a message that says what to set |
 | `port` | The Bedrock server's game port. `-1` means 19132, Bedrock's usual port. Nothing is scanned for |
 | `auth` | `"offline"` for a server in offline mode. `"microsoft"` signs in with an Xbox account; this has not been tried |
