@@ -113,6 +113,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- Baby villagers are no longer taken for adults. `!entities` listed them among the adults, with a
+  profession, and the trading skills walked up to one and tried to trade. The check compared the game's
+  "is a baby" flag with 1, which it never equals. Now a baby is listed as one, and trading with it is
+  refused with the reason.
+- Villagers' jobs are known again on Minecraft 26.x. Their job and level moved to another metadata entry
+  in 26.1, so `!entities` listed every grown villager as "Adult", with no job or level.
 - **Bedrock branch only.** On Bedrock the hunting reflex leaves young animals alone, as on Java. It read a
   mob's age where Java keeps it, which a Bedrock mob never fills in, so every calf passed for a cow. Bedrock
   keeps it among the mob's named flags, and the Bedrock module now answers from there.

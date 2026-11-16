@@ -229,6 +229,15 @@ export function isHuntable(mob) {
     return animals.includes(mob.name.toLowerCase()) && !editionOf(mcdata).isBaby(mob);
 }
 
+/**
+ * Is this mob a villager, and if so is it a child, what is its job and its level? Each edition keeps that
+ * in its own place, so the edition seam is asked.
+ * @returns {{baby: boolean, profession: string|null, level: number|null}|null} null when not a villager
+ */
+export function villagerOf(mob) {
+    return editionOf(mcdata).villagerOf(mob);
+}
+
 export function isHostile(mob) {
     if (!mob || !mob.name) return false;
     return  (mob.type === 'mob' || mob.type === 'hostile') && mob.name !== 'iron_golem' && mob.name !== 'snow_golem';

@@ -101,12 +101,13 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/goto_path_search.test.js`,
   `tests/goto_square_corners.test.js`, `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
-  `tests/door_types.test.js`, `tests/hunting_babies.test.js`, `tests/bedrock_*.test.js`
+  `tests/door_types.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
+  `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/bedrock_*.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/bedrock_*.js`
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/bedrock_*.js`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file
 

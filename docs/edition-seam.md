@@ -70,6 +70,7 @@ const text = edition.signSidesOf(bot.blockAt(position)); // ['Wheat farm\nthis w
 | Where the other half of a double chest is | `otherHalfOf(block)` | World memory, chest sorting | Nothing more to say: Java keeps it in the chest's state | Its block entity names the other half (`pairx`, `pairz`) |
 | What a sign says | `signSidesOf(block)` | World memory | The block reads its own text | The text of each side, from the sign's block entity |
 | Whether a mob is a baby | `isBaby(entity)` | The hunting reflex (`isHuntable`) | Entry 16 of the mob's metadata | The `baby` flag among the mob's named flags |
+| Whether a mob is a villager, and its age, job and level | `villagerOf(entity)` | `!entities`, and the commands that show and make trades | Named `villager`; its job and level are one entry of its metadata (18 up to 1.21, 19 from 26.1) | Named `villager_v2`; its job is its `variant`, its level its `trade_tier` |
 | Moving a stack in an open chest | `moveStack(bot, window, from, to)` | Chest sorting | Clicks on a cursor, as a player makes them | One item stack request, which the server grants or refuses |
 
 Each answer is a few lines and decides nothing: it says how the game keeps something, and the feature that
@@ -107,8 +108,10 @@ If mineflayer's own calls answer it the same way on both editions, the seam isn'
 
 1. **On `main`, add the question to `src/agent/edition/java.js`,** with a comment that says what it answers
    and how Java does it. Name it for the question, not for Java's way of answering it: `otherHalfOf`, not
-   `pairFromChestType`.
-2. **Test it** in `tests/edition.test.js`.
+   `pairFromChestType`. Java's own shapes move between versions too (a villager's job went from metadata
+   entry 18 to 19 in 26.1), so read by a name or a shape where one exists, not by a fixed place.
+2. **Test it** in `tests/edition.test.js`, and against a real server where it reads what the server sends
+   (`tests/live/villager_scenarios.js` does that for `villagerOf`).
 3. **Ask it through `editionOf(...)`.** A feature never imports `java.js` itself, or Bedrock's answers would
    never be asked.
 4. **A call from a file inherited from Mindcraft-CE is a core hook,** listed in
