@@ -7,8 +7,9 @@
 // itself, instead of in every caller.
 //
 // Only differences in shape belong in this file: what a call hands back, and how often an event fires.
-// Something that is plainly a mistake in the adapter is fixed in the adapter; something Bedrock can't do at
-// all is listed in docs/bedrock.md.
+// Something that is plainly a mistake in the adapter belongs fixed in the adapter; when it comes with a
+// call this file already reshapes, it is put right here too until the adapter has it, and said so where it
+// is done. Something Bedrock can't do at all is listed in docs/bedrock.md.
 //
 // This is a mineflayer plugin: load it after the bot is created and it runs once the adapter's own
 // plugins are in place.
@@ -276,10 +277,40 @@ function movesLikeJava(bot) {
     });
 }
 
+/**
+ * Villagers' trade windows.
+ *
+ * On Java, `openVillager` hands back a window whose `slots` hold the trade's own slots and then the
+ * player's inventory, and the trading skill counts from there whether the bot can pay. The adapter's trade
+ * window has no slots: the bot's inventory stays its own while it trades. So the window's `slots` are
+ * the bot's inventory, read when asked.
+ *
+ * Two things the adapter gets wrong are put right here too, as they come with the same call. A villager
+ * with no job, or one that is asleep, opens nothing; the adapter's openVillager then waits six seconds and
+ * hands back the last trade window it had, so a jobless villager seemed to offer the trades of the villager
+ * opened before it. Here that is an error, as a chest that does not open is. And the trade screen comes
+ * with the trade list alone, never as the bot's current window, which is all the adapter's close() looks
+ * at; so it sent nothing, the server kept the screen open, and the same villager could not be opened
+ * again. Here close() closes the trade window itself.
+ */
+function tradesLikeJava(bot) {
+    const open = bot.openVillager;
+    if (typeof open !== 'function') return;
+    bot.openVillager = async (...args) => {
+        bot.tradeWindow = null; // the adapter's last window, which it would otherwise hand back
+        const window = await open.apply(bot, args);
+        if (!window) throw new Error('The villager opened no trade window');
+        if (!('slots' in window)) Object.defineProperty(window, 'slots', { get: () => bot.inventory.slots, configurable: true });
+        if (typeof bot.closeWindow === 'function') window.close = () => bot.closeWindow(window);
+        return window;
+    };
+}
+
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
 export function javaShapes(bot) {
     chestsLikeJava(bot);
     recipesLikeJava(bot);
     clicksThatSettle(bot);
     movesLikeJava(bot);
+    tradesLikeJava(bot);
 }

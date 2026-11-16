@@ -155,6 +155,23 @@ test('a Bedrock mob is a baby by its flags, not by Java\'s numbered entry', () =
     assert.equal(bedrockEdition.isBaby({ name: 'cow' }), false, 'no metadata yet');
 });
 
+test('a Bedrock villager is read from its own name and named metadata', () => {
+    const villager = (metadata) => ({ name: 'villager_v2', metadata });
+    assert.deepEqual(bedrockEdition.villagerOf(villager({ variant: 5, trade_tier: 0, flags: { baby: false } })),
+        { baby: false, profession: 'librarian', level: 1 }, 'a novice librarian');
+    assert.deepEqual(bedrockEdition.villagerOf(villager({ variant: 13, trade_tier: 4, flags: {} })),
+        { baby: false, profession: 'mason', level: 5 }, 'a master mason');
+    assert.deepEqual(bedrockEdition.villagerOf(villager({ variant: 0, trade_tier: 0, flags: { baby: true } })),
+        { baby: true, profession: 'unemployed', level: 1 });
+    assert.deepEqual(bedrockEdition.villagerOf(villager({})), { baby: false, profession: null, level: null }, 'nothing said yet');
+    assert.deepEqual(bedrockEdition.villagerOf({ name: 'villager', metadata: { variant: 7, trade_tier: 1 } }),
+        { baby: false, profession: 'cleric', level: 2 }, 'the villager from before 1.14 has the same fields');
+    assert.equal(bedrockEdition.villagerOf({ name: 'villager_v2', metadata: { 18: { villagerProfession: 9 } } }).profession, null,
+        'Java\'s entries mean nothing on Bedrock');
+    assert.equal(bedrockEdition.villagerOf({ name: 'wandering_trader', metadata: { variant: 0 } }), null);
+    assert.equal(bedrockEdition.villagerOf({ name: 'cow', metadata: { variant: 1 } }), null);
+});
+
 test('standing on a flat grass floor, the bot knows the grass and not the dirt or bedrock under it', () => {
     const registry = bedrockRegistry();
     const columns = flatColumns(registry);
