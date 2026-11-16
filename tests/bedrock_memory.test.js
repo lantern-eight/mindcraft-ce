@@ -102,11 +102,27 @@ test('a Java property the table fills in the same for every state is left out, n
 
 // ---- The recorder on a Bedrock world ----
 
+// A sign's block entity as the server sends it: tagged values, each side's text under a field of its own.
+function signEntity(front, back) {
+    const side = text => ({ type: 'compound', value: { Text: { type: 'string', value: text }, SignTextColor: { type: 'int', value: -16777216 } } });
+    return { type: 'compound', name: '', value: { id: { type: 'string', value: 'Sign' }, FrontText: side(front), BackText: side(back),
+        IsWaxed: { type: 'byte', value: 0 } } };
+}
+
+test('a Bedrock sign gives the text of each side, the front first', () => {
+    assert.deepEqual(bedrockEdition.signSidesOf({ entity: signEntity('Wheat\nfarm', 'Keep out') }), ['Wheat\nfarm', 'Keep out']);
+    assert.deepEqual(bedrockEdition.signSidesOf({ entity: { FrontText: { Text: 'Mine' } } }), ['Mine', ''], 'a plain copy of the block entity');
+    assert.deepEqual(bedrockEdition.signSidesOf({ entity: { type: 'compound', value: { Text: { type: 'string', value: 'Old\nsign' } } } }),
+        ['Old\nsign'], 'a sign from before signs had two sides');
+    assert.deepEqual(bedrockEdition.signSidesOf({ entity: undefined }), [], 'no block entity yet');
+    assert.deepEqual(bedrockEdition.signSidesOf(null), [], 'nothing there');
+});
+
 // The cells a remembered thing covers: where it is, and its other half if it has one.
 const cellsOf = thing => [thing, thing.also].filter(Boolean).map(p => `${p.x},${p.y},${p.z}`).sort();
 
 // A flat world as a Bedrock flat world has it (bedrock, two of dirt, grass on top at -61), with a door, a
-// bed, a chest and a ripe field of wheat in the open, and the bot standing in the middle.
+// bed, a chest, a sign and a ripe field of wheat in the open, and the bot standing in the middle.
 function bedrockScene() {
     const Chunk = chunkFactory(registry);
     const columns = new Map();
@@ -129,6 +145,9 @@ function bedrockScene() {
     set(-3, -60, 2, 'bed', { direction: '2', head_piece_bit: '0' });
     set(-3, -60, 1, 'bed', { direction: '2', head_piece_bit: '1' });
     set(2, -60, -4, 'chest', { 'minecraft:cardinal_direction': 'south' });
+    // A sign, with its text in its block entity as a current server sends it: each side in a field of its own.
+    set(2, -60, 3, 'standing_sign', { ground_sign_direction: '4' });
+    columnOf(2, 3).setBlockEntity(new Vec3(2, -60, 3), signEntity('Iron\nin the east', ''));
     for (let x = -6; x <= -4; x++) {
         set(x, -61, -4, 'farmland');
         set(x, -60, -4, 'wheat', { growth: '7' });
@@ -153,7 +172,7 @@ function bedrockScene() {
     return { bot, set };
 }
 
-test('the recorder keeps a Bedrock door, bed, chest and field as the things they are', () => {
+test('the recorder keeps a Bedrock door, bed, chest, sign and field as the things they are', () => {
     translateNamesWith(bedrockNamesFor(BEDROCK_VERSION));
     try {
         const { bot, set } = bedrockScene();
@@ -186,6 +205,10 @@ test('the recorder keeps a Bedrock door, bed, chest and field as the things they
         const chest = memory.things.get(2, -60, -4);
         assert.equal(chest?.kind, 'container');
         assert.equal(chest.also, undefined, 'a single chest');
+
+        const sign = memory.things.get(2, -60, 3);
+        assert.equal(sign?.kind, 'sign', JSON.stringify(sign));
+        assert.equal(sign.text, 'Iron / in the east', 'what it says, read from its block entity');
 
         const fields = memory.things.fieldsNear({ x: -5, y: -60, z: -4 }, { maxDistance: 16 });
         assert.ok(fields.some(f => f.crop === 'wheat' && f.count === 3 && f.ripe === 3), JSON.stringify(fields));

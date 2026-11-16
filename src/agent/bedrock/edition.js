@@ -19,6 +19,7 @@
 //   - **A block state's properties,** which Bedrock's game data lists for every state by name, with
 //     Bedrock's own names (`upper_block_bit` for the top half of a door).
 //   - **A double chest,** whose two halves name each other in their block entities, not their states.
+//   - **What a sign says,** which a Bedrock sign keeps per side in its block entity, in fields of its own.
 //   - **Moving a stack in an open chest,** which Bedrock does with one item stack request, not clicks
 //     on a cursor (window_moves.js).
 //
@@ -292,6 +293,22 @@ export const bedrockEdition = Object.freeze({
         const here = { x: Math.floor(at.x), y: Math.floor(at.y), z: Math.floor(at.z) };
         if (Math.abs(x - here.x) + Math.abs(z - here.z) !== 1) return null;
         return { x, y: here.y, z };
+    },
+
+    /**
+     * What a sign says, one string per side, the front first. A Bedrock sign keeps each side's text in
+     * its block entity, under `FrontText` and `BackText`, with the lines on rows of their own; a sign
+     * from before signs had two sides has a single `Text`. The library's own reading of a Bedrock sign
+     * looks only for that old field, so with a current server it never found any text.
+     */
+    signSidesOf(block) {
+        const fields = block?.entity?.value ?? block?.entity;
+        // The block entity comes as tagged values ({type, value}); a plain copy of it has bare ones.
+        const plain = field => field && typeof field === 'object' && 'type' in field && 'value' in field ? field.value : field;
+        const textOf = side => { const text = plain(plain(side)?.Text); return typeof text === 'string' ? text : ''; };
+        if (fields?.FrontText || fields?.BackText) return [textOf(fields.FrontText), textOf(fields.BackText)];
+        const old = plain(fields?.Text);
+        return typeof old === 'string' ? [old] : [];
     },
 
     moveStack,

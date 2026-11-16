@@ -108,6 +108,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- **Bedrock branch only.** On Bedrock world memory keeps what a sign says. A current Bedrock sign keeps each
+  side's text in a field of its own, and the library's reading of a Bedrock sign looks for the single field
+  older signs had, so every sign was remembered blank. The Bedrock module now reads both sides.
 - **Bedrock branch only.** On Bedrock the bot can take from a barrel and put into one by name
   (`!takeFromChestAt`, `!putInChestAt`). The server refused both: the adapter's calls name a chest's slots
   whatever is open. A barrel (and a shulker box) now gets the same moves chest sorting makes, under its own
