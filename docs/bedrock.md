@@ -14,7 +14,7 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 | | |
 |---|---|
 | **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. The whole agent starts, hears a player and answers through a model |
-| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play can't be relied on, and world memory and chest sorting are not ported |
+| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play is ported only in part (its sight works), and world memory and chest sorting are not ported |
 | **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots. A few skills, named under [Skills](#skills) |
 
 Treat a Bedrock bot as something to experiment with on a world you can afford to lose.
@@ -109,7 +109,8 @@ stay.
 
 | Gap | What happens today |
 |---|---|
-| **Fair play** | Don't rely on it. Perception runs, but in a first check the bot named blocks under the ground it stood on, which a player could not see. The lists of what can be seen through are written for Java's blocks, and sounds, reach and world identity each read something Java-only. Set `fair_play: "off"` for now |
+| **Fair play** | Only in part, so keep `fair_play: "off"` for now. **Sight works:** the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet (checked on a server by `bedrock_perception.js`). **Not yet:** hearing (Bedrock sends sounds in its own packet, so the bot hears nothing), noticing that the server made it an operator (the game mode check works), and reach uses Java's numbers |
+| **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
 | **World memory, chest sorting** | Not ported. World memory keeps Java's names for block states; chest sorting moves items the way Java's windows work |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
@@ -118,10 +119,11 @@ stay.
 
 ## Testing
 
-`npm test` covers how the bot is started (`tests/bedrock_connect.test.js`) and that the installed
-libraries work together (`tests/bedrock_stack.test.js`). Neither needs a server.
+`npm test` covers how the bot is started (`tests/bedrock_connect.test.js`), that the installed
+libraries work together (`tests/bedrock_stack.test.js`), and fair play's sight on Bedrock game data and
+chunks (`tests/bedrock_edition.test.js`). None needs a server.
 
-The two live tests need a real one. Both take the same three variables, make no model calls, and print
+The live tests need a real one. Both take the same three variables, make no model calls, and print
 one line of JSON for each step:
 
 ```bash
@@ -131,6 +133,7 @@ export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
+node tests/live/bedrock_perception.js                  # fair play's sight
 ```
 
 - **`bedrock_smoke.js`** joins through the repo's own start-up code and checks what every skill leans on:
@@ -140,6 +143,10 @@ node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes
   the world afterwards. It builds each scene from the console, so it needs one. A second bot joins for
   the skills that need another player. Two scenes, the one with a monster and the one where the bot gets
   hungry, set the difficulty to normal and back to peaceful.
+- **`bedrock_perception.js`** builds a scene on a platform high above the ground (a buried diamond, a
+  sealed chest, a cow walled in and one behind glass, dirt under the floor) and checks that fair play's
+  perception knows only what is in view, though the server sends the bot all of it. The Bedrock twin of
+  `fairplay_perception_smoke.js`.
 
 A step marked as a known gap reports what happens and never fails the run, and when it starts passing
 the output says so. `tests/live/bedrock_fixture.js` explains each variable.
@@ -193,8 +200,9 @@ spaces and `_ . : -`, and write coordinates out in full.
 |---|---|
 | `src/agent/bedrock/connect.js` | Starting a Bedrock bot: the options, the server's key, what is left out, the game data the rest of the code reads |
 | `src/agent/bedrock/eating.js` | Eating when hungry. The plugin that does it on Java can't be loaded on Bedrock, so this does the same with the same switches |
+| `src/agent/bedrock/edition.js` | How Bedrock numbers block states (by hash) and lays out a chunk, for fair play and the modules that share its eyes ([the edition seam](fair-play.md#for-developers)) |
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, and a click on a block |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
-| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js` | The live tests: the layer under the skills, and the skills |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js` | The live tests: the layer under the skills, the skills, and fair play's sight |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files, and the pinned libraries |

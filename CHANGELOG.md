@@ -68,6 +68,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   every color, named `bed`; the skill looked only for Java's names, which end in `_bed`.
 - **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
   yet, and the bot stopped with an error when it built its status for the model.
+- **Bedrock branch only.** Fair play's sight works on Bedrock. With fair play on, the bot knew blocks it
+  could not have seen, such as the ground under its feet and ore inside rock: Bedrock numbers block
+  states by hash, and fair play's list of what hides what came out empty. It now knows only what is in
+  view, as on Java; a new live test, `tests/live/bedrock_perception.js`, checks it on a server. Hearing,
+  the operator check and world memory are not ported yet, so fair play as a whole isn't either.
 
 ### Changed
 

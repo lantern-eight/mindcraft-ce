@@ -18,6 +18,7 @@ import armorManager from 'mineflayer-armor-manager';
 import { guardBotActions } from '../action_context.js';
 import { javaShapes, recipesLikeGameData } from './java_shapes.js';
 import { bedrockEater } from './eating.js';
+import './edition.js'; // fair play, world memory and chest sorting read Bedrock's game data through it
 
 const require = createRequire(import.meta.url);
 
