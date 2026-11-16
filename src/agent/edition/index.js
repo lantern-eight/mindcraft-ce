@@ -2,10 +2,11 @@
 // The edition seam: the few things this fork's modules read below mineflayer's `bot`, asked for by name.
 //
 // mineflayer hands out the same `bot` whichever game it is talking to, but a few things this fork reads
-// are shaped by the game itself, not by mineflayer: how the states of blocks are numbered, and how a
-// chunk section lists the blocks it holds. Fair play, world memory and chest sorting ask for those here
-// instead of reaching for the shapes themselves, so code written for one game doesn't quietly read
-// another game's data wrong.
+// are shaped by the game itself, not by mineflayer: how the states of blocks are numbered, how a chunk
+// section lists the blocks it holds, which sounds and permissions the server sends, where the other half
+// of a double chest is kept, and how a stack is moved in an open chest. Fair play, world memory and chest
+// sorting ask for those here instead of reaching for the shapes themselves, so code written for one game
+// doesn't quietly read another game's data wrong.
 //
 // This file only picks the answers that apply. java.js has the answers for Java Edition. Another edition
 // of the game registers its own with registerEdition, under the type its game data gives

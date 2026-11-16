@@ -16,6 +16,8 @@ import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 import { openMemory } from '../src/agent/memory/store.js';
 import { createRecorder } from '../src/agent/memory/recorder.js';
 import { propsOfState, stateOfProps } from '../src/agent/memory/block_state.js';
+import { registerEdition } from '../src/agent/edition/index.js';
+import { javaEdition } from '../src/agent/edition/java.js';
 
 const STRICT = resolvePolicy({ fair_play: 'strict' });
 const SCOPE = 'local:55916/w1/overworld';
@@ -81,6 +83,38 @@ test('only what is in view is written: a buried ore is not, a chest in the open 
     assert.equal(memory.things.nearest(['diamond_ore'], { x: 0, y: 1, z: 0 }).length, 1);
     assert.equal(memory.places.at({ x: 3, y: 1, z: 3 }).kind, 'found', 'a chest makes a place');
     assert.equal(memory.cells.wasLookedFrom(0, 0, 0, memory.trail.current), false, 'no crumb yet: the bot has not moved');
+});
+
+test('a game that keeps a double chest\'s pairing outside the state still makes the two halves one thing', () => {
+    // As on Bedrock: two chests whose states say nothing of each other, whose block entities name each
+    // other. The game data here is Java's, so Java's answers are swapped for ones that read the entity.
+    registerEdition('pc', { ...javaEdition, otherHalfOf: block => block.entity?.pair ?? null });
+    try {
+        const { memory, lookAround } = setup(w => {
+            w.set('chest', 3, 1, 3, { facing: 'north', type: 'single' });
+            w.set('chest', 4, 1, 3, { facing: 'north', type: 'single' });
+            w.set('chest', 7, 1, 3, { facing: 'north', type: 'single' });
+        }, {
+            prepare: bot => {
+                const blockAt = bot.blockAt;
+                const pairs = { '3,1,3': { x: 4, y: 1, z: 3 }, '4,1,3': { x: 3, y: 1, z: 3 } };
+                bot.blockAt = pos => {
+                    const block = blockAt(pos);
+                    const pair = pairs[`${pos.x},${pos.y},${pos.z}`];
+                    return block && pair ? Object.assign(block, { entity: { pair } }) : block;
+                };
+            },
+        });
+        lookAround();
+        const double = memory.things.get(3, 1, 3);
+        assert.equal(double.kind, 'container');
+        assert.deepEqual([double, double.also].map(p => p.x).sort(), [3, 4], 'one thing in both cells');
+        assert.deepEqual(memory.things.get(4, 1, 3), double, 'the same thing from either half');
+        assert.equal(memory.things.get(7, 1, 3).also ?? null, null, 'a chest with no partner stays single');
+        assert.equal(memory.things.count('chest'), 2);
+    } finally {
+        registerEdition('pc', javaEdition);
+    }
 });
 
 test('nothing runs while the bot stands still in an unchanged world', () => {
