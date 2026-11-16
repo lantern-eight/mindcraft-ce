@@ -311,6 +311,8 @@ function tradingBot() {
             return bot.tradeWindow || null;
         },
         closeWindow: window => { closed.push(window?.id); },
+        traded: 0,
+        trade: async () => { bot.traded++; },
     };
     javaShapes(bot);
     return bot;
@@ -335,4 +337,11 @@ test('closing a trade window closes it on the server, so the villager can be ope
     const window = await bot.openVillager({ id: 1, trades: [{ inputItem1: { name: 'paper', count: 24 } }] });
     window.close();
     assert.deepEqual(bot.closed, [7], 'the trade window itself, by its id');
+});
+
+test('a trade is refused before any goods move: on Bedrock the server drops it and the bot loses them', async () => {
+    const bot = tradingBot();
+    const window = await bot.openVillager({ id: 1, trades: [{ inputItem1: { name: 'paper', count: 24 } }] });
+    await assert.rejects(bot.trade(window, 0, 1), /trade.*Bedrock/i);
+    assert.equal(bot.traded, 0, 'the adapter\'s own trade was never called');
 });

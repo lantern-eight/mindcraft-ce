@@ -116,7 +116,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** On Bedrock `!entities` names each villager's job and level and lists children
   apart, and `!showVillagerTrades` shows a villager's trades. Bedrock names villagers `villager_v2` and
   keeps the job and level in fields of its own, which Mindcraft read the Java way, and showing a jobless
-  villager's trades showed those of the villager opened before it. Making a trade doesn't work yet.
+  villager's trades showed those of the villager opened before it. Making a trade is refused for now, so
+  the bot keeps what it would have paid with: on a current server the trade took the goods and never
+  happened.
 - Baby villagers are no longer taken for adults. `!entities` listed them among the adults, with a
   profession, and the trading skills walked up to one and tried to trade. The check compared the game's
   "is a baby" flag with 1, which it never equals. Now a baby is listed as one, and trading with it is
