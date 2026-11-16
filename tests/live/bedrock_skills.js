@@ -41,7 +41,9 @@ async function reset() {
     if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
     await cmd(`fill ${xyz(at(-8, 0, -8))} ${xyz(at(8, 4, 8))} air`);
     await cmd(`fill ${xyz(at(-8, -1, -8))} ${xyz(at(8, -1, 8))} grass_block`);
-    await cmd(`fill ${xyz(at(-8, -2, -8))} ${xyz(at(8, -2, 8))} dirt`);
+    // Three layers of dirt under the grass, not one: digDown digs two blocks and stops at a drop of three
+    // below them, and a test world can have a hollow there (a scene cleared from a platform built lower).
+    await cmd(`fill ${xyz(at(-8, -4, -8))} ${xyz(at(8, -2, 8))} dirt`);
     await pickUpDrops();
     await cmd(`clear ${NAME}`);
     await cmd('time set noon');
