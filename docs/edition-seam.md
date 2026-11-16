@@ -1,0 +1,124 @@
+# The Edition Seam
+
+Minecraft comes in two editions, Java and Bedrock, and they speak different protocols. mineflayer hands
+out the same `bot` for both. But fair play, world memory and chest sorting read things that sit below that
+`bot`, and those are shaped by the game itself: how block states are numbered, how a chunk lists its
+blocks, which packets carry a sound. The edition seam, in `src/agent/edition/`, is the one place those
+things are read. This fork's modules ask it a question by name, and it answers the way the game in play
+does. So there is one copy of fair play, world memory and chest sorting, and it runs on both editions.
+
+- [Why Mindcraft-CE Doesn't Need It](#why-mindcraft-ce-doesnt-need-it)
+- [How It Works](#how-it-works)
+- [The Questions It Answers](#the-questions-it-answers)
+- [What Is Not in It](#what-is-not-in-it)
+- [Adding a Question](#adding-a-question)
+
+## Why Mindcraft-CE Doesn't Need It
+
+Mindcraft-CE plays Java Edition only. Its skills mostly go through mineflayer's own calls (`bot.blockAt`,
+`bot.dig`, the pathfinder), which hide the protocol, and where it does read the game's own shapes, there is
+only one game to read.
+
+This fork's features read below mineflayer's calls, for speed and to stay honest:
+
+- **Fair play's sight** asks about every cell a ray crosses. It keeps a yes or no for each block state in
+  a table indexed by state number, and it skips whole chunk sections by their palettes.
+- **Fair play's hearing** listens to the sound packets the server sends, and its operator check listens
+  for the packet that grants operator rights.
+- **World memory** keeps blocks by name and their states by named properties, worked out from the state
+  numbers, and reads what a chest or a sign holds from its block entity.
+- **Chest sorting** moves stacks the way a player does with the mouse.
+
+Each of those is done differently on Bedrock. Java numbers a block's states in one run, and a current
+Bedrock server numbers each state with a hash; a Bedrock chunk never sends a section that is all air, and
+lists its blocks in layers; Bedrock moves items by request, not by clicks. Without the seam, playing
+Bedrock would mean a second copy of each feature, or checks for the edition scattered through all of
+them, each a chance to read one game's data the other game's way. The seam keeps the difference to one
+file per edition.
+
+The seam is on `main`, which plays Java only, because the features that ask it are there. On `main` it
+has one set of answers. The `bedrock` branch adds the second set.
+
+## How It Works
+
+```js
+import { editionOf } from '../edition/index.js';
+
+const edition = editionOf(bot.registry);
+const text = edition.signSidesOf(bot.blockAt(position)); // ['Wheat farm\nthis way', '']
+```
+
+- **`editionOf(registry)`** gives the answers for the game that game data describes, by its
+  `version.type`: `pc` (minecraft-data's name for Java Edition) or `bedrock`. Game data built by hand, as
+  in unit tests, has no version and counts as Java. An edition nobody registered is an error, never a
+  silent guess: Java's answers on another game's data come out wrong without a sound.
+- **`registerEdition(type, answers)`** adds an edition. `java.js` holds Java's answers and is registered
+  from the start. On the `bedrock` branch, `src/agent/bedrock/edition.js` registers Bedrock's when it is
+  imported, before any Bedrock bot starts.
+
+## The Questions It Answers
+
+| Question | Asked as | Asked by | Java | Bedrock (`bedrock` branch) |
+|---|---|---|---|---|
+| Which state numbers belong to a block | `stateIdsOf(block)` | Fair play's sight | One run, from the block's first number to its last | The block's own list of states; a hashed number has no order |
+| A table with an entry per block state | `stateTable(registry)` | Sight, the block search, perception, world memory | A typed array indexed by state number | A small hash table over typed arrays: hashed numbers are too far apart for an array |
+| Which state is at a cell of a chunk | `readStateId(column, pos)` | Perception, the block search, chest sorting | The chunk's own answer | The same, and air for a section the server never sent |
+| What a chunk section holds, without reading every cell | `sectionSummary(column, sy, minY)` | The block search, world memory's look-around | Its palette, and whether it is all air | The palette of its first layer, whose entries hold the state number; a section never sent is all air |
+| A state's properties by name, and back | `propsOfState(registry, stateId)`, `stateOfProps(registry, name, props)` | World memory | Worked out from the state number, one digit per property | Listed for every state in the game data, under Bedrock's names (`upper_block_bit` for a door's top half) |
+| Every sound the server sends | `onSound(bot, hear)` | Fair play's hearing | The three sound packets, by Java's sound names | A sound played for a mob, and a hurt or death event, given Java's names; a Bedrock server never sends a mob's everyday noises |
+| The bot's operator level | `onOperatorLevel(bot, report)` | Fair play's refusal to act as an operator | An entity status the server sets on the bot | The permission level the server sends with the bot's abilities |
+| Where the other half of a double chest is | `otherHalfOf(block)` | World memory, chest sorting | Nothing more to say: Java keeps it in the chest's state | Its block entity names the other half (`pairx`, `pairz`) |
+| What a sign says | `signSidesOf(block)` | World memory | The block reads its own text | The text of each side, from the sign's block entity |
+| Whether a mob is a baby | `isBaby(entity)` | The hunting reflex (`isHuntable`) | Entry 16 of the mob's metadata | The `baby` flag among the mob's named flags |
+| Moving a stack in an open chest | `moveStack(bot, window, from, to)` | Chest sorting | Clicks on a cursor, as a player makes them | One item stack request, which the server grants or refuses |
+
+Each answer is a few lines and decides nothing: it says how the game keeps something, and the feature that
+asked decides what to do with it. `java.js` and `src/agent/bedrock/edition.js` explain each one where it
+is written.
+
+## What Is Not in It
+
+- **What mineflayer already answers the same way on both editions:** a block's name at a spot, where the
+  bot is, digging, walking with the pathfinder. Code that only uses these needs nothing from the seam.
+- **The shape of the bot itself.** On the `bedrock` branch, mineflayer's Bedrock adapter hands back some
+  things in another shape than mineflayer does on Java: an opened chest, a recipe, a click on a block, how
+  often the bot reports moving. `src/agent/bedrock/java_shapes.js` puts Java's shape back on the bot once,
+  so Mindcraft's skills run unchanged. The seam answers questions this fork's modules ask about the game;
+  `java_shapes.js` evens out the `bot` that everything uses.
+- **Block names.** World memory keeps the names the game in play uses. Where it needs to know what a
+  block is (a chest, a door, a crop), `kinds.js` judges by Java's names, and the `bedrock` branch hands it
+  a table from Bedrock's names to Java's (`src/agent/bedrock/names.js`).
+
+## Adding a Question
+
+**When new code needs the seam:** whenever it reads something the game shapes rather than mineflayer, such
+as:
+
+- state numbers or their ranges (`minStateId`, `maxStateId`, arithmetic on a state number)
+- the inside of a chunk section (`palette`, `solidBlockCount`, `sections`)
+- packets (`bot._client`)
+- entries of an entity's metadata
+- fields of a block entity
+- how a window's slots are clicked
+
+If mineflayer's own calls answer it the same way on both editions, the seam isn't needed.
+
+**How to add one:**
+
+1. **On `main`, add the question to `src/agent/edition/java.js`,** with a comment that says what it answers
+   and how Java does it. Name it for the question, not for Java's way of answering it: `otherHalfOf`, not
+   `pairFromChestType`.
+2. **Test it** in `tests/edition.test.js`.
+3. **Ask it through `editionOf(...)`.** A feature never imports `java.js` itself, or Bedrock's answers would
+   never be asked.
+4. **A call from a file inherited from Mindcraft-CE is a core hook,** listed in
+   [`core-hooks.md`](core-hooks.md) like any other (`isHuntable` asks `isBaby` that way).
+5. **Add a row to the table above.**
+6. **Answer it for Bedrock when the feature is ported to the `bedrock` branch,** in
+   `src/agent/bedrock/edition.js`, with a test. Until it is, a test on that branch fails
+   (`tests/bedrock_edition.test.js`, "Bedrock answers every question the edition seam asks"), because an
+   unanswered question would stop whatever asks it on a Bedrock bot.
+
+New features are built on `main` first, for Java, and ported to `bedrock` once they are done. The seam is
+what keeps that port small: a feature that asks its questions here moves over with only the Bedrock
+answers to write.

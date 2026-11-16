@@ -67,10 +67,26 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
 | Tests | 100 offline tests | 424 offline tests, plus live scenarios on a real server that make no model calls |
+| Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
 | Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
 animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
+
+## Built for Two Editions
+
+Minecraft's Java and Bedrock editions speak different protocols, and Mindcraft-CE plays Java only. This
+fork's features read the game below mineflayer's `bot`: how block states are numbered, what a chunk
+section holds, which packets carry a sound, what a chest or a sign keeps in its block entity. Each edition
+shapes those its own way.
+
+So instead of a copy of each feature per edition, the features ask an **edition seam**
+(`src/agent/edition/`): a short list of questions such as "what does this sign say?" or "where is the
+other half of this double chest?", answered once for each edition. `main` answers them for Java. The
+`bedrock` branch adds Bedrock's answers, and the same fair play, world memory and chest sorting run there.
+New features are built on `main` first and ported to `bedrock` once they work, and the seam is what keeps
+that port small. [docs/edition-seam.md](docs/edition-seam.md) lists every question with each edition's
+answer, and says when new code must go through it.
 
 ## Quick Start
 
@@ -133,6 +149,7 @@ each server its own copy again. Run the live scripts one at a time: they share a
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
 | [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
+| [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
 | [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
 | [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |

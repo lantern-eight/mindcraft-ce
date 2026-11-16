@@ -304,7 +304,7 @@ when nothing can be told the answer is "unknown", which is allowed.
 
 Two things to know before changing `bot_hands.js`:
 
-- **A move of the sort is asked of the edition seam** (`moveStack` in `src/agent/edition/`). On Java it is
+- **A move of the sort is asked of the [edition seam](edition-seam.md)** (`moveStack` in `src/agent/edition/`). On Java it is
   three clicks made directly, not mineflayer's `moveSlotItem`. That helper looks for the cursor on the
   bot's own inventory, which is not where the cursor is while a chest is open, so a swap would leave a
   stack on the cursor. Which two chest blocks make one double chest is asked of the seam too
