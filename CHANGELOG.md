@@ -15,8 +15,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `"bedrock"`, the bot is started for a Bedrock Edition server: `minecraft_version` is then a Bedrock
   version such as `"1.26.60"` (or `"auto"`), a port of `-1` means Bedrock's usual 19132, and
   `auth: "microsoft"` signs in with an Xbox account. A Java version left in `minecraft_version` is refused
-  with a message that says what to set. This is the connection only: fair play, world memory and chest
-  sorting have not been made to work on Bedrock yet.
+  with a message that says what to set. This is the connection; the lines below say what else works on
+  Bedrock.
 - **Bedrock branch only.** The bot can join a current Bedrock Dedicated Server. Servers from 1.26.60 take
   a direct connection through a short HTTP exchange on their game port, which no released
   `bedrock-protocol` speaks; the open upstream work for it is now part of the pinned set. Checked against
@@ -88,6 +88,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   Bedrock server, installed the way the agent installs it: skills that find and walk to only what the
   bot has seen, the reach guard, the reflex to flee a monster once it is in view, model-written code,
   refusing to act as an operator or in creative mode, and never sending a command. It passes on 1.26.60.
+- **Bedrock branch only.** Chest sorting works on Bedrock. A move in a chest is one item stack request
+  there, not clicks on a cursor, and a barrel's slots go by another name than a chest's, which the server
+  holds a request to. A new live test, `tests/live/bedrock_storage.js`, sorts a chest of part stacks, a
+  full chest, and a chest, a double chest, a barrel and a trapped chest together on a server, and takes
+  from and puts into a chest by name. It passes on 1.26.60.
 
 ### Changed
 

@@ -19,6 +19,8 @@
 //   - **A block state's properties,** which Bedrock's game data lists for every state by name, with
 //     Bedrock's own names (`upper_block_bit` for the top half of a door).
 //   - **A double chest,** whose two halves name each other in their block entities, not their states.
+//   - **Moving a stack in an open chest,** which Bedrock does with one item stack request, not clicks
+//     on a cursor (window_moves.js).
 //
 // Read with Java's answers, a hashed state number fits no table: nothing blocked sight, and a search over
 // the chunks found nothing. That is why the bot named the dirt under a grass floor it was standing on.
@@ -27,6 +29,7 @@
 // so it is in place before any bot starts.
 import { registerEdition } from '../edition/index.js';
 import { javaEdition as java } from '../edition/java.js';
+import { moveStack } from './window_moves.js';
 
 /** Does this game data give each block type a run of state numbers, as Java's does? */
 const numbered = new WeakMap();
@@ -290,6 +293,8 @@ export const bedrockEdition = Object.freeze({
         if (Math.abs(x - here.x) + Math.abs(z - here.z) !== 1) return null;
         return { x, y: here.y, z };
     },
+
+    moveStack,
 });
 
 registerEdition('bedrock', bedrockEdition);
