@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.0.0-bedrock.1.0.0] - 2026-11-16
+
+Version 1, of both editions. Bedrock Edition joins the project: its code is on `main` with Java Edition's,
+behind the `minecraft_edition` setting, and runs on the libraries the `bedrock` branch pins, which are not
+released with Bedrock support yet. A version now has a part for each edition: Java Edition's 1.0.0, Bedrock
+Edition's 1.0.0. For Java Edition this release brings fixes only. Built on the same Mindcraft-CE commit as
+0.1.0.
+
 ### Added
 
 - A setting, `minecraft_edition`: `"java"` (the default on `main`) or `"bedrock"` (the default on the
@@ -426,7 +434,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.0...HEAD
+[1.0.0-bedrock.1.0.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.7.0...v1.0.0-bedrock.1.0.0
 [0.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.4.0...v0.5.0

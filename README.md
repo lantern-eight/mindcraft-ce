@@ -71,7 +71,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
 | Tests | 100 offline tests | 613 offline tests, plus live scenarios on a real server that make no model calls |
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
-| Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
+| Fixes | | Fixes to inherited code, each listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
 animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
