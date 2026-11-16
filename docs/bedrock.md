@@ -1,8 +1,8 @@
 # Bedrock Edition
 
 The `bedrock` branch is this bot for Minecraft Bedrock Edition, the edition on consoles, phones and
-Windows. The port is **in progress**. This page says what works today, what doesn't, how to try it, and how
-to test it.
+Windows. The port is **experimental**: it works, with the gaps this page lists. This page says what works,
+what doesn't, how to try it, and how to test it.
 
 The Java Edition bot lives on the `main` branch and is not affected by anything here. On this branch a bot
 is made for a Bedrock server unless `minecraft_edition` is set to `"java"`; set so, with a Java server's
