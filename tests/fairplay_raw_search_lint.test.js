@@ -30,6 +30,11 @@ const ALLOWED = [
         why: 'Places a sound the server sent at the mob that made it, for hearing, which says only a direction and a rough distance. It searches for nothing.',
     },
     {
+        file: 'src/agent/bedrock/edition.js',
+        line: 'const mob = bot.entities?.[Number(packet.runtime_entity_id)];',
+        why: 'The same for Bedrock, where a hurt or dying mob is named in an event and the client plays its cry from it.',
+    },
+    {
         file: 'src/agent/library/skills.js',
         line: 'if (!bot.entities[nearest.id]) pickedUp++;',
         why: 'Confirms that a dropped item the bot just walked onto is gone. It learns nothing about where anything is.',

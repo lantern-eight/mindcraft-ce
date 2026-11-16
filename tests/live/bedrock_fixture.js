@@ -82,7 +82,13 @@ export function createReport() {
         results,
         async step(name, fn) {
             const started = Date.now();
-            record(name, 'passed', started, await fn());
+            try {
+                record(name, 'passed', started, await fn());
+            } catch (error) {
+                // Recorded before it ends the run, so the summary doesn't call the run passed.
+                record(name, 'failed', started, { error: String(error.message).split('\n')[0] });
+                throw error;
+            }
         },
         skip(name, why) {
             record(name, 'skipped', Date.now(), { why });

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: CC0-1.0
 // On Bedrock, what the bot hands back has to have the shape it has on Java, because the skills are written
 // against that: an opened chest with deposit, withdraw and close on it, a recipe laid out the way
-// mineflayer and the game data lay one out there, and a click on a block that can be followed by another
-// straight away. No server; the adapter is stood in for.
+// mineflayer and the game data lay one out there, a click on a block that can be followed by another
+// straight away, and a `move` event on every tick the bot moves. No server; the adapter is stood in for.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -13,13 +13,15 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // A bot as the Bedrock adapter leaves it: openContainer clicks and hands back nothing, the window turns
 // up a moment later as bot.currentWindow, and items are moved by calls on the bot.
-function adapterBot({ opens = true } = {}) {
+function adapterBot({ opens = true, ignoredClicks = 0 } = {}) {
     const calls = [];
+    let clicks = 0;
     const bot = {
         currentWindow: null,
         openContainer(block) {
             calls.push(['click', block.name]);
-            if (opens) setTimeout(() => { bot.currentWindow = { type: 'minecraft:container', containerItems: () => [] }; }, 20);
+            // The server ignores the first few clicks when told to: they named the block as it no longer is.
+            if (opens && ++clicks > ignoredClicks) setTimeout(() => { bot.currentWindow = { type: 'minecraft:container', containerItems: () => [] }; }, 20);
         },
         deposit: async (...args) => { calls.push(['deposit', ...args]); },
         withdraw: async (...args) => { calls.push(['withdraw', ...args]); },
@@ -58,6 +60,25 @@ test('a chest that does not open is an error for the caller who waits', async ()
     await assert.rejects(bot.openContainer({ name: 'chest' }), /chest did not open/);
 });
 
+test('a click the server ignored is made once more, a moment later', async () => {
+    // As with a barrel opened again straight after it was closed: the first click named it still open.
+    const { bot, calls } = adapterBot({ ignoredClicks: 1 });
+    const started = Date.now();
+    const barrel = await bot.openContainer({ name: 'barrel' });
+    assert.equal(barrel, bot.currentWindow);
+    assert.deepEqual(calls, [['click', 'barrel'], ['click', 'barrel']]);
+    assert.ok(Date.now() - started >= 900, 'not before a window could have come back');
+});
+
+test('an open still waiting gives way to a newer one, and never takes its window', async () => {
+    const { bot } = adapterBot({ ignoredClicks: 1 });
+    const older = bot.openContainer({ name: 'barrel' });
+    await delay(100);
+    const newer = bot.openContainer({ name: 'barrel' });
+    await assert.rejects(older, /Something else was opened while waiting for the barrel/);
+    assert.equal(await newer, bot.currentWindow);
+});
+
 test('and is not one for a caller who does not wait', async () => {
     // The adapter calls bot.openContainer on a crafting table and watches for the window itself. A failure
     // nobody is listening for would stop the whole process.
@@ -73,6 +94,30 @@ test('and is not one for a caller who does not wait', async () => {
     } finally {
         process.off('unhandledRejection', listener);
     }
+});
+
+test('a barrel\'s window takes and puts with its own moves; a chest\'s with the adapter\'s calls', async () => {
+    // The adapter's withdraw names a chest's slots, which the server refuses for a barrel.
+    const { bot, calls } = adapterBot({ opens: false });
+    const requests = [];
+    bot.blockAt = pos => ({ name: pos.x === 7 ? 'barrel' : 'chest' });
+    bot.inventory = { slots: new Array(45).fill(null), updateSlot(slot, it) { this.slots[slot] = it; } };
+    bot._stack = { stackReq: async actions => { requests.push(...actions); return { status: 'ok', response: { containers: [] } }; } };
+    const windowAt = x => {
+        const slots = new Array(27 + 36).fill(null);
+        slots[0] = { name: 'sand', type: 9, count: 30, metadata: 0, nbt: null, stackSize: 64, stackId: 1 };
+        return { inventoryStart: 27, position: { x, y: 0, z: 0 }, slots, updateSlot(slot, it) { this.slots[slot] = it; } };
+    };
+    setTimeout(() => { bot.currentWindow = windowAt(7); }, 20);
+    const barrel = await bot.openBlock({ name: 'barrel' });
+    await barrel.withdraw(9, null, 10);
+    assert.deepEqual(requests.map(r => [r.type_id, r.source.slot_type.container_id, r.count]), [['take', 'barrel', 10]]);
+    assert.ok(!calls.some(call => call[0] === 'withdraw'), 'not the adapter\'s');
+    bot.currentWindow = null;
+    setTimeout(() => { bot.currentWindow = windowAt(2); }, 20);
+    const chest = await bot.openBlock({ name: 'chest' });
+    await chest.withdraw(9, null, 10);
+    assert.deepEqual(calls.at(-1), ['withdraw', 9, null, 10]);
 });
 
 test('a window that already has the calls keeps its own', async () => {
@@ -197,4 +242,52 @@ test('a click that changes nothing waits a moment and no longer', async () => {
     const took = Date.now() - started;
     assert.ok(took >= 300 && took < 900, `waited ${took} ms`);
     assert.equal(bot.listenerCount('blockUpdate:(0, 0, 0)'), 0);
+});
+
+// ---- The move event ----
+
+// A bot as the adapter leaves it: physics moves it each tick and fires physicsTick, and only a correction
+// from the server fires move.
+function movingBot() {
+    const bot = new EventEmitter();
+    bot.entity = { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 };
+    javaShapes(bot);
+    const moves = [];
+    bot.on('move', before => moves.push({ before: before.clone(), now: bot.entity.position.clone() }));
+    bot.emit('physicsTick'); // the first tick tells where the bot is
+    moves.length = 0;
+    return { bot, moves };
+}
+
+test('every tick the bot walks fires move, with where it was before, as on Java', () => {
+    const { bot, moves } = movingBot();
+    for (let tick = 0; tick < 80; tick++) {
+        bot.entity.position.x -= 0.2; // sixteen blocks west in four seconds
+        bot.emit('physicsTick');
+    }
+    assert.equal(moves.length, 80, 'one a tick');
+    assert.ok(moves.every(m => Math.abs(m.now.x - m.before.x + 0.2) < 1e-9), 'each from where the last one left off');
+    assert.ok(Math.abs(moves.at(-1).now.x - -15.5) < 1e-9);
+});
+
+test('standing still fires nothing; turning on the spot does, as on Java', () => {
+    const { bot, moves } = movingBot();
+    for (let tick = 0; tick < 20; tick++) bot.emit('physicsTick');
+    assert.equal(moves.length, 0, 'a bot standing still is quiet');
+    bot.entity.yaw = Math.PI / 2;
+    bot.emit('physicsTick');
+    bot.emit('physicsTick');
+    assert.equal(moves.length, 1, 'one for the turn');
+});
+
+test('a move the adapter fires for a correction is not announced again', () => {
+    const { bot, moves } = movingBot();
+    bot.entity.position.y = 63; // the server puts the bot a block lower
+    bot.emit('move', bot.entity.position);
+    bot.emit('physicsTick');
+    assert.equal(moves.length, 1, 'the adapter\'s own, and no second one');
+});
+
+test('a bot without events is left alone', () => {
+    assert.doesNotThrow(() => javaShapes({ entity: { position: new Vec3(0, 0, 0) } }));
 });
