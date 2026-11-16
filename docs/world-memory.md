@@ -220,7 +220,7 @@ All of it lives in `src/agent/memory/`:
 | `places.js` | Sites found or named |
 | `changes.js` | Which differences are worth a note, and the notes |
 | `kinds.js` | **The one file that knows what a chest, a door or a crop is,** by name pattern |
-| `block_state.js` | Block states to named properties and back |
+| `block_state.js` | Block states to named properties and back, through the edition seam (`src/agent/edition/`), since each edition of the game numbers states its own way |
 | `store.js` | Opens the five layers for one world and saves them together |
 | `recorder.js` | **The only part that touches the game.** Writes what the bot sees and does into the store |
 | `navigator.js` | **The only part that drives the pathfinder.** Chooses where a trip ends and each hop along the trail |
@@ -236,7 +236,9 @@ and the real ones wrap the pathfinder.
 **Staying apart from the game.** The store keeps names, positions and times, never the game's numbers for
 blocks, states or items, which change with every game version. A world saved under one version loads
 under the next; a block name the new version dropped simply never matches. When a game update does need
-a tweak, `kinds.js` is where it goes.
+a tweak, `kinds.js` is where it goes. Its names are Java Edition's; another edition of the game hands it
+a translation of its own names (`translateNamesWith`), while memory keeps the names the game in play
+uses.
 
 **How it hooks in.** Perception takes world memory as its memory in place of the seen-world map, and
 leaves the looking around to the recorder. Route planning asks perception in turn, so the pathfinder plans
