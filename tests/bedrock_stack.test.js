@@ -18,6 +18,7 @@ import chunkFactory from 'prismarine-chunk';
 import blockFactory from 'prismarine-block';
 import physicsModule from 'prismarine-physics';
 import pf from 'mineflayer-pathfinder';
+import { needsBedrockLibraries } from './helpers/bedrock_libraries.js';
 
 const require = createRequire(import.meta.url);
 
@@ -52,7 +53,7 @@ test('game data knows the Bedrock version, and still knows Java', () => {
     assert.equal(minecraftData('26.3').version.type, 'pc');
 });
 
-test('mineflayer has both editions', () => {
+test('mineflayer has both editions', { skip: needsBedrockLibraries }, () => {
     const mineflayer = require('mineflayer');
     assert.equal(mineflayer.latestSupportedVersion, '26.3', 'the Java side is still the 26.3 work');
     assert.ok(Array.isArray(mineflayer.bedrockTestedVersions), 'the Bedrock adapter is in this mineflayer');
@@ -67,7 +68,7 @@ test('mineflayer has both editions', () => {
 });
 
 for (const hashed of [true, false]) {
-    test(`a chunk holds Bedrock blocks and gives them back (${hashed ? 'hashed' : 'plain'} block ids)`, () => {
+    test(`a chunk holds Bedrock blocks and gives them back (${hashed ? 'hashed' : 'plain'} block ids)`, { skip: needsBedrockLibraries }, () => {
         const registry = bedrockRegistry({ hashed });
         const Chunk = chunkFactory(registry);
         const column = new Chunk({ x: 0, z: 0 });
@@ -93,7 +94,7 @@ test('a Bedrock block has its shape and its own names for its states', () => {
         ['minecraft:corner', 'upside_down_bit', 'weirdo_direction']);
 });
 
-test('walking uses Bedrock numbers, not Java ones', () => {
+test('walking uses Bedrock numbers, not Java ones', { skip: needsBedrockLibraries }, () => {
     const { Physics } = physicsModule;
     const air = { getBlock: () => null };
     const bedrock = Physics(bedrockRegistry(), air);

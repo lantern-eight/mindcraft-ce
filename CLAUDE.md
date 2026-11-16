@@ -17,14 +17,15 @@ play**: the bot may only know and do what a human survival player could.
   themselves. `docs/edition-seam.md` lists its questions, and says when new code must ask it and how to
   add a question. Read it before writing code that reads state numbers, chunk sections, packets, entity
   metadata or block entities.
-- On the `bedrock` branch, the Bedrock Edition code lives in `src/agent/bedrock/`, behind the
-  `minecraft_edition` setting.
+- The Bedrock Edition code lives in `src/agent/bedrock/`, behind the `minecraft_edition` setting. It runs
+  only on the libraries the `bedrock` branch pins (see "Two Editions, Two Branches").
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
   `src/agent/memory/`, and `docs/chest-sorting.md` for `src/agent/storage/`.
 - `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
-  changed in each version, and on `bedrock`, `CHANGELOG-bedrock.md` records what only that branch has.
+  changed in each version, for both editions. On `bedrock`, `CHANGELOG-bedrock.md` records what its
+  library pins changed.
 
 ## Private Notes Stay Out of Git
 
@@ -69,38 +70,48 @@ upstream authors and fork owners is fine and needed where their licenses ask for
   code, put it in its own module and leave a small hook in the inherited file. Never rewrite the
   inherited logic where it stands: an upstream change to it would then merge cleanly and do nothing. Add
   the piece to "Replaced Pieces" in `docs/core-hooks.md`.
-- **Branches:** `main` targets Java Edition, and `bedrock` is its twin for Bedrock Edition (see "Two
-  Editions, Two Branches").
+- **Branches:** `main` holds all of the code, for both editions. `bedrock` is `main` plus the library pins
+  that make Bedrock Edition run, and its defaults (see "Two Editions, Two Branches").
 - **`main` and `bedrock` change only by a pull request** that says what it brings and bumps the version (see
   "Changelog and Versions"). Nothing is committed or merged straight onto either of them.
-- **Work happens on a working branch,** named for what it adds and cut from the branch it will go into. A
-  task stays on its branch until all of it is done and tested, then goes in as one pull request.
+- **Work happens on a working branch,** named for what it adds and cut from the branch it will go into:
+  `main` for code, `bedrock` for its pins. A task stays on its branch until all of it is done and tested,
+  then goes in as one pull request.
 - **Fixes found along the way are made on the working branch,** and reach `main` or `bedrock` with its pull
   request. A fix that could go upstream is also broken off onto a small branch of its own, to offer it
   there (see "Fixes to Inherited Code").
 
 ## Two Editions, Two Branches
 
-Minecraft's two editions speak different protocols, and the libraries for Bedrock Edition are younger than
-the ones for Java. So each edition has its own long-lived branch, and a Bedrock problem can't break the Java
-bot.
+Minecraft's two editions speak different protocols. The released libraries play Java Edition; Bedrock
+Edition needs their unreleased work, pinned to branches. So there is one copy of the code, for both
+editions, and the pins live on a branch of their own.
 
-- **`main` targets Java Edition. `bedrock` targets Bedrock Edition.** Each branch's `README.md` says which
-  game version it works with. Keep that line true when the version moves.
-- **`bedrock` is `main` plus the Bedrock work:** its own library pins, the Bedrock modules, and their tests.
-  `main` reaches `bedrock` by being merged, with a merge commit, into a working branch cut from `bedrock`,
-  which goes into `bedrock` by its pull request. Do that often. Never merge `bedrock`, or a branch cut
-  from it, into `main`.
-- **A change that isn't about Bedrock is made for `main`,** on a working branch cut from it, and reaches
-  `bedrock` the next time `main` is merged into a Bedrock working branch. Only Bedrock work is committed on
-  a branch cut from `bedrock`.
-- **New features are built for `main` first, for Java.** A feature is built and tested on a working branch
-  cut from `main`, and goes into `main` by its pull request. Only when it is done, working and in `main` is
-  it ported to Bedrock, as a task of its own: a working branch cut from `bedrock`, `main` merged into it,
-  any new question the feature asks of the edition seam answered for Bedrock, and Bedrock live tests; then
-  a pull request into `bedrock`. A feature is never built on `bedrock` first, nor on both branches at once.
-- **Keep the difference between the two short and listed.** Bedrock code lives in its own module behind a
-  setting, with hooks in `docs/core-hooks.md` like any other.
+- **`main` holds all of the code, for both editions:** the Java and the Bedrock modules, the edition seam's
+  answers for both, the hooks, the tests and the docs. It installs the libraries Java Edition needs. A bot
+  set to Bedrock on `main` stops with a message that says to use the `bedrock` branch, and the tests that
+  need the Bedrock libraries skip themselves there. Each branch's `README.md` says which game versions it
+  works with. Keep that line true when a version moves.
+- **`bedrock` is `main` plus what makes Bedrock run, and nothing else:** the library pins (`package.json`,
+  `package-lock.json`, and the patches whose line numbers they move), its defaults (`minecraft_edition`
+  `"bedrock"`, a Bedrock version and port), the list of those pins in `docs/core-hooks.md`, and
+  `CHANGELOG-bedrock.md`. When the libraries release their Bedrock work, the branch is no longer needed.
+- **Code goes into `main`, whichever edition it is for,** on a working branch cut from `main`. Java and
+  Bedrock changes alike reach `bedrock` when `main` is merged into it: with a merge commit, into a working
+  branch cut from `bedrock`, which goes into `bedrock` by its pull request. Do that after every release of
+  `main`.
+- **Never merge `bedrock`, or a branch cut from it, into `main`.** It would bring the pins. A change to the
+  pins alone (a newer library commit, a library fix) is made on a working branch cut from `bedrock`.
+- **To run Bedrock on a branch cut from `main`,** install `bedrock`'s libraries: `git checkout origin/bedrock
+  -- package.json package-lock.json patches`, `SKIP_BUILD=1 npm ci`, then `git checkout HEAD --
+  package.json package-lock.json patches`. `node_modules` isn't tracked, so it stays as installed while the
+  branch changes, and the Java tests pass on those libraries too.
+- **A feature is built on `main`, for both editions where both can have it.** Its Bedrock side is answered
+  at the edition seam where it needs one, and it is tested live on Java and on Bedrock. A feature that comes
+  to Java first gets its Bedrock side in a task of its own, also on `main`; a question it adds to the seam
+  is answered for Bedrock at once (`docs/edition-seam.md`). Everything Bedrock stays behind
+  the setting, so it can't break the Java bot.
+- **Keep the difference between the two branches to the pins and the defaults.**
 - Every rule in this file holds on both branches.
 
 ## Fixes to Inherited Code
@@ -167,10 +178,14 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
 - Versions follow [Semantic Versioning](https://semver.org/). **Every pull request into `main` or `bedrock`
   is a release:** it moves the Unreleased lines under a new version heading with its date, and sets the
   same version in `package.json`.
-- **On `bedrock`, the version is the version of `main` it is built on, then `-bedrock.` and the Bedrock
-  line's own version,** which follows Semantic Versioning by itself: `1.0.0-bedrock.1.0.0`. Merging a newer
-  `main` changes the first part; a Bedrock release bumps the last. Bedrock-only changelog lines go in
-  `CHANGELOG-bedrock.md`, not `CHANGELOG.md`, so merging `main` never clashes there.
+- **A version has a part for each edition:** `1.0.0-bedrock.1.0.0` is Java Edition's `1.0.0` and Bedrock
+  Edition's `1.0.0`, and each part follows Semantic Versioning by itself. A change only a Java player would
+  notice bumps the first part. One only a Bedrock player would notice (a Bedrock answer at the edition seam,
+  the Bedrock module, a pin) bumps the last. A change to code both editions run bumps both.
+- **`main` and `bedrock` carry the same version,** except after a release of `bedrock`'s pins alone: that
+  bumps the Bedrock part on `bedrock`, and the next release of `main` takes a Bedrock part above it, so no
+  number is used twice. The lines for such a release go in `CHANGELOG-bedrock.md`, which only `bedrock`
+  has; every other line goes in `CHANGELOG.md`, on `main`.
 
 ## Code Style
 
@@ -187,9 +202,9 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
   `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
   to run. They need Java 25 and a 26.3 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
-- The Bedrock live scripts, `tests/live/bedrock_*.js`, can't start their own server: they are pointed at a
-  throwaway Bedrock server that is already running (`docs/bedrock.md`, "Testing"). They make no model
-  calls either. Never point them at a world worth keeping.
+- The Bedrock live scripts, `tests/live/bedrock_*.js`, run on `bedrock`'s libraries, and can't start their
+  own server: they are pointed at a throwaway Bedrock server that is already running (`docs/bedrock.md`,
+  "Testing"). They make no model calls either. Never point them at a world worth keeping.
 - **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve
   a model report a success rate over several runs, not a single pass or fail.
 

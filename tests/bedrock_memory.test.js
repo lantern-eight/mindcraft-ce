@@ -23,6 +23,7 @@ import { createPerception } from '../src/agent/fairplay/perception.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 import { openMemory } from '../src/agent/memory/store.js';
 import { createRecorder } from '../src/agent/memory/recorder.js';
+import { needsBedrockLibraries } from './helpers/bedrock_libraries.js';
 
 const BEDROCK_VERSION = '1.26.60';
 
@@ -34,7 +35,7 @@ function bedrockRegistry() {
 }
 const registry = bedrockRegistry();
 
-test('a Bedrock state gives its properties by name, and the properties give the state back', () => {
+test('a Bedrock state gives its properties by name, and the properties give the state back', { skip: needsBedrockLibraries }, () => {
     const door = stateOfProps(registry, 'wooden_door', { upper_block_bit: '1', 'minecraft:cardinal_direction': 'east', open_bit: '1' });
     assert.notEqual(door, registry.blocksByName.wooden_door.defaultState);
     assert.deepEqual(propsOfState(registry, door),
@@ -172,7 +173,7 @@ function bedrockScene() {
     return { bot, set };
 }
 
-test('the recorder keeps a Bedrock door, bed, chest, sign and field as the things they are', () => {
+test('the recorder keeps a Bedrock door, bed, chest, sign and field as the things they are', { skip: needsBedrockLibraries }, () => {
     translateNamesWith(bedrockNamesFor(BEDROCK_VERSION));
     try {
         const { bot, set } = bedrockScene();
