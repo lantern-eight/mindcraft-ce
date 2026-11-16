@@ -411,23 +411,9 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
 
     // ---- Hearing ----
     //
-    // Built from the sound packets the server sends, read directly (nothing is ever sent back). The
-    // server only sends a sound to players close enough to hear it, so this is what a player with
-    // subtitles on would get. mineflayer's own `soundEffectHeard` event can't be used: on 1.21 it looks
-    // each sound up one place off in the sound list, so a cow's moo arrives named as an unrelated sound
-    // and its hurt cry as its death cry.
-
-    // minecraft-data numbers its sound list from 0 in some versions and from 1 in others; the protocol
-    // always counts from 0. Going by where the list starts keeps the lookup right either way.
-    const soundBase = bot.registry.soundsArray?.[0]?.id ?? 0;
-
-    /** The name of the sound a packet carries, or null. */
-    function soundNameOf(packet) {
-        if (typeof packet?.soundName === 'string') return packet.soundName;                 // older servers name it outright
-        if (typeof packet?.sound?.data?.soundName === 'string') return packet.sound.data.soundName; // a sound given by name
-        const id = packet?.sound ? packet.sound.soundId : packet?.soundId;                   // its place in the game's sound list
-        return Number.isInteger(id) ? bot.registry.sounds?.[id + soundBase]?.name ?? null : null;
-    }
+    // Built from the sounds the server sends, which the edition seam reads (src/agent/edition/): a server
+    // only sends a sound to players close enough to hear it, so this is what a player with subtitles on
+    // would get.
 
     function hearSound(soundName, position) {
         const subject = soundSubject(soundName);
@@ -539,18 +525,14 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     // ---- Lifetime ----
 
     let timer = null;
-    // Sounds played at a spot carry their position in eighths of a block; sounds attached to an
-    // entity come from wherever that entity is.
-    const onSound = packet => hearSound(soundNameOf(packet), { x: packet.x / 8, y: packet.y / 8, z: packet.z / 8 });
-    const onEntitySound = packet => hearSound(soundNameOf(packet), bot.entities[packet.entityId]?.position);
-    const soundPackets = [['sound_effect', onSound], ['named_sound_effect', onSound], ['entity_sound_effect', onEntitySound]];
+    let stopHearing = null;
     // Anything that changes the world makes cached sight answers stale.
     const worldEvents = ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload'];
     for (const event of worldEvents) bot.on?.(event, invalidate);
 
     function start({ intervalMs = 150 } = {}) {
         if (timer) return;
-        for (const [packet, listener] of soundPackets) bot._client?.on?.(packet, listener);
+        stopHearing = edition.onSound(bot, hearSound);
         timer = setInterval(() => { try { tick(); } catch (error) { console.warn('Perception tick failed:', error.message); } }, intervalMs);
         timer.unref?.(); // never the only thing keeping the process alive
     }
@@ -559,7 +541,8 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     function stop() {
         clearInterval(timer);
         timer = null;
-        for (const [packet, listener] of soundPackets) bot._client?.off?.(packet, listener);
+        stopHearing?.();
+        stopHearing = null;
         for (const event of worldEvents) bot.off?.(event, invalidate);
         liveReader?.dispose();
     }
