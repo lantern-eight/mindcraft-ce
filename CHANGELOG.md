@@ -83,6 +83,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   way Java numbers them, and knew only Java's names. It now reads Bedrock's states, and judges Bedrock's
   names by the Java blocks they stand for, while keeping Bedrock's names. A double chest is still
   remembered as two chests. A new live test, `tests/live/bedrock_memory.js`, checks it on a server.
+- **Bedrock branch only.** A live test, `tests/live/bedrock_fair_play.js`, runs fair play as a whole on a
+  Bedrock server, installed the way the agent installs it: skills that find and walk to only what the
+  bot has seen, the reach guard, the reflex to flee a monster once it is in view, model-written code,
+  refusing to act as an operator or in creative mode, and never sending a command. It passes on 1.26.60.
 
 ### Changed
 
