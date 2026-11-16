@@ -81,8 +81,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** World memory works on Bedrock in part. It remembered a door's state as
   nonsense, and didn't know a Bedrock bed, spawner or beetroot for what they are: it read block states the
   way Java numbers them, and knew only Java's names. It now reads Bedrock's states, and judges Bedrock's
-  names by the Java blocks they stand for, while keeping Bedrock's names. A double chest is still
-  remembered as two chests. A new live test, `tests/live/bedrock_memory.js`, checks it on a server.
+  names by the Java blocks they stand for, while keeping Bedrock's names. A double chest is one thing,
+  paired by what its two blocks say of each other, which on Bedrock is not in their states. A new live
+  test, `tests/live/bedrock_memory.js`, checks it on a server.
 - **Bedrock branch only.** A live test, `tests/live/bedrock_fair_play.js`, runs fair play as a whole on a
   Bedrock server, installed the way the agent installs it: skills that find and walk to only what the
   bot has seen, the reach guard, the reflex to flee a monster once it is in view, model-written code,

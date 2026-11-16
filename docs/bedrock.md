@@ -112,7 +112,7 @@ stay.
 | **Fair play** | Works, with the two limits in the next rows. Checked on a server by `bedrock_perception.js`: sight (the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet), hearing a mob's cry from behind a wall, and noticing that the server made the bot an operator. And by `bedrock_fair_play.js`, as the agent runs it: what the model is told, skills that find and walk to only what the bot has seen, the reach guard, the reflex to flee a monster in view, model-written code, refusing to act as an operator or in creative mode, and no slash command sent. Reach uses Java's numbers |
 | **Mobs' everyday noises** | Not heard. A Bedrock client makes a mob's moos and groans up by itself, and the server never sends them, so the bot hears a mob only when it is hurt or dies, or does something the server plays a sound for |
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
-| **World memory** | In part. **Works,** checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names; a door out of sight is known as it was last seen. Each world has its own memory, named by a hash of the seed the server sends. **Not checked on Bedrock yet:** noticing changes, the trail and travel along it, places, and what the model is told. **A double chest** is remembered as two chests: Bedrock pairs chests outside the block's state, where memory doesn't look yet |
+| **World memory** | In part. **Works,** checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. Each world has its own memory, named by a hash of the seed the server sends. **Not checked on Bedrock yet:** noticing changes, the trail and travel along it, places, signs, and what the model is told |
 | **Chest sorting** | Not ported. It moves items the way Java's windows work. It is on by default with fair play, so set `chest_sorting: false` |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
@@ -154,7 +154,7 @@ node tests/live/bedrock_fair_play.js                   # fair play as a whole, a
   perception knows only what is in view, though the server sends the bot all of it. It walls in the hidden
   cow to hear it cry out, and has the server make the bot an operator and take it back. The Bedrock twin
   of `fairplay_perception_smoke.js`.
-- **`bedrock_memory.js`** puts a door, a bed, two chests and a crop on such a platform, runs world
+- **`bedrock_memory.js`** puts a door, a bed, a double chest and a crop on such a platform, runs world
   memory's look-around, and checks what it kept: each thing as one thing, nothing buried, and the door
   as it was once the bot is walled in.
 - **`bedrock_fair_play.js`** installs fair play the way the agent does, with world memory, and runs
@@ -217,7 +217,7 @@ spaces and `_ . : -`, and write coordinates out in full.
 |---|---|
 | `src/agent/bedrock/connect.js` | Starting a Bedrock bot: the options, the server's key, what is left out, the game data the rest of the code reads |
 | `src/agent/bedrock/eating.js` | Eating when hungry. The plugin that does it on Java can't be loaded on Bedrock, so this does the same with the same switches |
-| `src/agent/bedrock/edition.js` | How Bedrock numbers block states (by hash) and lays out a chunk, for fair play and the modules that share its eyes ([the edition seam](fair-play.md#for-developers)) |
+| `src/agent/bedrock/edition.js` | How Bedrock numbers block states (by hash), lays out a chunk and pairs a double chest, for fair play and the modules that share its eyes ([the edition seam](fair-play.md#for-developers)) |
 | `src/agent/bedrock/names.js` | Bedrock's names for blocks and states in Java's terms, so world memory knows a Bedrock bed or door for what it is. Memory itself keeps Bedrock's names |
 | `src/agent/bedrock/lockdown_ready.js` | Loads a library the connection uses before the connection does, so that the sandbox for model-written code can still be set up afterwards |
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, and a click on a block |

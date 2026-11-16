@@ -6,8 +6,9 @@
 //
 // The unit tests run the recorder over Bedrock chunks built by hand. This runs it over what a real server
 // sends: a door, a bed, two chests side by side and a crop, placed by the server the way a player's would
-// be, both halves of the door and the bed included. Memory has to keep each as the one thing it is, under
-// Bedrock's own names, see none of what is buried, and still know the door's state once it can't see it.
+// be, both halves of the door and the bed included, and the two chests paired into one double chest.
+// Memory has to keep each as the one thing it is, under Bedrock's own names, see none of what is buried,
+// and still know the door's state once it can't see it.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -39,7 +40,7 @@ async function buildScene() {
     await set([4, 1, 0], 'wooden_door');   // the server places both halves
     await set([-3, 1, 3], 'bed');          // and both halves of the bed
     await set([2, 1, -4], 'chest');
-    await set([3, 1, -4], 'chest');
+    await set([3, 1, -4], 'chest');        // beside the first, facing the same way: the server pairs them
     await set([-5, 0, -4], 'farmland');
     await set([-5, 1, -4], 'wheat');
 }
@@ -99,8 +100,12 @@ try {
         return { door: door.state, bed: bed.state };
     });
 
-    await step('the chests are containers, and the wheat is a field', () => {
-        for (const x of [2, 3]) assert.equal(memory.things.get(at(x, 1, -4).x, at(x, 1, -4).y, at(x, 1, -4).z)?.kind, 'container');
+    await step('the two chests are one double chest, and the wheat is a field', () => {
+        // Bedrock pairs them in their block entities, not their states.
+        const chest = memory.things.get(at(2, 1, -4).x, at(2, 1, -4).y, at(2, 1, -4).z);
+        assert.equal(chest?.kind, 'container', JSON.stringify(chest));
+        assert.deepEqual(cellsOf(chest), ['2,1,-4', '3,1,-4']);
+        assert.equal(memory.things.count('chest'), 1);
         const fields = memory.things.fieldsNear(at(-5, 1, -4), { maxDistance: 16 });
         assert.ok(fields.some(field => field.crop === 'wheat' && field.count === 1 && field.ripe === 0), JSON.stringify(fields));
         return { chests: memory.things.count('chest') };

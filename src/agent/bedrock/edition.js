@@ -18,6 +18,7 @@
 //   - **Operator rights,** which a Bedrock server gives as a permission level, not an entity status.
 //   - **A block state's properties,** which Bedrock's game data lists for every state by name, with
 //     Bedrock's own names (`upper_block_bit` for the top half of a door).
+//   - **A double chest,** whose two halves name each other in their block entities, not their states.
 //
 // Read with Java's answers, a hashed state number fits no table: nothing blocked sight, and a search over
 // the chunks found nothing. That is why the bot named the dirt under a grass floor it was standing on.
@@ -272,6 +273,22 @@ export const bedrockEdition = Object.freeze({
         if (!Array.isArray(layer)) return null;
         const states = layer.map(entry => entry.stateId);
         return { empty: states.every(stateId => stateId === air), states };
+    },
+
+    /**
+     * A Bedrock chest's state says only which way it faces. Whether it is half of a double chest, and
+     * which block is the other half, is in its block entity: `pairx` and `pairz`, the other half's
+     * place. The two halves stand side by side on one level, so anything else is not a pairing.
+     */
+    otherHalfOf(block) {
+        const fields = block?.entity?.value ?? block?.entity;
+        const read = key => { const field = fields?.[key]; return field && typeof field === 'object' ? field.value : field; };
+        const x = read('pairx'), z = read('pairz');
+        const at = block?.position;
+        if (!Number.isInteger(x) || !Number.isInteger(z) || !at) return null;
+        const here = { x: Math.floor(at.x), y: Math.floor(at.y), z: Math.floor(at.z) };
+        if (Math.abs(x - here.x) + Math.abs(z - here.z) !== 1) return null;
+        return { x, y: here.y, z };
     },
 });
 
