@@ -165,8 +165,53 @@ function recipesLikeJava(bot) {
     bot.craft = (recipe, ...rest) => craft(recipe?.[ADAPTER_RECIPE] ?? recipe, ...rest);
 }
 
+// ---- Clicks -----------------------------------------------------------------------------------------
+
+// How long a click waits for the world to show what it did. On a local network the answer is back within
+// a tick or two; a click that changes nothing (opening a chest) waits this long and no longer.
+const CLICK_SETTLE_MS = 300;
+
+/**
+ * A click on a block, and what may follow it.
+ *
+ * On Java the next click can be sent straight away: a click names only the place. On Bedrock a click
+ * also names the block it lands on, and the server ignores one that names a block which is no longer
+ * there. Code written for Java does exactly that without knowing: it tills a patch of grass with a hoe
+ * and plants on it in the next line, while the bot's copy of the world still says grass. The seed is
+ * never planted and nothing reports it.
+ *
+ * So here a click is not done until the world has shown its effect at that spot, or a moment has passed.
+ */
+function clicksThatSettle(bot) {
+    if (typeof bot.activateBlock !== 'function') return;
+    const activate = bot.activateBlock.bind(bot);
+    bot.activateBlock = async (block, ...rest) => {
+        const changed = blockChangesAt(bot, block?.position);
+        const result = await activate(block, ...rest);
+        await changed;
+        return result;
+    };
+}
+
+// Resolves when the block at a spot changes, or after a moment. Listening starts before the click is
+// sent, so an answer that comes back at once is not missed.
+function blockChangesAt(bot, position) {
+    if (!position || typeof bot.once !== 'function') return Promise.resolve();
+    const event = `blockUpdate:${position}`; // mineflayer's name for it: "blockUpdate:(x, y, z)"
+    return new Promise(resolve => {
+        const done = () => {
+            clearTimeout(timer);
+            bot.removeListener(event, done);
+            resolve();
+        };
+        const timer = setTimeout(done, CLICK_SETTLE_MS + 150); // the adapter itself waits 120 ms before it sends
+        bot.once(event, done);
+    });
+}
+
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
 export function javaShapes(bot) {
     chestsLikeJava(bot);
     recipesLikeJava(bot);
+    clicksThatSettle(bot);
 }

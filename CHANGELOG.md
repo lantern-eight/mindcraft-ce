@@ -40,6 +40,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   crafting table. A Bedrock server sends its recipes when the bot joins, and the adapter keeps them in a
   layout of its own; the skills now get them in the layout they have on Java, a recipe that takes "any
   planks" included.
+- **Bedrock branch only.** On Bedrock the bot can till soil and plant on it. A click on a block now waits,
+  for a moment at most, until the bot has seen what the click did. Code written for Java sends the next
+  click straight away, and a Bedrock server ignores a click that still names the block from before.
 - **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
   yet, and the bot stopped with an error when it built its status for the model.
 

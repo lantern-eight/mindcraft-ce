@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: CC0-1.0
 // On Bedrock, what the bot hands back has to have the shape it has on Java, because the skills are written
-// against that: an opened chest with deposit, withdraw and close on it, and a recipe laid out the way
-// mineflayer and the game data lay one out there. No server; the adapter is stood in for.
+// against that: an opened chest with deposit, withdraw and close on it, a recipe laid out the way
+// mineflayer and the game data lay one out there, and a click on a block that can be followed by another
+// straight away. No server; the adapter is stood in for.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
+import Vec3 from 'vec3';
 import { javaShapes, recipesLikeGameData } from '../src/agent/bedrock/java_shapes.js';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -162,4 +165,36 @@ test('the game data answers "what makes this item" in the layout it has on Java'
     // Nothing at all for an item with no recipe: the code that asks tells "none" from "an empty list".
     assert.equal(recipesLikeGameData(bot, items.oak_log), undefined);
     assert.equal(recipesLikeGameData(null, items.oak_log), undefined, 'before the bot exists');
+});
+
+// ---- Clicks ----
+
+function clickBot() {
+    const bot = new EventEmitter();
+    const clicks = [];
+    bot.activateBlock = async block => { clicks.push(block); return 'clicked'; };
+    javaShapes(bot);
+    return { bot, clicks };
+}
+
+test('a click is done once the world shows what it did', async () => {
+    // Tilling, then planting in the next line: the second click must not go out while the bot's copy of
+    // the world still shows the block from before the first.
+    const { bot } = clickBot();
+    const block = { position: new Vec3(1, 63, 2) };
+    setTimeout(() => bot.emit('blockUpdate:(1, 63, 2)'), 40);
+    const started = Date.now();
+    assert.equal(await bot.activateBlock(block), 'clicked');
+    const took = Date.now() - started;
+    assert.ok(took >= 30 && took < 300, `waited ${took} ms for the change`);
+    assert.equal(bot.listenerCount('blockUpdate:(1, 63, 2)'), 0, 'nothing is left listening');
+});
+
+test('a click that changes nothing waits a moment and no longer', async () => {
+    const { bot } = clickBot();
+    const started = Date.now();
+    await bot.activateBlock({ position: new Vec3(0, 0, 0) });
+    const took = Date.now() - started;
+    assert.ok(took >= 300 && took < 900, `waited ${took} ms`);
+    assert.equal(bot.listenerCount('blockUpdate:(0, 0, 0)'), 0);
 });
