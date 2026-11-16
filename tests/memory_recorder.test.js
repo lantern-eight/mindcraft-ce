@@ -138,6 +138,29 @@ test('a sign is remembered with what it says, read from the block as the bot see
     assert.equal(sign.text, 'Wheat farm / this way');
 });
 
+test('what a sign says is asked of the edition seam, which knows where the game keeps it', () => {
+    // Another edition keeps a sign's text in a block entity of its own shape, which the block can't read.
+    registerEdition('pc', { ...javaEdition, signSidesOf: block => block?.entity?.sides ?? [] });
+    try {
+        const { memory, lookAround } = setup(w => {
+            w.set('oak_sign', 3, 1, 3);
+        }, {
+            prepare: bot => {
+                const blockAt = bot.blockAt;
+                bot.blockAt = pos => {
+                    pos.floored();
+                    const block = blockAt(pos);
+                    return block?.name === 'oak_sign' ? Object.assign(block, { entity: { sides: ['Iron\nin the east', ''] } }) : block;
+                };
+            },
+        });
+        lookAround();
+        assert.equal(memory.things.get(3, 1, 3).text, 'Iron / in the east');
+    } finally {
+        registerEdition('pc', javaEdition);
+    }
+});
+
 test('nothing runs while the bot stands still in an unchanged world', () => {
     const { recorder, world, bot, memory } = setup();
     recorder.tick();

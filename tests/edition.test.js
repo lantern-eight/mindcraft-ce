@@ -137,6 +137,12 @@ test('Java keeps a double chest\'s pairing in the state, so there is nothing mor
     assert.equal(javaEdition.otherHalfOf({ position: { x: 0, y: 64, z: 0 }, entity: { pairx: 1 } }), null);
 });
 
+test('Java\'s signs read their own text, which the seam passes on side by side', () => {
+    assert.deepEqual(javaEdition.signSidesOf({ getSignText: () => ['Wheat\nfarm', ''] }), ['Wheat\nfarm', '']);
+    assert.deepEqual(javaEdition.signSidesOf({ name: 'stone' }), [], 'a block with no text');
+    assert.deepEqual(javaEdition.signSidesOf(null), [], 'nothing there');
+});
+
 test('a stack is moved with three clicks, the last only when something is left on the cursor', async () => {
     const clicks = [];
     const window = { selectedItem: null };
