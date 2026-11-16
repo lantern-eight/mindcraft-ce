@@ -111,6 +111,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   with fair play on or off: a library the connection loads leaves a property on JavaScript's `Reflect`
   that the sandbox can't remove. The bot now loads that library itself before it connects, with that
   property left removable.
+- World memory keeps what a sign says. A sign was remembered without its text: memory asked for the
+  block in a way the real bot can't answer, and the error was quietly passed over.
 - The bot no longer stops answering when it stands in a biome the installed game data has no entry
   for, such as on a server newer than the data. Its status then says "Biome: unknown". Before, building
   the status failed, and every message got the "having trouble" reply.

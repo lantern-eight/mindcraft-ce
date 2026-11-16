@@ -15,6 +15,7 @@
 //
 // The look-around is spread over many short slices (a few milliseconds each), so it never holds up the
 // bot's own movement. Nothing runs while the bot stands still and no block near it changes.
+import Vec3 from 'vec3';
 import { buildStopsSightTable } from '../fairplay/sight.js';
 import { scanSection, sectionsInRange } from '../fairplay/block_scan.js';
 import { editionOf } from '../edition/index.js';
@@ -110,8 +111,17 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         return sight.canSeeBlock(eye, x, y, z, VIEW)?.face ?? null;
     }
 
+    /**
+     * What a sign says, its lines joined by " / ", or undefined when it says nothing. The game gives the
+     * text of each side with its lines on separate rows, the back side after the front.
+     */
     function signText(x, y, z) {
-        try { return bot.blockAt({ x, y, z })?.getSignText?.().join(' / ').trim() || undefined; } catch { return undefined; }
+        try {
+            // The real bot's blockAt needs a vector: a plain {x, y, z} throws, which this catch once hid.
+            const sides = bot.blockAt(new Vec3(x, y, z))?.getSignText?.() ?? [];
+            const lines = sides.flatMap(side => String(side ?? '').split('\n')).map(line => line.trim()).filter(Boolean);
+            return lines.join(' / ') || undefined;
+        } catch { return undefined; }
     }
 
     /**
@@ -122,7 +132,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     function otherHalf(x, y, z, name, state) {
         const offset = partnerOffset(name, state);
         if (offset) return { x: x + offset.x, y: y + offset.y, z: z + offset.z };
-        const block = { position: { x, y, z }, get entity() { try { return bot.blockAt({ x, y, z })?.entity; } catch { return undefined; } } };
+        const block = { position: { x, y, z }, get entity() { try { return bot.blockAt(new Vec3(x, y, z))?.entity; } catch { return undefined; } } };
         return edition.otherHalfOf(block);
     }
 
