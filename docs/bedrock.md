@@ -99,6 +99,10 @@ uses. None of those libraries are released with Bedrock support yet;
   gives on Java, and are not copied for Bedrock. Where the adapter's `bot` differs in shape, the Bedrock
   module puts the Java shape back on the bot (`java_shapes.js`); where the adapter is simply wrong, it is
   fixed in the adapter; what Bedrock can't do is listed under Known Gaps.
+- **One copy of fair play, world memory and chest sorting.** What those read below the `bot` (how block
+  states are numbered, what a chunk section holds, the sound packets, what a block entity keeps) they ask
+  of the [edition seam](edition-seam.md), and the Bedrock module answers its questions for Bedrock
+  (`src/agent/bedrock/edition.js`). A question the Bedrock module leaves unanswered fails a unit test.
 - **Coming back after a crash.** A bot that is killed instead of leaving stays on the server's player list
   for some seconds. A bot of the same name that joins in that time is turned away. Wait half a minute.
 
@@ -235,7 +239,7 @@ spaces and `_ . : -`, and write coordinates out in full.
 |---|---|
 | `src/agent/bedrock/connect.js` | Starting a Bedrock bot: the options, the server's key, what is left out, the game data the rest of the code reads |
 | `src/agent/bedrock/eating.js` | Eating when hungry. The plugin that does it on Java can't be loaded on Bedrock, so this does the same with the same switches |
-| `src/agent/bedrock/edition.js` | How Bedrock numbers block states (by hash), lays out a chunk and pairs a double chest, for fair play and the modules that share its eyes ([the edition seam](fair-play.md#for-developers)) |
+| `src/agent/bedrock/edition.js` | Bedrock's answers to the [edition seam](edition-seam.md)'s questions: how Bedrock numbers block states (by hash), lays out a chunk, sends sounds and operator rights, pairs a double chest, keeps a sign's text and a mob's age, and moves a stack |
 | `src/agent/bedrock/names.js` | Bedrock's names for blocks and states in Java's terms, so world memory knows a Bedrock bed or door for what it is. Memory itself keeps Bedrock's names |
 | `src/agent/bedrock/window_moves.js` | Moving a stack in an open chest, one item stack request a move, for chest sorting; and taking from and putting into a barrel |
 | `src/agent/bedrock/lockdown_ready.js` | Loads a library the connection uses before the connection does, so that the sandbox for model-written code can still be set up afterwards |
