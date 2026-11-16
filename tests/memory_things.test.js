@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createThings, loadThings } from '../src/agent/memory/things.js';
-import { changesByItself, isCrop, isHerdAnimal, isRipe, kindOf, partnerOffset, startsPlace } from '../src/agent/memory/kinds.js';
+import { changesByItself, isCrop, isHerdAnimal, isRipe, kindOf, moveKindOf, partnerOffset, startsPlace, translateNamesWith } from '../src/agent/memory/kinds.js';
 
 const SCOPE = 'local:55916/w1/overworld';
 const HERE = { x: 0, y: 64, z: 0 };
@@ -302,4 +302,29 @@ test('K4: a field keeps its count and ripe count, and a herd is replaced when it
     assert.deepEqual(things.herdsNear(HERE, { maxDistance: 50 }).map(h => `${h.kind} ${h.count}`), ['cow 3']);
     things.setHerds(1, 4, 0, []);
     assert.equal(things.herdsNear(HERE, { maxDistance: 50 }).length, 0);
+});
+
+test('another edition\'s names are judged as the Java names they stand for, and Java names pass untouched', () => {
+    // A stand-in for another edition's translation: two of its names, and how it describes their states.
+    const theirs = {
+        wooden_door: state => ({ name: 'oak_door', state: state && { half: state.upper_block_bit === '1' ? 'upper' : 'lower' } }),
+        beetroot: state => ({ name: 'beetroots', state: state && { age: String(Math.floor(Number(state.growth) / 2)) } }),
+    };
+    translateNamesWith((name, state) => theirs[name]?.(state) ?? null);
+    try {
+        assert.equal(kindOf('wooden_door'), 'passage');
+        assert.equal(moveKindOf('wooden_door'), 'door');
+        assert.deepEqual(partnerOffset('wooden_door', { upper_block_bit: '1' }), { x: 0, y: -1, z: 0 });
+        assert.equal(isCrop('beetroot'), true);
+        assert.equal(isRipe('beetroot', { growth: '7' }), true);
+        assert.equal(isRipe('beetroot', { growth: '5' }), false);
+        assert.equal(changesByItself('beetroot'), true);
+        // A Java name the translation doesn't know means what it always did.
+        assert.equal(kindOf('oak_door'), 'passage');
+        assert.deepEqual(partnerOffset('chest', { facing: 'north', type: 'left' }), { x: 1, y: 0, z: 0 });
+        assert.equal(isRipe('wheat', { age: '7' }), true);
+    } finally {
+        translateNamesWith(null);
+    }
+    assert.equal(isCrop('beetroot'), false, 'without the translation the other name means nothing here');
 });

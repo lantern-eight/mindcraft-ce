@@ -7,6 +7,29 @@
 //
 // The rest of the memory code asks these questions and knows nothing about Minecraft's block list.
 
+// ---- Names from another edition of the game ----
+//
+// The names here are Java Edition's. Another edition names some of the same blocks differently (Bedrock
+// Edition's `wooden_door` is Java's `oak_door`) and describes their states with other properties. Its
+// module hands a translation to translateNamesWith, and each question below is then asked of the Java
+// name and properties. Memory itself keeps the names and properties of the game it plays, as the rest of
+// the bot sees them. A name or state the translation doesn't know is taken as it is, which is every one
+// a Java bot meets.
+let toJava = null;
+
+/**
+ * Sets the translation into Java's names, or removes it with null. One bot runs per process, and it plays
+ * one edition, so there is one translation at a time.
+ * @param {((name: string, state?: object|null) => {name: string, state: object|null}|null)|null} translate
+ *   gives the Java name (and, when a state is passed, the Java properties) or null when it has none
+ */
+export function translateNamesWith(translate) {
+    toJava = translate;
+}
+
+const javaName = name => (name && toJava?.(name)?.name) || name;
+const javaBlock = (name, state) => (name && toJava?.(name, state)) || { name, state };
+
 const CONTAINERS = new Set(['chest', 'trapped_chest', 'ender_chest', 'barrel', 'hopper', 'dropper', 'dispenser',
     'furnace', 'blast_furnace', 'smoker', 'brewing_stand', 'crafter', 'chiseled_bookshelf', 'decorated_pot']);
 const WORKSTATIONS = new Set(['crafting_table', 'enchanting_table', 'smithing_table', 'grindstone', 'stonecutter',
@@ -20,7 +43,10 @@ const SPAWNERS = new Set(['spawner', 'trial_spawner', 'vault']);
  * @returns {'container'|'workstation'|'passage'|'bed'|'sign'|'portal'|'spawner'|'ore'|null}
  */
 export function kindOf(name) {
-    if (!name) return null;
+    return name ? kindOfJava(javaName(name)) : null;
+}
+
+function kindOfJava(name) {
     if (CONTAINERS.has(name) || name.endsWith('shulker_box')) return 'container';
     if (WORKSTATIONS.has(name) || name.endsWith('anvil') || name.endsWith('cauldron')) return 'workstation';
     if (name.endsWith('_door') || name.endsWith('_fence_gate') || name.endsWith('_trapdoor')) return 'passage';
@@ -40,12 +66,13 @@ export const startsPlace = kind => kind === 'container' || kind === 'workstation
 const CROPS = { wheat: 7, carrots: 7, potatoes: 7, beetroots: 3, nether_wart: 3, cocoa: 2, sweet_berry_bush: 3, torchflower_crop: 1, pitcher_crop: 4 };
 
 /** Is this block a planted crop that grows? */
-export const isCrop = name => Object.hasOwn(CROPS, name);
+export const isCrop = name => Object.hasOwn(CROPS, javaName(name));
 
 /** Is this crop ready to pick? `state` is the block's properties by name; a crop with no known age is not ripe. */
 export function isRipe(name, state) {
+    ({ name, state } = javaBlock(name, state));
     const age = Number(state?.age);
-    return isCrop(name) && Number.isFinite(age) && age >= CROPS[name];
+    return Object.hasOwn(CROPS, name) && Number.isFinite(age) && age >= CROPS[name];
 }
 
 // A sideways offset. Adding 0 turns the "negative zero" that multiplying by -1 can give into plain 0.
@@ -58,7 +85,9 @@ const flat = (x, z) => ({ x: x + 0, y: 0, z: z + 0 });
  */
 export function partnerOffset(name, state) {
     if (!state) return null;
-    const kind = kindOf(name);
+    ({ name, state } = javaBlock(name, state));
+    if (!state) return null;
+    const kind = kindOfJava(name);
     if (kind === 'passage' && name.endsWith('_door')) {
         return state.half === 'upper' ? { x: 0, y: -1, z: 0 } : state.half === 'lower' ? { x: 0, y: 1, z: 0 } : null;
     }
@@ -91,7 +120,8 @@ const SELF_CHANGING = new Set(['grass_block', 'dirt', 'farmland', 'snow', 'snow_
  */
 export function changesByItself(name) {
     if (!name) return false;
-    return SELF_CHANGING.has(name) || isCrop(name) || name.endsWith('_leaves') || name.endsWith('_sapling')
+    name = javaName(name);
+    return SELF_CHANGING.has(name) || Object.hasOwn(CROPS, name) || name.endsWith('_leaves') || name.endsWith('_sapling')
         || name.endsWith('_stem') || name.endsWith('_concrete_powder') || name.endsWith('_mushroom')
         || name.endsWith('amethyst_bud') || name === 'amethyst_cluster' || name.endsWith('_propagule')
         || name.endsWith('_roots') || name.endsWith('_fungus') || name.endsWith('_nylium');
@@ -114,6 +144,7 @@ const CLIMBABLE = new Set(['ladder', 'vine', 'scaffolding', 'twisting_vines', 't
  */
 export function moveKindOf(name) {
     if (kindOf(name) === 'passage') return 'door';
+    name = javaName(name);
     if (CLIMBABLE.has(name)) return 'ladder';
     if (name === 'water' || name === 'bubble_column') return 'water';
     return 'walk';
