@@ -9,14 +9,23 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- **Bedrock branch only.** A setting, `minecraft_edition`: `"java"` (the default) or `"bedrock"`. Set to
+  `"bedrock"`, the bot is started for a Bedrock Edition server: `minecraft_version` is then a Bedrock
+  version such as `"1.26.60"` (or `"auto"`), a port of `-1` means Bedrock's usual 19132, and
+  `auth: "microsoft"` signs in with an Xbox account. A Java version left in `minecraft_version` is refused
+  with a message that says what to set. This is the connection only. The skills, fair play, world memory
+  and chest sorting have not been made to work on Bedrock yet, and a Bedrock bot does not eat by itself.
+
 ### Changed
 
 - **Bedrock branch only.** The libraries that speak Minecraft Bedrock Edition 1.26.60 are installed:
   mineflayer with the Bedrock edition adapter, the libraries under it with their Bedrock changes, and the
   `bedrock-protocol` transport. None of it is released, so each is pinned by commit to a branch that holds
   the Bedrock work on top of the 26.3 work (listed under
-  [For Bedrock Edition](docs/core-hooks.md#for-bedrock-edition)). The bot does not use them yet: it still
-  plays Java Edition exactly as before, and can't join a Bedrock server.
+  [For Bedrock Edition](docs/core-hooks.md#for-bedrock-edition)). The bot uses them only when
+  `minecraft_edition` is `"bedrock"`; left at `"java"`, it plays Java Edition exactly as before.
 - **Bedrock branch only.** Installing has two new wrinkles. npm warns that three packages want Node 24;
   they run on Node 22. And one of the new packages builds a binary with CMake on most machines (Apple
   silicon and current Linux among them), which fails `npm install` where CMake is missing. Run

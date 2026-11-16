@@ -102,6 +102,25 @@ current Linux included, its install step builds the binary with CMake, and `npm 
 missing. `SKIP_BUILD=1 npm install` skips that build. Nothing is lost for now: current Bedrock servers speak
 the other transport, and without the binary `bedrock-protocol` falls back to a JavaScript one.
 
+## Hooks for Bedrock Edition
+
+These are on this branch only. The Bedrock code lives in `src/agent/bedrock/`, behind the
+`minecraft_edition` setting, and the hooks below are how inherited files reach it. They are numbered apart
+from the table at the top (`B1`, `B2`, ...), so a hook added for Java Edition can never take the same number;
+a commit message says `core hook B2`. With `minecraft_edition` left at `"java"`, none of them changes
+anything.
+
+| # | File | What the hook does | Why it can't live in a new module |
+|---|---|---|---|
+| B1 | `settings.js`, `src/mindcraft/public/settings_spec.json` | New key `minecraft_edition`: `"java"` (the default) or `"bedrock"`, in both files | Settings live there. As with hook 4, a setting missing from `settings_spec.json` is dropped from agents made through MindServer's page or API, and a Bedrock bot made that way would start as a Java one |
+| B2 | `src/utils/mcdata.js` (`initBot`) | One import, and one line at the top of `initBot` that hands a Bedrock bot to `initBedrockBot` and returns what it made. Beside it, a three-line `useGameData`, which points this file's game data at the registry it is given | `initBot` is where every bot is made, and the game data the rest of the code reads through this file is private to it. On Bedrock that data has to be the bot's own registry: the server gives items and block states their numbers when the bot joins. Everything else `initBot` does is for Java and is skipped: the Fabric handshake, the position-packet throttle, the filter for unreadable Java packets, the seed read from Java's login packet |
+| B3 | `src/mindcraft/mindcraft.js` (`createAgent`) | One import, and one line in front of the server lookup: on Bedrock the settings go through `bedrockServer` instead, and the inherited `try` gains an `else` | The lookup asks the server what it is in Java's protocol. A Bedrock server doesn't answer, so the lookup would wait out its timeout, warn, and clear a version of `"auto"`. Doing it here also means a version that can't work (a Java one left in the settings) fails the agent with a message before a process is started for it |
+
+**One plugin is left out on Bedrock.** `mineflayer-auto-eat` can't be loaded there: a helper it loads compares
+the game version with Java version numbers and stops, and the plugin itself eats by writing Java packets.
+`initBedrockBot` puts a stand-in with the same switches at `bot.autoEat`, because the agent sets eating up
+by name when it starts. A Bedrock bot does not eat by itself yet.
+
 ## Housekeeping Edits
 
 These inherited files are also changed, with no effect on how the bot behaves:

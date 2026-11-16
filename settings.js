@@ -1,5 +1,8 @@
 const settings = {
     "minecraft_version": "26.3", // or "auto" to use whatever version the server runs
+    // Which Minecraft the server runs: "java" or "bedrock". For "bedrock", minecraft_version is a Bedrock
+    // version such as "1.26.60" (or "auto"), and port is the Bedrock server's: 19132 unless it was changed.
+    "minecraft_edition": "java",
     "host": "localhost", // or "localhost", "your.ip.address.here"
     "port": 55916, // set to -1 to automatically scan for open ports
     "auth": "offline", // or "microsoft"
