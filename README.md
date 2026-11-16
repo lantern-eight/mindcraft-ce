@@ -31,7 +31,7 @@ the `main` branch (Java Edition 26.3) and runs from this branch too, with `minec
 | **Minecraft** | **Bedrock Edition 1.26.60** is this branch's target (`bedrock`), and 1.26.61 to 1.26.63 work the same. In progress: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps) |
 | **Java Edition** | On the `main` branch, currently 26.3. This branch takes every change made there, and still runs on Java Edition as `main` does ([pinned libraries](docs/core-hooks.md#dependencies-pinned-to-a-branch)) |
 | **Runs on** | Node 22 |
-| **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
+| **Status** | Experimental. [CHANGELOG-bedrock.md](CHANGELOG-bedrock.md) has this branch's version and what the Bedrock work changed; [CHANGELOG.md](CHANGELOG.md), what changed in everything it shares with `main` |
 | **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
 
 ## Why Fair Play
@@ -162,6 +162,7 @@ each server its own copy again. Run the live scripts one at a time: they share a
 | [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |
 | [docs/FAQ.md](docs/FAQ.md) | Common problems (inherited) |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
+| [CHANGELOG-bedrock.md](CHANGELOG-bedrock.md) | What changed on this branch alone, the Bedrock Edition line |
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Credits, and which license covers which files |
 
 ## Where It Came From

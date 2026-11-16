@@ -24,7 +24,7 @@ play**: the bot may only know and do what a human survival player could.
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
   `src/agent/memory/`, and `docs/chest-sorting.md` for `src/agent/storage/`.
 - `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
-  changed in each version.
+  changed in each version, and on `bedrock`, `CHANGELOG-bedrock.md` records what only that branch has.
 
 ## Private Notes Stay Out of Git
 
@@ -111,13 +111,13 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
 
 **Mindcraft-CE's own code:**
 
-1. **Make the fix on the working branch, with its test, as a commit of its own,** its `CHANGELOG.md` and
+1. **Make the fix on the working branch, with its test, as a commit of its own,** its changelog and
    `ATTRIBUTION.md` lines in the same commit like any other change. Nothing else from this fork goes in
    it: no fork modules or helpers, no fork docs. Then the fix itself can be taken as it is.
 2. **If it can go upstream, break it off:** a branch named `fix/<what-it-fixes>`, cut from `git merge-base
    upstream/develop upstream/agent-system` (the last commit the two share), with the fix's commit
-   cherry-picked onto it, less this fork's `CHANGELOG.md` and `ATTRIBUTION.md` lines (`git cherry-pick -n`,
-   undo those two files, commit with the same message). Mindcraft-CE takes pull requests on `develop`, its default branch, while this
+   cherry-picked onto it, less this fork's changelog and `ATTRIBUTION.md` lines (`git cherry-pick -n`,
+   undo those files, commit with the same message). Mindcraft-CE takes pull requests on `develop`, its default branch, while this
    fork is built on `agent-system`; starting from the commit they share means the branch holds the fix and
    nothing else and applies to `develop`. If the code being fixed exists only on `agent-system`, branch
    from `upstream/agent-system` instead and ask the maintainer where to offer it. The test must pass on
