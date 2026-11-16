@@ -8,9 +8,12 @@ its `agent-system` branch. Mindcraft-CE stays the core. This fork adds its own m
 its edits to the core small, so upstream updates stay easy to merge and pieces of this work stay easy to
 offer back.
 
-**This branch, `bedrock`, targets Minecraft Bedrock Edition, currently 1.26.60.** The port is in progress:
-the bot can't join a Bedrock server from this branch yet. Until it can, the rest of this page describes the
-Java Edition bot this branch is built from, which lives on the `main` branch (Java Edition 26.3).
+**This branch, `bedrock`, targets Minecraft Bedrock Edition, currently 1.26.60.** The port is in progress.
+Set to Bedrock, the bot joins a Bedrock Dedicated Server (checked on 1.26.60 and 1.26.63), walks, digs,
+builds, uses a chest and answers players in chat. Fair play, world memory, chest sorting and most skills
+are not made to work there yet. [docs/bedrock.md](docs/bedrock.md) says what works, what doesn't and how
+to try it. The rest of this page describes the Java Edition bot this branch is built from, which lives on
+the `main` branch (Java Edition 26.3) and runs from this branch too.
 
 > [!CAUTION]
 > Do not connect this bot to public servers with coding enabled. With `allow_insecure_coding` on, a model
@@ -24,7 +27,7 @@ Java Edition bot this branch is built from, which lives on the `main` branch (Ja
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
-| **Minecraft** | **Bedrock Edition 1.26.60** is this branch's target (`bedrock`). In progress: the bot can't join a Bedrock server yet |
+| **Minecraft** | **Bedrock Edition 1.26.60** is this branch's target (`bedrock`), and 1.26.61 to 1.26.63 work the same. In progress: the bot joins, moves, builds and chats; [the rest is not ported yet](docs/bedrock.md#known-gaps) |
 | **Java Edition** | On the `main` branch, currently 26.3. This branch takes every change made there, and still runs on Java Edition as `main` does ([pinned libraries](docs/core-hooks.md#dependencies-pinned-to-a-branch)) |
 | **Runs on** | Node 22 |
 | **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
@@ -137,6 +140,7 @@ each server its own copy again. Run the live scripts one at a time: they share a
 | [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
 | [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
+| [docs/bedrock.md](docs/bedrock.md) | Bedrock Edition: what works, what doesn't, how to try it and how to test it |
 | [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |
 | [docs/FAQ.md](docs/FAQ.md) | Common problems (inherited) |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version |

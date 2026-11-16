@@ -165,6 +165,9 @@ Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node 
   `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
   to run. They need Java 25 and a 26.3 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
+- The Bedrock live scripts, `tests/live/bedrock_*.js`, can't start their own server: they are pointed at a
+  throwaway Bedrock server that is already running (`docs/bedrock.md`, "Testing"). They make no model
+  calls either. Never point them at a world worth keeping.
 - **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve
   a model report a success rate over several runs, not a single pass or fail.
 

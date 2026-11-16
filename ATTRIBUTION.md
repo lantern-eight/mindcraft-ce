@@ -104,8 +104,8 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
-  `tests/live/legs_scenarios.js`
-- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/core-hooks.md`
+  `tests/live/legs_scenarios.js`, `tests/live/bedrock_*.js`
+- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/core-hooks.md`, `docs/bedrock.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file
 
 `docs/setup.md` is Mindcraft-CE's setup guide with its links adjusted, and stays under MIT.

@@ -1,0 +1,254 @@
+// SPDX-License-Identifier: CC0-1.0
+// Live smoke test for Bedrock Edition against a real Bedrock Dedicated Server (no model calls, free to run).
+//   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_smoke.js
+// bedrock_fixture.js explains the variables; docs/bedrock.md shows a throwaway server to point them at.
+// The server should have a flat world, survival mode and offline mode. NEVER a world you care about.
+//
+// The unit tests check that the bot is started the right way. This checks what only a server can: that the
+// bot gets in at all, and that the first things any skill leans on work there. It goes through the repo's
+// own start-up (initBot), not a bare mineflayer bot, so the edition setting and its hooks are part of what
+// is tested. Fair play is not involved: this is the layer under it.
+//
+// Steps that need items or blocks handed out use the server console, and are skipped when there is none.
+// A step marked "known gap" is something that does not work yet and is written down in docs/bedrock.md. It
+// never fails the run; when one starts passing, the output says so, and the docs want updating.
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import Vec3 from 'vec3';
+import pathfinderPlugin from 'mineflayer-pathfinder';
+import rootSettings from '../../settings.js';
+import { setSettings } from '../../src/agent/settings.js';
+import { bedrockTestServer, bedrockTestSettings, delay } from './bedrock_fixture.js';
+
+const { Movements, goals } = pathfinderPlugin;
+const NAME = 'BedrockSmoke';
+
+const results = [];
+const record = (name, status, started, details) => {
+    const result = { name, status, durationMs: Date.now() - started, ...(details || {}) };
+    results.push(result);
+    console.log(JSON.stringify(result));
+};
+const step = async (name, fn) => {
+    const started = Date.now();
+    record(name, 'passed', started, await fn());
+};
+const skip = (name, why) => record(name, 'skipped', Date.now(), { why });
+// Something known not to work yet. Reported either way, and never the reason a run fails.
+const knownGap = async (name, fn) => {
+    const started = Date.now();
+    try {
+        const details = await fn();
+        record(name, 'passed', started, { ...(details || {}), note: 'This known gap is closed. Update docs/bedrock.md.' });
+    } catch (error) {
+        record(name, 'known_gap', started, { error: error.message });
+    }
+};
+
+const server = bedrockTestServer();
+let bot;
+let origin; // the block the bot stands in when the test starts; everything is placed from here
+const names = () => bot.inventory.items().map(item => `${item.name} x${item.count}`);
+const count = name => bot.inventory.items().filter(item => item.name === name).reduce((sum, item) => sum + item.count, 0);
+const at = (dx, dy, dz) => origin.offset(dx, dy, dz);
+const xyz = position => `${position.x} ${position.y} ${position.z}`;
+
+// The work area, cleared before and after: a strip east of the bot, back to flat ground with air above it.
+async function clearArea() {
+    if (!server.hasConsole) return;
+    await server.command(`fill ${xyz(at(-2, 0, -3))} ${xyz(at(14, 3, 3))} air`);
+    await server.command(`fill ${xyz(at(-2, -1, -3))} ${xyz(at(14, -1, 3))} grass_block`);
+    await server.command(`clear ${NAME}`);
+}
+
+// Opening a chest. On Bedrock the adapter does not hand back a chest object the way mineflayer does on
+// Java: the window arrives as an event, and items are moved by calls on the bot itself.
+async function openChest(block) {
+    const opened = once(bot, 'windowOpen');
+    bot.openContainer(block);
+    const [window] = await Promise.race([opened, delay(5000).then(() => { throw new Error('The chest did not open'); })]);
+    return window;
+}
+
+try {
+    setSettings({ ...rootSettings, ...bedrockTestSettings(server) });
+    const { initBot } = await import('../../src/utils/mcdata.js');
+    const mcdata = await import('../../src/utils/mcdata.js');
+
+    await step('the bot joins and spawns', async () => {
+        bot = initBot(NAME);
+        bot.on('error', error => console.error('Bot error:', error.message));
+        await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
+        await delay(2500); // the chunks around the bot arrive after the spawn
+        assert.equal(bot.registry.version.type, 'bedrock');
+        assert.equal(bot.game.gameMode, 'survival', 'the test world should be in survival');
+        return { version: bot.version, gameMode: bot.game.gameMode, dimension: bot.game.dimension };
+    });
+
+    origin = bot.entity.position.floored();
+    await clearArea();
+    await delay(800);
+
+    await step('game data comes from the bot, with the numbers this server handed out', () => {
+        // The rest of the code looks names up through mcdata. On Bedrock that has to be the bot's own
+        // registry (see initBedrockBot); a copy loaded by version name could number things differently.
+        assert.equal(mcdata.getItemId('stone'), bot.registry.itemsByName.stone.id);
+        assert.equal(mcdata.getBlockId('stone'), bot.registry.blocksByName.stone.id);
+        assert.equal(mcdata.makeItem('stone', 1).name, 'stone');
+    });
+
+    await step('the bot sees the blocks around it', () => {
+        const ground = bot.blockAt(at(0, -1, 0));
+        const feet = bot.blockAt(at(0, 0, 0));
+        assert.ok(ground && ground.name !== 'air', `stands on ${ground?.name}`);
+        assert.equal(feet?.name, 'air');
+        // Shapes are what walking and sight are computed from; a block with none would be walked into.
+        assert.ok(ground.shapes.length > 0, 'the ground has a shape');
+        return { ground: ground.name };
+    });
+
+    await step('chat goes out and comes back', async () => {
+        const heard = new Promise(resolve => bot.on('chat', (username, message) => { if (message.includes('smoke check')) resolve(username); }));
+        bot.chat('smoke check');
+        const from = await Promise.race([heard, delay(5000).then(() => { throw new Error('The chat line did not come back'); })]);
+        return { from };
+    });
+
+    await step('the bot walks ten blocks, at a speed the server accepts', async () => {
+        bot.pathfinder.setMovements(new Movements(bot));
+        const from = bot.entity.position.clone();
+        const started = Date.now();
+        await bot.pathfinder.goto(new goals.GoalNear(origin.x + 10, origin.y, origin.z, 0));
+        const seconds = (Date.now() - started) / 1000;
+        const distance = bot.entity.position.distanceTo(from);
+        const speed = distance / seconds;
+        // A server that thinks the bot moved too fast pulls it back. Standing still afterwards shows it:
+        // the position would jump.
+        const stopped = bot.entity.position.clone();
+        await delay(1500);
+        const pulledBack = bot.entity.position.distanceTo(stopped);
+        assert.ok(distance > 9, `walked ${distance.toFixed(2)} blocks`);
+        assert.ok(speed > 3 && speed < 7, `speed ${speed.toFixed(2)} blocks a second`);
+        assert.ok(pulledBack < 0.2, `the server moved the bot ${pulledBack.toFixed(2)} blocks after it stopped`);
+        return { blocks: Number(distance.toFixed(2)), blocksPerSecond: Number(speed.toFixed(2)), pulledBack: Number(pulledBack.toFixed(3)) };
+    });
+
+    let dug;
+    await step('the bot digs a block by hand', async () => {
+        const block = bot.blockAt(at(12, -1, 0));
+        assert.ok(block && block.name !== 'air', `nothing to dig: ${block?.name}`);
+        dug = block.name;
+        await bot.dig(block);
+        await delay(800);
+        assert.equal(bot.blockAt(at(12, -1, 0))?.name, 'air');
+        return { dug };
+    });
+
+    let carried;
+    await step('the bot picks up what dropped', async () => {
+        // The drop lands in the hole or beside it, and is picked up a moment after the bot touches it. So
+        // the bot walks to wherever the drop is, as often as it takes, for a few seconds.
+        const hole = at(12, -1, 0);
+        const deadline = Date.now() + 10000;
+        while (bot.inventory.items().length === 0 && Date.now() < deadline) {
+            const drop = Object.values(bot.entities).find(entity => entity.name === 'item' && entity.position.distanceTo(hole) < 4);
+            const target = drop ? drop.position.floored() : hole;
+            await bot.pathfinder.goto(new goals.GoalNear(target.x, target.y, target.z, 0)).catch(() => {});
+            await delay(700);
+        }
+        assert.ok(bot.inventory.items().length > 0, 'nothing was picked up');
+        carried = bot.inventory.items()[0].name;
+        return { inventory: names() };
+    });
+
+    await step('the bot places a block', async () => {
+        await bot.pathfinder.goto(new goals.GoalNear(origin.x + 10, origin.y, origin.z, 0));
+        await bot.equip(bot.inventory.items().find(item => item.name === carried), 'hand');
+        await bot.placeBlock(bot.blockAt(at(11, -1, 1)), new Vec3(0, 1, 0));
+        await delay(800);
+        assert.equal(bot.blockAt(at(11, 0, 1))?.name, carried);
+        return { placed: carried };
+    });
+
+    if (!server.hasConsole) {
+        skip('the bot puts items in a chest and takes some back', 'no server console');
+        skip('the bot crafts in its own grid', 'no server console');
+    } else {
+        await step('the bot puts items in a chest and takes some back', async () => {
+            await server.command(`setblock ${xyz(at(9, 0, 2))} chest`);
+            await server.command(`give ${NAME} cobblestone 8`, 900);
+            const block = bot.blockAt(at(9, 0, 2));
+            assert.equal(block?.name, 'chest');
+            const window = await openChest(block);
+            await bot.deposit('cobblestone', null, 3);
+            await delay(500);
+            const inside = () => window.containerItems().filter(item => item.name === 'cobblestone').reduce((sum, item) => sum + item.count, 0);
+            assert.equal(inside(), 3, 'three went in');
+            await bot.withdraw('cobblestone', null, 1);
+            await delay(500);
+            assert.equal(inside(), 2, 'one came back out');
+            assert.equal(count('cobblestone'), 6);
+            bot.closeWindow(window);
+            await delay(500);
+            assert.equal(bot.currentWindow, null);
+            return { inChest: 2, carried: 6 };
+        });
+
+        await step('the bot crafts in its own grid', async () => {
+            await server.command(`give ${NAME} oak_log 2`, 900);
+            const recipes = bot.recipesFor(bot.registry.itemsByName.oak_planks.id, null, 1, null);
+            assert.ok(recipes.length > 0, 'no recipe for oak planks');
+            await bot.craft(recipes[0], 1, null);
+            await delay(800);
+            assert.equal(count('oak_planks'), 4);
+            return { inventory: names() };
+        });
+
+        await knownGap('an item the bot crafted can be used as an ingredient', async () => {
+            // The adapter records what a craft made without the number the server gave the new stack, so
+            // the server refuses to move it into the grid.
+            const recipes = bot.recipesFor(bot.registry.itemsByName.crafting_table.id, null, 1, null);
+            assert.ok(recipes.length > 0, 'no recipe for a crafting table');
+            await bot.craft(recipes[0], 1, null);
+            await delay(800);
+            assert.equal(count('crafting_table'), 1);
+        });
+    }
+
+    await knownGap('the bot holds a chest the way it does on Java', async () => {
+        // On Java, opening a chest gives back an object with deposit and withdraw on it, and the skills
+        // are written against that. The adapter gives back nothing and puts those calls on the bot.
+        if (!server.hasConsole) throw new Error('not tried: no server console');
+        if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
+        await delay(500);
+        const chest = await bot.openContainer(bot.blockAt(at(9, 0, 2)));
+        try {
+            assert.equal(typeof chest?.deposit, 'function', 'openContainer gave back no chest object');
+        } finally {
+            await delay(500);
+            if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
+        }
+    });
+
+    const failed = results.filter(result => result.status === 'failed').length;
+    console.log(JSON.stringify({
+        status: 'passed',
+        steps: results.filter(result => result.status === 'passed').length,
+        skipped: results.filter(result => result.status === 'skipped').length,
+        knownGaps: results.filter(result => result.status === 'known_gap').map(result => result.name),
+        failed,
+    }));
+} catch (error) {
+    console.error(error);
+    console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: results.filter(result => result.status === 'passed').length }));
+    process.exitCode = 1;
+} finally {
+    try {
+        if (origin) await clearArea();
+    } catch (error) {
+        console.error('Could not tidy the test area:', error.message);
+    }
+    bot?.quit?.();
+    // The Bedrock client keeps timers alive after it closes; nothing here is left to wait for.
+    setTimeout(() => process.exit(process.exitCode ?? 0), 1000);
+}
