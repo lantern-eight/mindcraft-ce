@@ -13,7 +13,7 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 
 | | |
 |---|---|
-| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Putting items in a chest and taking them out. Crafting in the bot's own 2x2 grid. The whole agent starts, hears a player and answers through a model |
+| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Putting items in a chest, taking them out and putting them back. Crafting in the bot's own 2x2 grid, also with something it just crafted. The whole agent starts, hears a player and answers through a model |
 | **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play can't be relied on, world memory and chest sorting are not ported, most skills are untried and some are known to fail, and the bot does not eat by itself |
 | **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots |
 
@@ -90,7 +90,6 @@ stay.
 |---|---|
 | **Fair play** | Don't rely on it. Perception runs, but in a first check the bot named blocks under the ground it stood on, which a player could not see. The lists of what can be seen through are written for Java's blocks, and sounds, reach and world identity each read something Java-only. Set `fair_play: "off"` for now |
 | **World memory, chest sorting** | Not ported. World memory keeps Java's names for block states; chest sorting moves items the way Java's windows work |
-| **Crafting with something just crafted** | An item the bot made can't be used as an ingredient: the adapter records the new stack without the number the server gave it, and the server refuses to move it. Logs to planks works; those planks to a crafting table then fails |
 | **Eating** | The bot does not eat by itself. The plugin that does it on Java can't be loaded |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's |

@@ -23,7 +23,7 @@
         "groq-sdk": "1.3.0",
         "minecraft-assets": "1.17.0",
         "minecraft-data": "github:lantern-eight/node-minecraft-data#194d7f6068e474f006d8d21d922f8aef7863751a",
-        "mineflayer": "github:lantern-eight/mineflayer#4422a455c78cb7182556751abcfbaa34fdf98f2c",
+        "mineflayer": "github:lantern-eight/mineflayer#55da68e9c84f420ac206588ac55ca133c78fe3e7",
         "mineflayer-armor-manager": "2.0.1",
         "mineflayer-auto-eat": "5.0.3",
         "mineflayer-collectblock": "1.6.0",

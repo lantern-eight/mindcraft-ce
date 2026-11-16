@@ -164,6 +164,7 @@ try {
     if (!server.hasConsole) {
         skip('the bot puts items in a chest and takes some back', 'no server console');
         skip('the bot crafts in its own grid', 'no server console');
+        skip('the bot crafts with what it just crafted', 'no server console');
     } else {
         await step('the bot puts items in a chest and takes some back', async () => {
             // Written the way the skills use a chest on Java: the opened chest is an object with deposit,
@@ -176,17 +177,23 @@ try {
             const cobblestone = bot.registry.itemsByName.cobblestone.id;
             const chest = await bot.openContainer(block);
             const inside = () => chest.containerItems().filter(item => item.name === 'cobblestone').reduce((sum, item) => sum + item.count, 0);
-            await chest.deposit(cobblestone, null, 3);
+            await chest.deposit(cobblestone, null, 8);
             await delay(500);
-            assert.equal(inside(), 3, 'three went in');
-            await chest.withdraw(cobblestone, null, 1);
+            assert.equal(inside(), 8, 'all eight went in');
+            assert.equal(count('cobblestone'), 0);
+            await chest.withdraw(cobblestone, null, 3);
             await delay(500);
-            assert.equal(inside(), 2, 'one came back out');
-            assert.equal(count('cobblestone'), 6);
+            assert.equal(inside(), 5, 'three came back out');
+            // What came out has to be usable again. The server knows every stack by a number it hands out,
+            // and refuses to move one whose number the bot has lost.
+            await chest.deposit(cobblestone, null, 1);
+            await delay(500);
+            assert.equal(inside(), 6, 'and one of those went back in');
+            assert.equal(count('cobblestone'), 2);
             chest.close();
             await delay(500);
             assert.equal(bot.currentWindow, null);
-            return { inChest: 2, carried: 6 };
+            return { inChest: 6, carried: 2 };
         });
 
         await step('the bot crafts in its own grid', async () => {
@@ -199,14 +206,16 @@ try {
             return { inventory: names() };
         });
 
-        await knownGap('an item the bot crafted can be used as an ingredient', async () => {
-            // The adapter records what a craft made without the number the server gave the new stack, so
-            // the server refuses to move it into the grid.
+        await step('the bot crafts with what it just crafted', async () => {
+            // Planks from the last step into a crafting table. Like the chest, this needs the bot to know
+            // the number the server gave the stack it made.
             const recipes = bot.recipesFor(bot.registry.itemsByName.crafting_table.id, null, 1, null);
             assert.ok(recipes.length > 0, 'no recipe for a crafting table');
             await bot.craft(recipes[0], 1, null);
             await delay(800);
             assert.equal(count('crafting_table'), 1);
+            assert.equal(count('oak_planks'), 0);
+            return { inventory: names() };
         });
     }
 
