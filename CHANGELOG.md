@@ -78,7 +78,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   itself, and the server never sends them.
 - **Bedrock branch only.** World memory keeps a Bedrock world's files apart from other worlds', by a hash
   of the seed the server sends. Before, every Bedrock world was told apart only by the server's address.
-  World memory itself is not ported to Bedrock yet.
+- **Bedrock branch only.** World memory works on Bedrock in part. It remembered a door's state as
+  nonsense, and didn't know a Bedrock bed, spawner or beetroot for what they are: it read block states the
+  way Java numbers them, and knew only Java's names. It now reads Bedrock's states, and judges Bedrock's
+  names by the Java blocks they stand for, while keeping Bedrock's names. A double chest is still
+  remembered as two chests. A new live test, `tests/live/bedrock_memory.js`, checks it on a server.
 
 ### Changed
 

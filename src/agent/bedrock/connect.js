@@ -20,6 +20,8 @@ import { guardBotActions } from '../action_context.js';
 import { javaShapes, recipesLikeGameData } from './java_shapes.js';
 import { bedrockEater } from './eating.js';
 import './edition.js'; // fair play, world memory and chest sorting read Bedrock's game data through it
+import { bedrockNamesFor } from './names.js';
+import { translateNamesWith } from '../memory/kinds.js';
 
 const require = createRequire(import.meta.url);
 
@@ -225,7 +227,11 @@ export function initBedrockBot(username, settings, useGameData, { createBot = cr
     bot.once('resourcePack', () => {
         bot.acceptResourcePack();
     });
-    bot.once('login', () => useGameData(gameDataFor(bot.registry, bot)));
+    bot.once('login', () => {
+        useGameData(gameDataFor(bot.registry, bot));
+        // World memory decides what a block is from Java's names; this bot's are Bedrock's (names.js).
+        translateNamesWith(bedrockNamesFor(bot.registry.version?.minecraftVersion));
+    });
     bot._client?.once?.('start_game', packet => {
         const identity = worldIdentityOf(packet);
         if (identity) bot.worldIdentity = identity;

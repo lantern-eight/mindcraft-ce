@@ -16,6 +16,8 @@
 //     a mob does, and only an event when a mob is hurt or dies, from which the client plays the cry. It
 //     never sends a mob's everyday noises (a cow's moo): the client makes those up as it goes.
 //   - **Operator rights,** which a Bedrock server gives as a permission level, not an entity status.
+//   - **A block state's properties,** which Bedrock's game data lists for every state by name, with
+//     Bedrock's own names (`upper_block_bit` for the top half of a door).
 //
 // Read with Java's answers, a hashed state number fits no table: nothing blocked sight, and a search over
 // the chunks found nothing. That is why the bot named the dirt under a grass floor it was standing on.
@@ -125,6 +127,36 @@ const CRIES = { hurt_animation: 'hurt', death_animation: 'death' };
 // A Bedrock server's command permission levels, in order: their place is the level the operator check reports, 0 for none.
 const COMMAND_LEVELS = ['normal', 'operator', 'automation', 'host', 'owner', 'internal'];
 
+// ---- Block states by name ----
+
+// A property's value as world memory keeps it: always a string. Bedrock gives whole numbers for flags.
+const propText = value => (typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
+
+// Every state of each block, by its properties, worked out once per game data: block name ->
+// { defaults: the default state's properties, values: each property's values, byProps: key -> state }.
+const statesByBlock = new WeakMap();
+const propsKey = props => Object.keys(props).sort().map(key => `${key}=${props[key]}`).join(',');
+function blockStatesOf(registry, name) {
+    let byName = statesByBlock.get(registry);
+    if (!byName) {
+        byName = new Map();
+        for (const state of registry.blockStates ?? []) {
+            let entry = byName.get(state.name);
+            if (!entry) byName.set(state.name, entry = { defaults: null, values: new Map(), byProps: new Map() });
+            const props = bedrockEdition.propsOfState(registry, state.stateId) ?? {};
+            for (const [key, value] of Object.entries(props)) {
+                if (!entry.values.has(key)) entry.values.set(key, new Set());
+                entry.values.get(key).add(value);
+            }
+            entry.byProps.set(propsKey(props), state.stateId);
+        }
+        statesByBlock.set(registry, byName);
+    }
+    const entry = byName.get(name);
+    if (entry && !entry.defaults) entry.defaults = bedrockEdition.propsOfState(registry, registry.blocksByName[name]?.defaultState) ?? {};
+    return entry ?? null;
+}
+
 // ---- Chunks ----
 
 const airStates = new WeakMap(); // registry -> air's state number
@@ -152,6 +184,36 @@ export const bedrockEdition = Object.freeze({
         if (stateId !== undefined && stateId !== null) return stateId;
         if (pos.y < column.minY || pos.y >= column.maxY) return undefined;
         return airOf(column.registry);
+    },
+
+    /**
+     * The named properties of a block state, every value a string, or null for a block with none.
+     * Bedrock's game data lists them for each state; the names are Bedrock's.
+     */
+    propsOfState(registry, stateId) {
+        const states = registry.blockStatesByStateId?.[stateId]?.states;
+        if (!states) return null;
+        const keys = Object.keys(states);
+        if (!keys.length) return null;
+        return Object.fromEntries(keys.map(key => [key, propText(states[key]?.value ?? states[key])]));
+    },
+
+    /**
+     * The state for a block name with these properties: the block's default state with each property
+     * given replaced, as on Java. A property the block doesn't have, a value it can't take, or a mix of
+     * values no state has, keeps the default.
+     */
+    stateOfProps(registry, name, props) {
+        const block = registry.blocksByName[name];
+        if (!block) return null;
+        if (!props) return block.defaultState;
+        const entry = blockStatesOf(registry, name);
+        if (!entry) return block.defaultState;
+        const wanted = { ...entry.defaults };
+        for (const [key, value] of Object.entries(props)) {
+            if (entry.values.get(key)?.has(propText(value))) wanted[key] = propText(value);
+        }
+        return entry.byProps.get(propsKey(wanted)) ?? block.defaultState;
     },
 
     stateTable(registry) {
