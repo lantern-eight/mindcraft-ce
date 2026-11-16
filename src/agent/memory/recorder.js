@@ -112,13 +112,13 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     }
 
     /**
-     * What a sign says, its lines joined by " / ", or undefined when it says nothing. The game gives the
-     * text of each side with its lines on separate rows, the back side after the front.
+     * What a sign says, its lines joined by " / ", or undefined when it says nothing. The edition seam
+     * gives the text of each side with its lines on separate rows, the back side after the front.
      */
     function signText(x, y, z) {
         try {
             // The real bot's blockAt needs a vector: a plain {x, y, z} throws, which this catch once hid.
-            const sides = bot.blockAt(new Vec3(x, y, z))?.getSignText?.() ?? [];
+            const sides = edition.signSidesOf(bot.blockAt(new Vec3(x, y, z)));
             const lines = sides.flatMap(side => String(side ?? '').split('\n')).map(line => line.trim()).filter(Boolean);
             return lines.join(' / ') || undefined;
         } catch { return undefined; }

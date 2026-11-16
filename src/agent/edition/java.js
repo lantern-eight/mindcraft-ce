@@ -199,6 +199,18 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * What a sign says: one string per side, the front first, each with its lines on separate rows. The
+     * game keeps the text in the sign's block entity, whose shape differs by edition; Java's blocks read
+     * their own (`getSignText`), so here that is only passed on.
+     *
+     * @param {object} block - a sign the bot can see
+     * @returns {string[]} the sides' text; empty when the block has none
+     */
+    signSidesOf(block) {
+        return block?.getSignText?.() ?? [];
+    },
+
+    /**
      * Moves the stack in one slot of an open window onto another slot, the way a player does it with the
      * mouse: pick it up, click the other slot, and put back whatever came off. Onto an empty slot it is
      * put down; onto the same kind of item it is poured in, and what doesn't fit goes back; onto
