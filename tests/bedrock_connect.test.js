@@ -11,6 +11,7 @@ import { initBot } from '../src/utils/mcdata.js';
 import { createAgent } from '../src/mindcraft/mindcraft.js';
 import {
     DEFAULT_BEDROCK_PORT, isBedrock, bedrockVersion, bedrockServer, bedrockBotOptions, initBedrockBot, acceptServerKey,
+    gameDataFor,
 } from '../src/agent/bedrock/connect.js';
 
 const spec = JSON.parse(readFileSync('src/mindcraft/public/settings_spec.json', 'utf8'));
@@ -125,7 +126,25 @@ test("the rest of the code is handed the bot's own registry at login, once", () 
     bot.emit('login');
     bot.emit('login'); // a reconnect inside one process must not swap the data under running code
     assert.equal(handed.length, 1);
-    assert.equal(handed[0], bot.registry, 'the very object the bot fills in, not a copy by version name');
+    // Not a copy by version name: what is handed over reads through to the object the bot fills in, so a
+    // number the server hands out later is seen too.
+    assert.equal(Object.getPrototypeOf(handed[0]), bot.registry);
+    bot.registry.itemsByName = { stone: { id: 7 } };
+    assert.equal(handed[0].itemsByName.stone.id, 7);
+});
+
+test('the biome is "unknown" on Bedrock, whatever the world answers', () => {
+    // The adapter doesn't read biomes yet: every spot answers with the first biome in the table. Inherited
+    // code looks the answer up in the game data and stops on one it can't find.
+    const registry = { version: { type: 'bedrock' }, biomes: { 0: { id: 0, name: 'bamboo_jungle' } }, blocksByName: { stone: { id: 1 } } };
+    const data = gameDataFor(registry);
+    assert.equal(data.biomes[0].name, 'unknown', 'not the first biome in the table');
+    assert.equal(data.biomes[{ id: 0, name: 'bamboo_jungle' }].name, 'unknown', 'Bedrock answers with an object, not a number');
+    assert.equal(data.biomes[4321].name, 'unknown');
+    // Everything else is the registry's own.
+    assert.equal(data.blocksByName, registry.blocksByName);
+    assert.equal(data.version.type, 'bedrock');
+    assert.equal(registry.biomes[0].name, 'bamboo_jungle', "the bot's registry is left as it was");
 });
 
 test('a resource pack the server offers is accepted', () => {

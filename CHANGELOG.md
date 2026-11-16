@@ -23,6 +23,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   a dedicated server on 1.26.60: the bot joins, spawns in survival, reads the blocks around it and chats.
   The server shows a key during that exchange. The bot accepts it and prints it; a stock server makes a
   new key at every start, so there is nothing to compare it with.
+- **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
+  yet, and the bot stopped with an error when it built its status for the model.
 
 ### Changed
 

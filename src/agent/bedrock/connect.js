@@ -135,6 +135,25 @@ export function acceptServerKey(client, log = console.log) {
     };
 }
 
+/**
+ * The bot's game data as the rest of the code may read it: everything in the registry, except biomes.
+ *
+ * A Bedrock bot does not know which biome it is in yet. The adapter doesn't read biomes from the chunks
+ * the server sends, so every spot answers with the first biome in the table, whatever is really there.
+ * Inherited code looks the biome up by number when it writes the bot's status for the model, and stops
+ * with an error on an answer it can't find. So here every lookup finds a biome named "unknown": the model
+ * is told the truth, and nothing stops.
+ *
+ * The object handed back reads through to the registry for everything else, so the numbers the server
+ * handed out are still the ones in use. This fork's own code reads biomes from the bot's registry
+ * directly, finds nothing for a Bedrock answer, and records no biome, which is also right.
+ */
+export function gameDataFor(registry) {
+    const unknown = Object.freeze({ name: 'unknown' });
+    const biomes = new Proxy({}, { get: (_target, key) => (typeof key === 'string' ? unknown : undefined) });
+    return Object.create(registry, { biomes: { value: biomes, enumerable: true } });
+}
+
 // The plugin that makes the Java bot eat when it is hungry can't be loaded on Bedrock. It stops while
 // loading, on a helper that compares the game version with Java version numbers, and past that it eats by
 // writing Java packets itself. The agent sets it up by name when it starts, so it gets this in its place:
@@ -147,10 +166,10 @@ function noAutoEat() {
 /**
  * Create the bot for a Bedrock server and wire up what every bot needs.
  *
- * `useGameData` is given the bot's registry once the bot knows its version. On Bedrock the server hands
+ * `useGameData` is given the bot's game data once the bot knows its version. On Bedrock the server hands
  * out the numbers for items and block states when the bot joins, and the bot's registry is where they
  * land. Game data loaded afresh by version name, as the Java start-up does, would hold different numbers
- * for the same things, so the rest of the code must read the bot's own copy.
+ * for the same things, so the rest of the code must read the bot's own copy (see gameDataFor).
  *
  * What the Java start-up does and this leaves out, on purpose:
  *   - the Fabric registry handshake: Fabric is a Java mod loader;
@@ -179,7 +198,7 @@ export function initBedrockBot(username, settings, useGameData, { createBot = cr
     bot.once('resourcePack', () => {
         bot.acceptResourcePack();
     });
-    bot.once('login', () => useGameData(bot.registry));
+    bot.once('login', () => useGameData(gameDataFor(bot.registry)));
 
     return bot;
 }
