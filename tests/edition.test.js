@@ -4,6 +4,7 @@
 // on these answers, so a wrong one shows up as a bot that sees through walls or finds nothing at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { Vec3 } from 'vec3';
 import minecraftData from 'minecraft-data';
 import registryFactory from 'prismarine-registry';
@@ -93,4 +94,41 @@ test('a real chunk section is summarised and skipped when it holds nothing wante
     const counting = { sections: column.sections, getBlockStateId: pos => { reads++; return column.getBlockStateId(pos); } };
     scanSection(javaEdition, counting, 0, 4, 0, -64, id => id === gold, () => {});
     assert.equal(reads, 0);
+});
+
+test('sounds are heard by name and place, from all three Java sound packets, until told to stop', () => {
+    const registry = minecraftData(GAME_VERSION);
+    const bot = new EventEmitter();
+    bot._client = new EventEmitter();
+    bot.registry = registry;
+    bot.entities = { 7: { position: { x: 1, y: 2, z: 3 } } };
+    const heard = [];
+    const stop = javaEdition.onSound(bot, (name, position) => heard.push([name, position]));
+    const moo = registry.soundsByName['entity.cow.ambient'];
+    const protocolId = moo.id - (registry.soundsArray[0].id); // the protocol counts the list from 0
+    bot._client.emit('sound_effect', { sound: { soundId: protocolId }, x: 80, y: 16, z: -8 });
+    bot._client.emit('named_sound_effect', { soundName: 'minecraft:entity.zombie.ambient', x: 8, y: 8, z: 8 });
+    bot._client.emit('entity_sound_effect', { soundId: protocolId, entityId: 7 });
+    assert.deepEqual(heard, [
+        ['entity.cow.ambient', { x: 10, y: 2, z: -1 }],
+        ['minecraft:entity.zombie.ambient', { x: 1, y: 1, z: 1 }],
+        ['entity.cow.ambient', { x: 1, y: 2, z: 3 }],
+    ]);
+    stop();
+    assert.deepEqual(['sound_effect', 'named_sound_effect', 'entity_sound_effect'].map(p => bot._client.listenerCount(p)), [0, 0, 0]);
+});
+
+test('the operator level comes from the status a Java server sets on the bot itself', () => {
+    const bot = new EventEmitter();
+    bot._client = new EventEmitter();
+    bot.entity = { id: 5 };
+    const levels = [];
+    const stop = javaEdition.onOperatorLevel(bot, level => levels.push(level));
+    bot._client.emit('entity_status', { entityId: 99, entityStatus: 28 }); // someone else
+    bot._client.emit('entity_status', { entityId: 5, entityStatus: 3 });   // not about operators
+    bot._client.emit('entity_status', { entityId: 5, entityStatus: 26 });
+    bot._client.emit('entity_status', { entityId: 5, entityStatus: 24 });
+    assert.deepEqual(levels, [2, 0]);
+    stop();
+    assert.equal(bot._client.listenerCount('entity_status'), 0);
 });

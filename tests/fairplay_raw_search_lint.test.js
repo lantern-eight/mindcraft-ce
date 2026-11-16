@@ -25,6 +25,11 @@ const RAW_SEARCH = [
 // The few raw reads that are allowed, each with its reason. Matched by file and by the exact line.
 const ALLOWED = [
     {
+        file: 'src/agent/edition/java.js',
+        line: 'const ofEntity = packet => hear(soundNameOf(bot.registry, packet), bot.entities?.[packet.entityId]?.position);',
+        why: 'Places a sound the server sent at the mob that made it, for hearing, which says only a direction and a rough distance. It searches for nothing.',
+    },
+    {
         file: 'src/agent/library/skills.js',
         line: 'if (!bot.entities[nearest.id]) pickedUp++;',
         why: 'Confirms that a dropped item the bot just walked onto is gone. It learns nothing about where anything is.',

@@ -24,6 +24,7 @@
 import settings from '../settings.js';
 import { resolvePolicy } from './policy.js';
 import { createPerception } from './perception.js';
+import { editionOf } from '../edition/index.js';
 import { loadSeenMap } from './seen_map.js';
 import { fairQueries, registerFairPlay } from './fair_queries.js';
 import { setWorldQueries } from '../library/world_queries.js';
@@ -101,10 +102,9 @@ export function watchPermissions(bot, { onViolation, onClear }) {
         if (!reason && current) onClear();
         current = reason;
     };
-    // Entity status 24..28 on the bot's own entity is the server telling the client its operator level.
-    bot._client?.on?.('entity_status', packet => {
-        if (packet.entityId !== bot.entity?.id || packet.entityStatus < 24 || packet.entityStatus > 28) return;
-        opLevel = packet.entityStatus - 24;
+    // How the server tells the bot its operator level depends on the edition of the game (src/agent/edition/).
+    editionOf(bot.registry).onOperatorLevel(bot, level => {
+        opLevel = level;
         check();
     });
     bot.on?.('game', check);
