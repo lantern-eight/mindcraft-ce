@@ -229,7 +229,7 @@ spaces and `_ . : -`, and write coordinates out in full.
 | `src/agent/bedrock/names.js` | Bedrock's names for blocks and states in Java's terms, so world memory knows a Bedrock bed or door for what it is. Memory itself keeps Bedrock's names |
 | `src/agent/bedrock/window_moves.js` | Moving a stack in an open chest, one item stack request a move, for chest sorting; and taking from and putting into a barrel |
 | `src/agent/bedrock/lockdown_ready.js` | Loads a library the connection uses before the connection does, so that the sandbox for model-written code can still be set up afterwards |
-| `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, and a click on a block |
+| `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, and the `move` event on every tick the bot moves |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
 | `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |

@@ -6,12 +6,14 @@
 // there is one copy of them for both editions. So the difference is evened out here, once, on the bot
 // itself, instead of in every caller.
 //
-// Only differences in shape belong in this file. Something that is plainly a mistake in the adapter is
-// fixed in the adapter; something Bedrock can't do at all is listed in docs/bedrock.md.
+// Only differences in shape belong in this file: what a call hands back, and how often an event fires.
+// Something that is plainly a mistake in the adapter is fixed in the adapter; something Bedrock can't do at
+// all is listed in docs/bedrock.md.
 //
 // This is a mineflayer plugin: load it after the bot is created and it runs once the adapter's own
 // plugins are in place.
 
+import Vec3 from 'vec3';
 import { sideOfWindow, transferItems } from './window_moves.js';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -240,9 +242,44 @@ function blockChangesAt(bot, position) {
     });
 }
 
+/**
+ * The bot's `move` event, as often as on Java.
+ *
+ * On Java, mineflayer fires `move` each time it tells the server where the bot is or which way it faces,
+ * which it does on every tick the bot moved or turned. The Bedrock adapter tells the server on every tick
+ * too, but fires `move` only when the server corrects the bot or teleports it. A walk of sixteen blocks
+ * brought three of them, some five blocks apart. World memory lays its trail from `move`, a crumb every
+ * few blocks: with so few events the trail had gaps, and two events more than ten blocks apart read as
+ * a teleport, which breaks the trail where the bot simply walked.
+ *
+ * So after each physics tick in which the bot moved or turned, `move` is fired here, with where the bot
+ * was before, as on Java. A `move` the adapter fires itself counts too, so the same change is never
+ * announced twice. Nothing else changes: what the bot sends the server, and how it moves, are the
+ * adapter's. Should the adapter one day fire `move` on every tick itself, this piece goes.
+ */
+function movesLikeJava(bot) {
+    if (typeof bot.on !== 'function' || typeof bot.emit !== 'function') return;
+    let last = null; // where the bot was, and which way it faced, when `move` last fired
+    const pose = () => {
+        const entity = bot.entity;
+        if (!entity?.position) return null;
+        const { x, y, z } = entity.position;
+        return { x, y, z, yaw: entity.yaw, pitch: entity.pitch };
+    };
+    bot.on('move', () => { last = pose(); });
+    bot.on('physicsTick', () => {
+        const now = pose();
+        if (!now) return;
+        if (last && now.x === last.x && now.y === last.y && now.z === last.z && now.yaw === last.yaw && now.pitch === last.pitch) return;
+        const before = last ?? now;
+        bot.emit('move', new Vec3(before.x, before.y, before.z));
+    });
+}
+
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
 export function javaShapes(bot) {
     chestsLikeJava(bot);
     recipesLikeJava(bot);
     clicksThatSettle(bot);
+    movesLikeJava(bot);
 }

@@ -108,6 +108,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- **Bedrock branch only.** On Bedrock world memory lays its trail all along a walk. The Bedrock adapter fired
+  the bot's `move` event only when the server corrected the bot or moved it, not on every tick the bot
+  moved as mineflayer does on Java, so a walk left a few crumbs far apart, and a quick one read as a
+  teleport. The Bedrock module now fires it after every tick in which the bot moved or turned.
 - **Bedrock branch only.** On Bedrock world memory keeps what a sign says. A current Bedrock sign keeps each
   side's text in a field of its own, and the library's reading of a Bedrock sign looks for the single field
   older signs had, so every sign was remembered blank. The Bedrock module now reads both sides.
