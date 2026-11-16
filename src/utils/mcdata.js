@@ -9,6 +9,7 @@ import { plugin as pvp } from 'mineflayer-pvp';
 import { plugin as collectblock } from 'mineflayer-collectblock';
 import { loader as autoEat } from 'mineflayer-auto-eat';
 import plugin from 'mineflayer-armor-manager';
+import { editionOf } from '../agent/edition/index.js';
 const armorManager = plugin;
 let mc_version = settings.minecraft_version;
 let mcdata = null;
@@ -224,7 +225,8 @@ bot.once('login', () => {
 export function isHuntable(mob) {
     if (!mob || !mob.name) return false;
     const animals = ['chicken', 'cow', 'llama', 'mooshroom', 'pig', 'rabbit', 'sheep'];
-    return animals.includes(mob.name.toLowerCase()) && !mob.metadata[16]; // metadata 16 is not baby
+    // Never a baby. Where the game keeps a mob's age differs by edition, so the edition seam is asked.
+    return animals.includes(mob.name.toLowerCase()) && !editionOf(mcdata).isBaby(mob);
 }
 
 export function isHostile(mob) {

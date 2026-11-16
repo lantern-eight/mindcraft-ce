@@ -143,6 +143,13 @@ test('Java\'s signs read their own text, which the seam passes on side by side',
     assert.deepEqual(javaEdition.signSidesOf(null), [], 'nothing there');
 });
 
+test('Java keeps a mob\'s age in its metadata, at index 16', () => {
+    assert.equal(javaEdition.isBaby({ name: 'cow', metadata: { 16: true } }), true);
+    assert.equal(javaEdition.isBaby({ name: 'cow', metadata: { 16: false } }), false);
+    assert.equal(javaEdition.isBaby({ name: 'cow', metadata: [] }), false, 'nothing said: grown');
+    assert.equal(javaEdition.isBaby({ name: 'cow' }), false, 'no metadata at all');
+});
+
 test('a stack is moved with three clicks, the last only when something is left on the cursor', async () => {
     const clicks = [];
     const window = { selectedItem: null };
