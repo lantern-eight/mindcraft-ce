@@ -99,6 +99,7 @@ test('a game that keeps a double chest\'s pairing outside the state still makes 
                 const blockAt = bot.blockAt;
                 const pairs = { '3,1,3': { x: 4, y: 1, z: 3 }, '4,1,3': { x: 3, y: 1, z: 3 } };
                 bot.blockAt = pos => {
+                    pos.floored(); // as the real bot's does: a plain {x, y, z} throws
                     const block = blockAt(pos);
                     const pair = pairs[`${pos.x},${pos.y},${pos.z}`];
                     return block && pair ? Object.assign(block, { entity: { pair } }) : block;
@@ -115,6 +116,26 @@ test('a game that keeps a double chest\'s pairing outside the state still makes 
     } finally {
         registerEdition('pc', javaEdition);
     }
+});
+
+test('a sign is remembered with what it says, read from the block as the bot sees it', () => {
+    const { memory, lookAround } = setup(w => {
+        w.set('oak_sign', 3, 1, 3);
+    }, {
+        prepare: bot => {
+            const blockAt = bot.blockAt;
+            bot.blockAt = pos => {
+                pos.floored(); // as the real bot's does: a plain {x, y, z} throws
+                const block = blockAt(pos);
+                // As the game gives it: each side's lines on rows of their own, the front side first.
+                return block?.name === 'oak_sign' ? Object.assign(block, { getSignText: () => ['Wheat farm\nthis way\n\n', ''] }) : block;
+            };
+        },
+    });
+    lookAround();
+    const sign = memory.things.get(3, 1, 3);
+    assert.equal(sign?.kind, 'sign', JSON.stringify(sign));
+    assert.equal(sign.text, 'Wheat farm / this way');
 });
 
 test('nothing runs while the bot stands still in an unchanged world', () => {

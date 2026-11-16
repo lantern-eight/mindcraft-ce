@@ -83,6 +83,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- World memory keeps what a sign says. A sign was remembered without its text: memory asked for the
+  block in a way the real bot can't answer, and the error was quietly passed over.
 - The bot no longer stops answering when it stands in a biome the installed game data has no entry
   for, such as on a server newer than the data. Its status then says "Biome: unknown". Before, building
   the status failed, and every message got the "having trouble" reply.
