@@ -108,6 +108,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- **Bedrock branch only.** On Bedrock the bot can take from a barrel and put into one by name
+  (`!takeFromChestAt`, `!putInChestAt`). The server refused both: the adapter's calls name a chest's slots
+  whatever is open. A barrel (and a shulker box) now gets the same moves chest sorting makes, under its own
+  name. A chest keeps the adapter's calls.
 - **Bedrock branch only.** On Bedrock a barrel opened again just after it was closed opens. The click named
   the barrel as still open, which it no longer was, and the server ignored it; now a click that brings no
   window is made once more, a second later. And an open that was given up on no longer takes the window of

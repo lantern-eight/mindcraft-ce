@@ -49,13 +49,14 @@ async function waitFor(check, ms, why) {
 const ONE = { 'the chest': [[-12, 1, -14]] };
 const TWENTY = { 'the chest': [[12, 1, -14]] };
 const FOUR = { chest: [[2, 1, 9]], double: [[4, 1, 9], [5, 1, 9]], barrel: [[7, 1, 9]], trapped: [[9, 1, 9]] };
-const NAMED = [[-10, 1, 12], [-12, 1, 12]];
+const NAMED = [[-10, 1, 12], [-12, 1, 12]];     // a chest and a barrel
 
 async function buildScene() {
     await fill([-20, 1, -20], [20, 8, 20], 'air');
     await fill([-20, 0, -20], [20, 0, 20], 'stone');
-    for (const cell of [...ONE['the chest'], ...TWENTY['the chest'], FOUR.chest[0], ...FOUR.double, ...NAMED]) await set(cell, 'chest');
+    for (const cell of [...ONE['the chest'], ...TWENTY['the chest'], FOUR.chest[0], ...FOUR.double, NAMED[0]]) await set(cell, 'chest');
     await set(FOUR.barrel[0], 'barrel');
+    await set(NAMED[1], 'barrel');
     await set(FOUR.trapped[0], 'trapped_chest');
 }
 
@@ -262,7 +263,9 @@ try {
         assert.deepEqual(handle.memory.things.get(b.x, b.y, b.z), thing, 'the same thing from either half');
     });
 
-    await step('one chest named by where it is: the bot looks in it, takes from it, and puts what it took into another', async () => {
+    // A barrel is in this one because Bedrock names a barrel's slots differently from a chest's, and taking
+    // and putting go through other calls than the moves of a sort.
+    await step('one chest named by where it is: the bot looks in it, takes from it, and puts what it took into a barrel, then takes some back', async () => {
         const [from, to] = NAMED;
         await stock(from, { 0: 'stone x3', 1: 'sand x30' });
         await stock(to, { 0: 'dirt x10', 2: 'dirt x12' });
@@ -280,9 +283,14 @@ try {
         assert.ok(pockets().includes('sand x10'), `the bot has the sand: ${pockets()}`);
         const put = await sorting('!putInChestAt', [t.x, t.y, t.z, 'sand', 99]);
         assert.equal(put.status, 'ok', put.text);
+        assert.match(put.text, /^Put 10 sand in the barrel at /, put.text);
         assert.deepEqual(show(await read(to)).sort(), ['dirt x10', 'dirt x12', 'sand x10']);
         assert.ok(!pockets().some(item => item.startsWith('sand')), `the bot has no sand left: ${pockets()}`);
-        return { took: took.text.split('\n')[0], put: put.text.split('\n')[0] };
+        const back = await sorting('!takeFromChestAt', [t.x, t.y, t.z, 'sand', 4]);
+        assert.equal(back.status, 'ok', back.text);
+        assert.deepEqual(show(await read(to)).sort(), ['dirt x10', 'dirt x12', 'sand x6']);
+        assert.ok(pockets().includes('sand x4'), `the bot has the sand: ${pockets()}`);
+        return { took: took.text.split('\n')[0], put: put.text.split('\n')[0], back: back.text.split('\n')[0] };
     });
 
     await step('after all of that, the bot sent no command', () => {

@@ -12,6 +12,8 @@
 // This is a mineflayer plugin: load it after the bot is created and it runs once the adapter's own
 // plugins are in place.
 
+import { sideOfWindow, transferItems } from './window_moves.js';
+
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // How long a chest gets to open. The adapter waits three seconds for the same thing.
@@ -80,8 +82,19 @@ function chestsLikeJava(bot) {
     function withHands(window) {
         // A crafting table or a furnace opens a window too, and the adapter has its own calls for those.
         // These three are added to whatever opened and are simply not used there.
-        if (typeof window.deposit !== 'function') window.deposit = (itemType, metadata, count) => bot.deposit(itemType, metadata ?? null, count ?? null);
-        if (typeof window.withdraw !== 'function') window.withdraw = (itemType, metadata, count) => bot.withdraw(itemType, metadata ?? null, count ?? null);
+        // The adapter's own withdraw and deposit name a chest's slots, which the server refuses for a
+        // barrel or a shulker box. Those get the same moves made with the right name (window_moves.js).
+        const ownMoves = window.inventoryStart != null && sideOfWindow(bot, window) !== 'container';
+        if (typeof window.deposit !== 'function') {
+            window.deposit = ownMoves
+                ? (itemType, metadata, count) => transferItems(bot, window, { itemType, count: count ?? null, into: 'container' })
+                : (itemType, metadata, count) => bot.deposit(itemType, metadata ?? null, count ?? null);
+        }
+        if (typeof window.withdraw !== 'function') {
+            window.withdraw = ownMoves
+                ? (itemType, metadata, count) => transferItems(bot, window, { itemType, count: count ?? null, into: 'inventory' })
+                : (itemType, metadata, count) => bot.withdraw(itemType, metadata ?? null, count ?? null);
+        }
         if (typeof window.close !== 'function') window.close = () => { if (bot.currentWindow === window) bot.closeWindow(window); };
         return window;
     }

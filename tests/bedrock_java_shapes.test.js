@@ -96,6 +96,30 @@ test('and is not one for a caller who does not wait', async () => {
     }
 });
 
+test('a barrel\'s window takes and puts with its own moves; a chest\'s with the adapter\'s calls', async () => {
+    // The adapter's withdraw names a chest's slots, which the server refuses for a barrel.
+    const { bot, calls } = adapterBot({ opens: false });
+    const requests = [];
+    bot.blockAt = pos => ({ name: pos.x === 7 ? 'barrel' : 'chest' });
+    bot.inventory = { slots: new Array(45).fill(null), updateSlot(slot, it) { this.slots[slot] = it; } };
+    bot._stack = { stackReq: async actions => { requests.push(...actions); return { status: 'ok', response: { containers: [] } }; } };
+    const windowAt = x => {
+        const slots = new Array(27 + 36).fill(null);
+        slots[0] = { name: 'sand', type: 9, count: 30, metadata: 0, nbt: null, stackSize: 64, stackId: 1 };
+        return { inventoryStart: 27, position: { x, y: 0, z: 0 }, slots, updateSlot(slot, it) { this.slots[slot] = it; } };
+    };
+    setTimeout(() => { bot.currentWindow = windowAt(7); }, 20);
+    const barrel = await bot.openBlock({ name: 'barrel' });
+    await barrel.withdraw(9, null, 10);
+    assert.deepEqual(requests.map(r => [r.type_id, r.source.slot_type.container_id, r.count]), [['take', 'barrel', 10]]);
+    assert.ok(!calls.some(call => call[0] === 'withdraw'), 'not the adapter\'s');
+    bot.currentWindow = null;
+    setTimeout(() => { bot.currentWindow = windowAt(2); }, 20);
+    const chest = await bot.openBlock({ name: 'chest' });
+    await chest.withdraw(9, null, 10);
+    assert.deepEqual(calls.at(-1), ['withdraw', 9, null, 10]);
+});
+
 test('a window that already has the calls keeps its own', async () => {
     const { bot } = adapterBot({ opens: false });
     const own = () => 'own';

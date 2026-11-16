@@ -55,20 +55,22 @@ export function stacksWith(a, b) {
  * The one request that makes a move, and what it should leave in the two slots: `{action, from, to}`,
  * `from` and `to` being `{item, count}` (the item that ends up there, and how many; a count of 0 is
  * empty). Null when there is nothing to do: nothing to move, or no room on a stack of the same kind.
+ * `limit` moves no more than that many, and never swaps (for taking part of a stack).
  */
-export function planMove(window, from, to, side = 'container') {
+export function planMove(window, from, to, side = 'container', limit = Infinity) {
     const a = window.slots[from], b = window.slots[to];
     const src = bedrockSlotOf(window, from, side), dst = bedrockSlotOf(window, to, side);
     if (!a || !src || !dst || from === to) return null;
     const info = (where, item) => ({ slot_type: { container_id: where.container }, slot: where.slot, stack_id: item?.stackId ?? 0 });
     if (b && !stacksWith(a, b)) {
+        if (limit !== Infinity) return null;
         return {
             action: { type_id: 'swap', legacy_type_id: LEGACY_ID.swap, source: info(src, a), destination: info(dst, b) },
             from: { item: b, count: b.count }, to: { item: a, count: a.count },
         };
     }
     const room = b ? Math.max(0, (b.stackSize ?? 64) - b.count) : a.count;
-    const count = Math.min(a.count, room);
+    const count = Math.min(a.count, room, limit);
     if (count <= 0) return null;
     // A move out of the chest into the bot's own slots is a take, as the adapter's own withdraw makes it.
     const ownSlot = where => where.container === 'inventory' || where.container === 'hotbar';
@@ -111,9 +113,9 @@ export function sideOfWindow(bot, window) {
  * Moves the stack in one slot of the open chest window onto another, with one item stack request. Waits
  * for the server's answer, and brings the bot's copy of the window (and of its own inventory) up to date.
  */
-export async function moveStack(bot, window, from, to) {
+export async function moveStack(bot, window, from, to, limit = Infinity) {
     const side = sideOfWindow(bot, window);
-    const move = planMove(window, from, to, side);
+    const move = planMove(window, from, to, side, limit);
     if (!move) return;
     if (typeof bot._stack?.stackReq !== 'function') throw new Error('this Bedrock bot cannot move items (no item stack requests)');
     const { status, response } = await bot._stack.stackReq([move.action]);
@@ -134,3 +136,40 @@ export async function moveStack(bot, window, from, to) {
     }
 }
 
+/**
+ * Moves up to `count` of an item between the open container and the bot's own slots, the way mineflayer's
+ * `window.withdraw` and `window.deposit` do on Java: onto stacks of the same item first, then into empty
+ * slots, the bot's main inventory before its hotbar. Made of the same requests as a move of the sort.
+ * Rejects when not all of it could be moved, having moved what could.
+ *
+ * The adapter has its own withdraw and deposit, which name the open container's slots "container"
+ * whatever it is, so the server refuses them for a barrel. java_shapes.js puts this in their place there.
+ *
+ * @param {object} options
+ * @param {number|string} options.itemType - the item's id or name
+ * @param {number|null} [options.count] - how many; all there are when null
+ * @param {'inventory'|'container'} options.into - which way
+ */
+export async function transferItems(bot, window, { itemType, count = null, into }) {
+    const start = window.inventoryStart, end = start + MAIN + HOTBAR;
+    const [from, to] = into === 'inventory' ? [[0, start], [start, end]] : [[start, end], [0, start]];
+    const matches = item => item && (item.type === itemType || item.name === itemType);
+    const name = () => bot.registry?.items?.[itemType]?.name ?? itemType;
+    let left = count ?? Infinity;
+    for (let slot = from[0]; slot < from[1] && left > 0; slot++) {
+        while (left > 0 && matches(window.slots[slot])) {
+            const stack = window.slots[slot];
+            const fits = s => window.slots[s] && stacksWith(stack, window.slots[s]) && window.slots[s].count < (window.slots[s].stackSize ?? 64);
+            let target = -1;
+            for (let s = to[0]; s < to[1] && target < 0; s++) if (fits(s)) target = s;
+            for (let s = to[0]; s < to[1] && target < 0; s++) if (!window.slots[s]) target = s;
+            if (target < 0) throw new Error(`There is no room for the ${name()}.`);
+            const before = stack.count;
+            await moveStack(bot, window, slot, target, left);
+            const moved = before - (matches(window.slots[slot]) ? window.slots[slot].count : 0);
+            if (moved <= 0) throw new Error(`The server would not move the ${name()}.`);
+            left -= moved;
+        }
+    }
+    if (count !== null && left > 0) throw new Error(`There were not ${count} ${name()} to move.`);
+}

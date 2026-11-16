@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bedrockEdition } from '../src/agent/bedrock/edition.js';
-import { bedrockSlotOf, containerSideOf, moveStack, planMove, stacksWith } from '../src/agent/bedrock/window_moves.js';
+import { bedrockSlotOf, containerSideOf, moveStack, planMove, stacksWith, transferItems } from '../src/agent/bedrock/window_moves.js';
 import { botHands } from '../src/agent/storage/bot_hands.js';
 
 // ---- The other half of a double chest ----
@@ -136,6 +136,30 @@ test('nothing is asked for when there is nothing to move or no room, and a refus
     await moveStack(refused.bot, refused.window, 0, 1);
     assert.equal(refused.requests.length, 1);
     assert.deepEqual(names(refused.window, 0, 2), ['dirt 3', null], 'as it was: the sort sees the move did not happen');
+});
+
+test('taking part of a stack out of a container moves just that many, as mineflayer\'s withdraw does on Java', async () => {
+    const { bot, window, requests } = scene({ 0: item('dirt', 30, { stackId: 1 }) });
+    await transferItems(bot, window, { itemType: 'dirt', count: 10, into: 'inventory' });
+    assert.equal(window.slots[0].count, 20);
+    assert.equal(bot.inventory.slots[9].count, 10);
+    assert.deepEqual(requests.map(r => [r.type_id, r.count]), [['take', 10]]);
+});
+
+test('putting in tops up a stack of the same item first, then fills an empty slot', async () => {
+    const { bot, window, requests } = scene({ 0: item('dirt', 60, { stackId: 1 }), 1: item('cobblestone', 5, { stackId: 2 }) }, { 0: item('dirt', 10, { stackId: 3 }) });
+    await transferItems(bot, window, { itemType: 'dirt', count: 10, into: 'container' });
+    assert.deepEqual(names(window, 0, 3), ['dirt 64', 'cobblestone 5', 'dirt 6']);
+    assert.equal(bot.inventory.slots[9], null);
+    assert.deepEqual(requests.map(r => [r.type_id, r.count, r.destination.slot]), [['place', 4, 0], ['place', 6, 2]]);
+});
+
+test('asked for more than there is, it moves what there is and says so', async () => {
+    const { bot, window } = scene({ 3: item('dirt', 4, { stackId: 1 }) });
+    await assert.rejects(transferItems(bot, window, { itemType: 'dirt', count: 10, into: 'inventory' }), /There were not 10 dirt/);
+    assert.equal(bot.inventory.slots[9].count, 4);
+    const refused = scene({ 3: item('dirt', 4, { stackId: 1 }) }, {}, { answer: 'error' });
+    await assert.rejects(transferItems(refused.bot, refused.window, { itemType: 'dirt', count: 4, into: 'inventory' }), /would not move the dirt/);
 });
 
 test('chest sorting\'s hands on a Bedrock bot make each move as a request, not as clicks', async () => {
