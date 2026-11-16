@@ -1,7 +1,8 @@
 # Core Hooks
 
 Every edit this fork makes to a file that came from Mindcraft-CE is listed here. New code lives in
-`src/agent/fairplay/`, `src/agent/memory/` and `src/agent/storage/` and needs no entry.
+`src/agent/fairplay/`, `src/agent/memory/`, `src/agent/storage/` and `src/agent/edition/` and needs no
+entry.
 
 **Why this list exists:** when CE updates, merge it, then re-check each hook below and run the tests. A short
 list keeps that a small job instead of a hunt.

@@ -211,13 +211,12 @@ All of it lives in `src/agent/fairplay/`:
 | `commands.js` | `!recall` (world memory registers a fuller one in its place when it is on), and the "not found means not seen" sentence |
 | `install.js` | Switches all of the above on for one agent |
 
-**What depends on the edition of the game.** How block states are numbered and what their properties are
-called, how a chunk section lists the blocks it holds, which sounds the server sends, how it tells the bot
-it is an operator, where it keeps which two blocks make a double chest, and how a stack is moved in an open
-chest are asked for by name from `src/agent/edition/` (`editionOf(registry)`), never read straight from
-game data, chunks or packets. Sight's tables, the block search, hearing, the operator check, world
-memory's look-around and chest sorting's hands all go through it. `edition/java.js` gives Java Edition's answers; another edition of the game registers its
-own.
+**What depends on the edition of the game.** How block states are numbered, how a chunk section lists the
+blocks it holds, which sounds the server sends and how it tells the bot it is an operator are asked for by
+name from the edition seam (`src/agent/edition/`), never read straight from game data, chunks or packets.
+Sight's tables, the block search, hearing and the operator check all go through it, and so do world memory
+and chest sorting. [`edition-seam.md`](edition-seam.md) lists every question with Java's and Bedrock's
+answers, and says when new code has to ask it.
 
 **How it hooks into Mindcraft.** Nearly every search in Mindcraft goes through `src/agent/library/world.js`.
 Those calls now pass through one swappable provider (`world_queries.js`), and fair play installs its own.

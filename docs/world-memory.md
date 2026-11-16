@@ -220,7 +220,7 @@ All of it lives in `src/agent/memory/`:
 | `places.js` | Sites found or named |
 | `changes.js` | Which differences are worth a note, and the notes |
 | `kinds.js` | **The one file that knows what a chest, a door or a crop is,** by name pattern |
-| `block_state.js` | Block states to named properties and back, through the edition seam (`src/agent/edition/`), since each edition of the game numbers states its own way |
+| `block_state.js` | Block states to named properties and back, through the [edition seam](edition-seam.md) (`src/agent/edition/`), since each edition of the game numbers states its own way |
 | `store.js` | Opens the five layers for one world and saves them together |
 | `recorder.js` | **The only part that touches the game.** Writes what the bot sees and does into the store |
 | `navigator.js` | **The only part that drives the pathfinder.** Chooses where a trip ends and each hop along the trail |
@@ -239,8 +239,9 @@ under the next; a block name the new version dropped simply never matches. When 
 a tweak, `kinds.js` is where it goes. Its names are Java Edition's; another edition of the game hands it
 a translation of its own names (`translateNamesWith`), while memory keeps the names the game in play
 uses. Which two blocks make one double chest is read from the state where the game keeps it there, and
-otherwise asked of the edition seam (`otherHalfOf`), so a double chest is one thing either way. What a
-sign says is asked of the seam too (`signSidesOf`): each edition keeps it in a block entity of its own shape.
+otherwise asked of the [edition seam](edition-seam.md) (`otherHalfOf`), so a double chest is one thing
+either way. What a sign says is asked of the seam too (`signSidesOf`): each edition keeps it in a block
+entity of its own shape.
 
 **How it hooks in.** Perception takes world memory as its memory in place of the seen-world map, and
 leaves the looking around to the recorder. Route planning asks perception in turn, so the pathfinder plans
