@@ -11,6 +11,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- Baby villagers are no longer taken for adults. `!entities` listed them among the adults, with a
+  profession, and the trading skills walked up to one and tried to trade. The check compared the game's
+  "is a baby" flag with 1, which it never equals. Now a baby is listed as one, and trading with it is
+  refused with the reason.
 - World memory keeps what a sign says. A sign was remembered without its text: memory asked for the
   block in a way the real bot can't answer, and the error was quietly passed over.
 - The bot no longer stops answering when it stands in a biome the installed game data has no entry
