@@ -40,7 +40,8 @@ license. The ones this fork's additions lean on most:
 | [Mineflayer](https://github.com/PrismarineJS/mineflayer) and the PrismarineJS libraries | The bot itself, its game data and physics | MIT |
 | [minecraft-protocol](https://github.com/PrismarineJS/node-minecraft-protocol) (PrismarineJS) | Speaking the Minecraft protocol | BSD-3-Clause |
 | [mineflayer-pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder) | Walking | MIT |
-| [bedrock-protocol](https://github.com/PrismarineJS/bedrock-protocol) (PrismarineJS) | Speaking the Bedrock Edition protocol. Installed through mineflayer | MIT |
+| [bedrock-protocol](https://github.com/PrismarineJS/bedrock-protocol) (PrismarineJS) | Speaking the Bedrock Edition protocol. Installed through mineflayer, from a branch that adds the HTTP hand-off of current dedicated servers | MIT |
+| [nethernet](https://github.com/PrismarineJS/node-nethernet) (PrismarineJS) | The transport under bedrock-protocol that current Bedrock servers speak | MIT |
 | [SES](https://github.com/endojs/endo) (Hardened JavaScript) | The compartment that model-written code runs in | Apache-2.0 |
 
 Until npm releases support the newest game version, mineflayer and some PrismarineJS libraries are installed

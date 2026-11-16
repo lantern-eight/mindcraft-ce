@@ -81,7 +81,8 @@ above and this one name the same package, this one is what `package.json` instal
 | `prismarine-block` | `lantern-eight/prismarine-block` `e4fcd1c` | The head of PrismarineJS/prismarine-block#129, unchanged: a block's states and shapes when ids are hashes | A release has #129 |
 | `prismarine-physics` | `lantern-eight/prismarine-physics` `81b4157` | `e641ceb` (26.3) with PrismarineJS/prismarine-physics#152 merged: Bedrock's walking numbers. #152 is a draft. One conflict, in a comment | A release has #145 and #152 |
 | `mineflayer-pathfinder` | `lantern-eight/mineflayer-pathfinder` `ee36727` | Release 2.4.5 with the one commit of PrismarineJS/mineflayer-pathfinder#388 on top: sorting Bedrock blocks into fences, carpets and the rest. It starts from the release, not from master, because Mindcraft-CE's patch is made for the release | A release has #388. Mindcraft-CE's patch is for 2.4.5 and will need redoing for it |
-| `bedrock-protocol` | npm release `3.61.0`, named in `overrides` | Not a fork. mineflayer asks for `^3.59.0`, and on Node 22 npm picks 3.59.0, the newest release whose `engines` field allows Node 22. That one cannot reach a current server, which speaks the NetherNet transport added in 3.60.0. 3.61.0 asks for Node 24 but runs on Node 22: a login over each transport was checked | mineflayer asks for 3.61.0 or later, or this fork moves to Node 24 |
+| `bedrock-protocol` | `lantern-eight/bedrock-protocol` `01702fd` | Release 3.61.0 with PrismarineJS/bedrock-protocol#831 merged, which went in cleanly: the HTTP hand-off a current dedicated server uses for direct connections. Without it the bot can't reach one at all: such a server answers neither kind of discovery the release knows, and the connection times out. One commit of this fork's on top names the `nethernet` commit below instead of a branch name. It is named in `overrides` because mineflayer asks for `^3.59.0`, and on Node 22 npm would pick 3.59.0, the newest release whose `engines` field allows Node 22. 3.61.0 asks for Node 24 but runs on Node 22 | A release has #831, and mineflayer asks for it or this fork moves to Node 24 |
+| `nethernet` | `PrismarineJS/node-nethernet` `6431f0f` | The transport under `bedrock-protocol`. This is the library's own master, at the commit that merged HTTP discovery and signalling (PrismarineJS/node-nethernet#32), which the row above needs. Release 1.1.2 is older | A nethernet release after 1.1.2 |
 
 `minecraft-data` needs nothing more: the pin in the table above is release 3.119.0, which has Bedrock data up
 to 1.26.60.
@@ -101,6 +102,12 @@ built binary only for Windows on x64 and for older Linux and macOS on x64. Anywh
 current Linux included, its install step builds the binary with CMake, and `npm install` fails if CMake is
 missing. `SKIP_BUILD=1 npm install` skips that build. Nothing is lost for now: current Bedrock servers speak
 the other transport, and without the binary `bedrock-protocol` falls back to a JavaScript one.
+
+**The server's key.** A dedicated server signs its side of the HTTP hand-off with a key, and
+`bedrock-protocol` goes on only if the program using it accepts that key. A stock server makes a new key
+every time it starts, so there is nothing to compare it with: the Bedrock module accepts it and prints it
+(`acceptServerKey` in `src/agent/bedrock/connect.js`). The bot trusts whoever answers at the address in
+its settings, as a Java bot does on a server in offline mode.
 
 ## Hooks for Bedrock Edition
 
@@ -128,7 +135,7 @@ These inherited files are also changed, with no effect on how the bot behaves:
 | File | Change |
 |---|---|
 | `README.md` | Rewritten for this fork. Mindcraft-CE's setup and configuration guide moved to `docs/setup.md` |
-| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses. `mineflayer` and `minecraft-data` come from GitHub, and `overrides` pin `minecraft-protocol`, `prismarine-chunk` and `prismarine-physics` the same way, for Minecraft 26.3 (see [Dependencies Pinned to a Branch](#dependencies-pinned-to-a-branch)). On this branch the pins are the Bedrock set: `mineflayer-pathfinder` comes from GitHub too, and `overrides` also pin `prismarine-registry`, `prismarine-block` and the `bedrock-protocol` release |
+| `package.json`, `package-lock.json` | A `version` field for this fork's own releases, and a `license` field naming both licenses. `mineflayer` and `minecraft-data` come from GitHub, and `overrides` pin `minecraft-protocol`, `prismarine-chunk` and `prismarine-physics` the same way, for Minecraft 26.3 (see [Dependencies Pinned to a Branch](#dependencies-pinned-to-a-branch)). On this branch the pins are the Bedrock set: `mineflayer-pathfinder` comes from GitHub too, and `overrides` also pin `prismarine-registry`, `prismarine-block`, `bedrock-protocol` and `nethernet` |
 | `.gitignore` | Ignores `plans/`, the folder for private working notes |
 | `patches/prismarine-block+1.23.0.patch`, `patches/mineflayer-pathfinder+2.4.5.patch` | Line numbers moved to fit the Bedrock branches of those two libraries (see [For Bedrock Edition](#for-bedrock-edition)). The changes they make are untouched |
 | `tests/live/vanilla_fixture.js` | Passes `-DbundlerRepoDir` from `tests/helpers/server_jar_cache.js`, so every throwaway server shares one folder for what the server jar unpacks on first start (`server_data/jar-cache`; `MC_TEST_JAR_CACHE` picks another, `off` turns it off) |

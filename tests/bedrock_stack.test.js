@@ -59,6 +59,11 @@ test('mineflayer has both editions', () => {
     // The transport from this release on is the one current Bedrock servers speak. npm would pick an older
     // one by itself on Node 22, so package.json names it.
     assert.equal(require('bedrock-protocol/package.json').version, '3.61.0');
+    // A current dedicated server takes a direct connection by a hand-off over HTTP, which is newer than
+    // that release. Without it the bot finds no server at the address and the connection times out.
+    assert.equal(typeof require('nethernet').pingHttp, 'function', 'the transport can ask a server over HTTP');
+    assert.equal(typeof require('bedrock-protocol/src/nethernet/http.js').pingHttp, 'function',
+        'the protocol library has the HTTP hand-off');
 });
 
 for (const hashed of [true, false]) {

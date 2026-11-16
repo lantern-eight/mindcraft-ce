@@ -53,7 +53,8 @@
         "prismarine-physics": "github:lantern-eight/prismarine-physics#81b4157401b75365de93240ed7daca6df855cf03",
         "prismarine-registry": "github:lantern-eight/prismarine-registry#9f6206a619d52977694fcf52eb42b8d58849a5fa",
         "prismarine-block": "github:lantern-eight/prismarine-block#e4fcd1cc89f38cec27f3035e6475797c05d0b1ae",
-        "bedrock-protocol": "3.61.0"
+        "bedrock-protocol": "github:lantern-eight/bedrock-protocol#01702fddc6704b168b3ce201fb0cf9282e8b4961",
+        "nethernet": "github:PrismarineJS/node-nethernet#6431f0f98a4c82d919e59fdbdb54e576e939b9dd"
     },
     "scripts": {
         "postinstall": "patch-package --error-on-fail",

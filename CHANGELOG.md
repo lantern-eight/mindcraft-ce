@@ -17,6 +17,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `auth: "microsoft"` signs in with an Xbox account. A Java version left in `minecraft_version` is refused
   with a message that says what to set. This is the connection only. The skills, fair play, world memory
   and chest sorting have not been made to work on Bedrock yet, and a Bedrock bot does not eat by itself.
+- **Bedrock branch only.** The bot can join a current Bedrock Dedicated Server. Servers from 1.26.60 take
+  a direct connection through a short HTTP exchange on their game port, which no released
+  `bedrock-protocol` speaks; the open upstream work for it is now part of the pinned set. Checked against
+  a dedicated server on 1.26.60: the bot joins, spawns in survival, reads the blocks around it and chats.
+  The server shows a key during that exchange. The bot accepts it and prints it; a stock server makes a
+  new key at every start, so there is nothing to compare it with.
 
 ### Changed
 

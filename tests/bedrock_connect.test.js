@@ -10,7 +10,7 @@ import agentSettings, { setSettings } from '../src/agent/settings.js';
 import { initBot } from '../src/utils/mcdata.js';
 import { createAgent } from '../src/mindcraft/mindcraft.js';
 import {
-    DEFAULT_BEDROCK_PORT, isBedrock, bedrockVersion, bedrockServer, bedrockBotOptions, initBedrockBot,
+    DEFAULT_BEDROCK_PORT, isBedrock, bedrockVersion, bedrockServer, bedrockBotOptions, initBedrockBot, acceptServerKey,
 } from '../src/agent/bedrock/connect.js';
 
 const spec = JSON.parse(readFileSync('src/mindcraft/public/settings_spec.json', 'utf8'));
@@ -146,6 +146,27 @@ test('none of the Java-only wiring touches the connection', () => {
     assert.equal(bot._client.write, write);
     assert.equal(bot._client.emit, emit);
     assert.equal(bot._client.eventNames().length, 0);
+});
+
+test("the server's key is accepted and printed, and no transport is forced by it", () => {
+    // The library asks for this when a dedicated server signs its side of the HTTP hand-off.
+    const client = { options: { nethernet: {} } };
+    const printed = [];
+    acceptServerKey(client, line => printed.push(line));
+    assert.equal(client.options.nethernet.onServerKey('sha256:abc', 'http://example.test:19132'), true);
+    assert.match(printed[0], /example\.test:19132.*sha256:abc/);
+    // It is not among the options the bot is created with: there it would rule out the older transport.
+    assert.ok(!('nethernet' in bedrockBotOptions(bedrockSettings(), 'bot')));
+    assert.ok(!('transport' in bedrockBotOptions(bedrockSettings(), 'bot')));
+});
+
+test('a key that was pinned is left to the library to enforce', () => {
+    const pinned = { options: { nethernet: { serverKey: 'sha256:abc' } } };
+    acceptServerKey(pinned);
+    assert.equal(pinned.options.nethernet.onServerKey, undefined);
+    // A client of another shape (a stand-in, or an older library) is left alone.
+    acceptServerKey({});
+    acceptServerKey(undefined);
 });
 
 // The two places inherited code hands over to this module. Both are checked with a Java version left in

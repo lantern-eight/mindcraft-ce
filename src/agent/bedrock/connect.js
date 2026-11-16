@@ -108,6 +108,33 @@ export function bedrockBotOptions(settings, username, { compiledRakNet = hasComp
     return options;
 }
 
+/**
+ * Let the connection go ahead when the server shows its key.
+ *
+ * A current dedicated server takes a direct connection by a short exchange over HTTP on its game port,
+ * and signs its side with a key. The protocol library stops there unless the program using it says the
+ * key is acceptable, because over plain HTTP nothing else vouches for it.
+ *
+ * There is nothing here to check it against. A stock dedicated server makes a new key every time it
+ * starts, so a key remembered from last time would refuse the same server after every restart. So the key
+ * is accepted and printed. That is the trust a bot gives any server it is pointed at on a home network:
+ * whoever answers at that address. A key someone has pinned in the options is left to the library, which
+ * enforces it.
+ *
+ * It is set on the client after it is made, not passed in as an option: an option under `nethernet`
+ * would also tell the library to try that transport only, and a server that speaks the older one could
+ * no longer be reached. The library reads this when it opens the connection, which is after it has
+ * looked for the server, so setting it straight away is early enough.
+ */
+export function acceptServerKey(client, log = console.log) {
+    const nethernet = client?.options?.nethernet;
+    if (!nethernet || nethernet.serverKey || nethernet.onServerKey) return;
+    nethernet.onServerKey = (fingerprint, origin) => {
+        log(`[bedrock] The server at ${origin} identified itself with key ${fingerprint}.`);
+        return true;
+    };
+}
+
 // The plugin that makes the Java bot eat when it is hungry can't be loaded on Bedrock. It stops while
 // loading, on a helper that compares the game version with Java version numbers, and past that it eats by
 // writing Java packets itself. The agent sets it up by name when it starts, so it gets this in its place:
@@ -138,6 +165,7 @@ function noAutoEat() {
  */
 export function initBedrockBot(username, settings, useGameData, { createBot = createMineflayerBot } = {}) {
     const bot = createBot(bedrockBotOptions(settings, username));
+    acceptServerKey(bot._client);
 
     // The same plugins as on Java, in the same order, except the one that eats. Each of these four was
     // reported working on the Bedrock adapter by the adapter's author.
