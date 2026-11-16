@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- The bot no longer stops answering when it stands in a biome the installed game data has no entry
+  for, such as on a server newer than the data. Its status then says "Biome: unknown". Before, building
+  the status failed, and every message got the "having trouble" reply.
+
 ## [0.7.0] - 2026-11-15
 
 The bot plays Minecraft 26.3, on mineflayer and the libraries under it pinned to their open 26.3 work.
