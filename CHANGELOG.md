@@ -36,6 +36,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - **Bedrock branch only.** On Bedrock a click on a block is no longer ignored when the block changed after
   the bot looked it up. A Bedrock click names the block it lands on, and the adapter named the one it was
   handed, not the one that is there. Fixed in the pinned mineflayer branch.
+- **Bedrock branch only.** On Bedrock the stock crafting skill works, in the bot's own grid and at a
+  crafting table. A Bedrock server sends its recipes when the bot joins, and the adapter keeps them in a
+  layout of its own; the skills now get them in the layout they have on Java, a recipe that takes "any
+  planks" included.
 - **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
   yet, and the bot stopped with an error when it built its status for the model.
 

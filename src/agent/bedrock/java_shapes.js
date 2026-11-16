@@ -73,7 +73,100 @@ function chestsLikeJava(bot) {
     bot.openChest = bot.openContainer;
 }
 
+// ---- Recipes ----------------------------------------------------------------------------------------
+//
+// On Java a recipe is one of two shapes, and the skills read both:
+//   - from mineflayer (`bot.recipesFor`): `inShape`, rows of `{ id, count: 1 }` with id -1 for an empty
+//     cell, or `ingredients`, a list of `{ id, count: -1 }`; and `result: { id, count }`.
+//   - from the game data (`recipes[itemId]`): the same two, with plain item numbers in place of the objects.
+// The adapter keeps its own: one list of `{ name, id, count }` or `{ tag, count }`, a flat `shape` for
+// shaped recipes, and the number the server knows the recipe by. `bot.craft` needs that last form back.
+//
+// Bedrock's recipes come from the server when the bot joins, not from installed game data, so what is
+// handed out here is what this server will accept.
+
+const ADAPTER_RECIPE = Symbol("the adapter's own form of a recipe");
+
+// A recipe may ask for "any planks" instead of one kind. For the arithmetic the skills do (do I hold
+// enough?) that has to be one item: the kind the bot is holding if it holds one, else the first kind the
+// game data lists. The match is by name, as the adapter's own is: it has no table of what belongs to a tag.
+function itemForTag(bot, tag) {
+    const stem = String(tag).replace(/^minecraft:/, '').replace(/s$/, '');
+    const fits = name => typeof name === 'string' && name.includes(stem);
+    const held = bot.inventory?.items?.().find(item => fits(item.name));
+    if (held) return held.type;
+    const listed = (bot.registry?.itemsArray ?? []).find(item => fits(item.name));
+    return listed ? listed.id : -1;
+}
+
+function ingredientId(bot, ingredient) {
+    if (!ingredient) return -1;
+    if (ingredient.tag) return itemForTag(bot, ingredient.tag);
+    return ingredient.id ?? bot.registry?.itemsByName?.[ingredient.name]?.id ?? -1;
+}
+
+// The grid of a shaped recipe as rows of item numbers, -1 where a cell is empty.
+function shapeRows(bot, recipe) {
+    if (recipe.type !== 'shaped' || !recipe.shape || !recipe.width) return null;
+    const rows = [];
+    for (let start = 0; start < recipe.shape.length; start += recipe.width) {
+        rows.push(recipe.shape.slice(start, start + recipe.width).map(cell => ingredientId(bot, cell)));
+    }
+    return rows;
+}
+
+// Every ingredient of a recipe without a shape, once for each one needed.
+function looseIds(bot, recipe) {
+    return recipe.ingredients.flatMap(ingredient => new Array(ingredient.count || 1).fill(ingredientId(bot, ingredient)));
+}
+
+const resultOf = recipe => ({ id: recipe.result.type ?? recipe.result.id, metadata: recipe.result.metadata ?? null, count: recipe.result.count ?? 1 });
+
+/** A recipe from the adapter in the form mineflayer gives on Java, with the adapter's own form tucked in. */
+function recipeLikeJava(bot, recipe) {
+    const rows = shapeRows(bot, recipe);
+    return {
+        result: resultOf(recipe),
+        inShape: rows ? rows.map(row => row.map(id => ({ id, metadata: null, count: 1 }))) : null,
+        outShape: null,
+        ingredients: rows ? null : looseIds(bot, recipe).map(id => ({ id, metadata: null, count: -1 })),
+        requiresTable: Boolean(recipe.requiresTable),
+        [ADAPTER_RECIPE]: recipe,
+    };
+}
+
+/**
+ * The recipes that make an item, in the form the installed game data has them for Java: what
+ * `recipes[itemId]` holds there. Nothing, not an empty list, when the server has no recipe for it.
+ */
+export function recipesLikeGameData(bot, itemId) {
+    if (typeof bot?.recipesAll !== 'function') return undefined;
+    const recipes = (bot.recipesAll(itemId, null, true) ?? []).map(found => found[ADAPTER_RECIPE] ?? found);
+    if (recipes.length === 0) return undefined;
+    return recipes.map(recipe => {
+        const rows = shapeRows(bot, recipe);
+        const { id, count } = resultOf(recipe);
+        const plain = number => (number < 0 ? null : number);
+        return rows
+            ? { inShape: rows.map(row => row.map(plain)), result: { id, count } }
+            : { ingredients: looseIds(bot, recipe).filter(number => number >= 0), result: { id, count } };
+    });
+}
+
+function recipesLikeJava(bot) {
+    if (typeof bot.recipesFor !== 'function' || typeof bot.craft !== 'function') return;
+    for (const name of ['recipesFor', 'recipesAll']) {
+        const find = bot[name]?.bind(bot);
+        if (find) bot[name] = (...args) => (find(...args) ?? []).map(recipe => recipeLikeJava(bot, recipe));
+    }
+    // Crafting takes back what the two calls above handed out. A recipe in the adapter's own form is
+    // passed through as it is.
+    const craft = bot.craft.bind(bot);
+    bot.craft = (recipe, ...rest) => craft(recipe?.[ADAPTER_RECIPE] ?? recipe, ...rest);
+}
+
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
 export function javaShapes(bot) {
     chestsLikeJava(bot);
+    recipesLikeJava(bot);
 }

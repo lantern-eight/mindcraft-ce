@@ -148,6 +148,19 @@ test('the biome is "unknown" on Bedrock, whatever the world answers', () => {
     assert.equal(registry.biomes[0].name, 'bamboo_jungle', "the bot's registry is left as it was");
 });
 
+test('recipes are the ones the server sent, asked for by item number', () => {
+    // The skills read the game data's recipes by item number. The installed table is for an old Bedrock
+    // version and laid out another way, so the answer has to come from the bot, in Java's layout.
+    const registry = { recipes: { 2: 'the installed table' }, version: { type: 'bedrock' } };
+    const planks = { id: 900, type: 'shapeless', result: { type: 2, count: 4 }, ingredients: [{ name: 'oak_log', id: 1, count: 1 }], shape: null };
+    const bot = { recipesAll: id => (id === 2 ? [planks] : []) };
+    const data = gameDataFor(registry, bot);
+    assert.deepEqual(data.recipes[2], [{ ingredients: [1], result: { id: 2, count: 4 } }]);
+    assert.equal(data.recipes[7], undefined, 'no recipe: nothing, not an empty list');
+    assert.equal(gameDataFor(registry).recipes[2], undefined, 'without a bot there is no recipe list to read');
+    assert.equal(registry.recipes[2], 'the installed table', "the bot's registry is left as it was");
+});
+
 test('a resource pack the server offers is accepted', () => {
     const { bot, calls, createBot } = fakeMineflayer();
     initBedrockBot('andy', bedrockSettings(), () => {}, { createBot });

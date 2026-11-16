@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: CC0-1.0
-// On Bedrock, opening a chest has to hand back what it does on Java: the window, with deposit, withdraw
-// and close on it. The skills are written against that. No server; the adapter is stood in for.
+// On Bedrock, what the bot hands back has to have the shape it has on Java, because the skills are written
+// against that: an opened chest with deposit, withdraw and close on it, and a recipe laid out the way
+// mineflayer and the game data lay one out there. No server; the adapter is stood in for.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { javaShapes } from '../src/agent/bedrock/java_shapes.js';
+import { javaShapes, recipesLikeGameData } from '../src/agent/bedrock/java_shapes.js';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -84,4 +85,81 @@ test('a bot without containers is left alone', () => {
     const bot = {};
     javaShapes(bot);
     assert.deepEqual(Object.keys(bot), []);
+});
+
+// ---- Recipes ----
+
+// A bot with the adapter's recipe book: its own form of a recipe, and its own calls.
+function recipeBot({ holding = [] } = {}) {
+    const items = { oak_log: 1, oak_planks: 2, birch_planks: 3, stick: 4, wooden_pickaxe: 5, crafting_table: 6 };
+    const planksFromLog = { id: 900, type: 'shapeless', result: { type: items.oak_planks, count: 4 }, ingredients: [{ name: 'oak_log', id: items.oak_log, count: 1 }], shape: null, requiresTable: false };
+    const pickaxe = { id: 901, type: 'shaped', width: 3, height: 3, result: { type: items.wooden_pickaxe, count: 1 }, requiresTable: true,
+        ingredients: [{ tag: 'minecraft:planks', count: 1 }, { tag: 'minecraft:planks', count: 1 }, { tag: 'minecraft:planks', count: 1 }, { name: 'stick', id: items.stick, count: 1 }, { name: 'stick', id: items.stick, count: 1 }],
+        shape: [{ tag: 'minecraft:planks', count: 1 }, { tag: 'minecraft:planks', count: 1 }, { tag: 'minecraft:planks', count: 1 },
+            null, { name: 'stick', id: items.stick, count: 1 }, null,
+            null, { name: 'stick', id: items.stick, count: 1 }, null] };
+    const book = { [items.oak_planks]: [planksFromLog], [items.wooden_pickaxe]: [pickaxe] };
+    const crafted = [];
+    const bot = {
+        registry: { itemsArray: Object.entries(items).map(([name, id]) => ({ name, id })), itemsByName: Object.fromEntries(Object.entries(items).map(([name, id]) => [name, { id }])) },
+        inventory: { items: () => holding.map(name => ({ name, type: items[name], count: 1 })) },
+        recipesFor: id => book[id] ?? [],
+        recipesAll: id => book[id] ?? [],
+        craft: async (recipe, count, table) => { crafted.push([recipe, count, table]); },
+    };
+    javaShapes(bot);
+    return { bot, items, crafted, planksFromLog, pickaxe };
+}
+
+test('a recipe without a shape reads as it does on Java: each ingredient once, counted down', () => {
+    const { bot, items } = recipeBot();
+    const [recipe] = bot.recipesFor(items.oak_planks, null, 1, null);
+    assert.deepEqual(recipe.ingredients, [{ id: items.oak_log, metadata: null, count: -1 }]);
+    assert.equal(recipe.inShape, null);
+    assert.deepEqual(recipe.result, { id: items.oak_planks, metadata: null, count: 4 });
+    assert.equal(recipe.requiresTable, false);
+});
+
+test('a shaped recipe reads as rows, with -1 for an empty cell', () => {
+    const { bot, items } = recipeBot();
+    const [recipe] = bot.recipesFor(items.wooden_pickaxe, null, 1, true);
+    assert.equal(recipe.ingredients, null);
+    assert.deepEqual(recipe.inShape.map(row => row.map(cell => cell.id)), [
+        [items.oak_planks, items.oak_planks, items.oak_planks],
+        [-1, items.stick, -1],
+        [-1, items.stick, -1],
+    ]);
+    assert.ok(recipe.inShape.flat().every(cell => cell.count === 1));
+    assert.equal(recipe.requiresTable, true);
+});
+
+test('"any planks" becomes the kind the bot is holding', () => {
+    // The skills work out whether the bot holds enough of each ingredient, by name. A recipe that takes
+    // any planks has to be counted against the planks that are there.
+    const { bot, items } = recipeBot({ holding: ['birch_planks'] });
+    const [recipe] = bot.recipesFor(items.wooden_pickaxe, null, 1, true);
+    assert.equal(recipe.inShape[0][0].id, items.birch_planks);
+});
+
+test("crafting gets the adapter's own recipe back", async () => {
+    const { bot, items, crafted, planksFromLog } = recipeBot();
+    const [recipe] = bot.recipesFor(items.oak_planks, null, 1, null);
+    await bot.craft(recipe, 2, null);
+    assert.equal(crafted[0][0], planksFromLog, 'the form with the number the server knows the recipe by');
+    assert.equal(crafted[0][1], 2);
+    // A recipe that never went through the two calls is passed on untouched.
+    await bot.craft(planksFromLog, 1, null);
+    assert.equal(crafted[1][0], planksFromLog);
+});
+
+test('the game data answers "what makes this item" in the layout it has on Java', () => {
+    const { bot, items } = recipeBot();
+    assert.deepEqual(recipesLikeGameData(bot, items.oak_planks), [{ ingredients: [items.oak_log], result: { id: items.oak_planks, count: 4 } }]);
+    assert.deepEqual(recipesLikeGameData(bot, items.wooden_pickaxe), [{
+        inShape: [[items.oak_planks, items.oak_planks, items.oak_planks], [null, items.stick, null], [null, items.stick, null]],
+        result: { id: items.wooden_pickaxe, count: 1 },
+    }]);
+    // Nothing at all for an item with no recipe: the code that asks tells "none" from "an empty list".
+    assert.equal(recipesLikeGameData(bot, items.oak_log), undefined);
+    assert.equal(recipesLikeGameData(null, items.oak_log), undefined, 'before the bot exists');
 });
