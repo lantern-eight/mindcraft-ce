@@ -211,6 +211,18 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * Is this mob a baby? Anyone can see that by looking. Java keeps it as a flag in the mob's metadata,
+     * at the index the game gives an animal's age: 16 in current versions (the entity's own entries run
+     * 0 to 7, a living one's 8 to 14, a mob's 15).
+     *
+     * @param {object} entity - a mob the bot can see
+     * @returns {boolean}
+     */
+    isBaby(entity) {
+        return Boolean(entity?.metadata?.[16]);
+    },
+
+    /**
      * Moves the stack in one slot of an open window onto another slot, the way a player does it with the
      * mouse: pick it up, click the other slot, and put back whatever came off. Onto an empty slot it is
      * put down; onto the same kind of item it is poured in, and what doesn't fit goes back; onto
