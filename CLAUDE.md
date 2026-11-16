@@ -108,7 +108,8 @@ editions, and the pins live on a branch of their own.
   branch changes, and the Java tests pass on those libraries too.
 - **A feature is built on `main`, for both editions where both can have it.** Its Bedrock side is answered
   at the edition seam where it needs one, and it is tested live on Java and on Bedrock. A feature that comes
-  to Java first gets its Bedrock side in a task of its own, also on `main`. Everything Bedrock stays behind
+  to Java first gets its Bedrock side in a task of its own, also on `main`; a question it adds to the seam
+  is answered for Bedrock at once (`docs/edition-seam.md`). Everything Bedrock stays behind
   the setting, so it can't break the Java bot.
 - **Keep the difference between the two branches to the pins and the defaults.**
 - Every rule in this file holds on both branches.

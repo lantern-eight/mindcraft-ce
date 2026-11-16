@@ -1622,7 +1622,8 @@ export async function useDoor(bot, door_pos=null) {
     // Face the middle of the doorway: the walk below is straight ahead. A block's position is its corner,
     // and facing that, the bot walks into the edge of a door that is already open.
     await bot.lookAt(door_pos.offset(0.5, 0.5, 0.5));
-    if (!door_block._properties.open)
+    // Bedrock Edition keeps a door's open state as open_bit (docs/core-hooks.md, B5).
+    if (!(door_block._properties.open ?? door_block._properties.open_bit))
         await bot.activateBlock(door_block);
     
     bot.setControlState("forward", true);
@@ -1643,8 +1644,9 @@ export async function goToBed(bot) {
      * @example
      * await skills.goToBed(bot);
      **/
-    // not includes('bed'), which also matches bedrock
-    const beds = world.getNearestBlocksWhere(bot, block => block.name.endsWith('_bed'), 32, 1);
+    // not includes('bed'), which also matches bedrock. Bedrock Edition has one block for every color of
+    // bed, named just "bed" (docs/core-hooks.md).
+    const beds = world.getNearestBlocksWhere(bot, block => block.name.endsWith('_bed') || block.name === 'bed', 32, 1);
     if (beds.length === 0) {
         log(bot, `Could not find a bed to sleep in.`);
         return false;

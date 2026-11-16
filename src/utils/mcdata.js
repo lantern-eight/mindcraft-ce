@@ -1,6 +1,7 @@
 import minecraftData from 'minecraft-data';
 import settings from '../agent/settings.js';
 import { guardBotActions } from '../agent/action_context.js';
+import { isBedrock, initBedrockBot } from '../agent/bedrock/connect.js';
 import { createBot } from 'mineflayer';
 import prismarine_items from 'prismarine-item';
 import { pathfinder } from 'mineflayer-pathfinder';
@@ -102,6 +103,7 @@ export const HAND_OPENED_DOORS = [
     'waxed_copper_door', 'waxed_exposed_copper_door', 'waxed_weathered_copper_door', 'waxed_oxidized_copper_door', // 1.21+
     'pale_oak_door', // 1.21.4+
     'poplar_door', // 26.3+
+    'wooden_door', // Bedrock Edition's name for the oak door (docs/core-hooks.md, B5)
 ]
 
 
@@ -146,7 +148,18 @@ export function throttlePositionPackets(bot) {
     };
 }
 
+// Bedrock Edition: the game data this file serves to the rest of the code is the bot's own copy, handed
+// over once the bot has logged in. See initBedrockBot for why it can't be loaded by version name.
+function useGameData(registry) {
+    mc_version = registry.version.minecraftVersion;
+    mcdata = registry;
+    Item = prismarine_items(registry);
+}
+
 export function initBot(username) {
+    // A Bedrock bot is started by its own module (docs/core-hooks.md). Everything below is for Java.
+    if (isBedrock(settings)) return initBedrockBot(username, settings, useGameData);
+
     mc_version = settings.minecraft_version;
     const options = {
         username: username,

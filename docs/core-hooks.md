@@ -46,6 +46,7 @@ these: an upstream change to one merges cleanly, the tests pass, and the change 
 | How a walk is planned: the two path searches and the walk in `goToGoal` (`src/agent/library/skills.js`) | `src/agent/memory/navigator.js`, called through `travel_guide.js`. It walks the bot along the trail first; `goToGoal` still plans whatever is left, so it is stepped around only for the part of a trip the bot knows a way for | `world_memory` on, and the bot has walked a way that leads there | A change to the movement settings `goToGoal` builds: which blocks may not be broken, and the costs of digging and placing. The navigator's own "careful" settings, used to get past a blockage, are a copy of them. Also any new way of walking that does not go through `goToGoal` |
 | What the pathfinder is told about the world while it plans a route: `getBlock`, `getNeighbors` and `updateCollisionIndex` of the `Movements` class in the mineflayer-pathfinder library, as Mindcraft-CE patches it (`patches/mineflayer-pathfinder+2.4.5.patch`) | `src/agent/fairplay/fair_legs.js`, which replaces those three methods on the class when the bot starts and answers from what the bot has seen. No file of the library or of Mindcraft-CE is edited, and no patch is added. A bot without fair legs gets the library's own methods | `fair_play` on, unless `route_planning` is `"all"` | A newer pathfinder, or a change to Mindcraft-CE's patch of it: how `getBlock` decides that a block can be walked through or stood on; how `getNeighbors` builds a slantwise step; any new place where planning reads the world or the list of mobs; and whether each step of a route still keeps its cell in `hash`. `tests/fairplay_legs.test.js` runs the real search and fails when these drift |
 | What the bot remembers seeing (this fork's own seen-world map, `src/agent/fairplay/seen_map.js`) | The store in `src/agent/memory/`, filled by `recorder.js` | `world_memory` on | Nothing upstream: both are this fork's. Listed so a change to one is checked against the other |
+| The plugin that makes the bot eat when it is hungry, `mineflayer-auto-eat`, loaded in `src/utils/mcdata.js` and set up in `src/agent/agent.js` | `src/agent/bedrock/eating.js`, put at `bot.autoEat` by `initBedrockBot` | `minecraft_edition` is `"bedrock"` | A newer version of the plugin that decides differently when or what to eat, or new options the agent passes to `setOpts`. The eater reads `minHunger`, `minHealth`, `priority`, `bannedFood` and `returnToLastItem` and ignores the rest |
 
 Add a row whenever a new feature takes over from inherited code. Keep the takeover in this fork's own
 module with a small hook in the inherited file, so that most upstream edits to that code show up as a
@@ -67,6 +68,32 @@ they came from. `overrides` in `package.json` make every package in the tree use
 | `prismarine-chunk` | `lantern-eight/prismarine-chunk` `a96fd70` | 26.2 and 26.3 chunk mapping and light masks. The head of PrismarineJS/prismarine-chunk#347 | A release maps 26.3 |
 | `prismarine-physics` | `lantern-eight/prismarine-physics` `e641ceb` | 26.3's liquid gravity. PrismarineJS/prismarine-physics#145 merged onto master | A release has #145 |
 | `minecraft-data` | `lantern-eight/node-minecraft-data` `194d7f6` | 26.3 game data. Release 3.119.0 with its data folder taken from `lantern-eight/minecraft-data` `cf005a2`: PrismarineJS/minecraft-data#1345, merged with the 3.119.0 data, plus this fork's fix of the 26.2 and 26.3 entity attribute lists (the 1.21 list, so movement speed was read under the wrong name). The data is checked in as files, not a submodule, because npm installs a GitHub dependency from a tarball, which has no submodules | A minecraft-data release has 26.3 with the attribute fix |
+
+The `bedrock` branch pins more libraries, for Bedrock Edition, and its copy of this file lists them here,
+under "For Bedrock Edition". `main` installs none of them.
+
+## Hooks for Bedrock Edition
+
+The Bedrock code lives in `src/agent/bedrock/`, behind the `minecraft_edition` setting, and the hooks
+below are how inherited files reach it. They are numbered apart
+from the table at the top (`B1`, `B2`, ...), so a hook added for Java Edition can never take the same number;
+a commit message says `core hook B2`. With `minecraft_edition` set to `"java"` (`main`'s default;
+the `bedrock` branch defaults to `"bedrock"`), none of them changes anything.
+
+| # | File | What the hook does | Why it can't live in a new module |
+|---|---|---|---|
+| B1 | `settings.js`, `src/mindcraft/public/settings_spec.json` | New key `minecraft_edition`, `"java"` or `"bedrock"`, in both files. `main` defaults to `"java"`; the `bedrock` branch to `"bedrock"`, with `minecraft_version` `"auto"` and `port` 19132 beside it | Settings live there. As with hook 4, a setting missing from `settings_spec.json` is dropped from agents made through MindServer's page or API, and a Bedrock bot made that way would start as a Java one |
+| B2 | `src/utils/mcdata.js` (`initBot`) | One import, and one line at the top of `initBot` that hands a Bedrock bot to `initBedrockBot` and returns what it made. Beside it, a three-line `useGameData`, which points this file's game data at the registry it is given | `initBot` is where every bot is made, and the game data the rest of the code reads through this file is private to it. On Bedrock that data has to be the bot's own registry: the server gives items and block states their numbers when the bot joins. Everything else `initBot` does is for Java and is skipped: the Fabric handshake, the position-packet throttle, the filter for unreadable Java packets, the seed read from Java's login packet |
+| B3 | `src/mindcraft/mindcraft.js` (`createAgent`) | One import, and one line in front of the server lookup: on Bedrock the settings go through `bedrockServer` instead, and the inherited `try` gains an `else` | The lookup asks the server what it is in Java's protocol. A Bedrock server doesn't answer, so the lookup would wait out its timeout, warn, and clear a version of `"auto"`. Doing it here also means a version that can't work (a Java one left in the settings) fails the agent with a message before a process is started for it |
+| B4 | `src/agent/library/skills.js` (`goToBed`) | The test for "is this block a bed" also takes a block named just `bed` | Bedrock Edition has one bed block for every color, named `bed`, where Java has a block per color, each ending in `_bed`. The skill picks its bed by name in a line of its own, written so that `bedrock` is not taken for one, and a second name has to go on that same line. No Java block is named `bed`, so nothing changes there |
+| B5 | `src/utils/mcdata.js` (`HAND_OPENED_DOORS`), `src/agent/library/skills.js` (`useDoor`) | The list of doors a hand opens also names `wooden_door`; and whether a door is open is read from `open`, or else `open_bit` | Bedrock Edition calls the oak door `wooden_door` and keeps a door's open state as `open_bit` (0 or 1). Without the name, `useDoor` with no position found no oak door; without the state, it took every Bedrock door for shut, so it shut an open one and walked into it. The list already names doors a game may not have, so on Java the extra name matches nothing, and a Java door has `open`, so `open_bit` is never read there |
+
+**One plugin is left out on Bedrock.** `mineflayer-auto-eat` can't be loaded there: a helper it loads compares
+the game version with Java version numbers and stops, and the plugin itself eats by writing Java packets.
+The agent sets eating up by name when it starts, so `initBedrockBot` puts this fork's own eater at
+`bot.autoEat`, with the same switches and the same starting numbers (`src/agent/bedrock/eating.js`). It
+is listed under [Replaced Pieces](#replaced-pieces): a change to how the plugin decides to eat has to be
+carried over by hand.
 
 ## Housekeeping Edits
 

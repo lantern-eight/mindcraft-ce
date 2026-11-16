@@ -50,7 +50,7 @@ const inTunnel = (x, y, z) => (y === Y || y === Y + 1) && (
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, auth: 'offline', fair_play: 'off', world_memory: false });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', fair_play: 'off', world_memory: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const skills = await import('../../src/agent/library/skills.js');
 

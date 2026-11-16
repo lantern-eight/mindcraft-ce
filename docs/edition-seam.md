@@ -36,8 +36,8 @@ Bedrock would mean a second copy of each feature, or checks for the edition scat
 them, each a chance to read one game's data the other game's way. The seam keeps the difference to one
 file per edition.
 
-The seam is on `main`, which plays Java only, because the features that ask it are there. On `main` it
-has one set of answers. The `bedrock` branch adds the second set.
+The seam and both sets of answers are on `main`, with the features that ask it. Bedrock's answers run only
+on the libraries the `bedrock` branch pins (see [bedrock.md](bedrock.md)).
 
 ## How It Works
 
@@ -53,12 +53,12 @@ const text = edition.signSidesOf(bot.blockAt(position)); // ['Wheat farm\nthis w
   in unit tests, has no version and counts as Java. An edition nobody registered is an error, never a
   silent guess: Java's answers on another game's data come out wrong without a sound.
 - **`registerEdition(type, answers)`** adds an edition. `java.js` holds Java's answers and is registered
-  from the start. On the `bedrock` branch, `src/agent/bedrock/edition.js` registers Bedrock's when it is
-  imported, before any Bedrock bot starts.
+  from the start. `src/agent/bedrock/edition.js` registers Bedrock's when it is imported, before any
+  Bedrock bot starts.
 
 ## The Questions It Answers
 
-| Question | Asked as | Asked by | Java | Bedrock (`bedrock` branch) |
+| Question | Asked as | Asked by | Java | Bedrock |
 |---|---|---|---|---|
 | Which state numbers belong to a block | `stateIdsOf(block)` | Fair play's sight | One run, from the block's first number to its last | The block's own list of states; a hashed number has no order |
 | A table with an entry per block state | `stateTable(registry)` | Sight, the block search, perception, world memory | A typed array indexed by state number | A small hash table over typed arrays: hashed numbers are too far apart for an array |
@@ -81,13 +81,13 @@ is written.
 
 - **What mineflayer already answers the same way on both editions:** a block's name at a spot, where the
   bot is, digging, walking with the pathfinder. Code that only uses these needs nothing from the seam.
-- **The shape of the bot itself.** On the `bedrock` branch, mineflayer's Bedrock adapter hands back some
+- **The shape of the bot itself.** Mineflayer's Bedrock adapter hands back some
   things in another shape than mineflayer does on Java: an opened chest, a recipe, a click on a block, how
   often the bot reports moving. `src/agent/bedrock/java_shapes.js` puts Java's shape back on the bot once,
   so Mindcraft's skills run unchanged. The seam answers questions this fork's modules ask about the game;
   `java_shapes.js` evens out the `bot` that everything uses.
 - **Block names.** World memory keeps the names the game in play uses. Where it needs to know what a
-  block is (a chest, a door, a crop), `kinds.js` judges by Java's names, and the `bedrock` branch hands it
+  block is (a chest, a door, a crop), `kinds.js` judges by Java's names, and a Bedrock bot hands it
   a table from Bedrock's names to Java's (`src/agent/bedrock/names.js`).
 
 ## Adding a Question
@@ -117,11 +117,11 @@ If mineflayer's own calls answer it the same way on both editions, the seam isn'
 4. **A call from a file inherited from Mindcraft-CE is a core hook,** listed in
    [`core-hooks.md`](core-hooks.md) like any other (`isHuntable` asks `isBaby` that way).
 5. **Add a row to the table above.**
-6. **Answer it for Bedrock when the feature is ported to the `bedrock` branch,** in
-   `src/agent/bedrock/edition.js`, with a test. Until it is, a test on that branch fails
-   (`tests/bedrock_edition.test.js`, "Bedrock answers every question the edition seam asks"), because an
-   unanswered question would stop whatever asks it on a Bedrock bot.
+6. **Answer it for Bedrock too,** in `src/agent/bedrock/edition.js`, with a test, before the pull request.
+   A test fails while any question has no Bedrock answer (`tests/bedrock_edition.test.js`, "Bedrock answers
+   every question the edition seam asks"), because an unanswered question would stop whatever asks it on
+   a Bedrock bot.
 
-New features are built on `main` first, for Java, and ported to `bedrock` once they are done. The seam is
-what keeps that port small: a feature that asks its questions here moves over with only the Bedrock
-answers to write.
+A feature built for Java alone gets its Bedrock side the same way, on `main`. The seam is what keeps
+that small: a feature that asks its questions here works on Bedrock with only the Bedrock answers to
+write.
