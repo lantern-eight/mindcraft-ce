@@ -30,6 +30,27 @@ class StateTable {
     }
 }
 
+// The sound packets a Java server sends. Sounds played at a spot carry their position in eighths of a block;
+// sounds attached to an entity come from wherever that entity is.
+const SOUND_AT_SPOT = ['sound_effect', 'named_sound_effect'];
+const SOUND_OF_ENTITY = 'entity_sound_effect';
+
+/**
+ * The name of the sound a packet carries, or null.
+ *
+ * mineflayer's own `soundEffectHeard` event can't be used for this: on 1.21 it looks each sound up one
+ * place off in the sound list, so a cow's moo arrives named as an unrelated sound and its hurt cry as its
+ * death cry. minecraft-data numbers its sound list from 0 in some versions and from 1 in others, while the
+ * protocol always counts from 0, so the lookup goes by where the list starts.
+ */
+function soundNameOf(registry, packet) {
+    if (typeof packet?.soundName === 'string') return packet.soundName;                 // older servers name it outright
+    if (typeof packet?.sound?.data?.soundName === 'string') return packet.sound.data.soundName; // a sound given by name
+    const id = packet?.sound ? packet.sound.soundId : packet?.soundId;                   // its place in the game's sound list
+    const base = registry?.soundsArray?.[0]?.id ?? 0;
+    return Number.isInteger(id) ? registry?.sounds?.[id + base]?.name ?? null : null;
+}
+
 // Worked out once per game data: one more than the highest state number.
 const tableSizes = new WeakMap();
 function tableSize(registry) {
@@ -64,6 +85,38 @@ export const javaEdition = Object.freeze({
     /** An empty table with one entry per block state of this game data (see StateTable above). */
     stateTable(registry) {
         return new StateTable(tableSize(registry));
+    },
+
+    /**
+     * Calls `hear(soundName, position)` for every sound the server sends the bot, with the sound's name as
+     * Java writes it ("minecraft:entity.cow.ambient") and where it came from. Only listens: nothing is sent.
+     * The server sends a sound only to players close enough to hear it, so this is what a player with
+     * subtitles on would get.
+     * @returns {() => void} stops listening
+     */
+    onSound(bot, hear) {
+        const atSpot = packet => hear(soundNameOf(bot.registry, packet), { x: packet.x / 8, y: packet.y / 8, z: packet.z / 8 });
+        const ofEntity = packet => hear(soundNameOf(bot.registry, packet), bot.entities?.[packet.entityId]?.position);
+        for (const name of SOUND_AT_SPOT) bot._client?.on?.(name, atSpot);
+        bot._client?.on?.(SOUND_OF_ENTITY, ofEntity);
+        return () => {
+            for (const name of SOUND_AT_SPOT) bot._client?.off?.(name, atSpot);
+            bot._client?.off?.(SOUND_OF_ENTITY, ofEntity);
+        };
+    },
+
+    /**
+     * Calls `report(level)` whenever the server tells the bot its operator level: 0 for none, higher for
+     * more rights. A Java server does it with an entity status of 24 to 28 on the bot's own entity.
+     * @returns {() => void} stops listening
+     */
+    onOperatorLevel(bot, report) {
+        const listener = packet => {
+            if (packet.entityId !== bot.entity?.id || packet.entityStatus < 24 || packet.entityStatus > 28) return;
+            report(packet.entityStatus - 24);
+        };
+        bot._client?.on?.('entity_status', listener);
+        return () => bot._client?.off?.('entity_status', listener);
     },
 
     /**
