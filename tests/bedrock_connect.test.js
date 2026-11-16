@@ -104,9 +104,10 @@ test('the bot is created with the Bedrock options and the plugins that work ther
     assert.equal(calls.options.edition, 'bedrock');
     assert.equal(calls.options.username, 'andy');
     assert.equal(calls.options.version, 'bedrock_1.26.60');
-    // Walking, fighting, collecting and armor. The fifth plugin of the Java bot, the one that eats, is not
-    // among them: it can't be loaded on Bedrock.
-    assert.equal(calls.plugins.length, 4);
+    // Walking, fighting, collecting and armor, then this fork's own plugin that evens out the adapter's
+    // shapes. The fifth plugin of the Java bot, the one that eats, is not among them: it can't be loaded
+    // on Bedrock.
+    assert.equal(calls.plugins.length, 5);
     assert.ok(calls.plugins.every(plugin => typeof plugin === 'function'));
 });
 

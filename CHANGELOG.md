@@ -28,6 +28,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   Bedrock server: joining, seeing blocks, chat, walking, digging, placing, a chest and crafting. It passes
   on 1.26.60 and on 1.26.63, which speaks the same protocol. The whole agent was also started there and
   answered a player through a model.
+- **Bedrock branch only.** A chest opened on Bedrock is the same kind of object as on Java, with
+  `deposit`, `withdraw` and `close` on it, so code written for Java chests has something to work with.
 - **Bedrock branch only.** The bot's status says "Biome: unknown" on Bedrock. Biomes are not read there
   yet, and the bot stopped with an error when it built its status for the model.
 

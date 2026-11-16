@@ -16,6 +16,7 @@ import { plugin as pvp } from 'mineflayer-pvp';
 import { plugin as collectblock } from 'mineflayer-collectblock';
 import armorManager from 'mineflayer-armor-manager';
 import { guardBotActions } from '../action_context.js';
+import { javaShapes } from './java_shapes.js';
 
 const require = createRequire(import.meta.url);
 
@@ -192,6 +193,7 @@ export function initBedrockBot(username, settings, useGameData, { createBot = cr
     bot.loadPlugin(pvp);
     bot.loadPlugin(collectblock);
     bot.loadPlugin(armorManager);
+    bot.loadPlugin(javaShapes); // where the adapter's answers have another shape than on Java
     bot.autoEat = noAutoEat();
 
     bot.once('spawn', () => guardBotActions(bot));

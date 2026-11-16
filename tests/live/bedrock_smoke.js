@@ -61,15 +61,6 @@ async function clearArea() {
     await server.command(`clear ${NAME}`);
 }
 
-// Opening a chest. On Bedrock the adapter does not hand back a chest object the way mineflayer does on
-// Java: the window arrives as an event, and items are moved by calls on the bot itself.
-async function openChest(block) {
-    const opened = once(bot, 'windowOpen');
-    bot.openContainer(block);
-    const [window] = await Promise.race([opened, delay(5000).then(() => { throw new Error('The chest did not open'); })]);
-    return window;
-}
-
 try {
     setSettings({ ...rootSettings, ...bedrockTestSettings(server) });
     const { initBot } = await import('../../src/utils/mcdata.js');
@@ -175,20 +166,24 @@ try {
         skip('the bot crafts in its own grid', 'no server console');
     } else {
         await step('the bot puts items in a chest and takes some back', async () => {
+            // Written the way the skills use a chest on Java: the opened chest is an object with deposit,
+            // withdraw and close on it. The adapter's own answer has another shape, which the Bedrock
+            // module evens out (src/agent/bedrock/java_shapes.js).
             await server.command(`setblock ${xyz(at(9, 0, 2))} chest`);
             await server.command(`give ${NAME} cobblestone 8`, 900);
             const block = bot.blockAt(at(9, 0, 2));
             assert.equal(block?.name, 'chest');
-            const window = await openChest(block);
-            await bot.deposit('cobblestone', null, 3);
+            const cobblestone = bot.registry.itemsByName.cobblestone.id;
+            const chest = await bot.openContainer(block);
+            const inside = () => chest.containerItems().filter(item => item.name === 'cobblestone').reduce((sum, item) => sum + item.count, 0);
+            await chest.deposit(cobblestone, null, 3);
             await delay(500);
-            const inside = () => window.containerItems().filter(item => item.name === 'cobblestone').reduce((sum, item) => sum + item.count, 0);
             assert.equal(inside(), 3, 'three went in');
-            await bot.withdraw('cobblestone', null, 1);
+            await chest.withdraw(cobblestone, null, 1);
             await delay(500);
             assert.equal(inside(), 2, 'one came back out');
             assert.equal(count('cobblestone'), 6);
-            bot.closeWindow(window);
+            chest.close();
             await delay(500);
             assert.equal(bot.currentWindow, null);
             return { inChest: 2, carried: 6 };
@@ -214,21 +209,6 @@ try {
             assert.equal(count('crafting_table'), 1);
         });
     }
-
-    await knownGap('the bot holds a chest the way it does on Java', async () => {
-        // On Java, opening a chest gives back an object with deposit and withdraw on it, and the skills
-        // are written against that. The adapter gives back nothing and puts those calls on the bot.
-        if (!server.hasConsole) throw new Error('not tried: no server console');
-        if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
-        await delay(500);
-        const chest = await bot.openContainer(bot.blockAt(at(9, 0, 2)));
-        try {
-            assert.equal(typeof chest?.deposit, 'function', 'openContainer gave back no chest object');
-        } finally {
-            await delay(500);
-            if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
-        }
-    });
 
     const failed = results.filter(result => result.status === 'failed').length;
     console.log(JSON.stringify({

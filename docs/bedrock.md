@@ -74,6 +74,10 @@ uses. None of those libraries are released with Bedrock support yet;
   time it starts, in online mode and offline mode alike, so there is nothing to compare it with. The bot
   accepts it and prints it. It trusts whoever answers at the address in its settings, as a Java bot does
   on an offline-mode server.
+- **One copy of the skills.** The skills and this fork's modules are written against the `bot` mineflayer
+  gives on Java, and are not copied for Bedrock. Where the adapter's `bot` differs in shape, the Bedrock
+  module puts the Java shape back on the bot (`java_shapes.js`); where the adapter is simply wrong, it is
+  fixed in the adapter; what Bedrock can't do is listed under Known Gaps.
 - **Coming back after a crash.** A bot that is killed instead of leaving stays on the server's player list
   for some seconds. A bot of the same name that joins in that time is turned away. Wait half a minute.
 
@@ -86,7 +90,6 @@ stay.
 |---|---|
 | **Fair play** | Don't rely on it. Perception runs, but in a first check the bot named blocks under the ground it stood on, which a player could not see. The lists of what can be seen through are written for Java's blocks, and sounds, reach and world identity each read something Java-only. Set `fair_play: "off"` for now |
 | **World memory, chest sorting** | Not ported. World memory keeps Java's names for block states; chest sorting moves items the way Java's windows work |
-| **Chests, the way skills use them** | On Java, opening a chest hands back an object with `deposit` and `withdraw` on it, and the skills are written for that. The adapter hands back nothing and puts those calls on the bot. Done the adapter's way, chests work; the skills that use chests do not yet |
 | **Crafting with something just crafted** | An item the bot made can't be used as an ingredient: the adapter records the new stack without the number the server gave it, and the server refuses to move it. Logs to planks works; those planks to a crafting table then fails |
 | **Eating** | The bot does not eat by itself. The plugin that does it on Java can't be loaded |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
@@ -108,8 +111,8 @@ node tests/live/bedrock_smoke.js
 
 It joins through the repo's own start-up code and goes through everything in the "Works" row above,
 one step each, printing one line of JSON per step. It makes no model calls. Steps that hand out items use
-the server console and are skipped without `BEDROCK_TEST_CONSOLE`. Two steps are marked as known gaps:
-they report what happens and never fail the run, and when one starts passing the output says so.
+the server console and are skipped without `BEDROCK_TEST_CONSOLE`. A step marked as a known gap reports
+what happens and never fails the run, and when it starts passing the output says so.
 `tests/live/bedrock_fixture.js` explains each variable.
 
 **Never point it at a world you care about.** It digs, builds, hands out items and clears the bot's
@@ -160,6 +163,7 @@ spaces and `_ . : -`, and writes coordinates out in full.
 | | |
 |---|---|
 | `src/agent/bedrock/connect.js` | Starting a Bedrock bot: the options, the server's key, what is left out, the game data the rest of the code reads |
-| `tests/bedrock_connect.test.js`, `tests/bedrock_stack.test.js` | Unit tests, no server |
+| `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest |
+| `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js`, `tests/live/bedrock_smoke.js` | The live test and where it finds its server |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files, and the pinned libraries |
