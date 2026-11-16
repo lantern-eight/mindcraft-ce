@@ -11,9 +11,12 @@ play**: the bot may only know and do what a human survival player could.
 
 - New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
   the `world_memory` setting) and `src/agent/storage/` (chest sorting, behind the `chest_sorting`
-  setting). `src/agent/edition/` answers what depends on the edition of the game (how block states are
-  numbered, how a chunk section lists its blocks, sounds, operator rights); those modules ask it instead
-  of reading game data shapes or packets themselves.
+  setting). `src/agent/edition/`, the edition seam, answers what depends on the edition of the game (how
+  block states are numbered, how a chunk section lists its blocks, sounds, operator rights, what a block
+  entity holds, how a stack is moved); those modules ask it instead of reading game data shapes or packets
+  themselves. `docs/edition-seam.md` lists its questions, and says when new code must ask it and how to
+  add a question. Read it before writing code that reads state numbers, chunk sections, packets, entity
+  metadata or block entities.
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
@@ -80,6 +83,10 @@ bot.
   Merge `main` into `bedrock` often, with a merge commit. Never merge `bedrock` into `main`.
 - **A change that isn't about Bedrock is made for `main`,** on a branch cut from it, and reaches `bedrock`
   with the next merge. Only Bedrock work is committed on `bedrock` or on a branch cut from it.
+- **New features are built for `main` first, for Java.** A feature is built, tested and merged on `main`.
+  Only when it is done, working and merged there is it ported to Bedrock, as a task of its own: merge
+  `main` into `bedrock`, answer for Bedrock any new question the feature asks of the edition seam, and
+  give it Bedrock live tests. A feature is never built on `bedrock` first, nor on both branches at once.
 - **Keep the difference between the two short and listed.** Bedrock code lives in its own module behind a
   setting, with hooks in `docs/core-hooks.md` like any other.
 - Every rule in this file holds on both branches.
