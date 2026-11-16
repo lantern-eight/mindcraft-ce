@@ -171,13 +171,16 @@ export const queryList = [
                 if (entity.type === 'player' || entity.name === 'item')
                     continue;
                     
-                if (!entityCounts[entity.name]) {
-                    entityCounts[entity.name] = 0;
+                // Villagers are counted as "villager" whatever the game calls them; the edition seam knows.
+                const villager = mc.villagerOf(entity);
+                const name = villager ? 'villager' : entity.name;
+                if (!entityCounts[name]) {
+                    entityCounts[name] = 0;
                 }
-                entityCounts[entity.name]++;
+                entityCounts[name]++;
                 
-                if (entity.name === 'villager') {
-                    if (entity.metadata && entity.metadata[16] === true) {
+                if (villager) {
+                    if (villager.baby) {
                         babyVillagerIds.push(entity.id);
                     } else {
                         const profession = world.getVillagerProfession(entity);

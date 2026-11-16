@@ -67,6 +67,13 @@ function tableSize(registry) {
     return size;
 }
 
+// The jobs a villager can have, in the order Java's game numbers them (its villager_profession list).
+const PROFESSIONS = ['unemployed', 'armorer', 'butcher', 'cartographer', 'cleric', 'farmer', 'fisherman',
+    'fletcher', 'leatherworker', 'librarian', 'mason', 'nitwit', 'shepherd', 'toolsmith', 'weaponsmith'];
+
+// A mob's age, at the index the game gives an animal's (see isBaby below).
+const isBaby = entity => Boolean(entity?.metadata?.[16]);
+
 export const javaEdition = Object.freeze({
     name: 'java',
 
@@ -219,7 +226,27 @@ export const javaEdition = Object.freeze({
      * @returns {boolean}
      */
     isBaby(entity) {
-        return Boolean(entity?.metadata?.[16]);
+        return isBaby(entity);
+    },
+
+    /**
+     * Is this mob a villager, and what can anyone see of it: whether it is a child, its job (from the
+     * clothes it wears) and how far it has come in that job (the badge on its belt, 1 for a novice to 5
+     * for a master). Java keeps the job and level together in one entry of the villager's metadata, the
+     * job as its place in the game's list. That entry was 18 up to 1.21 and is 19 from 26.1, which added
+     * one before it, so it is found by its shape. Versions before 1.14 sent only the job's number, at 18.
+     *
+     * @param {object} entity - a mob the bot can see
+     * @returns {{baby: boolean, profession: string|null, level: number|null}|null} null when it is not a
+     *     villager; a job or level that isn't known is null
+     */
+    villagerOf(entity) {
+        if (entity?.name !== 'villager') return null;
+        const data = Object.values(entity.metadata ?? {})
+            .find(value => value && typeof value === 'object' && value.villagerProfession !== undefined);
+        const job = data ? data.villagerProfession : typeof entity.metadata?.[18] === 'number' ? entity.metadata[18] : null;
+        const level = Number.isInteger(data?.level) ? data.level : null;
+        return { baby: isBaby(entity), profession: PROFESSIONS[job] ?? null, level };
     },
 
     /**

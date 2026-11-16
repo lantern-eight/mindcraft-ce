@@ -150,6 +150,26 @@ test('Java keeps a mob\'s age in its metadata, at index 16', () => {
     assert.equal(javaEdition.isBaby({ name: 'cow' }), false, 'no metadata at all');
 });
 
+test('Java keeps a villager\'s job and level together in one metadata entry, and its age at 16', () => {
+    const librarian = { name: 'villager', metadata: { 16: false, 18: { villagerType: 2, villagerProfession: 9, level: 3 } } };
+    assert.deepEqual(javaEdition.villagerOf(librarian), { baby: false, profession: 'librarian', level: 3 });
+    const child = { name: 'villager', metadata: { 16: true, 18: { villagerType: 0, villagerProfession: 0, level: 1 } } };
+    assert.deepEqual(javaEdition.villagerOf(child), { baby: true, profession: 'unemployed', level: 1 });
+    // 26.1 added an entry before it, which moved it to 19.
+    const mason26 = [];
+    mason26[16] = false;
+    mason26[19] = { villagerType: 0, villagerProfession: 10, level: 1 };
+    mason26[20] = true;
+    assert.deepEqual(javaEdition.villagerOf({ name: 'villager', metadata: mason26 }), { baby: false, profession: 'mason', level: 1 });
+    // Versions before 1.14 sent only the job's number.
+    assert.deepEqual(javaEdition.villagerOf({ name: 'villager', metadata: { 18: 10 } }), { baby: false, profession: 'mason', level: null });
+    assert.deepEqual(javaEdition.villagerOf({ name: 'villager', metadata: {} }), { baby: false, profession: null, level: null }, 'not said yet');
+    assert.deepEqual(javaEdition.villagerOf({ name: 'villager', metadata: { 18: { villagerProfession: 99, level: 1 } } }), { baby: false, profession: null, level: 1 }, 'a job this list lacks');
+    assert.equal(javaEdition.villagerOf({ name: 'wandering_trader', metadata: {} }), null, 'trades, but is not a villager');
+    assert.equal(javaEdition.villagerOf({ name: 'cow', metadata: { 16: true } }), null);
+    assert.equal(javaEdition.villagerOf(null), null);
+});
+
 test('a stack is moved with three clicks, the last only when something is left on the cursor', async () => {
     const clicks = [];
     const window = { selectedItem: null };

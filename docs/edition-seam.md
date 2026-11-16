@@ -70,6 +70,7 @@ const text = edition.signSidesOf(bot.blockAt(position)); // ['Wheat farm\nthis w
 | Where the other half of a double chest is | `otherHalfOf(block)` | World memory, chest sorting | Nothing more to say: Java keeps it in the chest's state | Its block entity names the other half (`pairx`, `pairz`) |
 | What a sign says | `signSidesOf(block)` | World memory | The block reads its own text | The text of each side, from the sign's block entity |
 | Whether a mob is a baby | `isBaby(entity)` | The hunting reflex (`isHuntable`) | Entry 16 of the mob's metadata | The `baby` flag among the mob's named flags |
+| Whether a mob is a villager, and its age, job and level | `villagerOf(entity)` | `!entities`, and the commands that show and make trades | Named `villager`; its job and level are one entry of its metadata (18 up to 1.21, 19 from 26.1) | Named `villager_v2`; its job is its `variant`, its level its `trade_tier` |
 | Moving a stack in an open chest | `moveStack(bot, window, from, to)` | Chest sorting | Clicks on a cursor, as a player makes them | One item stack request, which the server grants or refuses |
 
 Each answer is a few lines and decides nothing: it says how the game keeps something, and the feature that

@@ -233,46 +233,14 @@ export function getNearbyPlayers(bot, maxDistance) {
 
 // Helper function to get villager profession from metadata
 export function getVillagerProfession(entity) {
-    // Villager profession mapping based on metadata
-    const professions = {
-        0: 'Unemployed',
-        1: 'Armorer',
-        2: 'Butcher', 
-        3: 'Cartographer',
-        4: 'Cleric',
-        5: 'Farmer',
-        6: 'Fisherman',
-        7: 'Fletcher',
-        8: 'Leatherworker',
-        9: 'Librarian',
-        10: 'Mason',
-        11: 'Nitwit',
-        12: 'Shepherd',
-        13: 'Toolsmith',
-        14: 'Weaponsmith'
-    };
-    
-    // The job and level are kept together, in entry 18 of the metadata up to Minecraft 1.21 and in 19
-    // from 26.1, which added an entry before it. So look for the entry shaped like villager data.
-    const villagerData = Object.values(entity.metadata || {})
-        .find(value => value && typeof value === 'object' && value.villagerProfession !== undefined);
-    if (entity.metadata && (villagerData || entity.metadata[18])) {
-        // Check if metadata holds an object with villagerProfession property
-        if (villagerData) {
-            const professionId = villagerData.villagerProfession;
-            const level = villagerData.level || 1;
-            const professionName = professions[professionId] || 'Unknown';
-            return `${professionName} L${level}`;
-        }
-        // Fallback for direct profession ID
-        else if (typeof entity.metadata[18] === 'number') {
-            const professionId = entity.metadata[18];
-            return professions[professionId] || 'Unknown';
-        }
+    // Where the game keeps a villager's job and age differs by edition, so the edition seam is asked.
+    const villager = mc.villagerOf(entity);
+    if (villager?.profession) {
+        const name = villager.profession[0].toUpperCase() + villager.profession.slice(1);
+        return villager.level ? `${name} L${villager.level}` : name;
     }
-    
     // If we can't determine profession but it's an adult villager
-    if (entity.metadata && entity.metadata[16] !== true) { // Not a baby
+    if (villager && !villager.baby) {
         return 'Adult';
     }
     

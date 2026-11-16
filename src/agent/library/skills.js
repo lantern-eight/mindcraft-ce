@@ -1778,8 +1778,10 @@ async function findAndGoToVillager(bot, id) {
         let entities = world.getNearbyEntities(bot, 16);
         let villager_list = "Available villagers:\n";
         for (let entity of entities) {
-            if (entity.name === 'villager') {
-                if (entity.metadata && entity.metadata[16] === true) {
+            // What a villager is, and whether it is a child, is asked of the edition seam.
+            const villager = mc.villagerOf(entity);
+            if (villager) {
+                if (villager.baby) {
                     villager_list += `${entity.id}: baby villager\n`;
                 } else {
                     const profession = world.getVillagerProfession(entity);
@@ -1795,12 +1797,13 @@ async function findAndGoToVillager(bot, id) {
         return null;
     }
     
-    if (entity.entityType !== bot.registry.entitiesByName.villager.id) {
+    const villager = mc.villagerOf(entity);
+    if (!villager) {
         log(bot, 'Entity is not a villager');
         return null;
     }
     
-    if (entity.metadata && entity.metadata[16] === true) {
+    if (villager.baby) {
         log(bot, 'This is either a baby villager or a villager with no job - neither can trade');
         return null;
     }
