@@ -15,6 +15,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   profession, and the trading skills walked up to one and tried to trade. The check compared the game's
   "is a baby" flag with 1, which it never equals. Now a baby is listed as one, and trading with it is
   refused with the reason.
+- Villagers' jobs are known again on Minecraft 26.x. Their job and level moved to another metadata entry
+  in 26.1, so `!entities` listed every grown villager as "Adult", with no job or level.
 - World memory keeps what a sign says. A sign was remembered without its text: memory asked for the
   block in a way the real bot can't answer, and the error was quietly passed over.
 - The bot no longer stops answering when it stands in a biome the installed game data has no entry
