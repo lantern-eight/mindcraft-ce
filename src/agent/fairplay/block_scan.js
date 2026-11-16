@@ -8,6 +8,7 @@
 //
 // What comes out of here is raw: cells the bot may have no way of seeing. So nothing outside perception
 // may call it, and perception puts every cell through the sight rules before returning anything.
+import { editionOf } from '../edition/index.js';
 
 // Distance along one axis from a point to a row of 16 cells starting at `low` (0 when the point is
 // among them). Cells are measured at their low corner, the way mineflayer's own search measures them.
@@ -48,22 +49,19 @@ const local = { x: 0, y: 0, z: 0 };
 /**
  * Calls `visit(x, y, z, stateId)` for every cell of one section whose block state is wanted.
  *
- * @param {object} column - a chunk column: `getBlockStateId({x, y, z})` with x and z inside the column
- *   (0..15) and y absolute. If it also has `sections` (prismarine-chunk does), two shortcuts apply.
+ * @param {object} edition - from editionOf (src/agent/edition/), which knows how a section lists its blocks
+ * @param {object} column - a chunk column of the bot's world (or one built the same way in a test)
  * @param {number} cx @param {number} sy @param {number} cz - section coordinates
  * @param {number} minY - lowest block y of the world, where the column's first section starts
  * @param {(stateId:number) => boolean} wanted
  * @param {(x:number, y:number, z:number, stateId:number) => void} visit
  */
-export function scanSection(column, cx, sy, cz, minY, wanted, visit) {
-    // Shortcuts, the same two mineflayer's search relies on. A section that is all air, or whose
-    // palette (the short list of block states it contains) holds nothing wanted, is skipped without
-    // reading its 4096 cells. Most of the sky and much of the ground goes this way.
-    const section = column.sections?.[sy - (minY >> 4)];
-    if (section) {
-        if (section.solidBlockCount === 0 && !wanted(0)) return;
-        if (Array.isArray(section.palette) && !section.palette.some(wanted)) return;
-    }
+export function scanSection(edition, column, cx, sy, cz, minY, wanted, visit) {
+    // The shortcut mineflayer's own search relies on: a section whose palette (the short list of block
+    // states it contains) holds nothing wanted is skipped without reading its 4096 cells. Most of the sky
+    // and much of the ground goes this way.
+    const summary = edition.sectionSummary(column, sy, minY);
+    if (summary?.states && !summary.states.some(wanted)) return;
     const baseX = cx * 16, baseY = sy * 16, baseZ = cz * 16;
     for (let ly = 0; ly < 16; ly++) {
         local.y = baseY + ly;
@@ -71,7 +69,7 @@ export function scanSection(column, cx, sy, cz, minY, wanted, visit) {
             local.z = lz;
             for (let lx = 0; lx < 16; lx++) {
                 local.x = lx;
-                const stateId = column.getBlockStateId(local);
+                const stateId = edition.readStateId(column, local);
                 // null or undefined: a cell the client doesn't have (only test worlds have holes inside a column).
                 if (stateId != null && wanted(stateId)) visit(baseX + lx, local.y, baseZ + lz, stateId);
             }
@@ -82,16 +80,18 @@ export function scanSection(column, cx, sy, cz, minY, wanted, visit) {
 /**
  * Remembers a yes/no answer per block state, working each one out the first time it is asked. A search
  * asks "could this state match?" for hundreds of thousands of cells but only a few dozen distinct states.
- * @param {number} size - one more than the highest state id
+ * @param {object} registry - the game data the state ids belong to
  * @param {(stateId:number) => boolean} decide
  * @returns {(stateId:number) => boolean}
  */
-export function lazyStateTable(size, decide) {
-    const table = new Int8Array(size).fill(-1);
+export function lazyStateTable(registry, decide) {
+    const table = editionOf(registry).stateTable(registry); // 0: not asked yet, 1: no, 2: yes
     return stateId => {
-        let answer = table[stateId];
-        if (answer === undefined) return false; // a state id the registry doesn't know
-        if (answer < 0) answer = table[stateId] = decide(stateId) ? 1 : 0;
-        return answer === 1;
+        let answer = table.get(stateId);
+        if (answer === 0) {
+            answer = decide(stateId) ? 2 : 1;
+            table.set(stateId, answer); // a number no block state has isn't kept, and is decided afresh
+        }
+        return answer === 2;
     };
 }

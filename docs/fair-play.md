@@ -211,6 +211,11 @@ All of it lives in `src/agent/fairplay/`:
 | `commands.js` | `!recall` (world memory registers a fuller one in its place when it is on), and the "not found means not seen" sentence |
 | `install.js` | Switches all of the above on for one agent |
 
+**What depends on the edition of the game.** How block states are numbered, and how a chunk section lists
+the blocks it holds, are asked for by name from `src/agent/edition/` (`editionOf(registry)`), never read
+straight from game data or chunks. Sight's tables, the block search and world memory's look-around all go
+through it. `edition/java.js` gives Java Edition's answers; another edition of the game registers its own.
+
 **How it hooks into Mindcraft.** Nearly every search in Mindcraft goes through `src/agent/library/world.js`.
 Those calls now pass through one swappable provider (`world_queries.js`), and fair play installs its own.
 That is why commands, skills, reflexes and prompts all became fair without being edited one by one. Every

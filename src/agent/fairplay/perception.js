@@ -34,6 +34,7 @@ import { buildStopsSightTable, createSight, viewDirection } from './sight.js';
 import { blockCategory } from './policy.js';
 import { lazyStateTable, scanSection, sectionsInRange } from './block_scan.js';
 import { stateOfProps } from '../memory/block_state.js';
+import { editionOf } from '../edition/index.js';
 
 const PLAYER_EYE_HEIGHT = 1.62;
 const NAMETAG_RANGE = 64; // vanilla name tags render through walls up to about this far
@@ -100,7 +101,8 @@ export function soundSubject(soundName) {
 export function createPerception({ bot, policy, seenMap = null, getStateId = null, getColumn = null, now = Date.now,
     clock = () => performance.now(), permanenceMs = 3000, notableNames = null, notableRadius = 32,
     tickBudgetMs = 4, searchBudgetMs = 200, backgroundPass = true } = {}) {
-    const liveReader = getStateId ? null : liveStateReader(bot);
+    const edition = editionOf(bot.registry);
+    const liveReader = getStateId ? null : liveStateReader(bot, edition);
     const readState = getStateId ?? liveReader.read;
     const columnAt = getColumn ?? ((cx, cz) => bot.world.getColumn(cx, cz));
     const stopsSight = buildStopsSightTable(bot.registry);
@@ -110,13 +112,13 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
     const nameOfState = stateId => bot.registry.blocksByStateId[stateId]?.name;
 
     // Which block states the background pass remembers, as a table so the scan's inner loop is one lookup.
-    const notableState = new Uint8Array(stopsSight.length);
+    const notableState = edition.stateTable(bot.registry);
     const notableNameSet = new Set(notableNames ?? defaultNotableNames(bot.registry));
     for (const name of notableNameSet) {
         const block = bot.registry.blocksByName[name];
-        if (block) notableState.fill(1, block.minStateId, block.maxStateId + 1);
+        if (block) notableState.setBlock(block, 1);
     }
-    const isNotableState = stateId => notableState[stateId] === 1;
+    const isNotableState = stateId => notableState.get(stateId) === 1;
 
     const lastSeenEntity = new Map(); // entity id -> time last seen (object permanence)
     const heardLog = [];
@@ -311,7 +313,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
         const accepts = block => Boolean(block) && (byType || Boolean(matching(block))) && (!extra || Boolean(extra(block)));
 
         // "Could a block in this state match at all?" is decided once per state, not once per cell.
-        const mayMatch = lazyStateTable(stopsSight.length, stateId => {
+        const mayMatch = lazyStateTable(bot.registry, stateId => {
             const type = bot.registry.blocksByStateId[stateId];
             if (!type) return false;
             if (byType) return ids.includes(type.id);
@@ -333,7 +335,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
             if ((found.length >= count && section.minDistSq > worst) || clock() > deadline) break;
             const column = columnAt(section.cx, section.cz);
             if (!column) continue;
-            scanSection(column, section.cx, section.sy, section.cz, minY, mayMatch, (x, y, z, stateId) => {
+            scanSection(edition, column, section.cx, section.sy, section.cz, minY, mayMatch, (x, y, z, stateId) => {
                 const d2 = (x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2;
                 if (d2 > r2 || !perceivable(x, y, z)) return;
                 if (needsBlock && !accepts(bot.blockAt(new Vec3(x, y, z)))) return;
@@ -524,7 +526,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
                 const section = passSections[nextSection++];
                 const column = columnAt(section.cx, section.cz);
                 if (!column) continue;
-                scanSection(column, section.cx, section.sy, section.cz, passMinY, isNotableState, (x, y, z, stateId) => {
+                scanSection(edition, column, section.cx, section.sy, section.cz, passMinY, isNotableState, (x, y, z, stateId) => {
                     if ((x - passFrom.x) ** 2 + (y - passFrom.y) ** 2 + (z - passFrom.z) ** 2 > r2) return;
                     // Buried solid blocks are dropped here, before they cost a ray.
                     if (sight.blocksSight(x, y, z) && !sight.hasOpenFace(x, y, z) && !touching(x, y, z)) return;
@@ -598,7 +600,7 @@ export function createPerception({ bot, policy, seenMap = null, getStateId = nul
 // the last column, so a ray costs almost nothing per cell. Unloaded columns read as unknown (null). The
 // cached column is dropped whenever chunks load or unload, so a reloaded chunk is never read stale.
 // `dispose` removes the two listeners; without it a new pair would pile up on every dimension change.
-function liveStateReader(bot) {
+function liveStateReader(bot, edition) {
     const local = { x: 0, y: 0, z: 0 };
     let cx = NaN, cz = NaN, column = null;
     const forget = () => { cx = NaN; cz = NaN; column = null; };
@@ -610,7 +612,7 @@ function liveStateReader(bot) {
             if (nx !== cx || nz !== cz) { column = bot.world.getColumn(nx, nz) ?? null; cx = nx; cz = nz; }
             if (!column) return null;
             local.x = x & 15; local.y = y; local.z = z & 15;
-            return column.getBlockStateId(local);
+            return edition.readStateId(column, local);
         },
         dispose() {
             bot.off?.('chunkColumnLoad', forget);

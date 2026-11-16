@@ -11,7 +11,9 @@ play**: the bot may only know and do what a human survival player could.
 
 - New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
   the `world_memory` setting) and `src/agent/storage/` (chest sorting, behind the `chest_sorting`
-  setting).
+  setting). `src/agent/edition/` answers what depends on the edition of the game (how block states are
+  numbered, how a chunk section lists its blocks); those modules ask it instead of reading game data
+  shapes themselves.
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for

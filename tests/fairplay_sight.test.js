@@ -21,7 +21,7 @@ function setup(build) {
 test('stops-sight table marks only full opaque cubes, using filterLight rather than "transparent"', () => {
     const world = fixtureWorld();
     const table = buildStopsSightTable(world.registry);
-    const stops = name => table[world.stateIdOf(name)] === 1;
+    const stops = name => table.get(world.stateIdOf(name)) === 1;
     // minecraft-data calls chests, slabs, stairs and fences non-transparent, but you can see past them.
     for (const name of ['stone', 'diamond_ore', 'deepslate_iron_ore', 'furnace', 'oak_log', 'packed_ice', 'sand'])
         assert.equal(stops(name), true, name);
@@ -33,9 +33,9 @@ test('stops-sight table marks only full opaque cubes, using filterLight rather t
 test('a double slab is a wall, a single slab is not', () => {
     const world = fixtureWorld();
     const table = buildStopsSightTable(world.registry);
-    assert.equal(table[world.stateIdOf('oak_slab', { type: 'double' })], 1);
-    assert.equal(table[world.stateIdOf('oak_slab', { type: 'bottom' })], 0);
-    assert.equal(table[world.stateIdOf('oak_slab', { type: 'top' })], 0);
+    assert.equal(table.get(world.stateIdOf('oak_slab', { type: 'double' })), 1);
+    assert.equal(table.get(world.stateIdOf('oak_slab', { type: 'bottom' })), 0);
+    assert.equal(table.get(world.stateIdOf('oak_slab', { type: 'top' })), 0);
     assert.equal(world.registry.blocksByStateId[world.stateIdOf('oak_slab', { type: 'double' })].name, 'oak_slab');
 
     const hidden = setup(w => {
