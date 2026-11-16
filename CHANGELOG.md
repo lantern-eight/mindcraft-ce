@@ -113,6 +113,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- **Bedrock branch only.** On Bedrock the hunting reflex leaves young animals alone, as on Java. It read a
+  mob's age where Java keeps it, which a Bedrock mob never fills in, so every calf passed for a cow. Bedrock
+  keeps it among the mob's named flags, and the Bedrock module now answers from there.
 - **Bedrock branch only.** On Bedrock world memory lays its trail all along a walk. The Bedrock adapter fired
   the bot's `move` event only when the server corrected the bot or moved it, not on every tick the bot
   moved as mineflayer does on Java, so a walk left a few crumbs far apart, and a quick one read as a

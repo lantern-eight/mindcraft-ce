@@ -13,6 +13,7 @@ import registryFactory from 'prismarine-registry';
 import chunkFactory from 'prismarine-chunk';
 import { editionOf } from '../src/agent/edition/index.js';
 import { bedrockEdition } from '../src/agent/bedrock/edition.js';
+import { javaEdition } from '../src/agent/edition/java.js';
 import { buildStopsSightTable } from '../src/agent/fairplay/sight.js';
 import { scanSection } from '../src/agent/fairplay/block_scan.js';
 import { createPerception } from '../src/agent/fairplay/perception.js';
@@ -139,6 +140,20 @@ function bedrockBot(registry, columns, position) {
     bot.entities[1] = bot.entity;
     return bot;
 }
+
+test('Bedrock answers every question the edition seam asks', () => {
+    // A question added to the seam for Java and not answered here stops whatever asks it on a Bedrock
+    // bot, with an error, instead of failing a test.
+    const missing = Object.keys(javaEdition).filter(key => typeof javaEdition[key] === 'function' && typeof bedrockEdition[key] !== 'function');
+    assert.deepEqual(missing, []);
+});
+
+test('a Bedrock mob is a baby by its flags, not by Java\'s numbered entry', () => {
+    assert.equal(bedrockEdition.isBaby({ name: 'cow', metadata: { flags: { baby: true, breathing: true } } }), true);
+    assert.equal(bedrockEdition.isBaby({ name: 'cow', metadata: { flags: { baby: false } } }), false);
+    assert.equal(bedrockEdition.isBaby({ name: 'cow', metadata: { 16: true } }), false, 'Java\'s entry means nothing on Bedrock');
+    assert.equal(bedrockEdition.isBaby({ name: 'cow' }), false, 'no metadata yet');
+});
 
 test('standing on a flat grass floor, the bot knows the grass and not the dirt or bedrock under it', () => {
     const registry = bedrockRegistry();

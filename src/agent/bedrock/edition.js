@@ -20,6 +20,7 @@
 //     Bedrock's own names (`upper_block_bit` for the top half of a door).
 //   - **A double chest,** whose two halves name each other in their block entities, not their states.
 //   - **What a sign says,** which a Bedrock sign keeps per side in its block entity, in fields of its own.
+//   - **Whether a mob is a baby,** one of the entity's named flags on Bedrock, not a numbered entry.
 //   - **Moving a stack in an open chest,** which Bedrock does with one item stack request, not clicks
 //     on a cursor (window_moves.js).
 //
@@ -309,6 +310,15 @@ export const bedrockEdition = Object.freeze({
         if (fields?.FrontText || fields?.BackText) return [textOf(fields.FrontText), textOf(fields.BackText)];
         const old = plain(fields?.Text);
         return typeof old === 'string' ? [old] : [];
+    },
+
+    /**
+     * Is this mob a baby? The adapter keeps a Bedrock mob's metadata by name, not by Java's numbered
+     * entries, and a mob's age is one of the entity's flags there (`flags.baby`). Java's entry 16 is
+     * never filled in on Bedrock, so read the Java way every calf passed for a cow.
+     */
+    isBaby(entity) {
+        return Boolean(entity?.metadata?.flags?.baby);
     },
 
     moveStack,
