@@ -98,6 +98,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `SKIP_BUILD=1 npm install` to skip that build; the bot does not need the binary.
 ### Fixed
 
+- **Bedrock branch only.** Code the model writes runs on a Bedrock bot. Once the bot had joined a current
+  Bedrock server, the sandbox that code runs in could not be set up, so `!newAction` failed every time,
+  with fair play on or off: a library the connection loads leaves a property on JavaScript's `Reflect`
+  that the sandbox can't remove. The bot now loads that library itself before it connects, with that
+  property left removable.
 - The bot no longer stops answering when it stands in a biome the installed game data has no entry
   for, such as on a server newer than the data. Its status then says "Biome: unknown". Before, building
   the status failed, and every message got the "having trouble" reply.

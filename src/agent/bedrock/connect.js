@@ -21,6 +21,7 @@ import { javaShapes, recipesLikeGameData } from './java_shapes.js';
 import { bedrockEater } from './eating.js';
 import './edition.js'; // fair play, world memory and chest sorting read Bedrock's game data through it
 import { bedrockNamesFor } from './names.js';
+import { loadReflectMetadataForLockdown } from './lockdown_ready.js';
 import { translateNamesWith } from '../memory/kinds.js';
 
 const require = createRequire(import.meta.url);
@@ -208,6 +209,8 @@ export function worldIdentityOf(startGame) {
  * `createBot` is only a parameter so that a test can stand in for mineflayer.
  */
 export function initBedrockBot(username, settings, useGameData, { createBot = createMineflayerBot } = {}) {
+    // Before the connection loads its libraries, so that model-written code can run (lockdown_ready.js).
+    loadReflectMetadataForLockdown();
     const bot = createBot(bedrockBotOptions(settings, username));
     acceptServerKey(bot._client);
 

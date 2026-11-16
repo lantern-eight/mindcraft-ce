@@ -123,8 +123,9 @@ stay.
 
 `npm test` covers how the bot is started (`tests/bedrock_connect.test.js`), that the installed
 libraries work together (`tests/bedrock_stack.test.js`), fair play's sight and hearing on Bedrock game
-data and chunks (`tests/bedrock_edition.test.js`), and world memory there (`tests/bedrock_memory.test.js`).
-None needs a server.
+data and chunks (`tests/bedrock_edition.test.js`), world memory there (`tests/bedrock_memory.test.js`), and
+that the sandbox for model-written code can be set up once the connection's libraries are loaded
+(`tests/bedrock_lockdown.test.js`). None needs a server.
 
 The live tests need a real one. They take the same three variables, make no model calls, and print
 one line of JSON for each step:
@@ -210,6 +211,7 @@ spaces and `_ . : -`, and write coordinates out in full.
 | `src/agent/bedrock/eating.js` | Eating when hungry. The plugin that does it on Java can't be loaded on Bedrock, so this does the same with the same switches |
 | `src/agent/bedrock/edition.js` | How Bedrock numbers block states (by hash) and lays out a chunk, for fair play and the modules that share its eyes ([the edition seam](fair-play.md#for-developers)) |
 | `src/agent/bedrock/names.js` | Bedrock's names for blocks and states in Java's terms, so world memory knows a Bedrock bed or door for what it is. Memory itself keeps Bedrock's names |
+| `src/agent/bedrock/lockdown_ready.js` | Loads a library the connection uses before the connection does, so that the sandbox for model-written code can still be set up afterwards |
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, and a click on a block |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
