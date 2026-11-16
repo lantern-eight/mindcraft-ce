@@ -11,6 +11,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- `useDoor` walks straight through a door that is already open. It turned to the corner of the door's
+  block instead of the doorway, and walked into the edge of the open door. A shut door hid this: opening
+  it turns the bot to face it.
 - Baby villagers are no longer taken for adults. `!entities` listed them among the adults, with a
   profession, and the trading skills walked up to one and tried to trade. The check compared the game's
   "is a baby" flag with 1, which it never equals. Now a baby is listed as one, and trading with it is

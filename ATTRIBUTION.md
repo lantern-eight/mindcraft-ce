@@ -86,7 +86,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/goto_path_search.test.js`,
   `tests/goto_square_corners.test.js`, `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
-  `tests/door_types.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
+  `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
   `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`
