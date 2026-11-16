@@ -25,7 +25,7 @@ const report = createReport();
 const server = bedrockTestServer();
 if (!server.hasConsole) throw new Error('The skills walk builds its scenes from the server console: set BEDROCK_TEST_CONSOLE');
 
-let bot, friend, skills, initBot, origin;
+let bot, friend, skills, initBot, villagerOf, getCommand, origin;
 const at = (dx, dy, dz) => origin.offset(dx, dy, dz);
 const xyz = position => `${position.x} ${position.y} ${position.z}`;
 const count = name => bot.inventory.items().filter(item => item.name === name).reduce((sum, item) => sum + item.count, 0);
@@ -92,6 +92,36 @@ async function friendAt(dx, dy, dz) {
         await delay(200);
     }
     throw new Error(`The first bot does not see ${FRIEND} where it was put`);
+}
+
+// Villagers for the trading scenes, each standing in a pit two blocks deep so it can't wander off; the
+// reset after the scene fills the pits in, villagers and all. A spawn event that names a job doesn't
+// reliably give that job on this server (one asked for a farmer came out a shepherd, others with no job
+// at all), so several are summoned, and a scene trades with whichever came out with one. The last pit
+// holds a child.
+async function villagersInPits() {
+    const jobs = ['cleric', 'librarian', 'butcher', 'armorer', 'shepherd'];
+    const spots = [...jobs.map((job, i) => ({ dx: -4 + 2 * i, dz: 4, event: `minecraft:spawn_${job}` })),
+        { dx: 0, dz: -4, event: 'minecraft:entity_born' }];
+    for (const { dx, dz, event } of spots) {
+        await cmd(`fill ${xyz(at(dx, -2, dz))} ${xyz(at(dx, -1, dz))} air`, 100);
+        await cmd(`summon villager ${xyz(at(dx, -2, dz))} 0 0 ${event}`, 100);
+    }
+    const inPit = ({ dx, dz }) => Object.values(bot.entities).find(entity => villagerOf(entity) &&
+        entity.position.y < origin.y - 0.5 &&
+        Math.abs(entity.position.x - (origin.x + dx + 0.5)) < 1 && Math.abs(entity.position.z - (origin.z + dz + 0.5)) < 1);
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline && !spots.every(inPit)) await delay(300);
+    await delay(1500); // a villager's job is sent a moment after the villager itself
+    const child = inPit(spots.at(-1));
+    const working = spots.slice(0, -1).map(inPit).find(entity => {
+        const villager = entity && villagerOf(entity);
+        return villager && !villager.baby && villager.profession && !['unemployed', 'nitwit'].includes(villager.profession);
+    });
+    const found = spots.map(inPit).map(entity => entity && villagerOf(entity));
+    assert.ok(working, `no villager came out with a job: ${JSON.stringify(found)}`);
+    assert.ok(child && villagerOf(child).baby, `the last pit holds no child: ${JSON.stringify(found)}`);
+    return { working, child, job: villagerOf(working).profession };
 }
 
 // A skill that never comes back must not hold up the rest: it is told to stop, as the agent would.
@@ -360,6 +390,32 @@ const walk = [
         }
     } },
 
+    { name: 'villagers: jobs in !entities, a child refused, trades shown', async run() {
+        const { working, child, job } = await villagersInPits();
+        const listed = getCommand('!entities').perform({ name: NAME, bot });
+        const shown = `${job[0].toUpperCase()}${job.slice(1)} L1`;
+        assert.ok(listed.includes(`(${working.id}:${shown})`), `the ${job} is not listed as one: ${listed}`);
+        assert.ok(listed.includes(`Baby IDs: ${child.id} `), `the child is not listed as one: ${listed}`);
+        assert.ok(!listed.includes('villager_v2'), `listed under Bedrock's own name: ${listed}`);
+        assert.equal(await withinTime(skills.showVillagerTrades(bot, child.id), 20000, 'showVillagerTrades on a child'), false);
+        assert.match(bot.output, /baby villager/, said());
+        bot.output = '';
+        assert.ok(await withinTime(skills.showVillagerTrades(bot, working.id), 40000, 'showVillagerTrades'), said());
+        assert.match(bot.output, /Villager has \d+ available trades:\n1: \(0\/\d+\) /, said());
+    } },
+    { name: 'tradeWithVillager: pay for a trade and get its goods', async run() {
+        const { working } = await villagersInPits();
+        assert.ok(await withinTime(skills.showVillagerTrades(bot, working.id), 40000, 'showVillagerTrades'), said());
+        const first = bot.trades[0];
+        await give(first.inputItem1.name, first.inputItem1.count);
+        if (first.inputItem2) await give(first.inputItem2.name, first.inputItem2.count);
+        const before = count(first.outputItem.name);
+        bot.output = '';
+        assert.ok(await withinTime(skills.tradeWithVillager(bot, working.id, 1, 1), 40000, 'tradeWithVillager'), said());
+        await delay(800);
+        assert.equal(count(first.outputItem.name), before + first.outputItem.count, said());
+    } },
+
     // The scenes with a second player come last. Joining makes the second bot the one the game data is read
     // from (there is one bot to a process when the agent runs), which is harmless here and would not be
     // for a crafting scene after it.
@@ -400,13 +456,15 @@ const walk = [
 
 // Known not to work on Bedrock yet, by the start of each scene's name. Keep in step with docs/bedrock.md.
 const GAPS = new Map([
+    ['tradeWithVillager', 'the server never answers the adapter\'s request to make the trade'],
 ]);
 
 let joined = false;
 try {
     setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'off', world_memory: false, chest_sorting: false });
-    ({ initBot } = await import('../../src/utils/mcdata.js'));
+    ({ initBot, villagerOf } = await import('../../src/utils/mcdata.js'));
     skills = await import('../../src/agent/library/skills.js');
+    ({ getCommand } = await import('../../src/agent/commands/index.js'));
 
     await report.step('the bot joins and spawns', async () => {
         bot = initBot(NAME);
