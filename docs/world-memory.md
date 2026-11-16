@@ -238,7 +238,8 @@ blocks, states or items, which change with every game version. A world saved und
 under the next; a block name the new version dropped simply never matches. When a game update does need
 a tweak, `kinds.js` is where it goes. Its names are Java Edition's; another edition of the game hands it
 a translation of its own names (`translateNamesWith`), while memory keeps the names the game in play
-uses.
+uses. Which two blocks make one double chest is read from the state where the game keeps it there, and
+otherwise asked of the edition seam (`otherHalfOf`), so a double chest is one thing either way.
 
 **How it hooks in.** Perception takes world memory as its memory in place of the seen-world map, and
 leaves the looking around to the recorder. Route planning asks perception in turn, so the pathfinder plans

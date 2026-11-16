@@ -304,9 +304,11 @@ when nothing can be told the answer is "unknown", which is allowed.
 
 Two things to know before changing `bot_hands.js`:
 
-- **A move of the sort is three clicks made directly,** not mineflayer's `moveSlotItem`. That helper looks for the
-  cursor on the bot's own inventory, which is not where the cursor is while a chest is open, so a swap
-  would leave a stack on the cursor.
+- **A move of the sort is asked of the edition seam** (`moveStack` in `src/agent/edition/`). On Java it is
+  three clicks made directly, not mineflayer's `moveSlotItem`. That helper looks for the cursor on the
+  bot's own inventory, which is not where the cursor is while a chest is open, so a swap would leave a
+  stack on the cursor. Which two chest blocks make one double chest is asked of the seam too
+  (`otherHalfOf`), for a game that keeps it outside the blocks' states.
 - **The bot's copy of a window is a guess.** It works out what each click did without waiting for the
   server, and for some items it guesses wrong: two tipped arrows of different potions look like one kind
   to it. `settle` asks the server to send the window again and puts back a stack a wrong guess left on

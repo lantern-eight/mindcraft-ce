@@ -132,3 +132,22 @@ test('the operator level comes from the status a Java server sets on the bot its
     stop();
     assert.equal(bot._client.listenerCount('entity_status'), 0);
 });
+
+test('Java keeps a double chest\'s pairing in the state, so there is nothing more to say about the other half', () => {
+    assert.equal(javaEdition.otherHalfOf({ position: { x: 0, y: 64, z: 0 }, entity: { pairx: 1 } }), null);
+});
+
+test('a stack is moved with three clicks, the last only when something is left on the cursor', async () => {
+    const clicks = [];
+    const window = { selectedItem: null };
+    const bot = { clickWindow: async (slot, button, mode) => { clicks.push([slot, button, mode]); } };
+    await javaEdition.moveStack(bot, window, 3, 40);
+    assert.deepEqual(clicks, [[3, 0, 0], [40, 0, 0]], 'put down or poured in whole: two clicks');
+    clicks.length = 0;
+    bot.clickWindow = async (slot, button, mode) => {
+        clicks.push([slot, button, mode]);
+        window.selectedItem = clicks.length === 2 ? { name: 'dirt', count: 5 } : null; // a swap leaves the other stack in hand
+    };
+    await javaEdition.moveStack(bot, window, 3, 40);
+    assert.deepEqual(clicks, [[3, 0, 0], [40, 0, 0], [3, 0, 0]], 'what came off goes back where the move began');
+});
