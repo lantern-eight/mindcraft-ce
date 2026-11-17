@@ -238,6 +238,28 @@ world. The console command for the tests is then `docker exec bedrock-test send-
 The console line passes through a shell on its way, so the tests only send lines made of letters, digits,
 spaces and `_ . : -`, and write coordinates out in full.
 
+**On an Apple silicon Mac** the server runs too, under Docker Desktop's x86-64 emulation (add `platform:
+linux/amd64` to the service), and all the Bedrock live tests pass on it. Two things differ:
+
+- The image's `send-command` doesn't find the server there. It looks for the server's own program, and
+  under the emulation every program in the container is the emulator. A console command that finds the
+  server by its command line works instead, saved as a script of its own:
+
+  ```bash
+  #!/bin/sh
+  # Sends one console line to the Bedrock server in the container named bedrock-test.
+  exec docker exec bedrock-test bash -c '
+  for p in /proc/[0-9]*; do
+    cmd=$(tr "\0" " " < "$p/cmdline" 2>/dev/null)
+    case "$cmd" in ./bedrock_server-*) echo "$*" > "$p/fd/0"; exit 0 ;; esac
+  done
+  echo "unable to find the bedrock server process"; exit 2' _ "$@"
+  ```
+
+- `BEDROCK_TEST_CONSOLE` is split on spaces, so give the script a path that has none.
+
+Set `SERVER_UDP_PORTS` to `127.0.0.1:19140-19155:19140-19155` when the tests run on the same Mac.
+
 ## Where Things Are
 
 | | |

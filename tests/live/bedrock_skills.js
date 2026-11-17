@@ -405,7 +405,9 @@ const walk = [
     } },
     { name: 'useToolOn: shear a sheep', async run() {
         await give('shears', 1);
-        await cmd(`summon sheep ${xyz(at(4, 0, 3))}`, 1500);
+        // A plain summon makes a lamb one time in twenty, and a lamb can't be sheared. Bedrock's sheep has an
+        // event that makes an adult, and only an adult; it also leaves out the step that picks a color.
+        await cmd(`summon sheep ${xyz(at(4, 0, 3))} 0 0 spawn_adult`, 1500);
         try {
             assert.ok(await withinTime(skills.useToolOn(bot, 'shears', 'sheep'), 40000, 'useToolOn'), said());
             await delay(1500);
@@ -413,7 +415,10 @@ const walk = [
             // What the bot saw, for when it fails: whether the sheep was sheared at all, and what lies about.
             const sheared = nearest('sheep')?.metadata?.flags?.sheared;
             const lying = Object.values(bot.entities).filter(entity => entity.name === 'item').map(entity => entity.item?.name ?? '?');
-            assert.ok(wool || count('white_wool') > 0,
+            // Wool of any color counts, carried or lying about: a sheep that came out gray gives gray wool,
+            // and the bot often picks it up at once.
+            const carried = bot.inventory.items().some(item => /wool/.test(item.name));
+            assert.ok(wool || carried,
                 `no wool came off the sheep (sheared: ${sheared}; lying about: ${lying.join(', ') || 'nothing'}); ${said()}`);
         } finally {
             await putDown('sheep');
