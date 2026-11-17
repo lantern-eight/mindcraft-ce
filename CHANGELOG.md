@@ -14,6 +14,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - On Bedrock, taking from and putting into a barrel or a shulker box is done by the Bedrock adapter's own
   calls, as for a chest. The adapter now names those containers' slots as Bedrock does; this fork had made
   the moves itself until it did.
+- On Bedrock, a barrel opened again straight after it was closed (as chest sorting does) opens as soon as
+  the server has shut it, instead of on a second click a second later. The Bedrock adapter now waits for
+  that itself.
 
 ## [1.0.0-bedrock.1.0.1] - 2026-11-17
 

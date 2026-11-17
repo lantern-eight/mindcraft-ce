@@ -60,17 +60,8 @@ test('a chest that does not open is an error for the caller who waits', async ()
     await assert.rejects(bot.openContainer({ name: 'chest' }), /chest did not open/);
 });
 
-test('a click the server ignored is made once more, a moment later', async () => {
-    // As with a barrel opened again straight after it was closed: the first click named it still open.
-    const { bot, calls } = adapterBot({ ignoredClicks: 1 });
-    const started = Date.now();
-    const barrel = await bot.openContainer({ name: 'barrel' });
-    assert.equal(barrel, bot.currentWindow);
-    assert.deepEqual(calls, [['click', 'barrel'], ['click', 'barrel']]);
-    assert.ok(Date.now() - started >= 900, 'not before a window could have come back');
-});
-
 test('an open still waiting gives way to a newer one, and never takes its window', async () => {
+    // The server ignored the first click; the second, a moment later, opens the barrel.
     const { bot } = adapterBot({ ignoredClicks: 1 });
     const older = bot.openContainer({ name: 'barrel' });
     await delay(100);
