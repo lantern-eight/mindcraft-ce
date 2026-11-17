@@ -26,6 +26,14 @@ const DEFAULTS = {
 // The bot looks at its hunger once in this many game ticks: about once a second.
 const TICKS_BETWEEN_LOOKS = 20;
 
+// A meal that has not finished after this long is said to be stuck. Eating takes under two seconds, and the
+// adapter gives up on the eating part itself after four.
+const SLOW_MEAL_MS = 10_000;
+
+// The same thing gone wrong is said again only after this long. A hungry bot tries again every second, and
+// the log would otherwise fill with one line.
+const QUIET_REPEATS_MS = 30_000;
+
 /**
  * What is food, and how filling, for the items a Bedrock server has.
  *
@@ -43,13 +51,26 @@ export function foodValues(itemsByName) {
 
 /**
  * The thing the agent finds at `bot.autoEat` on Bedrock. Nothing happens until `enableAuto()` is called.
+ *
+ * `log`, `now` and `slowMealMs` are only parameters so that a test can watch what it says, and when.
  */
-export function bedrockEater(bot) {
+export function bedrockEater(bot, { log = console.log, now = Date.now, slowMealMs = SLOW_MEAL_MS } = {}) {
     const opts = { ...DEFAULTS };
     let foods = null; // read on first use: the bot's own item list is not there until it has joined
     let eating = false;
     let enabled = false;
     let ticks = 0;
+
+    // A meal that goes wrong is no error (see eat()), but it is said, so that a bot that stays hungry can
+    // be told apart from one that has no food. Each thing is said once, and again only after a while.
+    const lastSaid = new Map();
+    function say(line) {
+        const at = now();
+        if (at - (lastSaid.get(line) ?? -Infinity) < QUIET_REPEATS_MS) return;
+        lastSaid.set(line, at);
+        log(`[bedrock] ${line}`);
+    }
+    const reasonOf = error => error?.message ?? String(error);
 
     const foodTable = () => (foods ??= foodValues(bot.registry?.itemsByName));
 
@@ -65,15 +86,26 @@ export function bedrockEater(bot) {
     async function eat(food) {
         eating = true;
         const held = bot.heldItem;
+        // Which part of the meal is under way, to say where it went wrong or got stuck.
+        let step = `taking ${food.name} in hand`;
+        // Nothing here stops a meal that hangs: taking food in hand has no time limit of its own, and the
+        // next look waits for this meal. So it is at least said where it is stuck.
+        const stuck = setTimeout(() => {
+            say(`A meal is stuck: ${step} has not finished after ${Math.round(slowMealMs / 1000)} s. The bot eats again once it does.`);
+        }, slowMealMs);
+        stuck.unref?.();
         try {
             await bot.equip(food, 'hand');
+            step = `eating ${food.name}`;
             await bot.consume();
             return true;
-        } catch {
+        } catch (error) {
             // A meal can be cut short: the bot is hit, a skill takes the hand back, the food is gone. That
             // is no error. The bot is still hungry, and looks again in a second.
+            say(`Couldn't eat: ${step} failed: ${reasonOf(error)}`);
             return false;
         } finally {
+            clearTimeout(stuck);
             try {
                 if (opts.returnToLastItem && held && held.name !== food.name) {
                     const again = bot.inventory.items().find(item => item.type === held.type);
@@ -101,7 +133,7 @@ export function bedrockEater(bot) {
         ticks = 0;
         // A meal belongs to no skill. It must not be stopped because the skill that happened to be running
         // was cancelled, so it runs outside any action (action_context.js).
-        withoutAction(() => { check().catch(() => {}); });
+        withoutAction(() => { check().catch(error => say(`Looking at hunger failed: ${reasonOf(error)}`)); });
     }
 
     return {
