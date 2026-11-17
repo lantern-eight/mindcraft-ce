@@ -31,6 +31,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   mob. It used Java's numbers, 4.5 and 3, so a block a Bedrock player could dig was out of the bot's reach.
   The `reach_blocks` and `reach_entities` switches now start at `"survival"`, the reach of the game being
   played; a number set by hand still wins.
+- On Bedrock, the bot eats the way the game's own client does: it marks the moment it starts eating, and lets
+  go of the food when a meal doesn't finish, so the server doesn't still have it eating when the next meal
+  starts. The change is in the Bedrock adapter, which the `bedrock` branch now pins.
 - On Bedrock, a hungry bot that isn't eating now says why in its log: a window is open, it is asleep, a meal
   is still under way, it holds nothing it may eat, its hunger can't be read, or the game's ticks have stopped
   so it never looks. Each reason is repeated at most every 30 seconds.
