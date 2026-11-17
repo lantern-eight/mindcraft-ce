@@ -28,7 +28,8 @@ function hungryBot({ holding = [], hand = null, food = 10, health = 20 } = {}) {
         bot.food = 20;
     };
     bot.deactivateItem = () => did.push('stop');
-    return { bot, did, eater: bedrockEater(bot) };
+    // Quiet: what the eater says is watched in the tests at the end, which hand it a log of their own.
+    return { bot, did, eater: bedrockEater(bot, { log: () => {} }) };
 }
 
 test('what is food, and how filling, comes from the Java game data, for the items this server has', () => {
@@ -153,11 +154,11 @@ test('cancelEat lets go of the food', async () => {
 // When a meal fails the bot is still hungry and tries again a second later, so a failure is no error. But it
 // has to be told: once, a bot sat at no hunger with its bread untouched for most of a minute, and nothing said
 // why.
-function watchedBot(options) {
+function watchedBot(options, { noLookMs } = {}) {
     const made = hungryBot(options);
     const said = [];
     let clock = 0;
-    const eater = bedrockEater(made.bot, { log: line => said.push(line), now: () => clock, slowMealMs: 5 });
+    const eater = bedrockEater(made.bot, { log: line => said.push(line), now: () => clock, slowMealMs: 5, noLookMs });
     return { ...made, eater, said, wait: ms => { clock += ms; } };
 }
 
@@ -209,4 +210,113 @@ test('a meal that goes well says nothing', async () => {
     const { eater, said } = watchedBot({ holding: ['bread'] });
     await eater.check();
     assert.deepEqual(said, []);
+});
+
+// Once, a hungry bot sat with its bread untouched for most of a minute, and nothing was said at all: no meal
+// was ever started. So every way a look at hunger can pass up a meal says why, now and then.
+
+test('a hungry bot with a window open, or asleep, says why it is not eating, now and then', async () => {
+    const { bot, did, eater, said, wait } = watchedBot({ holding: ['bread'], food: 3 });
+    bot.currentWindow = { id: 3, type: 'minecraft:chest' };
+    await eater.check();
+    assert.equal(said.length, 1);
+    assert.match(said[0], /hunger 3 of 20/);
+    assert.match(said[0], /window is open \(minecraft:chest\)/);
+    wait(1000);
+    await eater.check();
+    assert.equal(said.length, 1, 'not again a second later');
+    bot.currentWindow = null;
+    bot.isSleeping = true;
+    await eater.check();
+    assert.equal(said.length, 2, 'another reason is said at once');
+    assert.match(said[1], /asleep/);
+    bot.isSleeping = false;
+    bot.currentWindow = { id: 4 };
+    wait(30_000);
+    await eater.check();
+    assert.equal(said.length, 3, 'the first reason again, after a while');
+    assert.match(said[2], /window is open/);
+    assert.deepEqual(did, [], 'and nothing was eaten all the while');
+});
+
+test('a hungry bot with nothing it may eat says so, naming the food it won\'t eat', async () => {
+    const banned = watchedBot({ holding: ['rotten_flesh', 'rotten_flesh', 'iron_pickaxe'] });
+    await banned.eater.check();
+    assert.equal(banned.said.length, 1);
+    assert.match(banned.said[0], /only food it won't eat \(rotten_flesh\)/);
+    const empty = watchedBot({ holding: ['cobblestone'] });
+    await empty.eater.check();
+    assert.match(empty.said[0], /nothing to eat/);
+});
+
+test('a hungry bot waiting on a meal that is taking long says what the meal is doing', async () => {
+    const { bot, eater, said, wait } = watchedBot({ holding: ['bread'] });
+    bot.consume = () => new Promise(() => {}); // the meal never ends
+    eater.check();
+    await new Promise(resolve => setTimeout(resolve, 20)); // past the stuck-meal line, after its own few milliseconds
+    const stuck = said.length;
+    assert.equal(stuck, 1);
+    wait(2000);
+    await eater.check();
+    assert.equal(said.length, stuck, 'a meal two seconds old is just a meal');
+    wait(5000);
+    await eater.check();
+    assert.equal(said.length, stuck + 1);
+    assert.match(said.at(-1), /a meal is still under way from 7 s ago \(eating bread\)/);
+});
+
+test('hunger the bot can\'t read is said, not taken for a full stomach', async () => {
+    const { bot, did, eater, said } = watchedBot({ holding: ['bread'] });
+    bot.food = undefined;
+    await eater.check();
+    assert.deepEqual(did, []);
+    assert.equal(said.length, 1);
+    assert.match(said[0], /hunger reads undefined/);
+});
+
+test('a hungry bot whose looks at hunger have stopped says so, with whether physics is on', async () => {
+    // The looks come on the game's ticks. When the ticks stop, a timer of its own notices.
+    const { bot, eater, said, wait } = watchedBot({ holding: ['bread'], food: 2 }, { noLookMs: 10_000 });
+    eater.enableAuto();
+    wait(4000);
+    eater.noticeNoLooks();
+    assert.deepEqual(said, [], 'four seconds without a look is not yet news');
+    wait(8000);
+    bot.physicsEnabled = false;
+    eater.noticeNoLooks();
+    assert.equal(said.length, 1);
+    assert.match(said[0], /not been looked at for 12 s/);
+    assert.match(said[0], /physics is off/);
+    eater.disableAuto();
+});
+
+test('looks that keep coming, or a bot that is not hungry, say nothing about stopped ticks', async () => {
+    const { bot, eater, said, wait } = watchedBot({ holding: [], food: 2 }, { noLookMs: 10_000 });
+    eater.enableAuto();
+    for (let second = 0; second < 15; second++) {
+        wait(1000);
+        for (let tick = 0; tick < 20; tick++) bot.emit('physicsTick');
+        eater.noticeNoLooks();
+    }
+    await new Promise(resolve => setImmediate(resolve));
+    assert.ok(said.every(line => !/looked at/.test(line)), said.join('\n'));
+    const full = watchedBot({ holding: ['bread'], food: 20 }, { noLookMs: 10_000 });
+    full.eater.enableAuto();
+    full.wait(60_000);
+    full.eater.noticeNoLooks();
+    assert.deepEqual(full.said, []);
+    eater.disableAuto();
+    full.eater.disableAuto();
+});
+
+test('the timer that watches for stopped ticks goes with the eater, and with the bot', () => {
+    const { bot, eater } = hungryBot({ holding: ['bread'] });
+    eater.enableAuto();
+    assert.equal(bot.listenerCount('end'), 1);
+    eater.disableAuto();
+    assert.equal(bot.listenerCount('end'), 0);
+    eater.enableAuto();
+    bot.emit('end');
+    assert.equal(eater.enabled, false, 'a bot that left stops its eater');
+    assert.equal(bot.listenerCount('physicsTick'), 0);
 });

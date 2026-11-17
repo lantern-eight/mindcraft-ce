@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- On Bedrock, a hungry bot that isn't eating now says why in its log: a window is open, it is asleep, a meal
+  is still under way, it holds nothing it may eat, its hunger can't be read, or the game's ticks have stopped
+  so it never looks. Each reason is repeated at most every 30 seconds.
+
 ## [1.0.0-bedrock.1.1.0] - 2026-11-17
 
 A Bedrock Edition release: the bot can trade with villagers and knows which biome it is in, takes and puts
