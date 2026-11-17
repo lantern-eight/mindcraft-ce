@@ -9,6 +9,23 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.0.0-bedrock.1.0.1] - 2026-11-17
+
+A Bedrock Edition patch: a steadier live test, and how to run the Bedrock test server on an Apple silicon
+Mac. Java Edition is unchanged. Built on the same Mindcraft-CE commit as 0.1.0.
+
+### Fixed
+
+- The Bedrock skills live test no longer fails now and then on shearing a sheep. A plain summon on Bedrock
+  makes a lamb one time in twenty, which can't be sheared, and wool of another color went uncounted once the
+  bot had picked it up. The scene now summons an adult sheep and counts wool of any color.
+
+### Changed
+
+- [docs/bedrock.md](docs/bedrock.md#a-throwaway-server) says how to run the throwaway Bedrock server on an
+  Apple silicon Mac: under Docker Desktop's emulation the image's console command can't find the server, and
+  the page gives one that can.
+
 ## [1.0.0-bedrock.1.0.0] - 2026-11-16
 
 Version 1, of both editions. Bedrock Edition joins the project: its code is on `main` with Java Edition's,
@@ -434,7 +451,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.1...HEAD
+[1.0.0-bedrock.1.0.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.0...v1.0.0-bedrock.1.0.1
 [1.0.0-bedrock.1.0.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.7.0...v1.0.0-bedrock.1.0.0
 [0.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.5.0...v0.6.0
