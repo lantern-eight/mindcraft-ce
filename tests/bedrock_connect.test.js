@@ -163,18 +163,14 @@ test("the rest of the code is handed the bot's own registry at login, once", () 
     assert.equal(handed[0].itemsByName.stone.id, 7);
 });
 
-test('the biome is "unknown" on Bedrock, whatever the world answers', () => {
-    // The adapter doesn't read biomes yet: every spot answers with the first biome in the table. Inherited
-    // code looks the answer up in the game data and stops on one it can't find.
-    const registry = { version: { type: 'bedrock' }, biomes: { 0: { id: 0, name: 'bamboo_jungle' } }, blocksByName: { stone: { id: 1 } } };
+test('biomes are the registry\'s own: the world answers with a number the table knows', () => {
+    const registry = { version: { type: 'bedrock' }, biomes: { 1: { id: 1, name: 'plains' } }, blocksByName: { stone: { id: 1 } } };
     const data = gameDataFor(registry);
-    assert.equal(data.biomes[0].name, 'unknown', 'not the first biome in the table');
-    assert.equal(data.biomes[{ id: 0, name: 'bamboo_jungle' }].name, 'unknown', 'Bedrock answers with an object, not a number');
-    assert.equal(data.biomes[4321].name, 'unknown');
+    assert.equal(data.biomes, registry.biomes);
+    assert.equal(data.biomes[1].name, 'plains');
     // Everything else is the registry's own.
     assert.equal(data.blocksByName, registry.blocksByName);
     assert.equal(data.version.type, 'bedrock');
-    assert.equal(registry.biomes[0].name, 'bamboo_jungle', "the bot's registry is left as it was");
 });
 
 test('recipes are the ones the server sent, asked for by item number', () => {

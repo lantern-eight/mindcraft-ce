@@ -145,6 +145,12 @@ const said = () => bot.output.trim().split('\n').slice(-2).join(' / ');
 
 // Each: the scene, the call, and what must be true afterwards. `seconds` is how long the call may take.
 const walk = [
+    { name: 'getBiomeName: the biome the bot stands in', async run() {
+        // The test world is a flat world, which is all plains. Bedrock chunks carry the biome as Bedrock's own
+        // number; the bot reads it from the chunk and names it from the game data.
+        const world = await import('../../src/agent/library/world.js');
+        assert.equal(world.getBiomeName(bot), 'plains');
+    } },
     { name: 'collectBlock: break two logs by hand and pick them up', async run() {
         await setblock(3, 0, 2, 'oak_log'); await setblock(3, 1, 2, 'oak_log');
         const ok = await withinTime(skills.collectBlock(bot, 'oak_log', 2), 60000, 'collectBlock');
@@ -538,9 +544,7 @@ const walk = [
 ];
 
 // Known not to work on Bedrock yet, by the start of each scene's name. Keep in step with docs/bedrock.md.
-const GAPS = new Map([
-    ['tradeWithVillager', 'the server never answers the adapter\'s request to make the trade'],
-]);
+const GAPS = new Map([]);
 
 let joined = false;
 try {
