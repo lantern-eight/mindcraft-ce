@@ -16,8 +16,8 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 
 | | |
 |---|---|
-| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, world memory and chest sorting. The whole agent starts, hears a player and answers through a model |
-| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, code that reads a block's properties expects Java's names for them, and the bot can't make a trade with a villager |
+| **Works** | Joining and spawning. Reading the blocks around the bot, and the biome it is in. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, world memory and chest sorting. The whole agent starts, hears a player and answers through a model |
+| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, and code that reads a block's properties expects Java's names for them |
 | **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots |
 
 Treat a Bedrock bot as something to experiment with on a world you can afford to lose.
@@ -35,11 +35,11 @@ the world was checked afterwards:
 | **Items** | `equip` (a tool, armor), `discard`, `consume`, `putInChest`, `takeFromChest`, `viewChest`, `useToolOn` (shears on a sheep, a bucket on water) |
 | **Getting around** | `goToPosition`, `goToNearestBlock`, `goToNearestEntity`, `goToSurface`, `moveAway`, `stay`, `wait`, `useDoor`, `activateNearestBlock`, `goToBed` |
 | **Other players** | `goToPlayer`, `followPlayer`, `giveToPlayer` |
-| **Villagers** | `showVillagerTrades`, and `!entities` naming each villager's job and level and listing children apart |
+| **Villagers** | `showVillagerTrades`, `tradeWithVillager`, and `!entities` naming each villager's job and level and listing children apart |
 | **Fighting** | `attackNearest`, `defendSelf` |
 
 `avoidEnemies` runs in `bedrock_fair_play.js` instead, with fair play on: the reflex that flees a monster
-in view calls it. **Doesn't work yet:** `tradeWithVillager` (see [Known Gaps](#known-gaps)).
+in view calls it.
 
 One scene on flat ground shows that a skill works, not that it works everywhere. The scenes are in
 `tests/live/bedrock_skills.js` ([Testing](#testing)).
@@ -122,10 +122,8 @@ stay.
 | **Mobs' everyday noises** | Not heard. A Bedrock client makes a mob's moos and groans up by itself, and the server never sends them, so the bot hears a mob only when it is hurt or dies, or does something the server plays a sound for |
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
 | **World memory** | Works. Checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. And by `bedrock_memory_scenarios.js`, as the agent runs it: a chest opened and walked away from is recalled with what was in it and the way back; the trail, saved places, what a sign says, and the changes found after a minute out of sight, told once; memory saved to disk. Each world has its own memory, named by a hash of the seed the server sends |
-| **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's. A few of Mindcraft's lists name blocks by Java's names only: `placeBlock` takes Java's `snow` (a thin layer) for empty space where it may build, which on Bedrock is a whole block of snow, and does not take Bedrock's `flowing_water` or `snow_layer` for empty space |
-| **Making a trade** | `tradeWithVillager` is refused: the bot says the trade failed and keeps what it would have paid with. Showing a villager's trades works. Tried, the trade failed and did harm: the bot put the goods it pays with into the trade, the server never answered the request that makes it, the goods didn't come back, and afterwards the bot no longer saw a player who joined. The adapter's trading was checked on Bedrock 1.26.51; this was on 1.26.63 (the 1.26.60 protocol) |
 
 ## Testing
 

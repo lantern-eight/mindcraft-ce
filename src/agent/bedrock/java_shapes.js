@@ -237,18 +237,40 @@ function tradesLikeJava(bot) {
         if (!('slots' in window)) Object.defineProperty(window, 'slots', { get: () => bot.inventory.slots, configurable: true });
         return window;
     };
-    // Making a trade doesn't work on Bedrock yet (docs/bedrock.md, Known Gaps). The adapter puts the goods
-    // the bot pays with into the trade, the server never answers the request that makes it, the goods
-    // don't come back, and afterwards the bot no longer sees a player who joins. So the trade is refused
-    // before anything moves. When the adapter's pin moves to one that trades on the current server, take
-    // this out and run the trading scene in tests/live/bedrock_skills.js.
-    if (typeof bot.trade === 'function') {
-        bot.trade = async () => { throw new Error('Making a trade does not work on Bedrock yet'); };
-    }
+}
+
+/**
+ * A biome, read from the world.
+ *
+ * On Java `bot.world.getBiome(position)` answers with the biome's number, and Mindcraft and world memory
+ * look its name up in the game data by that number. The Bedrock chunk answers with a biome object instead,
+ * so the lookup found nothing. Here it answers with the object's number. The adapter makes a new world when
+ * the bot changes dimension and puts it at `bot.world`, so each world is evened out as it is put there.
+ */
+const NUMBERED = Symbol('biomes answered as numbers');
+function biomesLikeJava(bot) {
+    if (!('world' in bot)) return; // the adapter puts a world in place before this plugin loads
+    const numbered = world => {
+        if (!world || typeof world.getBiome !== 'function' || world.getBiome[NUMBERED]) return world;
+        const getBiome = world.getBiome;
+        world.getBiome = Object.assign(function (...args) {
+            const biome = getBiome.apply(this, args);
+            return biome && typeof biome === 'object' ? biome.id : biome;
+        }, { [NUMBERED]: true });
+        return world;
+    };
+    let world = numbered(bot.world);
+    Object.defineProperty(bot, 'world', {
+        configurable: true,
+        enumerable: true,
+        get: () => world,
+        set: next => { world = numbered(next); },
+    });
 }
 
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
 export function javaShapes(bot) {
+    biomesLikeJava(bot);
     chestsLikeJava(bot);
     recipesLikeJava(bot);
     clicksThatSettle(bot);

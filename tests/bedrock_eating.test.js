@@ -149,3 +149,64 @@ test('cancelEat lets go of the food', async () => {
     idle.eater.cancelEat();
     assert.deepEqual(idle.did, [], 'nothing to let go of');
 });
+
+// When a meal fails the bot is still hungry and tries again a second later, so a failure is no error. But it
+// has to be told: once, a bot sat at no hunger with its bread untouched for most of a minute, and nothing said
+// why.
+function watchedBot(options) {
+    const made = hungryBot(options);
+    const said = [];
+    let clock = 0;
+    const eater = bedrockEater(made.bot, { log: line => said.push(line), now: () => clock, slowMealMs: 5 });
+    return { ...made, eater, said, wait: ms => { clock += ms; } };
+}
+
+test('a meal that fails says which step failed and why, once until the reason changes or time passes', async () => {
+    const { bot, eater, said, wait } = watchedBot({ holding: ['bread'] });
+    bot.consume = async () => { throw new Error('consume: timed out waiting for completed_using_item'); };
+    await eater.check();
+    assert.equal(said.length, 1);
+    assert.match(said[0], /bread/);
+    assert.match(said[0], /eating/);
+    assert.match(said[0], /timed out waiting for completed_using_item/);
+    wait(1000);
+    await eater.check();
+    assert.equal(said.length, 1, 'the same failure a second later is not said again');
+    bot.equip = async () => { throw new Error('the server refused the slot'); };
+    await eater.check();
+    assert.equal(said.length, 2, 'a new reason is said at once');
+    assert.match(said[1], /taking .*bread.* in hand/);
+    wait(30_000);
+    await eater.check();
+    assert.equal(said.length, 3, 'the same reason again, after a while');
+});
+
+test('a meal that hangs says where it is stuck, and the next look still waits for it', async () => {
+    const { bot, did, eater, said } = watchedBot({ holding: ['bread'] });
+    bot.equip = () => new Promise(() => { did.push('equip bread'); }); // never answers
+    eater.check();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(said.length, 1);
+    assert.match(said[0], /bread/);
+    assert.match(said[0], /taking .*bread.* in hand/);
+    assert.equal(eater.isEating, true);
+    await eater.check();
+    assert.deepEqual(did, ['equip bread'], 'one meal at a time still holds');
+});
+
+test('a look at hunger that throws is said, not swallowed', async () => {
+    const { bot, eater, said } = watchedBot({ holding: ['bread'] });
+    bot.inventory = { items: () => { throw new Error('inventory not ready'); } };
+    eater.enableAuto();
+    for (let tick = 0; tick < 20; tick++) bot.emit('physicsTick');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(said.length, 1);
+    assert.match(said[0], /inventory not ready/);
+    eater.disableAuto();
+});
+
+test('a meal that goes well says nothing', async () => {
+    const { eater, said } = watchedBot({ holding: ['bread'] });
+    await eater.check();
+    assert.deepEqual(said, []);
+});

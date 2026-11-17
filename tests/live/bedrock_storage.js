@@ -293,6 +293,21 @@ try {
         return { took: took.text.split('\n')[0], put: put.text.split('\n')[0], back: back.text.split('\n')[0] };
     });
 
+    // The barrel holds its dirt in two stacks (10 and 12). Taking 15 has to draw on both, and putting them
+    // back has to top up the stack that is left before it takes an empty slot, as on Java.
+    await step('an amount spread over two stacks is taken from both, and put back onto the stack with room', async () => {
+        const t = at(...NAMED[1]);
+        const took = await sorting('!takeFromChestAt', [t.x, t.y, t.z, 'dirt', 15]);
+        assert.equal(took.status, 'ok', took.text);
+        assert.deepEqual(show(await read(NAMED[1])).sort(), ['dirt x7', 'sand x6']);
+        assert.ok(pockets().includes('dirt x15'), `the bot has the dirt: ${pockets()}`);
+        const put = await sorting('!putInChestAt', [t.x, t.y, t.z, 'dirt', 15]);
+        assert.equal(put.status, 'ok', put.text);
+        assert.deepEqual(show(await read(NAMED[1])).sort(), ['dirt x22', 'sand x6']);
+        assert.ok(!pockets().some(item => item.startsWith('dirt')), `the bot has no dirt left: ${pockets()}`);
+        return { took: took.text.split('\n')[0], put: put.text.split('\n')[0] };
+    });
+
     await step('after all of that, the bot sent no command', () => {
         assert.ok(!sent.includes('command_request'), 'no command was sent');
     });
