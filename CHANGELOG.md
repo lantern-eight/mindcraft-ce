@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- On Bedrock, a meal that fails or gets stuck is now said in the bot's log: which step (taking the food in
+  hand, or eating it) and why. Before, a bot that stayed hungry with food in its pockets gave no reason. The
+  same message is repeated at most every 30 seconds.
+
 ## [1.0.0-bedrock.1.0.2] - 2026-11-17
 
 A Bedrock Edition patch: four mistakes in the Bedrock adapter that this fork had worked around are now fixed
