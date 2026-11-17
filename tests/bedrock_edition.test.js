@@ -19,6 +19,7 @@ import { scanSection } from '../src/agent/fairplay/block_scan.js';
 import { createPerception } from '../src/agent/fairplay/perception.js';
 import { createSeenMap } from '../src/agent/fairplay/seen_map.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
+import { needsBedrockLibraries } from './helpers/bedrock_libraries.js';
 
 const BEDROCK_VERSION = '1.26.60';
 
@@ -52,7 +53,7 @@ for (const hashed of [true, false]) {
     });
 }
 
-test('a state table over hashes keeps one entry per state and nothing for other numbers', () => {
+test('a state table over hashes keeps one entry per state and nothing for other numbers', { skip: needsBedrockLibraries }, () => {
     const registry = bedrockRegistry();
     const table = bedrockEdition.stateTable(registry);
     const states = registry.blocksArray.flatMap(block => bedrockEdition.stateIdsOf(block));
@@ -65,7 +66,7 @@ test('a state table over hashes keeps one entry per state and nothing for other 
     for (const stateId of [unused, undefined, null, 1.5, 2 ** 40]) assert.equal(table.get(stateId), 0, String(stateId));
 });
 
-test('state numbers of a block come in the order of its collision shapes', () => {
+test('state numbers of a block come in the order of its collision shapes', { skip: needsBedrockLibraries }, () => {
     const registry = bedrockRegistry();
     const stairs = registry.blocksByName.oak_stairs;
     const ids = bedrockEdition.stateIdsOf(stairs);
@@ -90,7 +91,7 @@ function flatColumns(registry) {
     return columns;
 }
 
-test('a section never made reads as air, inside the world only', () => {
+test('a section never made reads as air, inside the world only', { skip: needsBedrockLibraries }, () => {
     const registry = bedrockRegistry();
     const column = flatColumns(registry).get('0,0');
     assert.equal(column.getBlockStateId(new Vec3(0, 40, 0)), undefined, 'the library itself gives nothing there');
@@ -100,7 +101,7 @@ test('a section never made reads as air, inside the world only', () => {
     assert.equal(bedrockEdition.readStateId(column, { x: 0, y: 400, z: 0 }), undefined);
 });
 
-test('a section is summarised from its first layer, and skipped when it holds nothing wanted', () => {
+test('a section is summarised from its first layer, and skipped when it holds nothing wanted', { skip: needsBedrockLibraries }, () => {
     const registry = bedrockRegistry();
     const column = flatColumns(registry).get('0,0');
     const air = registry.blocksByName.air.defaultState, dirt = registry.blocksByName.dirt.defaultState;
@@ -155,7 +156,24 @@ test('a Bedrock mob is a baby by its flags, not by Java\'s numbered entry', () =
     assert.equal(bedrockEdition.isBaby({ name: 'cow' }), false, 'no metadata yet');
 });
 
-test('standing on a flat grass floor, the bot knows the grass and not the dirt or bedrock under it', () => {
+test('a Bedrock villager is read from its own name and named metadata', () => {
+    const villager = (metadata) => ({ name: 'villager_v2', metadata });
+    assert.deepEqual(bedrockEdition.villagerOf(villager({ variant: 5, trade_tier: 0, flags: { baby: false } })),
+        { baby: false, profession: 'librarian', level: 1 }, 'a novice librarian');
+    assert.deepEqual(bedrockEdition.villagerOf(villager({ variant: 13, trade_tier: 4, flags: {} })),
+        { baby: false, profession: 'mason', level: 5 }, 'a master mason');
+    assert.deepEqual(bedrockEdition.villagerOf(villager({ variant: 0, trade_tier: 0, flags: { baby: true } })),
+        { baby: true, profession: 'unemployed', level: 1 });
+    assert.deepEqual(bedrockEdition.villagerOf(villager({})), { baby: false, profession: null, level: null }, 'nothing said yet');
+    assert.deepEqual(bedrockEdition.villagerOf({ name: 'villager', metadata: { variant: 7, trade_tier: 1 } }),
+        { baby: false, profession: 'cleric', level: 2 }, 'the villager from before 1.14 has the same fields');
+    assert.equal(bedrockEdition.villagerOf({ name: 'villager_v2', metadata: { 18: { villagerProfession: 9 } } }).profession, null,
+        'Java\'s entries mean nothing on Bedrock');
+    assert.equal(bedrockEdition.villagerOf({ name: 'wandering_trader', metadata: { variant: 0 } }), null);
+    assert.equal(bedrockEdition.villagerOf({ name: 'cow', metadata: { variant: 1 } }), null);
+});
+
+test('standing on a flat grass floor, the bot knows the grass and not the dirt or bedrock under it', { skip: needsBedrockLibraries }, () => {
     const registry = bedrockRegistry();
     const columns = flatColumns(registry);
     columns.get('0,0').setBlockStateId(new Vec3(5, -60, 0), registry.blocksByName.diamond_ore.defaultState); // in the open
@@ -211,7 +229,7 @@ test('a mob is heard from what a Bedrock server sends: its sounds, and its hurt 
     assert.deepEqual(['level_sound_event', 'entity_event'].map(p => bot._client.listenerCount(p)), [0, 0]);
 });
 
-test('perception turns a Bedrock cry into what a player would make of it', () => {
+test('perception turns a Bedrock cry into what a player would make of it', { skip: needsBedrockLibraries }, () => {
     const registry = bedrockRegistry();
     const bot = Object.assign(bedrockBot(registry, flatColumns(registry), [0.5, -60, 0.5]), { _client: new EventEmitter() });
     bot.entities[40] = { id: 40, name: 'creeper', type: 'hostile', position: new Vec3(0.5, -60, -9.5), height: 1.7 };

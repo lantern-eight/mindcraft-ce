@@ -107,7 +107,7 @@ async function converse(run) {
     writeFileSync(profilePath, JSON.stringify(profile));
     log = '';
     child = spawn(process.execPath, ['main.js', '--profiles', profilePath], { env: { ...process.env, SETTINGS_JSON: JSON.stringify({
-        host: '127.0.0.1', port: fixture.port, mindserver_port: MIND_PORT, minecraft_version: GAME_VERSION, auth: 'offline', init_message: '',
+        host: '127.0.0.1', port: fixture.port, mindserver_port: MIND_PORT, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', init_message: '',
         num_examples: 0, max_messages: 100, load_memory: false, agent_max_steps: 20, agent_max_tool_calls: 40,
         fair_play: 'strict', world_memory: true, chest_sorting: true,
     }) }, stdio: ['pipe', 'pipe', 'pipe'] });

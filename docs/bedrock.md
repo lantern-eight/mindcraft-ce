@@ -1,11 +1,14 @@
 # Bedrock Edition
 
-The `bedrock` branch is this bot for Minecraft Bedrock Edition, the edition on consoles, phones and
-Windows. The port is **in progress**. This page says what works today, what doesn't, how to try it, and how
-to test it.
+This bot plays Minecraft Bedrock Edition too, the edition on consoles, phones and Windows. Bedrock support
+is **experimental**: it works, with the gaps this page lists. This page says what works, what doesn't, how
+to try it, and how to test it.
 
-The Java Edition bot lives on the `main` branch and is not affected by anything here. With
-`minecraft_edition` left at `"java"`, this branch behaves as `main` does.
+The code for Bedrock is on `main`, beside Java's, behind the `minecraft_edition` setting, and none of it
+runs for a Java bot. The rest of what Bedrock needs is in the libraries under the bot, whose Bedrock work
+isn't released yet. So the `bedrock` branch is `main` with those libraries pinned, and set for Bedrock out
+of the box. On `main`, a bot set to Bedrock stops with a message that says to use that branch. On
+`bedrock`, a bot set to `"java"`, with a Java server's version and port, plays Java Edition as on `main`.
 
 ## Status
 
@@ -14,8 +17,8 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 | | |
 |---|---|
 | **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, world memory and chest sorting. The whole agent starts, hears a player and answers through a model |
-| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, and code that reads a block's properties expects Java's names for them |
-| **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots. A few skills, named under [Skills](#skills) |
+| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, code that reads a block's properties expects Java's names for them, and the bot can't make a trade with a villager |
+| **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots |
 
 Treat a Bedrock bot as something to experiment with on a world you can afford to lose.
 
@@ -27,23 +30,25 @@ the world was checked afterwards:
 
 | | |
 |---|---|
-| **Gathering and building** | `collectBlock`, `breakBlockAt`, `placeBlock`, `digDown`, `pickupNearbyItems`, `tillAndSow` |
+| **Gathering and building** | `collectBlock` (logs by hand and overhead, ore in view and buried in stone, obsidian, stopped partway and asked again, with an enchanted pickaxe), `breakBlockAt`, `placeBlock`, `digDown`, `pickupNearbyItems`, `tillAndSow` |
 | **Making things** | `craftRecipe` (in the bot's own grid, and at a crafting table), `smeltItem`, `clearNearestFurnace` |
 | **Items** | `equip` (a tool, armor), `discard`, `consume`, `putInChest`, `takeFromChest`, `viewChest`, `useToolOn` (shears on a sheep, a bucket on water) |
 | **Getting around** | `goToPosition`, `goToNearestBlock`, `goToNearestEntity`, `goToSurface`, `moveAway`, `stay`, `wait`, `useDoor`, `activateNearestBlock`, `goToBed` |
 | **Other players** | `goToPlayer`, `followPlayer`, `giveToPlayer` |
+| **Villagers** | `showVillagerTrades`, and `!entities` naming each villager's job and level and listing children apart |
 | **Fighting** | `attackNearest`, `defendSelf` |
 
 `avoidEnemies` runs in `bedrock_fair_play.js` instead, with fair play on: the reflex that flees a monster
-in view calls it. **Not tried:** the two villager trading skills, and the mining goals.
+in view calls it. **Doesn't work yet:** `tradeWithVillager` (see [Known Gaps](#known-gaps)).
 
 One scene on flat ground shows that a skill works, not that it works everywhere. The scenes are in
 `tests/live/bedrock_skills.js` ([Testing](#testing)).
 
 ## Trying It
 
-1. Install as the [README](../README.md#quick-start) says, on this branch.
-2. In `settings.js` set:
+1. Install as the [README](../README.md#quick-start) says, on the `bedrock` branch.
+2. `settings.js` on that branch already says `"minecraft_edition": "bedrock"`, `"minecraft_version":
+   "auto"` and `"port": 19132`. Set the server:
 
    ```js
    "minecraft_edition": "bedrock",
@@ -57,7 +62,7 @@ One scene on flat ground shows that a skill works, not that it works everywhere.
 
 | Setting | On Bedrock |
 |---|---|
-| `minecraft_edition` | `"bedrock"`. Anything else, or leaving it out, means Java |
+| `minecraft_edition` | `"bedrock"`, the `bedrock` branch's default. `"java"`, `main`'s default, plays Java Edition |
 | `minecraft_version` | A Bedrock version, or `"auto"` to take the server's. A Java version left here is refused when the bot starts, with a message that says what to set |
 | `port` | The Bedrock server's game port. `-1` means 19132, Bedrock's usual port. Nothing is scanned for |
 | `auth` | `"offline"` for a server in offline mode. `"microsoft"` signs in with an Xbox account; this has not been tried |
@@ -81,11 +86,11 @@ version some days after it is released. What that means in practice:
 ## How the Connection Works
 
 A Bedrock bot is started by its own module, `src/agent/bedrock/connect.js`. Inherited start-up code hands
-over to it in three small places, and a fourth hook gives one skill Bedrock's name for a bed
+over to it in three small places, and two more hooks give skills Bedrock's names for a bed and a door
 ([Hooks for Bedrock Edition](core-hooks.md#hooks-for-bedrock-edition)).
 Under it, mineflayer's Bedrock edition adapter turns Bedrock's packets into the same `bot` the Java code
-uses. None of those libraries are released with Bedrock support yet;
-[For Bedrock Edition](core-hooks.md#for-bedrock-edition) lists where each comes from.
+uses. None of those libraries are released with Bedrock support yet; the `bedrock` branch pins them, and
+its copy of [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch) lists where each comes from.
 
 - **Finding the server.** The bot asks the address in three ways: the older transport, the newer one as
   it is announced on a local network, and the newer one over HTTP on the game port. A current dedicated
@@ -119,8 +124,8 @@ stay.
 | **World memory** | Works. Checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. And by `bedrock_memory_scenarios.js`, as the agent runs it: a chest opened and walked away from is recalled with what was in it and the way back; the trail, saved places, what a sign says, and the changes found after a minute out of sight, told once; memory saved to disk. Each world has its own memory, named by a hash of the seed the server sends |
 | **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
-| **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's. A few of Mindcraft's lists name blocks by Java's names only: `useDoor` without a position looks for Java's `oak_door`, which is `wooden_door` on Bedrock; `placeBlock` takes Java's `snow` (a thin layer) for empty space where it may build, which on Bedrock is a whole block of snow, and does not take Bedrock's `flowing_water` or `snow_layer` for empty space |
-| **A few skills** | Villager trading and the mining goals are not tried. See [Skills](#skills) |
+| **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's. A few of Mindcraft's lists name blocks by Java's names only: `placeBlock` takes Java's `snow` (a thin layer) for empty space where it may build, which on Bedrock is a whole block of snow, and does not take Bedrock's `flowing_water` or `snow_layer` for empty space |
+| **Making a trade** | `tradeWithVillager` is refused: the bot says the trade failed and keeps what it would have paid with. Showing a villager's trades works. Tried, the trade failed and did harm: the bot put the goods it pays with into the trade, the server never answered the request that makes it, the goods didn't come back, and afterwards the bot no longer saw a player who joined. The adapter's trading was checked on Bedrock 1.26.51; this was on 1.26.63 (the 1.26.60 protocol) |
 
 ## Testing
 
@@ -247,4 +252,4 @@ spaces and `_ . : -`, and write coordinates out in full.
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
 | `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |
-| [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files, and the pinned libraries |
+| [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |

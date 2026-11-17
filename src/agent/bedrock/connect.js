@@ -60,6 +60,24 @@ export function bedrockVersion(version) {
 }
 
 /**
+ * Are the libraries that play Bedrock Edition installed? Only the `bedrock` branch pins them. `main`
+ * installs the released libraries, which play Java Edition alone: mineflayer there has no Bedrock adapter,
+ * and a Bedrock bot would fail deep inside it, with an error that says nothing of the reason.
+ */
+export function bedrockLibrariesInstalled() {
+    try {
+        require.resolve('mineflayer/lib/bedrock_plugins/client_input.js');
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export const BEDROCK_LIBRARIES_MISSING = 'minecraft_edition is "bedrock", but the libraries that play Bedrock Edition ' +
+    'are not installed. They are pinned on the bedrock branch: check that branch out and run ' +
+    '`SKIP_BUILD=1 npm install`, or set minecraft_edition to "java".';
+
+/**
  * The three settings that say where the bot will connect, made ready for a Bedrock server.
  *
  * For Java, the code that starts agents first asks the server what it is and writes the answer over these
@@ -67,10 +85,12 @@ export function bedrockVersion(version) {
  * are taken as they stand. -1 means "find the port" on Java, by scanning; here it means the Bedrock default.
  *
  * A version that can't work is refused here, so the mistake is reported once, by the code that starts
- * agents, before a process is started for a bot that could never join.
+ * agents, before a process is started for a bot that could never join. So is a checkout without the
+ * Bedrock libraries. (`librariesInstalled` is only a parameter so that a test can say either.)
  */
-export function bedrockServer(settings) {
+export function bedrockServer(settings, { librariesInstalled = bedrockLibrariesInstalled } = {}) {
     bedrockVersion(settings.minecraft_version);
+    if (!librariesInstalled()) throw new Error(BEDROCK_LIBRARIES_MISSING);
     return {
         host: settings.host,
         port: settings.port > 0 ? settings.port : DEFAULT_BEDROCK_PORT,

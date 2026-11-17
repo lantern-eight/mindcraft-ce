@@ -16,6 +16,9 @@ import {
 
 const spec = JSON.parse(readFileSync('src/mindcraft/public/settings_spec.json', 'utf8'));
 
+// For the tests of what bedrockServer makes of the settings, whichever libraries this checkout installs.
+const installed = { librariesInstalled: () => true };
+
 const bedrockSettings = (over = {}) => ({
     minecraft_edition: 'bedrock', minecraft_version: '1.26.60', host: 'example.test', port: 19132, auth: 'offline', ...over,
 });
@@ -33,6 +36,26 @@ test('the edition setting is listed for MindServer, with the same default as set
     assert.ok(spec.minecraft_edition, 'minecraft_edition is missing from settings_spec.json');
     assert.deepEqual(spec.minecraft_edition.options, ['java', 'bedrock']);
     assert.equal(spec.minecraft_edition.default, settings.minecraft_edition);
+});
+
+test('the default edition comes with a version and a port for it', () => {
+    // main defaults to Java Edition, and the bedrock branch, which installs the Bedrock libraries, to
+    // Bedrock (CLAUDE.md, "Two Editions, Two Branches"). Either way the rest of the defaults fit.
+    if (isBedrock(settings)) {
+        assert.equal(settings.port, DEFAULT_BEDROCK_PORT, 'a Bedrock server\'s usual port');
+        assert.equal(settings.minecraft_version, 'auto', 'whatever the server runs');
+    } else {
+        assert.equal(settings.minecraft_edition, 'java', 'Java Edition, said in so many words');
+        assert.notEqual(settings.port, DEFAULT_BEDROCK_PORT);
+    }
+    assert.equal(spec.port.default, settings.port, 'and MindServer offers the same');
+});
+
+test('Bedrock chosen where its libraries are not installed is refused, and the message says where they are', () => {
+    assert.throws(() => bedrockServer(bedrockSettings(), { librariesInstalled: () => false }), /bedrock branch.*"java"/s);
+    // A wrong version is still reported as that, whichever libraries are installed.
+    assert.throws(() => bedrockServer(bedrockSettings({ minecraft_version: '26.3' }), { librariesInstalled: () => false }),
+        /not a Bedrock Edition version/);
 });
 
 test('a version is given to game data with the bedrock_ prefix and to the protocol without it', () => {
@@ -63,7 +86,7 @@ test('the options name the edition, the server and the bot', () => {
 test('no port, or the "find it" port of a Java setup, becomes the Bedrock default', () => {
     for (const port of [-1, 0, undefined]) {
         assert.equal(bedrockBotOptions(bedrockSettings({ port }), 'bot').port, DEFAULT_BEDROCK_PORT);
-        assert.equal(bedrockServer(bedrockSettings({ port })).port, DEFAULT_BEDROCK_PORT);
+        assert.equal(bedrockServer(bedrockSettings({ port }), installed).port, DEFAULT_BEDROCK_PORT);
     }
     assert.equal(DEFAULT_BEDROCK_PORT, 19132);
 });
@@ -80,10 +103,10 @@ test('without the compiled RakNet backend the JavaScript one is named up front',
 });
 
 test('the server to connect to is the settings as they stand: no lookup', () => {
-    assert.deepEqual(bedrockServer(bedrockSettings({ port: 19200 })),
+    assert.deepEqual(bedrockServer(bedrockSettings({ port: 19200 }), installed),
         { host: 'example.test', port: 19200, minecraft_version: '1.26.60' });
     // "auto" stays "auto": it is the bot's own start-up that leaves the version to the server.
-    assert.equal(bedrockServer(bedrockSettings({ minecraft_version: 'auto' })).minecraft_version, 'auto');
+    assert.equal(bedrockServer(bedrockSettings({ minecraft_version: 'auto' }), installed).minecraft_version, 'auto');
 });
 
 // A bot as mineflayer would hand it back, recording what is done to it.

@@ -103,6 +103,7 @@ export const HAND_OPENED_DOORS = [
     'waxed_copper_door', 'waxed_exposed_copper_door', 'waxed_weathered_copper_door', 'waxed_oxidized_copper_door', // 1.21+
     'pale_oak_door', // 1.21.4+
     'poplar_door', // 26.3+
+    'wooden_door', // Bedrock Edition's name for the oak door (docs/core-hooks.md, B5)
 ]
 
 
@@ -227,6 +228,15 @@ export function isHuntable(mob) {
     const animals = ['chicken', 'cow', 'llama', 'mooshroom', 'pig', 'rabbit', 'sheep'];
     // Never a baby. Where the game keeps a mob's age differs by edition, so the edition seam is asked.
     return animals.includes(mob.name.toLowerCase()) && !editionOf(mcdata).isBaby(mob);
+}
+
+/**
+ * Is this mob a villager, and if so is it a child, what is its job and its level? Each edition keeps that
+ * in its own place, so the edition seam is asked.
+ * @returns {{baby: boolean, profession: string|null, level: number|null}|null} null when not a villager
+ */
+export function villagerOf(mob) {
+    return editionOf(mcdata).villagerOf(mob);
 }
 
 export function isHostile(mob) {

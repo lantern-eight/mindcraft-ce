@@ -9,16 +9,17 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { loadReflectMetadataForLockdown, reflectMetadataPath } from '../src/agent/bedrock/lockdown_ready.js';
 import { lockdown, makeCompartment } from '../src/agent/library/lockdown.js';
+import { needsBedrockLibraries } from './helpers/bedrock_libraries.js';
 
 const REGISTRY = Symbol.for('@reflect-metadata:registry');
 
-test('the copy of reflect-metadata the connection would load is found', () => {
+test('the copy of reflect-metadata the connection would load is found', { skip: needsBedrockLibraries }, () => {
     const found = reflectMetadataPath();
     assert.ok(found, 'found');
     assert.equal(path.basename(path.dirname(found)), 'reflect-metadata');
 });
 
-test('loaded first, it leaves Reflect in a state the sandbox can be set up from, after the connection\'s libraries load', () => {
+test('loaded first, it leaves Reflect in a state the sandbox can be set up from, after the connection\'s libraries load', { skip: needsBedrockLibraries }, () => {
     assert.equal(loadReflectMetadataForLockdown(), true);
     assert.equal(Object.getOwnPropertyDescriptor(Reflect, REGISTRY)?.configurable, true, 'its registry can be deleted');
     assert.equal(typeof Reflect.getMetadata, 'function', 'the library works as before');

@@ -8,12 +8,11 @@ its `agent-system` branch. Mindcraft-CE stays the core. This fork adds its own m
 its edits to the core small, so upstream updates stay easy to merge and pieces of this work stay easy to
 offer back.
 
-**This branch, `bedrock`, targets Minecraft Bedrock Edition, currently 1.26.60.** The port is in progress.
-Set to Bedrock, the bot joins a Bedrock Dedicated Server (checked on 1.26.60 and 1.26.63), answers
-players in chat, and Mindcraft's stock skills work there, and so do fair play, world memory and chest
-sorting, each with a few gaps. [docs/bedrock.md](docs/bedrock.md) says what works, what doesn't and how
-to try it. The rest of this page describes the Java Edition bot this branch is built from, which lives on
-the `main` branch (Java Edition 26.3) and runs from this branch too.
+**It plays Minecraft Java Edition, currently 26.3, and Bedrock Edition, currently 1.26.60.** The code for
+both is on `main`. Bedrock Edition needs work in the libraries under the bot that isn't released yet, so
+the `bedrock` branch is `main` with those libraries pinned, and set up for Bedrock out of the box: use
+`main` for Java and `bedrock` for Bedrock. Bedrock support is experimental; [docs/bedrock.md](docs/bedrock.md)
+says what works, what doesn't and how to try it.
 
 > [!CAUTION]
 > Do not connect this bot to public servers with coding enabled. With `allow_insecure_coding` on, a model
@@ -27,10 +26,10 @@ the `main` branch (Java Edition 26.3) and runs from this branch too.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
-| **Minecraft** | **Bedrock Edition 1.26.60** is this branch's target (`bedrock`), and 1.26.61 to 1.26.63 work the same. In progress: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps) |
-| **Java Edition** | On the `main` branch, currently 26.3. This branch takes every change made there, and still runs on Java Edition as `main` does ([pinned libraries](docs/core-hooks.md#dependencies-pinned-to-a-branch)) |
+| **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
+| **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
 | **Runs on** | Node 22 |
-| **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version and what changed |
+| **Status** | Experimental. The [changelog](CHANGELOG.md) has the current version, which has a part for each edition, and what changed |
 | **License** | Inherited code is MIT. What this fork adds is CC0 (public domain). See [ATTRIBUTION.md](ATTRIBUTION.md) |
 
 ## Why Fair Play
@@ -70,9 +69,9 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 424 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 613 offline tests, plus live scenarios on a real server that make no model calls |
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
-| Fixes | | Nine fixes to inherited code, listed in the [changelog](CHANGELOG.md) |
+| Fixes | | Fixes to inherited code, each listed in the [changelog](CHANGELOG.md) |
 
 **Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
 animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
@@ -86,10 +85,9 @@ shapes those its own way.
 
 So instead of a copy of each feature per edition, the features ask an **edition seam**
 (`src/agent/edition/`): a short list of questions such as "what does this sign say?" or "where is the
-other half of this double chest?", answered once for each edition. `main` answers them for Java. The
-`bedrock` branch adds Bedrock's answers, and the same fair play, world memory and chest sorting run there.
-New features are built on `main` first and ported to `bedrock` once they work, and the seam is what keeps
-that port small. [docs/edition-seam.md](docs/edition-seam.md) lists every question with each edition's
+other half of this double chest?", answered once for each edition. Both sets of answers are on
+`main`, so the same fair play, world memory and chest sorting run on either edition, and a new feature
+needs only the seam's answers for Bedrock to work there too. [docs/edition-seam.md](docs/edition-seam.md) lists every question with each edition's
 answer, and says when new code must go through it.
 
 ## Quick Start
@@ -97,8 +95,9 @@ answer, and says when new code must go through it.
 1. Install [Node.js 22](https://nodejs.org/) (`nvm use` picks the right version) and have
    [Minecraft Java Edition](https://www.minecraft.net/en-us/store/minecraft-java-bedrock-edition-pc)
    26.3.
-2. Clone this repository and run `SKIP_BUILD=1 npm install` in it. The variable skips a build that needs
-   CMake and that the bot does not need ([why](docs/core-hooks.md#for-bedrock-edition)).
+2. Clone this repository and run `npm install` in it. For Bedrock Edition, check out the `bedrock` branch
+   first and run `SKIP_BUILD=1 npm install`: the variable skips a build that needs CMake and that the bot
+   does not need. [docs/bedrock.md](docs/bedrock.md#trying-it) has the rest of the Bedrock setup.
 3. Copy `keys.example.json` to `keys.json` and fill in what your model provider needs. Choose the model in
    `andy.json` or another profile. The default profile and local providers need no paid key.
 4. Start a Minecraft Java server, or open a world to LAN. Set `host`, `port` and `auth` in `settings.js` to
@@ -160,7 +159,7 @@ each server its own copy again. Run the live scripts one at a time: they share a
 | [docs/bedrock.md](docs/bedrock.md) | Bedrock Edition: what works, what doesn't, how to try it and how to test it |
 | [docs/core-hooks.md](docs/core-hooks.md) | Every edit this fork makes to an inherited file, and why |
 | [docs/FAQ.md](docs/FAQ.md) | Common problems (inherited) |
-| [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version, for both editions. On the `bedrock` branch, `CHANGELOG-bedrock.md` adds what its library pins changed |
 | [ATTRIBUTION.md](ATTRIBUTION.md) | Credits, and which license covers which files |
 
 ## Where It Came From

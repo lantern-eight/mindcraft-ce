@@ -131,6 +131,10 @@ const CRIES = { hurt_animation: 'hurt', death_animation: 'death' };
 // ---- Operator rights ----
 
 // A Bedrock server's command permission levels, in order: their place is the level the operator check reports, 0 for none.
+// A villager's job by its `variant`, in Bedrock's order, which is not Java's.
+const VILLAGER_JOBS = ['unemployed', 'farmer', 'fisherman', 'shepherd', 'fletcher', 'librarian', 'cartographer',
+    'cleric', 'armorer', 'weaponsmith', 'toolsmith', 'butcher', 'leatherworker', 'mason', 'nitwit'];
+
 const COMMAND_LEVELS = ['normal', 'operator', 'automation', 'host', 'owner', 'internal'];
 
 // ---- Block states by name ----
@@ -319,6 +323,22 @@ export const bedrockEdition = Object.freeze({
      */
     isBaby(entity) {
         return Boolean(entity?.metadata?.flags?.baby);
+    },
+
+    /**
+     * Is this mob a villager, and is it a child, what is its job and its level? Bedrock's villager is
+     * `villager_v2` (`villager` is the one from before villages were reworked, kept for old worlds). Its
+     * job is its `variant`, numbered in Bedrock's own order, and its level is its `trade_tier`, which
+     * counts from 0 for a novice where Java's level counts from 1.
+     */
+    villagerOf(entity) {
+        if (entity?.name !== 'villager_v2' && entity?.name !== 'villager') return null;
+        const { variant, trade_tier: tier } = entity.metadata ?? {};
+        return {
+            baby: Boolean(entity.metadata?.flags?.baby),
+            profession: VILLAGER_JOBS[variant] ?? null,
+            level: Number.isInteger(tier) ? tier + 1 : null,
+        };
     },
 
     moveStack,
