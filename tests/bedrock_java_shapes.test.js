@@ -2,7 +2,7 @@
 // On Bedrock, what the bot hands back has to have the shape it has on Java, because the skills are written
 // against that: an opened chest with deposit, withdraw and close on it, a recipe laid out the way
 // mineflayer and the game data lay one out there, a click on a block that can be followed by another
-// straight away, and a `move` event on every tick the bot moves. No server; the adapter is stood in for.
+// straight away, and a villager's trade window. No server; the adapter is stood in for.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -219,54 +219,6 @@ test('a click that changes nothing waits a moment and no longer', async () => {
     const took = Date.now() - started;
     assert.ok(took >= 300 && took < 900, `waited ${took} ms`);
     assert.equal(bot.listenerCount('blockUpdate:(0, 0, 0)'), 0);
-});
-
-// ---- The move event ----
-
-// A bot as the adapter leaves it: physics moves it each tick and fires physicsTick, and only a correction
-// from the server fires move.
-function movingBot() {
-    const bot = new EventEmitter();
-    bot.entity = { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 };
-    javaShapes(bot);
-    const moves = [];
-    bot.on('move', before => moves.push({ before: before.clone(), now: bot.entity.position.clone() }));
-    bot.emit('physicsTick'); // the first tick tells where the bot is
-    moves.length = 0;
-    return { bot, moves };
-}
-
-test('every tick the bot walks fires move, with where it was before, as on Java', () => {
-    const { bot, moves } = movingBot();
-    for (let tick = 0; tick < 80; tick++) {
-        bot.entity.position.x -= 0.2; // sixteen blocks west in four seconds
-        bot.emit('physicsTick');
-    }
-    assert.equal(moves.length, 80, 'one a tick');
-    assert.ok(moves.every(m => Math.abs(m.now.x - m.before.x + 0.2) < 1e-9), 'each from where the last one left off');
-    assert.ok(Math.abs(moves.at(-1).now.x - -15.5) < 1e-9);
-});
-
-test('standing still fires nothing; turning on the spot does, as on Java', () => {
-    const { bot, moves } = movingBot();
-    for (let tick = 0; tick < 20; tick++) bot.emit('physicsTick');
-    assert.equal(moves.length, 0, 'a bot standing still is quiet');
-    bot.entity.yaw = Math.PI / 2;
-    bot.emit('physicsTick');
-    bot.emit('physicsTick');
-    assert.equal(moves.length, 1, 'one for the turn');
-});
-
-test('a move the adapter fires for a correction is not announced again', () => {
-    const { bot, moves } = movingBot();
-    bot.entity.position.y = 63; // the server puts the bot a block lower
-    bot.emit('move', bot.entity.position);
-    bot.emit('physicsTick');
-    assert.equal(moves.length, 1, 'the adapter\'s own, and no second one');
-});
-
-test('a bot without events is left alone', () => {
-    assert.doesNotThrow(() => javaShapes({ entity: { position: new Vec3(0, 0, 0) } }));
 });
 
 // A bot whose villagers open as the adapter opens them: a trade window comes when the villager sends its

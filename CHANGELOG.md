@@ -17,6 +17,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - On Bedrock, a barrel opened again straight after it was closed (as chest sorting does) opens as soon as
   the server has shut it, instead of on a second click a second later. The Bedrock adapter now waits for
   that itself.
+- On Bedrock, the bot's `move` event, from which world memory lays its trail, comes from the Bedrock adapter
+  on every tick the bot moves or turns, as on Java. This fork had fired it itself until the adapter did.
 
 ## [1.0.0-bedrock.1.0.1] - 2026-11-17
 
