@@ -15,6 +15,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   makes a lamb one time in twenty, which can't be sheared, and wool of another color went uncounted once the
   bot had picked it up. The scene now summons an adult sheep and counts wool of any color.
 
+### Changed
+
+- [docs/bedrock.md](docs/bedrock.md#a-throwaway-server) says how to run the throwaway Bedrock server on an
+  Apple silicon Mac: under Docker Desktop's emulation the image's console command can't find the server, and
+  the page gives one that can.
+
 ## [1.0.0-bedrock.1.0.0] - 2026-11-16
 
 Version 1, of both editions. Bedrock Edition joins the project: its code is on `main` with Java Edition's,
