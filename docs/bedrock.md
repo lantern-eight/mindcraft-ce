@@ -268,7 +268,7 @@ Set `SERVER_UDP_PORTS` to `127.0.0.1:19140-19155:19140-19155` when the tests run
 | `src/agent/bedrock/eating.js` | Eating when hungry. The plugin that does it on Java can't be loaded on Bedrock, so this does the same with the same switches |
 | `src/agent/bedrock/edition.js` | Bedrock's answers to the [edition seam](edition-seam.md)'s questions: how Bedrock numbers block states (by hash), lays out a chunk, sends sounds and operator rights, pairs a double chest, keeps a sign's text and a mob's age, and moves a stack |
 | `src/agent/bedrock/names.js` | Bedrock's names for blocks and states in Java's terms, so world memory knows a Bedrock bed or door for what it is. Memory itself keeps Bedrock's names |
-| `src/agent/bedrock/window_moves.js` | Moving a stack in an open chest, one item stack request a move, for chest sorting; and taking from and putting into a barrel |
+| `src/agent/bedrock/window_moves.js` | Moving a stack in an open chest, one item stack request a move, for chest sorting |
 | `src/agent/bedrock/lockdown_ready.js` | Loads a library the connection uses before the connection does, so that the sandbox for model-written code can still be set up afterwards |
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, and the `move` event on every tick the bot moves |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
