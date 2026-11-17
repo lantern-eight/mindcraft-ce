@@ -71,6 +71,7 @@ const text = edition.signSidesOf(bot.blockAt(position)); // ['Wheat farm\nthis w
 | What a sign says | `signSidesOf(block)` | World memory | The block reads its own text | The text of each side, from the sign's block entity |
 | Whether a mob is a baby | `isBaby(entity)` | The hunting reflex (`isHuntable`) | Entry 16 of the mob's metadata | The `baby` flag among the mob's named flags |
 | Whether a mob is a villager, and its age, job and level | `villagerOf(entity)` | `!entities`, and the commands that show and make trades | Named `villager`; its job and level are one entry of its metadata (18 up to 1.21, 19 from 26.1) | Named `villager_v2`; its job is its `variant`, its level its `trade_tier` |
+| A block's name as Java calls it | `javaNameOf(registry, name)` | Mindcraft's checks against its lists of blocks (`placeBlock`, `breakBlockAt`, `digDown`, `useToolOnBlock`, the self-preservation reflex) | Its own name | The game data's table from Bedrock's blocks to Java's: `flowing_water` is `water`, `snow_layer` is `snow`, Bedrock's `snow` is `snow_block`, `golden_rail` is `powered_rail`. A name the table doesn't have is kept |
 | How far a survival player reaches | `survivalReach()` | Fair play's reach guard | 4.5 blocks to a block, 3 to a mob | 5 to a block (a keyboard, mouse or controller player's), 3 to a mob |
 | Moving a stack in an open chest | `moveStack(bot, window, from, to)` | Chest sorting | Clicks on a cursor, as a player makes them | One item stack request, which the server grants or refuses |
 
@@ -87,9 +88,11 @@ is written.
   often the bot reports moving. `src/agent/bedrock/java_shapes.js` puts Java's shape back on the bot once,
   so Mindcraft's skills run unchanged. The seam answers questions this fork's modules ask about the game;
   `java_shapes.js` evens out the `bot` that everything uses.
-- **Block names.** World memory keeps the names the game in play uses. Where it needs to know what a
-  block is (a chest, a door, a crop), `kinds.js` judges by Java's names, and a Bedrock bot hands it
-  a table from Bedrock's names to Java's (`src/agent/bedrock/names.js`).
+- **Block names, as the bot sees them.** `bot.blockAt` and world memory keep the names the game in play
+  uses. Where world memory needs to know what a block is (a chest, a door, a crop), `kinds.js` judges by
+  Java's names, and a Bedrock bot hands it a table from Bedrock's names to Java's
+  (`src/agent/bedrock/names.js`). Mindcraft's own lists of blocks, also in Java's names, ask
+  `javaNameOf` above, which reads the same table.
 
 ## Adding a Question
 

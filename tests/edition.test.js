@@ -188,3 +188,8 @@ test('a stack is moved with three clicks, the last only when something is left o
 test('a survival player on Java reaches 4.5 blocks to a block and 3 to a mob', () => {
     assert.deepEqual(javaEdition.survivalReach(), { blocks: 4.5, entities: 3 });
 });
+
+test('a Java block\'s name in Java\'s terms is its own', () => {
+    const registry = minecraftData(GAME_VERSION);
+    for (const name of ['snow', 'water', 'powered_rail', 'not_a_block']) assert.equal(javaEdition.javaNameOf(registry, name), name);
+});

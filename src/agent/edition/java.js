@@ -253,6 +253,19 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * A block's name as Java Edition calls it. Mindcraft's skills and reflexes check what is in front of the
+     * bot against lists of Java's names (what may be built over, what is water or lava), and ask this so
+     * those lists hold on another game too. On Java a name is its own.
+     *
+     * @param {object} registry - the bot's game data
+     * @param {string} name - a block's name in the game in play, or the name of the item that places it
+     * @returns {string}
+     */
+    javaNameOf(registry, name) {
+        return name;
+    },
+
+    /**
      * How far a survival player reaches, from the eye: to the nearest part of a block it clicks or digs, and
      * to the nearest part of a mob's hitbox it hits or uses. Java keeps these as two attributes of the
      * player (`block_interaction_range` and `entity_interaction_range`, from 1.20.5), 4.5 and 3 unless a

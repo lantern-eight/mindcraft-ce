@@ -32,6 +32,7 @@
 import { registerEdition } from '../edition/index.js';
 import { javaEdition as java } from '../edition/java.js';
 import { moveStack } from './window_moves.js';
+import { bedrockNamesFor } from './names.js';
 
 /** Does this game data give each block type a run of state numbers, as Java's does? */
 const numbered = new WeakMap();
@@ -170,14 +171,26 @@ function blockStatesOf(registry, name) {
 // ---- Chunks ----
 
 const airStates = new WeakMap(); // registry -> air's state number
-
-// A survival player's reach on Bedrock (see survivalReach).
-const SURVIVAL_REACH = Object.freeze({ blocks: 5, entities: 3 });
 function airOf(registry) {
     let air = airStates.get(registry);
     if (air === undefined) airStates.set(registry, air = registry.blocksByName.air.defaultState);
     return air;
 }
+
+// ---- Block names in Java's terms ----
+
+// The game data's table from Bedrock's block names to Java's, read once per game version (see javaNameOf).
+const javaNames = new Map(); // version -> translation from names.js, or null when there is no table
+function javaNamesFor(registry) {
+    const version = registry?.version?.minecraftVersion;
+    if (!javaNames.has(version)) javaNames.set(version, bedrockNamesFor(version));
+    return javaNames.get(version);
+}
+
+// ---- Reach ----
+
+// A survival player's reach on Bedrock (see survivalReach).
+const SURVIVAL_REACH = Object.freeze({ blocks: 5, entities: 3 });
 
 export const bedrockEdition = Object.freeze({
     name: 'bedrock',
@@ -342,6 +355,18 @@ export const bedrockEdition = Object.freeze({
             profession: VILLAGER_JOBS[variant] ?? null,
             level: Number.isInteger(tier) ? tier + 1 : null,
         };
+    },
+
+    /**
+     * A block's name as Java Edition calls it, for Mindcraft's lists of Java's names. Bedrock names some
+     * blocks its own way: water and lava that are still spreading are `flowing_water` and `flowing_lava`,
+     * Java's thin layer of snow is `snow_layer` while Bedrock's `snow` is a whole block, a powered rail is a
+     * `golden_rail`. The game data has a table from every Bedrock block to the Java block it stands for,
+     * which world memory also goes by (names.js). A name the table doesn't have, such as an item that
+     * places no block, is kept as it is.
+     */
+    javaNameOf(registry, name) {
+        return javaNamesFor(registry)?.(name)?.name ?? name;
     },
 
     /**

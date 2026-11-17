@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- On Bedrock, Mindcraft's lists of blocks, written in Java's names, now hold: `placeBlock` builds over a thin
+  layer of snow and treats a block of snow as in the way (Bedrock calls them `snow_layer` and `snow`; before,
+  it dug out the layer and built over the block), and the checks for water and lava in `digDown`,
+  `breakBlockAt` and the reflex that keeps the bot alive take Bedrock's `flowing_water` and `flowing_lava` for
+  water and lava too. Each check asks for the Java name of the block in front of the bot.
+
 ### Changed
 
 - On Bedrock, fair play's reach guard holds the bot to a Bedrock player's reach: 5 blocks to a block and 3 to a

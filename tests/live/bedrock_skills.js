@@ -241,6 +241,23 @@ const walk = [
         assert.ok(ok, said());
         assert.equal(blockName(2, 0, -2), 'cobblestone', said());
     } },
+    { name: 'placeBlock: a thin layer of snow is no block in the way; a Bedrock snow block is', async run() {
+        // Mindcraft's list of what may be built over names Java's thin layer "snow". On Bedrock that is
+        // "snow_layer", and "snow" is a whole block.
+        await give('cobblestone', 4);
+        await setblock(2, 0, -2, 'snow_layer');
+        await delay(400);
+        assert.ok(await withinTime(skills.placeBlock(bot, 'cobblestone', at(2, 0, -2).x, at(2, 0, -2).y, at(2, 0, -2).z), 30000, 'placeBlock'), said());
+        assert.equal(blockName(2, 0, -2), 'cobblestone', said());
+        assert.doesNotMatch(bot.output, /in the way/, `the layer was taken for a block: ${said()}`);
+        bot.output = '';
+        await give('iron_shovel', 1); // a block of snow is only broken with a shovel in hand
+        await setblock(2, 0, -2, 'snow');
+        await delay(400);
+        assert.ok(await withinTime(skills.placeBlock(bot, 'cobblestone', at(2, 0, -2).x, at(2, 0, -2).y, at(2, 0, -2).z), 30000, 'placeBlock'), said());
+        assert.equal(blockName(2, 0, -2), 'cobblestone', said());
+        assert.match(bot.output, /snow in the way/, `the snow block was built over: ${said()}`);
+    } },
     { name: 'breakBlockAt: break the block at a spot', async run() {
         await setblock(2, 0, -2, 'cobblestone'); await give('iron_pickaxe', 1);
         const ok = await withinTime(skills.breakBlockAt(bot, at(2, 0, -2).x, at(2, 0, -2).y, at(2, 0, -2).z), 30000, 'breakBlockAt');
