@@ -225,23 +225,16 @@ function blockChangesAt(bot, position) {
  * window has no slots: the bot's inventory stays its own while it trades. So the window's `slots` are
  * the bot's inventory, read when asked.
  *
- * Two things the adapter gets wrong are put right here too, as they come with the same call. A villager
- * with no job, or one that is asleep, opens nothing; the adapter's openVillager then waits six seconds and
- * hands back the last trade window it had, so a jobless villager seemed to offer the trades of the villager
- * opened before it. Here that is an error, as a chest that does not open is. And the trade screen comes
- * with the trade list alone, never as the bot's current window, which is all the adapter's close() looks
- * at; so it sent nothing, the server kept the screen open, and the same villager could not be opened
- * again. Here close() closes the trade window itself.
+ * A villager with no job, or one that is asleep, opens nothing. On Java openVillager then fails; the
+ * adapter's hands back nothing instead. Here that is an error, as a chest that does not open is.
  */
 function tradesLikeJava(bot) {
     const open = bot.openVillager;
     if (typeof open !== 'function') return;
     bot.openVillager = async (...args) => {
-        bot.tradeWindow = null; // the adapter's last window, which it would otherwise hand back
         const window = await open.apply(bot, args);
         if (!window) throw new Error('The villager opened no trade window');
         if (!('slots' in window)) Object.defineProperty(window, 'slots', { get: () => bot.inventory.slots, configurable: true });
-        if (typeof bot.closeWindow === 'function') window.close = () => bot.closeWindow(window);
         return window;
     };
     // Making a trade doesn't work on Bedrock yet (docs/bedrock.md, Known Gaps). The adapter puts the goods

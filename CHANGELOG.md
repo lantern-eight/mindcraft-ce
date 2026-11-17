@@ -19,6 +19,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   that itself.
 - On Bedrock, the bot's `move` event, from which world memory lays its trail, comes from the Bedrock adapter
   on every tick the bot moves or turns, as on Java. This fork had fired it itself until the adapter did.
+- On Bedrock, closing a villager's trade screen, and not handing back another villager's trades when one
+  opens nothing, are done by the Bedrock adapter. This fork had put both right itself until it did.
 
 ## [1.0.0-bedrock.1.0.1] - 2026-11-17
 

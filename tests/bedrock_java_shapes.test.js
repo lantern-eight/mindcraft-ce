@@ -222,24 +222,19 @@ test('a click that changes nothing waits a moment and no longer', async () => {
 });
 
 // A bot whose villagers open as the adapter opens them: a trade window comes when the villager sends its
-// trade list, and when none comes the adapter hands back whatever trade window it had last.
-// The trade screen comes with the trade list alone, so it never becomes bot.currentWindow, and the
-// adapter's close() on it sends nothing.
+// trade list, and when none comes the adapter hands back nothing. The window closes itself.
 function tradingBot() {
     const closed = [];
     const bot = {
         tradeWindow: null,
-        currentWindow: null,
         closed,
         inventory: { slots: [] },
         openVillager: async villager => {
-            if (villager.trades) {
-                bot.tradeWindow = { id: 7, type: 'trading', trades: villager.trades,
-                    close() { if (bot.currentWindow) bot.closeWindow(bot.currentWindow); } };
-            }
-            return bot.tradeWindow || null;
+            bot.tradeWindow = villager.trades
+                ? { id: 7, type: 'trading', trades: villager.trades, close() { closed.push(this.id); } }
+                : null;
+            return bot.tradeWindow;
         },
-        closeWindow: window => { closed.push(window?.id); },
         traded: 0,
         trade: async () => { bot.traded++; },
     };
@@ -255,17 +250,17 @@ test('a trade window\'s slots are the bot\'s own, where the trading skill counts
     assert.deepEqual(window.slots, bot.inventory.slots, 'read when asked, so it is never out of date');
 });
 
-test('a villager that opens no trade window is an error, not the last villager\'s trades', async () => {
+test('a villager that opens no trade window is an error, as on Java', async () => {
     const bot = tradingBot();
     await bot.openVillager({ id: 1, trades: [{ inputItem1: { name: 'paper', count: 24 } }] });
     await assert.rejects(bot.openVillager({ id: 2 }), /no trade window/);
 });
 
-test('closing a trade window closes it on the server, so the villager can be opened again', async () => {
+test('a trade window keeps the adapter\'s own close()', async () => {
     const bot = tradingBot();
     const window = await bot.openVillager({ id: 1, trades: [{ inputItem1: { name: 'paper', count: 24 } }] });
     window.close();
-    assert.deepEqual(bot.closed, [7], 'the trade window itself, by its id');
+    assert.deepEqual(bot.closed, [7]);
 });
 
 test('a trade is refused before any goods move: on Bedrock the server drops it and the bot loses them', async () => {
