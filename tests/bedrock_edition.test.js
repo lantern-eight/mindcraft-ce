@@ -149,6 +149,11 @@ test('Bedrock answers every question the edition seam asks', () => {
     assert.deepEqual(missing, []);
 });
 
+test('a survival player on Bedrock reaches half a block farther to a block than on Java, and as far to a mob', () => {
+    // The keyboard, mouse and controller reach. A touch screen reaches a block 6 away; the bot is held to 5.
+    assert.deepEqual(bedrockEdition.survivalReach(), { blocks: 5, entities: 3 });
+});
+
 test('a Bedrock mob is a baby by its flags, not by Java\'s numbered entry', () => {
     assert.equal(bedrockEdition.isBaby({ name: 'cow', metadata: { flags: { baby: true, breathing: true } } }), true);
     assert.equal(bedrockEdition.isBaby({ name: 'cow', metadata: { flags: { baby: false } } }), false);

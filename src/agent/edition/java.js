@@ -51,6 +51,9 @@ function soundNameOf(registry, packet) {
     return Number.isInteger(id) ? registry?.sounds?.[id + base]?.name ?? null : null;
 }
 
+// A survival player's reach on Java (see survivalReach).
+const SURVIVAL_REACH = Object.freeze({ blocks: 4.5, entities: 3 });
+
 // The values a block property can take, in the order Java counts them.
 const valuesOf = property => property.values
     ?? (property.type === 'bool' ? ['true', 'false'] : Array.from({ length: property.num_values }, (_, i) => String(i)));
@@ -247,6 +250,18 @@ export const javaEdition = Object.freeze({
         const job = data ? data.villagerProfession : typeof entity.metadata?.[18] === 'number' ? entity.metadata[18] : null;
         const level = Number.isInteger(data?.level) ? data.level : null;
         return { baby: isBaby(entity), profession: PROFESSIONS[job] ?? null, level };
+    },
+
+    /**
+     * How far a survival player reaches, from the eye: to the nearest part of a block it clicks or digs, and
+     * to the nearest part of a mob's hitbox it hits or uses. Java keeps these as two attributes of the
+     * player (`block_interaction_range` and `entity_interaction_range`, from 1.20.5), 4.5 and 3 unless a
+     * server changes them. Creative mode reaches farther; fair play plays survival.
+     *
+     * @returns {{blocks: number, entities: number}}
+     */
+    survivalReach() {
+        return SURVIVAL_REACH;
     },
 
     /**

@@ -170,6 +170,9 @@ function blockStatesOf(registry, name) {
 // ---- Chunks ----
 
 const airStates = new WeakMap(); // registry -> air's state number
+
+// A survival player's reach on Bedrock (see survivalReach).
+const SURVIVAL_REACH = Object.freeze({ blocks: 5, entities: 3 });
 function airOf(registry) {
     let air = airStates.get(registry);
     if (air === undefined) airStates.set(registry, air = registry.blocksByName.air.defaultState);
@@ -339,6 +342,23 @@ export const bedrockEdition = Object.freeze({
             profession: VILLAGER_JOBS[variant] ?? null,
             level: Number.isInteger(tier) ? tier + 1 : null,
         };
+    },
+
+    /**
+     * How far a survival player reaches, from the eye. A Bedrock player with a keyboard and mouse or a
+     * controller clicks and digs blocks up to 5 blocks away, half a block farther than on Java, and hits a
+     * mob up to 3 away, as on Java. A player on a touch screen reaches a block 6 away; the bot is held to
+     * the shorter reach, the one most players have.
+     *
+     * The server can't be asked: it lets far more through. A Bedrock Dedicated Server took a block dug 10
+     * blocks away, a trapdoor opened 7 away and a mob hit 6 away, because it allows a margin for lag (half
+     * as much again for digging) and does not check how far a hit reaches unless told to. Told to, with no
+     * margin, it refused every hit past 3.
+     *
+     * @returns {{blocks: number, entities: number}}
+     */
+    survivalReach() {
+        return SURVIVAL_REACH;
     },
 
     moveStack,

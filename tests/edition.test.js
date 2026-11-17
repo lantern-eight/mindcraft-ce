@@ -184,3 +184,7 @@ test('a stack is moved with three clicks, the last only when something is left o
     await javaEdition.moveStack(bot, window, 3, 40);
     assert.deepEqual(clicks, [[3, 0, 0], [40, 0, 0], [3, 0, 0]], 'what came off goes back where the move began');
 });
+
+test('a survival player on Java reaches 4.5 blocks to a block and 3 to a mob', () => {
+    assert.deepEqual(javaEdition.survivalReach(), { blocks: 4.5, entities: 3 });
+});

@@ -5,8 +5,9 @@
 // The server checks distance for these actions but not line of sight, and mineflayer checks neither.
 // So without this the bot can open a chest through a stone wall, or dig a block it has only heard
 // about. Two rules, checked just before the action is sent:
-//   1. Reach: the target is within a survival player's reach of the bot's eye (4.5 blocks to a block,
-//      3 to a mob). The server allows a little more to forgive lag; the bot doesn't use that slack.
+//   1. Reach: the target is within a survival player's reach of the bot's eye. That differs by edition
+//      (on Java 4.5 blocks to a block and 3 to a mob, on Bedrock 5 and 3), so the edition seam is asked.
+//      The server allows more to forgive lag; the bot doesn't use that slack.
 //   2. Sight: the target is in view this instant. Remembering where something is doesn't count, and
 //      for placing a block it is the side being clicked that has to be in view.
 // A refusal is an error with a message the model can act on ("move to where you can see it").
@@ -16,6 +17,7 @@
 // The pathfinder and the combat plugin call the same bot methods from their own timers while they
 // carry an action out; they are the "legs" and stay unguarded for now (see the design, layer 6).
 import { actionContext } from '../action_context.js';
+import { editionOf } from '../edition/index.js';
 
 // What each guarded bot method does to its target, for the refusal message.
 const BLOCK_ACTIONS = {
@@ -38,9 +40,17 @@ function distanceToBox(p, minX, minY, minZ, maxX, maxY, maxZ) {
  * @param {object} options
  * @param {object} options.policy - from resolvePolicy
  * @param {() => object|null} options.getPerception - the current perception service, or null before spawn
+ * @param {() => object|null} [options.getRegistry] - the bot's game data, for the game's own reach. Without
+ *   it, as in tests on hand-built worlds, the game is taken to be Java
  * @returns {{checkBlock: function, checkEntity: function}} each throws when the action isn't allowed
  */
-export function createReachGuard({ policy, getPerception }) {
+export function createReachGuard({ policy, getPerception, getRegistry = () => null }) {
+    // "survival" in the policy means whatever a survival player of the game in play can reach. Asked each
+    // time rather than once: the guard is made before the bot knows which game it has joined.
+    const reachOf = kind => {
+        const setting = policy[`reach_${kind}`];
+        return typeof setting === 'number' ? setting : editionOf(getRegistry()).survivalReach()[kind];
+    };
     const ready = () => {
         const perception = getPerception();
         if (!perception) throw refusal("Fair play isn't ready yet; the bot has to finish spawning first.");
@@ -59,8 +69,9 @@ export function createReachGuard({ policy, getPerception }) {
         const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
         const where = `the block at ${x}, ${y}, ${z}`;
         const distance = distanceToBox(perception.eye(), x, y, z, x + 1, y + 1, z + 1);
-        if (distance > policy.reach_blocks + 1e-6)
-            throw refusal(`You can't reach ${where}: it is ${distance.toFixed(1)} blocks away and you can reach ${policy.reach_blocks}. Move closer first.`);
+        const reach = reachOf('blocks');
+        if (distance > reach + 1e-6)
+            throw refusal(`You can't reach ${where}: it is ${distance.toFixed(1)} blocks away and you can reach ${reach}. Move closer first.`);
         if (policy.interact_through_walls === true) return;
         if (!perception.seesCell(pos))
             throw refusal(`You can't see ${where} from here, so you can't ${verb}. Move to where you can see it.`);
@@ -76,8 +87,9 @@ export function createReachGuard({ policy, getPerception }) {
         const what = `the ${entity.name ?? entity.username ?? 'entity'}`;
         const half = (entity.width ?? 0.6) / 2, height = entity.height ?? 1.8;
         const distance = distanceToBox(perception.eye(), pos.x - half, pos.y, pos.z - half, pos.x + half, pos.y + height, pos.z + half);
-        if (distance > policy.reach_entities + 1e-6)
-            throw refusal(`You can't reach ${what}: it is ${distance.toFixed(1)} blocks away and you can reach ${policy.reach_entities}. Move closer first.`);
+        const reach = reachOf('entities');
+        if (distance > reach + 1e-6)
+            throw refusal(`You can't reach ${what}: it is ${distance.toFixed(1)} blocks away and you can reach ${reach}. Move closer first.`);
         if (policy.interact_through_walls === true) return;
         if (!perception.seesEntity(entity))
             throw refusal(`You can't see ${what} from here, so you can't ${verb}.`);
