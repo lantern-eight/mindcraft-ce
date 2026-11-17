@@ -35,7 +35,7 @@ try {
         use_function_calling:true,use_brain_agent:false,tool_narration:'periodic',tool_narration_every:3,
         tool_narration_max_silence_seconds:30,modes:{torch_placing:false,item_collecting:false,hunting:false,elbow_room:false,idle_staring:false}}));
     child=spawn(process.execPath,['main.js','--profiles',profile],{env:{...process.env,SETTINGS_JSON:JSON.stringify({
-        host:'127.0.0.1',port:fixture.port,mindserver_port:mindPort,minecraft_version:GAME_VERSION,auth:'offline',
+        host:'127.0.0.1',port:fixture.port,mindserver_port:mindPort,minecraft_version:GAME_VERSION,minecraft_edition:'java',auth:'offline',
         init_message:'',num_examples:0,max_messages:200,load_memory:false,allow_insecure_coding:false,
     })},stdio:['pipe','pipe','pipe']});
     const capture=data=>{log+=data;appendFileSync(path.join(fixture.dir,'agent-log.txt'),data);};

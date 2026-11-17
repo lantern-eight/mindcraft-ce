@@ -9,6 +9,15 @@
         "description": "The version of Minecraft to use. Set to 'auto' to automatically detect the version.",
         "default": "auto"
     },
+    "minecraft_edition": {
+        "type": "string",
+        "description": "Which Minecraft the server runs: Java Edition or Bedrock Edition. Bedrock needs the libraries the bedrock branch pins. For bedrock, minecraft_version is a Bedrock version such as 1.26.60 (or auto), and port is the Bedrock server's, 19132 unless it was changed.",
+        "default": "java",
+        "options": [
+            "java",
+            "bedrock"
+        ]
+    },
     "host": {
         "type": "string",
         "description": "The minecraft server host address to connect to",
@@ -16,7 +25,7 @@
     },
     "port": {
         "type": "number",
-        "description": "The minecraft server port to connect to. -1 for auto-detect.",
+        "description": "The minecraft server port to connect to. 19132 is Bedrock's usual port. -1 for auto-detect (Java).",
         "default": 55916
     },
     "auth": {
