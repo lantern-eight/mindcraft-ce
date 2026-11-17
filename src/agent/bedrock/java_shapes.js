@@ -239,8 +239,38 @@ function tradesLikeJava(bot) {
     };
 }
 
+/**
+ * A biome, read from the world.
+ *
+ * On Java `bot.world.getBiome(position)` answers with the biome's number, and Mindcraft and world memory
+ * look its name up in the game data by that number. The Bedrock chunk answers with a biome object instead,
+ * so the lookup found nothing. Here it answers with the object's number. The adapter makes a new world when
+ * the bot changes dimension and puts it at `bot.world`, so each world is evened out as it is put there.
+ */
+const NUMBERED = Symbol('biomes answered as numbers');
+function biomesLikeJava(bot) {
+    if (!('world' in bot)) return; // the adapter puts a world in place before this plugin loads
+    const numbered = world => {
+        if (!world || typeof world.getBiome !== 'function' || world.getBiome[NUMBERED]) return world;
+        const getBiome = world.getBiome;
+        world.getBiome = Object.assign(function (...args) {
+            const biome = getBiome.apply(this, args);
+            return biome && typeof biome === 'object' ? biome.id : biome;
+        }, { [NUMBERED]: true });
+        return world;
+    };
+    let world = numbered(bot.world);
+    Object.defineProperty(bot, 'world', {
+        configurable: true,
+        enumerable: true,
+        get: () => world,
+        set: next => { world = numbered(next); },
+    });
+}
+
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
 export function javaShapes(bot) {
+    biomesLikeJava(bot);
     chestsLikeJava(bot);
     recipesLikeJava(bot);
     clicksThatSettle(bot);

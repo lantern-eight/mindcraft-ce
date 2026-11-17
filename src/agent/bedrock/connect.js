@@ -165,31 +165,22 @@ export function acceptServerKey(client, log = console.log) {
 }
 
 /**
- * The bot's game data as the rest of the code may read it: everything in the registry, with two parts
+ * The bot's game data as the rest of the code may read it: everything in the registry, with recipes
  * answered differently.
  *
- * **Biomes.** A Bedrock bot does not know which biome it is in yet. The adapter doesn't read biomes from
- * the chunks the server sends, so every spot answers with the first biome in the table, whatever is really
- * there. Inherited code looks the biome up by number when it writes the bot's status for the model, and
- * stops with an error on an answer it can't find. So here every lookup finds a biome named "unknown": the
- * model is told the truth, and nothing stops.
- *
- * **Recipes.** The recipes in the installed game data are for an old Bedrock version and are laid out
- * another way than Java's, which is the way the skills read them. A Bedrock server sends its own recipes
- * when the bot joins; those are handed out here, in Java's layout (see java_shapes.js).
+ * The recipes in the installed game data are for an old Bedrock version and are laid out another way than
+ * Java's, which is the way the skills read them. A Bedrock server sends its own recipes when the bot joins;
+ * those are handed out here, in Java's layout (see java_shapes.js).
  *
  * The object handed back reads through to the registry for everything else, so the numbers the server
- * handed out are still the ones in use. This fork's own code reads biomes from the bot's registry
- * directly, finds nothing for a Bedrock answer, and records no biome, which is also right.
+ * handed out are still the ones in use. Biomes are the registry's own: the world answers with a biome's
+ * number (java_shapes.js), and a number the table lacks reads as "unknown" where Mindcraft names it.
  */
 export function gameDataFor(registry, bot = null) {
-    const unknown = Object.freeze({ name: 'unknown' });
-    const biomes = new Proxy({}, { get: (_target, key) => (typeof key === 'string' ? unknown : undefined) });
     const recipes = new Proxy({}, {
         get: (_target, key) => (typeof key === 'string' && /^\d+$/.test(key) ? recipesLikeGameData(bot, Number(key)) : undefined),
     });
     return Object.create(registry, {
-        biomes: { value: biomes, enumerable: true },
         recipes: { value: recipes, enumerable: true },
     });
 }

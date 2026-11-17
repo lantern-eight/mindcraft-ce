@@ -16,7 +16,7 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 
 | | |
 |---|---|
-| **Works** | Joining and spawning. Reading the blocks around the bot. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, world memory and chest sorting. The whole agent starts, hears a player and answers through a model |
+| **Works** | Joining and spawning. Reading the blocks around the bot, and the biome it is in. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, world memory and chest sorting. The whole agent starts, hears a player and answers through a model |
 | **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, and code that reads a block's properties expects Java's names for them |
 | **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots |
 
@@ -122,7 +122,6 @@ stay.
 | **Mobs' everyday noises** | Not heard. A Bedrock client makes a mob's moos and groans up by itself, and the server never sends them, so the bot hears a mob only when it is hurt or dies, or does something the server plays a sound for |
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
 | **World memory** | Works. Checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. And by `bedrock_memory_scenarios.js`, as the agent runs it: a chest opened and walked away from is recalled with what was in it and the way back; the trail, saved places, what a sign says, and the changes found after a minute out of sight, told once; memory saved to disk. Each world has its own memory, named by a hash of the seed the server sends |
-| **Biome** | Reported as "unknown". The adapter doesn't read biomes from chunks |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
 | **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's. A few of Mindcraft's lists name blocks by Java's names only: `placeBlock` takes Java's `snow` (a thin layer) for empty space where it may build, which on Bedrock is a whole block of snow, and does not take Bedrock's `flowing_water` or `snow_layer` for empty space |
 

@@ -269,3 +269,35 @@ test('a trade goes to the adapter\'s own trade', async () => {
     await bot.trade(window, 0, 1);
     assert.equal(bot.traded, 1);
 });
+
+// A world as the adapter's: getBiome answers with a biome object (prismarine-biome), where Java's answers
+// with the biome's number, which Mindcraft and world memory look up in the game data.
+function biomeWorld(id) {
+    return { getBiome: () => ({ id, name: 'whatever the table says' }) };
+}
+
+test('a biome is read as its number, as on Java', () => {
+    const bot = { world: biomeWorld(1) };
+    javaShapes(bot);
+    assert.equal(bot.world.getBiome(new Vec3(0, 64, 0)), 1);
+});
+
+test('a world the adapter puts in place later (a new dimension) also answers with numbers', () => {
+    const bot = { world: biomeWorld(1) };
+    javaShapes(bot);
+    bot.world = biomeWorld(8);
+    assert.equal(bot.world.getBiome(new Vec3(0, 64, 0)), 8);
+    bot.world = biomeWorld(8);
+    const world = bot.world;
+    bot.world = world; // the same world again is not wrapped twice
+    assert.equal(bot.world.getBiome(new Vec3(0, 64, 0)), 8);
+});
+
+test('a world that already answers with a number, or has no answer, is left as it is', () => {
+    const bot = { world: { getBiome: () => 3 } };
+    javaShapes(bot);
+    assert.equal(bot.world.getBiome(new Vec3(0, 64, 0)), 3);
+    const unloaded = { world: { getBiome: () => null } };
+    javaShapes(unloaded);
+    assert.equal(unloaded.world.getBiome(new Vec3(0, 64, 0)), null);
+});

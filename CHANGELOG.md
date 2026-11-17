@@ -16,6 +16,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   every trade; the `bedrock` branch now pins an adapter that reads the number from the game version, and this
   fork no longer refuses trades.
 
+### Fixed
+
+- On Bedrock, the bot knows which biome it is in. It was always "unknown": the Bedrock adapter never read
+  biomes from the chunks a current server sends, and the game data numbered Bedrock's biomes alphabetically
+  where a chunk carries Bedrock's own numbers. Both are fixed in the libraries, which `main` (the game data)
+  and the `bedrock` branch (the adapter) now pin.
+
 ### Changed
 
 - On Bedrock, taking from and putting into a chest, a barrel or a shulker box moves the amount asked for from
