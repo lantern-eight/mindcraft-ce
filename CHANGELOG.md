@@ -11,6 +11,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- On Bedrock, a loom keeps the dyes a pattern doesn't use. Given a stack of dye, the Bedrock adapter put the
+  whole stack into the loom and used one, and the server kept the rest. The fix is in the Bedrock adapter,
+  which the `bedrock` branch now pins. The enchanting table, the grindstone and the smithing table were
+  checked on a server too, and work.
 - On Bedrock, `digDown` straight after a walk takes the bot down the hole it digs. A walk can leave a Bedrock
   bot up to a third of a block off the middle of its block, standing partly on the next one, so it dug the
   hole and stayed on top. Before it digs the block under its feet, the bot now steps to the middle of its
