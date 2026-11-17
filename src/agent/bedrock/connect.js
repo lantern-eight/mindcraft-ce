@@ -129,8 +129,10 @@ export function bedrockBotOptions(settings, username, { compiledRakNet = hasComp
     // Left out for "auto": naming no version is how the library is asked to find it.
     if (dataName) options.version = dataName;
     // Without the compiled backend the library falls back to a JavaScript one by itself, but only after
-    // looking for the server with the missing one and printing a long error about it. Naming the
-    // JavaScript backend up front makes that first look work.
+    // trying the missing one and printing a long error about it. Naming the JavaScript backend up front
+    // makes the connection use it at once. The look for the server before connecting doesn't read this
+    // option yet and still tries the compiled backend, which fails quietly there
+    // (PrismarineJS/bedrock-protocol#846); a current server is found over HTTP anyway.
     if (!compiledRakNet) options.raknetBackend = 'jsp-raknet';
     return options;
 }

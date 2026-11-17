@@ -16,6 +16,13 @@
 // global functions by then: checked live, a bot stays connected through `lockdown()`, and a second bot
 // connects after it.
 //
+// This is a clash between two libraries that each work as designed, not a mistake in either, so it stays
+// until one of them changes. `reflect-metadata` makes the property undeletable on purpose, so that every
+// copy of the library shares one registry; its `no-conflict` entry, made for SES, still puts it on the
+// global `Reflect`. SES removes what it doesn't know from the built-in objects on purpose, and won't leave
+// an undeletable one behind, since anything left there is shared by all sandboxed code. Neither has an
+// option to change that.
+//
 // connect.js calls it as it starts a Bedrock bot, before the bot connects; never for a Java bot, whose
 // libraries don't load `reflect-metadata` at all. If the libraries are ever installed without this chain
 // (a newer NetherNet that doesn't use them), there is nothing to do and it does nothing.
