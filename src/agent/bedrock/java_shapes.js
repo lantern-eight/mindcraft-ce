@@ -14,16 +14,10 @@
 // This is a mineflayer plugin: load it after the bot is created and it runs once the adapter's own
 // plugins are in place.
 
-import Vec3 from 'vec3';
-import { sideOfWindow, transferItems } from './window_moves.js';
-
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // How long a chest gets to open. The adapter waits three seconds for the same thing.
 const OPEN_TIMEOUT_MS = 5000;
-// How long before a click that opened nothing is made again. A window comes back in a tenth of a second
-// or so; a click the server ignored never brings one.
-const RECLICK_MS = 1000;
 
 /**
  * Chests, barrels and the like.
@@ -42,12 +36,8 @@ const RECLICK_MS = 1000;
  * As on Java, the first two go through `bot.openBlock`, looked up when they are called. World memory
  * wraps `bot.openBlock` to note what was in a chest, and that one wrapper has to see every way in.
  *
- * A click that names a block in a state the server no longer has is ignored. A barrel is a different
- * block state open and shut, and for a moment after it is closed the bot still sees it open, so a click
- * to open it again straight away was ignored and the chest sorter, which does just that, gave up on the
- * barrel. So a click that brings no window is made once more, a second later, when the bot sees the
- * block as it is. And only the latest open waits for a window: an older one that is still waiting gives
- * way, instead of taking the window the newer one opened and handing it to a caller that gave up on it.
+ * Only the latest open waits for a window: an older one that is still waiting gives way, instead of
+ * taking the window the newer one opened and handing it to a caller that gave up on it.
  */
 function chestsLikeJava(bot) {
     if (typeof bot.openContainer !== 'function') return; // an adapter without containers: nothing to shape
@@ -68,15 +58,10 @@ function chestsLikeJava(bot) {
         const before = bot.currentWindow;
         click(block);
         const deadline = Date.now() + OPEN_TIMEOUT_MS;
-        let again = Date.now() + RECLICK_MS;
         while (Date.now() < deadline) {
             if (ticket !== latest) throw new Error(`Something else was opened while waiting for the ${block?.name ?? 'container'}`);
             const window = bot.currentWindow;
             if (window && window !== before) return withHands(window);
-            if (again && Date.now() >= again) {
-                again = 0;
-                click(block); // the adapter names the block as the bot sees it now
-            }
             await delay(50);
         }
         throw new Error(`The ${block?.name ?? 'container'} did not open`);
@@ -85,19 +70,8 @@ function chestsLikeJava(bot) {
     function withHands(window) {
         // A crafting table or a furnace opens a window too, and the adapter has its own calls for those.
         // These three are added to whatever opened and are simply not used there.
-        // The adapter's own withdraw and deposit name a chest's slots, which the server refuses for a
-        // barrel or a shulker box. Those get the same moves made with the right name (window_moves.js).
-        const ownMoves = window.inventoryStart != null && sideOfWindow(bot, window) !== 'container';
-        if (typeof window.deposit !== 'function') {
-            window.deposit = ownMoves
-                ? (itemType, metadata, count) => transferItems(bot, window, { itemType, count: count ?? null, into: 'container' })
-                : (itemType, metadata, count) => bot.deposit(itemType, metadata ?? null, count ?? null);
-        }
-        if (typeof window.withdraw !== 'function') {
-            window.withdraw = ownMoves
-                ? (itemType, metadata, count) => transferItems(bot, window, { itemType, count: count ?? null, into: 'inventory' })
-                : (itemType, metadata, count) => bot.withdraw(itemType, metadata ?? null, count ?? null);
-        }
+        if (typeof window.deposit !== 'function') window.deposit = (itemType, metadata, count) => bot.deposit(itemType, metadata ?? null, count ?? null);
+        if (typeof window.withdraw !== 'function') window.withdraw = (itemType, metadata, count) => bot.withdraw(itemType, metadata ?? null, count ?? null);
         if (typeof window.close !== 'function') window.close = () => { if (bot.currentWindow === window) bot.closeWindow(window); };
         return window;
     }
@@ -244,40 +218,6 @@ function blockChangesAt(bot, position) {
 }
 
 /**
- * The bot's `move` event, as often as on Java.
- *
- * On Java, mineflayer fires `move` each time it tells the server where the bot is or which way it faces,
- * which it does on every tick the bot moved or turned. The Bedrock adapter tells the server on every tick
- * too, but fires `move` only when the server corrects the bot or teleports it. A walk of sixteen blocks
- * brought three of them, some five blocks apart. World memory lays its trail from `move`, a crumb every
- * few blocks: with so few events the trail had gaps, and two events more than ten blocks apart read as
- * a teleport, which breaks the trail where the bot simply walked.
- *
- * So after each physics tick in which the bot moved or turned, `move` is fired here, with where the bot
- * was before, as on Java. A `move` the adapter fires itself counts too, so the same change is never
- * announced twice. Nothing else changes: what the bot sends the server, and how it moves, are the
- * adapter's. Should the adapter one day fire `move` on every tick itself, this piece goes.
- */
-function movesLikeJava(bot) {
-    if (typeof bot.on !== 'function' || typeof bot.emit !== 'function') return;
-    let last = null; // where the bot was, and which way it faced, when `move` last fired
-    const pose = () => {
-        const entity = bot.entity;
-        if (!entity?.position) return null;
-        const { x, y, z } = entity.position;
-        return { x, y, z, yaw: entity.yaw, pitch: entity.pitch };
-    };
-    bot.on('move', () => { last = pose(); });
-    bot.on('physicsTick', () => {
-        const now = pose();
-        if (!now) return;
-        if (last && now.x === last.x && now.y === last.y && now.z === last.z && now.yaw === last.yaw && now.pitch === last.pitch) return;
-        const before = last ?? now;
-        bot.emit('move', new Vec3(before.x, before.y, before.z));
-    });
-}
-
-/**
  * Villagers' trade windows.
  *
  * On Java, `openVillager` hands back a window whose `slots` hold the trade's own slots and then the
@@ -285,23 +225,16 @@ function movesLikeJava(bot) {
  * window has no slots: the bot's inventory stays its own while it trades. So the window's `slots` are
  * the bot's inventory, read when asked.
  *
- * Two things the adapter gets wrong are put right here too, as they come with the same call. A villager
- * with no job, or one that is asleep, opens nothing; the adapter's openVillager then waits six seconds and
- * hands back the last trade window it had, so a jobless villager seemed to offer the trades of the villager
- * opened before it. Here that is an error, as a chest that does not open is. And the trade screen comes
- * with the trade list alone, never as the bot's current window, which is all the adapter's close() looks
- * at; so it sent nothing, the server kept the screen open, and the same villager could not be opened
- * again. Here close() closes the trade window itself.
+ * A villager with no job, or one that is asleep, opens nothing. On Java openVillager then fails; the
+ * adapter's hands back nothing instead. Here that is an error, as a chest that does not open is.
  */
 function tradesLikeJava(bot) {
     const open = bot.openVillager;
     if (typeof open !== 'function') return;
     bot.openVillager = async (...args) => {
-        bot.tradeWindow = null; // the adapter's last window, which it would otherwise hand back
         const window = await open.apply(bot, args);
         if (!window) throw new Error('The villager opened no trade window');
         if (!('slots' in window)) Object.defineProperty(window, 'slots', { get: () => bot.inventory.slots, configurable: true });
-        if (typeof bot.closeWindow === 'function') window.close = () => bot.closeWindow(window);
         return window;
     };
     // Making a trade doesn't work on Bedrock yet (docs/bedrock.md, Known Gaps). The adapter puts the goods
@@ -319,6 +252,5 @@ export function javaShapes(bot) {
     chestsLikeJava(bot);
     recipesLikeJava(bot);
     clicksThatSettle(bot);
-    movesLikeJava(bot);
     tradesLikeJava(bot);
 }
