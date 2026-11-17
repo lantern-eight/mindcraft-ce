@@ -92,10 +92,9 @@ editions, and the pins live on a branch of their own.
   set to Bedrock on `main` stops with a message that says to use the `bedrock` branch, and the tests that
   need the Bedrock libraries skip themselves there. Each branch's `README.md` says which game versions it
   works with. Keep that line true when a version moves.
-- **`bedrock` is `main` plus what makes Bedrock run, and nothing else:** the library pins (`package.json`,
-  `package-lock.json`, and the patches whose line numbers they move), its defaults (`minecraft_edition`
-  `"bedrock"`, a Bedrock version and port), the list of those pins in `docs/core-hooks.md`, and
-  `CHANGELOG-bedrock.md`. When the libraries release their Bedrock work, the branch is no longer needed.
+- **`bedrock` is `main` plus what makes Bedrock run, and nothing else:** its library pins and its
+  defaults, file by file under "What Differs Between the Branches" below. When the libraries release their
+  Bedrock work, the branch is no longer needed.
 - **Code goes into `main`, whichever edition it is for,** on a working branch cut from `main`. Java and
   Bedrock changes alike reach `bedrock` when `main` is merged into it: with a merge commit, into a working
   branch cut from `bedrock`, which goes into `bedrock` by its pull request. Do that after every release of
@@ -113,6 +112,26 @@ editions, and the pins live on a branch of their own.
   the setting, so it can't break the Java bot.
 - **Keep the difference between the two branches to the pins and the defaults.**
 - Every rule in this file holds on both branches.
+
+### What Differs Between the Branches
+
+These files, and only these, differ between `main` and `bedrock`. Every other file is the same on both.
+
+| File | What `bedrock` has |
+|---|---|
+| `package.json`, `package-lock.json` | The Bedrock library pins, and `overrides` that make the whole tree use them |
+| The patches in `patches/` whose line numbers the pins move (today mineflayer-pathfinder's and prismarine-block's) | The same changes, at the pinned branches' line numbers |
+| `settings.js`, `src/mindcraft/public/settings_spec.json` | The Bedrock defaults: `minecraft_edition` `"bedrock"`, `minecraft_version` `"auto"`, `port` 19132. Only those values differ; the keys and comments are the same |
+| `docs/core-hooks.md` | The pins, under "For Bedrock Edition", and the two rows of "Housekeeping Edits" about the files above |
+| `CHANGELOG-bedrock.md` | Only on `bedrock`: the releases of its pins alone |
+
+- **Check it** with `git diff --stat origin/main origin/bedrock`. It lists these files and no others. Any
+  other file in it is a change that belongs on `main`, or a merge that kept the wrong side.
+- **When `main` is merged into `bedrock`,** a conflict in any other file is settled by taking `main`'s
+  version (`git checkout origin/main -- <file>`). In these files, keep `bedrock`'s pins and defaults and take
+  the rest from `main`.
+- **A new difference is a decision, not a side effect.** Add it to this table in the same pull request, and
+  keep it to dependencies and defaults. Code only Bedrock needs still goes on `main`, behind the setting.
 
 ## Fixes to Inherited Code
 
