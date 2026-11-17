@@ -11,6 +11,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- On Bedrock, `digDown` straight after a walk takes the bot down the hole it digs. A walk can leave a Bedrock
+  bot up to a third of a block off the middle of its block, standing partly on the next one, so it dug the
+  hole and stayed on top. Before it digs the block under its feet, the bot now steps to the middle of its
+  block, as a player would.
 - On Bedrock, Mindcraft's lists of blocks, written in Java's names, now hold: `placeBlock` builds over a thin
   layer of snow and treats a block of snow as in the way (Bedrock calls them `snow_layer` and `snow`; before,
   it dug out the layer and built over the block), and the checks for water and lava in `digDown`,

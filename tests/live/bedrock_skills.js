@@ -382,6 +382,29 @@ const walk = [
         assert.ok(ok, said());
         assert.ok(before - bot.entity.position.y >= 1.5, `went down ${(before - bot.entity.position.y).toFixed(1)} blocks; ${said()}`);
     } },
+    { name: 'digDown after a walk: the bot goes down the hole it digs', async run() {
+        // digDown digs the column under the bot's feet. A bot standing off the middle of its block stands
+        // partly on the next one, and doesn't drop into the hole. On Java the pathfinder puts the bot in the
+        // middle of its block when it stops; on Bedrock it can't (the server refuses that shift).
+        await give('iron_shovel', 1);
+        const offsets = [];
+        for (const [dx, dz] of [[4, 3], [-3, 4], [3, -4]]) {
+            const there = at(dx, 0, dz);
+            assert.ok(await withinTime(skills.goToPosition(bot, there.x, there.y, there.z, 0), 30000, 'goToPosition'), said());
+            await delay(600);
+            const p = bot.entity.position;
+            offsets.push(Math.max(Math.abs(p.x - Math.floor(p.x) - 0.5), Math.abs(p.z - Math.floor(p.z) - 0.5)));
+            const before = p.y;
+            const ok = await withinTime(skills.digDown(bot, 2), 40000, 'digDown');
+            assert.ok(ok, said());
+            await delay(800);
+            assert.ok(before - bot.entity.position.y >= 1.5,
+                `went down ${(before - bot.entity.position.y).toFixed(1)} blocks, standing ${offsets.at(-1).toFixed(2)} off the middle; ${said()}`);
+            await reset();
+            await give('iron_shovel', 1);
+        }
+        return { offMiddle: offsets.map(o => Number(o.toFixed(2))) };
+    } },
     { name: 'wait and stay: stand still', async run() {
         const before = bot.entity.position.clone();
         assert.ok(await withinTime(skills.wait(bot, 300), 5000, 'wait'), said());

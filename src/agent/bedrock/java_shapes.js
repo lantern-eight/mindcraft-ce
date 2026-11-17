@@ -6,7 +6,8 @@
 // there is one copy of them for both editions. So the difference is evened out here, once, on the bot
 // itself, instead of in every caller.
 //
-// Only differences in shape belong in this file: what a call hands back, and how often an event fires.
+// Only differences in shape belong in this file: what a call hands back, how often an event fires, and
+// where the bot stands when it digs straight down.
 // Something that is plainly a mistake in the adapter belongs fixed in the adapter; when it comes with a
 // call this file already reshapes, it is put right here too until the adapter has it, and said so where it
 // is done. Something Bedrock can't do at all is listed in docs/bedrock.md.
@@ -268,6 +269,123 @@ function biomesLikeJava(bot) {
     });
 }
 
+// Java's pathfinder puts a bot that stops more than this far off the middle of its block (along either
+// side) back in the middle: within it, the bot's box, 0.6 wide, is inside its own block.
+const OFF_MIDDLE = 0.2;
+// Where the steps to the middle aim: well inside OFF_MIDDLE.
+const NEAR_MIDDLE = 0.08;
+// A Bedrock server has the last word on where a walk stopped, and gives it up to about 0.8 s after the stop,
+// by moving the bot. Steps taken before that are undone by it. So the steps wait for the bot to have stood
+// still sideways this long.
+const SETTLE_MS = 1000;
+// All of it (the waiting, the steps, the check afterwards) gives up after this long.
+const STEP_TIMEOUT_MS = 6000;
+
+const offMiddle = (position, middle) => Math.max(Math.abs(position.x - middle.x), Math.abs(position.z - middle.z));
+const nextTick = (bot, ms) => new Promise(resolve => {
+    const done = () => { clearTimeout(timer); bot.removeListener('physicsTick', done); resolve(); };
+    const timer = setTimeout(done, ms);
+    bot.on('physicsTick', done);
+});
+
+// When each bot last moved sideways, whether it walked or the server moved it. Watched on every tick.
+const lastSideways = new WeakMap(); // bot -> { x, z, at }
+function watchSideways(bot) {
+    if (typeof bot.on !== 'function') return;
+    const seen = { x: NaN, z: NaN, at: 0 };
+    lastSideways.set(bot, seen);
+    bot.on('physicsTick', () => {
+        const p = bot.entity?.position;
+        if (!p || (Math.abs(p.x - seen.x) < 0.001 && Math.abs(p.z - seen.z) < 0.001)) return;
+        seen.x = p.x; seen.z = p.z; seen.at = Date.now();
+    });
+}
+
+async function standingStill(bot, settleMs, deadline) {
+    const seen = lastSideways.get(bot);
+    while (seen && Date.now() - seen.at < settleMs && Date.now() < deadline) await delay(Math.min(100, settleMs));
+}
+
+// Steps to the middle, facing it, sneaking so as to go slowly. A step carries the bot on after it lets go, so
+// it lets go early and coasts in: pressing until it got there would overshoot, and turn about, and overshoot.
+async function stepsTo(bot, middle, deadline) {
+    const here = () => bot.entity.position; // read afresh: the adapter puts a new position on the bot as it moves
+    const inTheBlock = () => Math.abs(here().x - middle.x) < 0.5 && Math.abs(here().z - middle.z) < 0.5;
+    const { yaw, pitch } = bot.entity;
+    try {
+        bot.setControlState('sneak', true);
+        while (Date.now() < deadline && inTheBlock()) {
+            const dx = middle.x - here().x, dz = middle.z - here().z;
+            if (Math.max(Math.abs(dx), Math.abs(dz)) <= NEAR_MIDDLE) break;
+            const v = bot.entity.velocity;
+            const coasting = Math.hypot(dx, dz) <= 1.5 * (v ? Math.hypot(v.x, v.z) : 0);
+            // Face the middle the pathfinder's own way, and step, or let go and coast.
+            if (!coasting) await bot.look(Math.atan2(-dx, -dz), pitch, true);
+            bot.setControlState('forward', !coasting);
+            await nextTick(bot, Math.max(1, Math.min(200, deadline - Date.now())));
+        }
+    } finally {
+        bot.setControlState('forward', false);
+        bot.setControlState('sneak', false);
+        try { await bot.look(yaw, pitch, true); } catch { /* a bot that has left looks nowhere */ }
+    }
+}
+
+/**
+ * Walks the bot to the middle of its block, if it is more than 0.2 off it, the way a player would: once it
+ * has stood still long enough for the server to have said where it is, facing the middle and sneaking. Then
+ * it faces where it faced before, and waits to see that the server took the steps; if the server moved it
+ * off again, it steps again. Only onto ground: a bot held up by the next block, over nothing, stays put.
+ *
+ * @returns {Promise<boolean>} true when the bot ends within 0.2 of the middle
+ */
+export async function stepToTheMiddle(bot, { settleMs = SETTLE_MS, timeoutMs = STEP_TIMEOUT_MS, rounds = 3 } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    for (let round = 0; round < rounds; round++) {
+        const entity = bot.entity;
+        if (!entity?.position || !entity.onGround || entity.isInWater || entity.isInLava || bot.vehicle) return false;
+        await standingStill(bot, settleMs, deadline);
+        const position = bot.entity.position;
+        const middle = { x: Math.floor(position.x) + 0.5, z: Math.floor(position.z) + 0.5 };
+        if (offMiddle(position, middle) <= OFF_MIDDLE) return true;
+        if (Date.now() >= deadline) return false;
+        // What the bot would stand on in the middle. Walking reads the world as it is, not as the bot has seen
+        // it: fair play leaves where exactly to stand to the legs (docs/fair-play.md).
+        const below = bot.blockAt?.(position.offset(middle.x - position.x, -0.01, middle.z - position.z).floored());
+        if (below?.boundingBox !== 'block') return false;
+        await stepsTo(bot, middle, deadline);
+    }
+    const position = bot.entity.position;
+    return offMiddle(position, { x: Math.floor(position.x) + 0.5, z: Math.floor(position.z) + 0.5 }) <= OFF_MIDDLE;
+}
+
+/**
+ * Digging the block under the bot's feet.
+ *
+ * On Java the pathfinder ends a walk with the bot in the middle of its block: one that stops more than 0.2 off
+ * it is moved there in one go. Mindcraft's `digDown` counts on that. It digs the column under the bot's feet,
+ * and a bot off the middle stands partly on the next block and doesn't drop into the hole it digs. A Bedrock
+ * server refuses a move like that, so on Bedrock the pathfinder leaves the bot where it stopped, up to a third
+ * of a block off, and the server then has the last word on where that is, up to a second later.
+ *
+ * Moving to the middle after every walk would make every walk a second longer, for the sake of the few things
+ * that need it. So it is done where it is needed: before the block under the bot's feet is dug, the bot steps
+ * to the middle of its block. The pathfinder digging its own way down is left to itself.
+ */
+function digsUnderItselfFromTheMiddle(bot) {
+    if (typeof bot.dig !== 'function') return; // an adapter that can't dig: nothing to shape
+    watchSideways(bot);
+    const dig = bot.dig;
+    const underFeet = block => {
+        const feet = bot.entity?.position, cell = block?.position;
+        return Boolean(feet && cell) && cell.x === Math.floor(feet.x) && cell.z === Math.floor(feet.z) && cell.y === Math.floor(feet.y - 0.01);
+    };
+    bot.dig = async function (block, ...rest) {
+        if (underFeet(block) && !bot.pathfinder?.isMining?.()) await stepToTheMiddle(bot);
+        return await dig.call(this, block, ...rest);
+    };
+}
+
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
 export function javaShapes(bot) {
     biomesLikeJava(bot);
@@ -275,4 +393,5 @@ export function javaShapes(bot) {
     recipesLikeJava(bot);
     clicksThatSettle(bot);
     tradesLikeJava(bot);
+    digsUnderItselfFromTheMiddle(bot);
 }
