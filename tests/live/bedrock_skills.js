@@ -538,9 +538,7 @@ const walk = [
 ];
 
 // Known not to work on Bedrock yet, by the start of each scene's name. Keep in step with docs/bedrock.md.
-const GAPS = new Map([
-    ['tradeWithVillager', 'the server never answers the adapter\'s request to make the trade'],
-]);
+const GAPS = new Map([]);
 
 let joined = false;
 try {

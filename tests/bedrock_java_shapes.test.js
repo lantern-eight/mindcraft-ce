@@ -263,9 +263,9 @@ test('a trade window keeps the adapter\'s own close()', async () => {
     assert.deepEqual(bot.closed, [7]);
 });
 
-test('a trade is refused before any goods move: on Bedrock the server drops it and the bot loses them', async () => {
+test('a trade goes to the adapter\'s own trade', async () => {
     const bot = tradingBot();
     const window = await bot.openVillager({ id: 1, trades: [{ inputItem1: { name: 'paper', count: 24 } }] });
-    await assert.rejects(bot.trade(window, 0, 1), /trade.*Bedrock/i);
-    assert.equal(bot.traded, 0, 'the adapter\'s own trade was never called');
+    await bot.trade(window, 0, 1);
+    assert.equal(bot.traded, 1);
 });

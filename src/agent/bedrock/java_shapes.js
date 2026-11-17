@@ -237,14 +237,6 @@ function tradesLikeJava(bot) {
         if (!('slots' in window)) Object.defineProperty(window, 'slots', { get: () => bot.inventory.slots, configurable: true });
         return window;
     };
-    // Making a trade doesn't work on Bedrock yet (docs/bedrock.md, Known Gaps). The adapter puts the goods
-    // the bot pays with into the trade, the server never answers the request that makes it, the goods
-    // don't come back, and afterwards the bot no longer sees a player who joins. So the trade is refused
-    // before anything moves. When the adapter's pin moves to one that trades on the current server, take
-    // this out and run the trading scene in tests/live/bedrock_skills.js.
-    if (typeof bot.trade === 'function') {
-        bot.trade = async () => { throw new Error('Making a trade does not work on Bedrock yet'); };
-    }
 }
 
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */

@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- On Bedrock, the bot can make a trade with a villager (`tradeWithVillager`). The Bedrock adapter marked one
+  part of its request to the server with the number that part had before 1.26.60, so the server dropped
+  every trade; the `bedrock` branch now pins an adapter that reads the number from the game version, and this
+  fork no longer refuses trades.
+
 ### Changed
 
 - On Bedrock, a meal that fails or gets stuck is now said in the bot's log: which step (taking the food in
