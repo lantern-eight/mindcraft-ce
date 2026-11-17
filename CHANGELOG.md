@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- The Bedrock skills live test no longer fails now and then on shearing a sheep. A plain summon on Bedrock
+  makes a lamb one time in twenty, which can't be sheared, and wool of another color went uncounted once the
+  bot had picked it up. The scene now summons an adult sheep and counts wool of any color.
+
 ## [1.0.0-bedrock.1.0.0] - 2026-11-16
 
 Version 1, of both editions. Bedrock Edition joins the project: its code is on `main` with Java Edition's,
