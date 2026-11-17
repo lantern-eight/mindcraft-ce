@@ -9,19 +9,19 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.0.0-bedrock.1.1.0] - 2026-11-17
+
+A Bedrock Edition release: the bot can trade with villagers and knows which biome it is in, takes and puts
+amounts spread over several stacks, and says why a meal failed. The fixes are in the libraries: the Bedrock
+adapter and the pathfinder, which the `bedrock` branch now pins, and the game data, which both branches pin.
+Java Edition is unchanged. Built on the same Mindcraft-CE commit as 0.1.0.
+
 ### Added
 
 - On Bedrock, the bot can make a trade with a villager (`tradeWithVillager`). The Bedrock adapter marked one
   part of its request to the server with the number that part had before 1.26.60, so the server dropped
   every trade; the `bedrock` branch now pins an adapter that reads the number from the game version, and this
   fork no longer refuses trades.
-
-### Fixed
-
-- On Bedrock, the bot knows which biome it is in. It was always "unknown": the Bedrock adapter never read
-  biomes from the chunks a current server sends, and the game data numbered Bedrock's biomes alphabetically
-  where a chunk carries Bedrock's own numbers. Both are fixed in the libraries, which `main` (the game data)
-  and the `bedrock` branch (the adapter) now pin.
 
 ### Changed
 
@@ -35,6 +35,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - On Bedrock, a meal that fails or gets stuck is now said in the bot's log: which step (taking the food in
   hand, or eating it) and why. Before, a bot that stayed hungry with food in its pockets gave no reason. The
   same message is repeated at most every 30 seconds.
+
+### Fixed
+
+- On Bedrock, the bot knows which biome it is in. It was always "unknown": the Bedrock adapter never read
+  biomes from the chunks a current server sends, and the game data numbered Bedrock's biomes alphabetically
+  where a chunk carries Bedrock's own numbers. Both are fixed in the libraries, which `main` (the game data)
+  and the `bedrock` branch (the adapter) now pin.
 
 ## [1.0.0-bedrock.1.0.2] - 2026-11-17
 
@@ -498,7 +505,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.2...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.1.0...HEAD
+[1.0.0-bedrock.1.1.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.2...v1.0.0-bedrock.1.1.0
 [1.0.0-bedrock.1.0.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.1...v1.0.0-bedrock.1.0.2
 [1.0.0-bedrock.1.0.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.0...v1.0.0-bedrock.1.0.1
 [1.0.0-bedrock.1.0.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.7.0...v1.0.0-bedrock.1.0.0
