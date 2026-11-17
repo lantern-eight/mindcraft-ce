@@ -2,7 +2,7 @@
 // On Bedrock, what the bot hands back has to have the shape it has on Java, because the skills are written
 // against that: an opened chest with deposit, withdraw and close on it, a recipe laid out the way
 // mineflayer and the game data lay one out there, a click on a block that can be followed by another
-// straight away, and a `move` event on every tick the bot moves. No server; the adapter is stood in for.
+// straight away, and a villager's trade window. No server; the adapter is stood in for.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
@@ -60,17 +60,8 @@ test('a chest that does not open is an error for the caller who waits', async ()
     await assert.rejects(bot.openContainer({ name: 'chest' }), /chest did not open/);
 });
 
-test('a click the server ignored is made once more, a moment later', async () => {
-    // As with a barrel opened again straight after it was closed: the first click named it still open.
-    const { bot, calls } = adapterBot({ ignoredClicks: 1 });
-    const started = Date.now();
-    const barrel = await bot.openContainer({ name: 'barrel' });
-    assert.equal(barrel, bot.currentWindow);
-    assert.deepEqual(calls, [['click', 'barrel'], ['click', 'barrel']]);
-    assert.ok(Date.now() - started >= 900, 'not before a window could have come back');
-});
-
 test('an open still waiting gives way to a newer one, and never takes its window', async () => {
+    // The server ignored the first click; the second, a moment later, opens the barrel.
     const { bot } = adapterBot({ ignoredClicks: 1 });
     const older = bot.openContainer({ name: 'barrel' });
     await delay(100);
@@ -96,28 +87,14 @@ test('and is not one for a caller who does not wait', async () => {
     }
 });
 
-test('a barrel\'s window takes and puts with its own moves; a chest\'s with the adapter\'s calls', async () => {
-    // The adapter's withdraw names a chest's slots, which the server refuses for a barrel.
+test('a barrel\'s window takes and puts with the adapter\'s calls, as a chest\'s does', async () => {
+    // The adapter names a barrel's slots as Bedrock names them, so nothing here has to.
     const { bot, calls } = adapterBot({ opens: false });
-    const requests = [];
-    bot.blockAt = pos => ({ name: pos.x === 7 ? 'barrel' : 'chest' });
-    bot.inventory = { slots: new Array(45).fill(null), updateSlot(slot, it) { this.slots[slot] = it; } };
-    bot._stack = { stackReq: async actions => { requests.push(...actions); return { status: 'ok', response: { containers: [] } }; } };
-    const windowAt = x => {
-        const slots = new Array(27 + 36).fill(null);
-        slots[0] = { name: 'sand', type: 9, count: 30, metadata: 0, nbt: null, stackSize: 64, stackId: 1 };
-        return { inventoryStart: 27, position: { x, y: 0, z: 0 }, slots, updateSlot(slot, it) { this.slots[slot] = it; } };
-    };
-    setTimeout(() => { bot.currentWindow = windowAt(7); }, 20);
+    setTimeout(() => { bot.currentWindow = { inventoryStart: 27, position: { x: 7, y: 0, z: 0 }, slots: [] }; }, 20);
     const barrel = await bot.openBlock({ name: 'barrel' });
     await barrel.withdraw(9, null, 10);
-    assert.deepEqual(requests.map(r => [r.type_id, r.source.slot_type.container_id, r.count]), [['take', 'barrel', 10]]);
-    assert.ok(!calls.some(call => call[0] === 'withdraw'), 'not the adapter\'s');
-    bot.currentWindow = null;
-    setTimeout(() => { bot.currentWindow = windowAt(2); }, 20);
-    const chest = await bot.openBlock({ name: 'chest' });
-    await chest.withdraw(9, null, 10);
-    assert.deepEqual(calls.at(-1), ['withdraw', 9, null, 10]);
+    await barrel.deposit(9, null, 4);
+    assert.deepEqual(calls.slice(-2), [['withdraw', 9, null, 10], ['deposit', 9, null, 4]]);
 });
 
 test('a window that already has the calls keeps its own', async () => {
@@ -244,73 +221,20 @@ test('a click that changes nothing waits a moment and no longer', async () => {
     assert.equal(bot.listenerCount('blockUpdate:(0, 0, 0)'), 0);
 });
 
-// ---- The move event ----
-
-// A bot as the adapter leaves it: physics moves it each tick and fires physicsTick, and only a correction
-// from the server fires move.
-function movingBot() {
-    const bot = new EventEmitter();
-    bot.entity = { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 };
-    javaShapes(bot);
-    const moves = [];
-    bot.on('move', before => moves.push({ before: before.clone(), now: bot.entity.position.clone() }));
-    bot.emit('physicsTick'); // the first tick tells where the bot is
-    moves.length = 0;
-    return { bot, moves };
-}
-
-test('every tick the bot walks fires move, with where it was before, as on Java', () => {
-    const { bot, moves } = movingBot();
-    for (let tick = 0; tick < 80; tick++) {
-        bot.entity.position.x -= 0.2; // sixteen blocks west in four seconds
-        bot.emit('physicsTick');
-    }
-    assert.equal(moves.length, 80, 'one a tick');
-    assert.ok(moves.every(m => Math.abs(m.now.x - m.before.x + 0.2) < 1e-9), 'each from where the last one left off');
-    assert.ok(Math.abs(moves.at(-1).now.x - -15.5) < 1e-9);
-});
-
-test('standing still fires nothing; turning on the spot does, as on Java', () => {
-    const { bot, moves } = movingBot();
-    for (let tick = 0; tick < 20; tick++) bot.emit('physicsTick');
-    assert.equal(moves.length, 0, 'a bot standing still is quiet');
-    bot.entity.yaw = Math.PI / 2;
-    bot.emit('physicsTick');
-    bot.emit('physicsTick');
-    assert.equal(moves.length, 1, 'one for the turn');
-});
-
-test('a move the adapter fires for a correction is not announced again', () => {
-    const { bot, moves } = movingBot();
-    bot.entity.position.y = 63; // the server puts the bot a block lower
-    bot.emit('move', bot.entity.position);
-    bot.emit('physicsTick');
-    assert.equal(moves.length, 1, 'the adapter\'s own, and no second one');
-});
-
-test('a bot without events is left alone', () => {
-    assert.doesNotThrow(() => javaShapes({ entity: { position: new Vec3(0, 0, 0) } }));
-});
-
 // A bot whose villagers open as the adapter opens them: a trade window comes when the villager sends its
-// trade list, and when none comes the adapter hands back whatever trade window it had last.
-// The trade screen comes with the trade list alone, so it never becomes bot.currentWindow, and the
-// adapter's close() on it sends nothing.
+// trade list, and when none comes the adapter hands back nothing. The window closes itself.
 function tradingBot() {
     const closed = [];
     const bot = {
         tradeWindow: null,
-        currentWindow: null,
         closed,
         inventory: { slots: [] },
         openVillager: async villager => {
-            if (villager.trades) {
-                bot.tradeWindow = { id: 7, type: 'trading', trades: villager.trades,
-                    close() { if (bot.currentWindow) bot.closeWindow(bot.currentWindow); } };
-            }
-            return bot.tradeWindow || null;
+            bot.tradeWindow = villager.trades
+                ? { id: 7, type: 'trading', trades: villager.trades, close() { closed.push(this.id); } }
+                : null;
+            return bot.tradeWindow;
         },
-        closeWindow: window => { closed.push(window?.id); },
         traded: 0,
         trade: async () => { bot.traded++; },
     };
@@ -326,17 +250,17 @@ test('a trade window\'s slots are the bot\'s own, where the trading skill counts
     assert.deepEqual(window.slots, bot.inventory.slots, 'read when asked, so it is never out of date');
 });
 
-test('a villager that opens no trade window is an error, not the last villager\'s trades', async () => {
+test('a villager that opens no trade window is an error, as on Java', async () => {
     const bot = tradingBot();
     await bot.openVillager({ id: 1, trades: [{ inputItem1: { name: 'paper', count: 24 } }] });
     await assert.rejects(bot.openVillager({ id: 2 }), /no trade window/);
 });
 
-test('closing a trade window closes it on the server, so the villager can be opened again', async () => {
+test('a trade window keeps the adapter\'s own close()', async () => {
     const bot = tradingBot();
     const window = await bot.openVillager({ id: 1, trades: [{ inputItem1: { name: 'paper', count: 24 } }] });
     window.close();
-    assert.deepEqual(bot.closed, [7], 'the trade window itself, by its id');
+    assert.deepEqual(bot.closed, [7]);
 });
 
 test('a trade is refused before any goods move: on Bedrock the server drops it and the bot loses them', async () => {

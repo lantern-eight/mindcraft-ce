@@ -9,6 +9,26 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.0.0-bedrock.1.0.2] - 2026-11-17
+
+A Bedrock Edition patch: four mistakes in the Bedrock adapter that this fork had worked around are now fixed
+in the adapter itself, which the `bedrock` branch now pins, and the workarounds are gone. Java Edition is
+unchanged. Built on the same Mindcraft-CE
+commit as 0.1.0.
+
+### Changed
+
+- On Bedrock, taking from and putting into a barrel or a shulker box is done by the Bedrock adapter's own
+  calls, as for a chest. The adapter now names those containers' slots as Bedrock does; this fork had made
+  the moves itself until it did.
+- On Bedrock, a barrel opened again straight after it was closed (as chest sorting does) opens as soon as
+  the server has shut it, instead of on a second click a second later. The Bedrock adapter now waits for
+  that itself.
+- On Bedrock, the bot's `move` event, from which world memory lays its trail, comes from the Bedrock adapter
+  on every tick the bot moves or turns, as on Java. This fork had fired it itself until the adapter did.
+- On Bedrock, closing a villager's trade screen, and not handing back another villager's trades when one
+  opens nothing, are done by the Bedrock adapter. This fork had put both right itself until it did.
+
 ## [1.0.0-bedrock.1.0.1] - 2026-11-17
 
 A Bedrock Edition patch: a steadier live test, and how to run the Bedrock test server on an Apple silicon
@@ -451,7 +471,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.2...HEAD
+[1.0.0-bedrock.1.0.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.1...v1.0.0-bedrock.1.0.2
 [1.0.0-bedrock.1.0.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.0...v1.0.0-bedrock.1.0.1
 [1.0.0-bedrock.1.0.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.7.0...v1.0.0-bedrock.1.0.0
 [0.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v0.6.0...v0.7.0
