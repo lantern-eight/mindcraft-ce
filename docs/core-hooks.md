@@ -87,7 +87,7 @@ above and this one name the same package, this one is what `package.json` instal
 | `prismarine-chunk` | `lantern-eight/prismarine-chunk` `51132c7` | `a96fd70` (26.3) with PrismarineJS/prismarine-chunk#335, #337 and #338 merged: Bedrock 1.26 chunks, hashed ids on block writes, zero-bit palettes. The only conflicts were in `test/bedrock.test.js`, where each adds a test | A release has all three and maps 26.3 |
 | `prismarine-block` | `lantern-eight/prismarine-block` `e4fcd1c` | The head of PrismarineJS/prismarine-block#129, unchanged: a block's states and shapes when ids are hashes | A release has #129 |
 | `prismarine-physics` | `lantern-eight/prismarine-physics` `81b4157` | `e641ceb` (26.3) with PrismarineJS/prismarine-physics#152 merged: Bedrock's walking numbers. #152 is a draft. One conflict, in a comment | A release has #145 and #152 |
-| `mineflayer-pathfinder` | `lantern-eight/mineflayer-pathfinder` `ee36727` | Release 2.4.5 with the one commit of PrismarineJS/mineflayer-pathfinder#388 on top: sorting Bedrock blocks into fences, carpets and the rest. It starts from the release, not from master, because Mindcraft-CE's patch is made for the release | A release has #388. Mindcraft-CE's patch is for 2.4.5 and will need redoing for it |
+| `mineflayer-pathfinder` | `lantern-eight/mineflayer-pathfinder` `8995331` | Release 2.4.5 with the one commit of PrismarineJS/mineflayer-pathfinder#388 on top: sorting Bedrock blocks into fences, carpets and the rest. And one fix of this fork's: when a walk ends, a Bedrock bot is left where it stopped instead of being moved to the middle of its block, a move the server refuses. It starts from the release, not from master, because Mindcraft-CE's patch is made for the release | A release has #388 and the fix. Mindcraft-CE's patch is for 2.4.5 and will need redoing for it |
 | `bedrock-protocol` | `lantern-eight/bedrock-protocol` `01702fd` | Release 3.61.0 with PrismarineJS/bedrock-protocol#831 merged, which went in cleanly: the HTTP hand-off a current dedicated server uses for direct connections. Without it the bot can't reach one at all: such a server answers neither kind of discovery the release knows, and the connection times out. One commit of this fork's on top names the `nethernet` commit below instead of a branch name. It is named in `overrides` because mineflayer asks for `^3.59.0`, and on Node 22 npm would pick 3.59.0, the newest release whose `engines` field allows Node 22. 3.61.0 asks for Node 24 but runs on Node 22 | A release has #831, and mineflayer asks for it or this fork moves to Node 24 |
 | `nethernet` | `PrismarineJS/node-nethernet` `6431f0f` | The transport under `bedrock-protocol`. This is the library's own master, at the commit that merged HTTP discovery and signalling (PrismarineJS/node-nethernet#32), which the row above needs. Release 1.1.2 is older | A nethernet release after 1.1.2 |
 
@@ -100,7 +100,7 @@ a whole.
 
 **Two patches had to move.** patch-package places a change by its exact line number, and the Bedrock work
 adds lines above two of Mindcraft-CE's patches: 22 lines in `prismarine-block`'s `index.js`, 3 in the
-pathfinder's `lib/movements.js`. The patch files here have the new line numbers and are otherwise as
+pathfinder's `lib/movements.js` and 4 in its `index.js`. The patch files here have the new line numbers and are otherwise as
 Mindcraft-CE wrote them. Going back to an npm release moves them back.
 
 **Installing.** npm warns that `bedrock-protocol` and two packages under it want Node 24; they run on
