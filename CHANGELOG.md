@@ -18,6 +18,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- On Bedrock, taking from and putting into a chest, a barrel or a shulker box moves the amount asked for from
+  as many stacks as it takes, and tops up a stack of the same item before it uses an empty slot, as on Java.
+  Before, taking an amount spread over two stacks stopped part way and said the inventory had no room. The
+  fix is in the Bedrock adapter, which the `bedrock` branch now pins.
+- On Bedrock, the pathfinder no longer moves the bot to the middle of its block when it stops: the server
+  refuses that move and corrects the bot. The bot now stays where it stopped. The fix is in the pathfinder,
+  which the `bedrock` branch now pins.
 - On Bedrock, a meal that fails or gets stuck is now said in the bot's log: which step (taking the food in
   hand, or eating it) and why. Before, a bot that stayed hungry with food in its pockets gave no reason. The
   same message is repeated at most every 30 seconds.
