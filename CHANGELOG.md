@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- The bot no longer fights a creeper hand to hand. `defendSelf` (and so the `self_defense` reflex) handed a
+  creeper to the combat plugin, which followed it to melee range and stood there while it exploded. Both
+  now leave creepers out.
+
 ## [1.4.0-bedrock.1.5.0] - 2026-11-18
 
 A release for both editions. Under fair play, skills handed a spot by its coordinates look at the block
