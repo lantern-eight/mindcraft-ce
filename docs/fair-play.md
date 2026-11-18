@@ -27,6 +27,11 @@ In `settings.js` (a profile can override it):
 
 If the setting is missing entirely, it counts as `"off"`.
 
+**It checks itself when the bot spawns.** It picks a block buried in the ground under the bot and asks for
+it the way every command and skill does. If the answer is anything but "unknown", fair play isn't really in
+the way of what the bot is told, so the bot refuses every action and says why, instead of quietly seeing
+through walls.
+
 ## What the Bot Can Know
 
 | Sense | Rule |
@@ -211,6 +216,7 @@ All of it lives in `src/agent/fairplay/`:
 | `fair_bot.js`, `code_runner.js` | The stand-in bot and the compartment for model-written code |
 | `commands.js` | The "not found means not seen" sentence added to an empty-handed search. `!recall` comes with world memory |
 | `install.js` | Switches all of the above on for one agent |
+| `wiring_check.js` | The check at each spawn that a buried block is unknown to `world.js`, so a wiring mistake can't fail open |
 
 **What depends on the edition of the game.** How block states are numbered, how a chunk section lists the
 blocks it holds, which sounds the server sends and how it tells the bot it is an operator are asked for by

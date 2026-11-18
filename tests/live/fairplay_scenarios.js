@@ -104,6 +104,12 @@ try {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });
 
+    await step('F6: at spawn, fair play checked its own wiring: a block buried under the bot was unknown to it', async () => {
+        // A check that found no buried block at once (the ground not loaded yet) tries again five seconds later.
+        await waitFor(() => handle.wiring && handle.wiring.status !== 'skipped', 12000, () => `the check said: ${handle.wiring?.reason}`);
+        assert.equal(handle.wiring.status, 'ok', handle.wiring.reason);
+    });
+
     await step('what the model reads about its surroundings leaves out the buried diamonds', () => {
         const diamond = bot.registry.blocksByName.diamond_ore.id;
         assert.equal(bot.findBlocks({ matching: diamond, maxDistance: 16, count: 10 }).length, 3, 'the raw bot was sent all three');

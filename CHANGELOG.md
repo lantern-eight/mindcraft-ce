@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Fair play checks its own wiring each time the bot spawns: a block buried under the bot must be unknown to
+  the searches every command and skill makes. If it isn't, the bot refuses every action and says why. A
+  mistake in how fair play is hooked in used to leave the bot seeing through walls without a word.
+
 ### Changed
 
 - A block search that runs out of its 200 ms and answers from part of the world now says so in the log, at
