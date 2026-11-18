@@ -94,6 +94,14 @@ export const fairQueries = Object.freeze({
         return [...known.values()];
     },
 
+    // The same question the reach guard asks before a block is placed against that side, so a skill that
+    // picks its side by this answer isn't then refused for it.
+    seesFace(bot, position, face) {
+        const reg = registrations.get(bot);
+        if (!reg || reg.policy.sight === 'all' || reg.policy.interact_through_walls === true) return true;
+        return reg.perception.seesFace(position, face);
+    },
+
     nearestEntity(bot, match = () => true) {
         if (!registrations.has(bot)) return bot.nearestEntity(match);
         const here = bot.entity.position;

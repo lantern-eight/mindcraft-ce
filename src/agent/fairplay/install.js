@@ -20,7 +20,8 @@
 //      saved places move into it. With it off, the bot knows only what it touches and sees now.
 //   8. Fair legs, on the first spawn: the pathfinder plans its routes over what the bot has seen, not
 //      over every loaded block (fair_legs.js).
-//   9. A wiring check on each spawn: a block buried under the bot must be unknown to world.js. If it
+//   9. Digging down, on each spawn: `digDown` digs a staircase instead of a shaft (stairs_down.js).
+//  10. A wiring check on each spawn: a block buried under the bot must be unknown to world.js. If it
 //      isn't, fair play is not in the way and every action is refused (wiring_check.js).
 // With `fair_play: "off"` (the default when the setting is absent) nothing is installed.
 import settings from '../settings.js';
@@ -33,6 +34,8 @@ import { checkFairWiring } from './wiring_check.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
 import { setAttackReach } from '../library/attack_reach.js';
+import { setDigDownWay } from '../library/dig_down_way.js';
+import { digStairsDown } from '../library/stairs_down.js';
 import { installFairLegs } from './fair_legs.js';
 import { withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
@@ -276,6 +279,9 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // A single hit walks within the reach the guard allows first, instead of swinging from where the
         // stock skill would and being refused.
         setAttackReach(bot, entity => handle.reach.withinReach(entity));
+        // Digging down goes as a staircase, so each block the bot stands on next is in view first. The
+        // stock way reads the blocks under the floor, which only a bot that sees everything could.
+        if (policy.sight !== 'all') setDigDownWay(bot, (b, distance) => digStairsDown(b, distance, { breakBlockAt: skills.breakBlockAt, log: skills.log }));
         // And the pathfinder is there to be told what the bot has seen. The legs ask for perception each
         // time they need it, so they keep working when a new dimension brings a new one.
         if (policy.route_planning === 'seen' && bot.pathfinder) {

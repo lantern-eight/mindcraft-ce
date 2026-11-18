@@ -118,6 +118,15 @@ player's legs do.
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model
   explores instead of giving up.
+- A skill given a spot by its coordinates (`!placeHere`, the `placeBlockAt` tool, `breakBlockAt` and
+  `tillAndSow` in generated code) looks at the block there before deciding anything from it. When the bot
+  doesn't know the block, it walks within three blocks and looks; one still hidden is reported as "can't
+  see the block at …", never by name. `placeBlock` places against a side the bot can see.
+- `!digDown` digs a staircase, one block forward for each block down, the way the bot faces. Each block it
+  will stand on is in view before it steps onto it. It stops at lava or water it uncovers, a drop of more
+  than two blocks, or a block it can't dig, and says which.
+- `!goToSurface` climbs to the highest ground the bot knows of above it, looks again from there, and stops
+  under open sky. It no longer names the height of a surface it hasn't seen.
 
 ## The Server's Part
 
@@ -193,10 +202,9 @@ Fair play is honest about what it doesn't cover yet:
 - **The pathfinder isn't held to the reach rule.** It digs and places from its own timer while carrying
   out a walk that was itself checked. The combat plugin, which also swings from its own timer, is held
   to a lighter form of it: its target must be within reach and have been in view within the last second.
-- **A few skills name a block before the bot has looked at it** when given exact coordinates
-  (`breakBlockAt`, `placeBlock`, `tillAndSow`). No command passes them arbitrary coordinates; generated
-  code can.
-- **`!digDown` checks for lava and water under the block it is about to dig,** which a player couldn't see.
+- **Told a spot by its coordinates, the bot looks from at most three blocks away.** A block still hidden
+  from there (buried a little deeper) is refused as unseen; the bot doesn't dig its way down to look.
+- **`!digDown` digs its staircase the way the bot happens to face,** not a way it chose for being safe.
 - **Good-neighbor rules** (don't break players' builds, loot their chests, or hurt their animals) are
   planned and not built yet. The `good_neighbor` setting is reserved for them.
 - **The code runner isn't a CPU sandbox.** Model-written code that loops forever without waiting stalls
@@ -254,6 +262,7 @@ npm test                                      # all unit tests; fair-play ones a
 node tests/live/fairplay_scenarios.js         # the whole stack on a real server, about 90 seconds
 node tests/live/fairplay_scenarios.js --no-world-memory   # the same, with world memory off
 node tests/live/legs_scenarios.js             # route planning: a wall and a trench not seen from the start, and a long trip
+node tests/live/look_first_scenarios.js       # skills given a spot look first; digDown's staircase; goToSurface
 node tests/live/fairplay_perception_smoke.js  # perception alone on a real server
 ```
 
