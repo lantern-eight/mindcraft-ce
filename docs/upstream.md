@@ -83,12 +83,11 @@ fork's `bedrock-combined` branch, which the `bedrock` branch pins.
 ### Found, Not Offered
 
 Shapes in the adapter that differ from mineflayer on Java, each put right in
-`src/agent/bedrock/java_shapes.js` and too small for a pull request alone:
+`src/agent/bedrock/java_shapes.js`:
 
 - `bot.openContainer` returns nothing where Java returns the window.
 - `recipesFor` and `recipesAll` return the adapter's own recipe shape, not prismarine-recipe's.
 - A click that changes a block needs the world's update before the next click on it; Java code doesn't wait.
-- 1.26.60 and 1.26.63 aren't in `bedrockTestedVersions`, though both work.
 
 ## Working on a Library Fix
 

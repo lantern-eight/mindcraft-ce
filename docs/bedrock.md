@@ -257,7 +257,7 @@ spaces and `_ . : -`, and write coordinates out in full. A line with a selector 
 pass that rule; type it into the server's console by hand, with a player near, or it finds nothing.
 
 **If the computer sleeps during a run,** Docker Desktop's clock falls behind, and every join after that fails
-with "jwt expired". Restart Docker Desktop, or wait for its clock to catch up, then run again.
+with "jwt expired". Wait for its clock to catch up, then run again.
 
 **Summoning on the server isn't exact.** `summon villager ~ ~ ~ minecraft:spawn_<job>` often gives another
 job or none, so the scenes summon several and use whichever has the job; a plain `summon sheep` makes a lamb
