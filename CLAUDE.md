@@ -223,7 +223,8 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
   to run. They need Java 25 and a 26.3 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
 - The Bedrock live scripts, `tests/live/bedrock_*.js`, run on `bedrock`'s libraries, and can't start their
   own server: they are pointed at a throwaway Bedrock server that is already running (`docs/bedrock.md`,
-  "Testing"). They make no model calls either. Never point them at a world worth keeping.
+  "Testing"; `tests/live/bedrock-server/` has one ready to start, and `tests/live/bedrock_all.js` runs them
+  all). They make no model calls either. Never point them at a world worth keeping.
 - **Ask first** before anything that calls a paid model API. Model behavior is random, so tests that involve
   a model report a success rate over several runs, not a single pass or fail.
 
