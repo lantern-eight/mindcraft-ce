@@ -103,7 +103,8 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/storage/` (all files)
 - `src/agent/edition/` (all files)
 - `src/agent/bedrock/` (all files)
-- `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`
+- `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
+  `src/agent/library/look_first.js`
 - `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
@@ -118,7 +119,8 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
-  `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`
+  `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
+  `tests/helpers/named_cells.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
   `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/bedrock_*.js`,

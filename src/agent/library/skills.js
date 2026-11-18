@@ -3,6 +3,7 @@ import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
 import { followKnownWay } from './travel_guide.js';
 import { withinAttackReach } from './attack_reach.js';
+import { lookFirst, knownBlockAt, sideToPlaceAgainst } from './look_first.js';
 import { assertActionOwner, actionContext, onActionCleanup, cancellable } from '../action_context.js';
 import pf from 'mineflayer-pathfinder';
 import Vec3 from 'vec3';
@@ -594,7 +595,10 @@ export async function breakBlockAt(bot, x, y, z) {
      * await skills.breakBlockAt(bot, position.x, position.y - 1, position.x);
      **/
     if (x == null || y == null || z == null) throw new Error('Invalid position to break block at.');
-    let block = bot.blockAt(Vec3(x, y, z));
+    // Read as the bot knows it, walking up to look when it doesn't (look_first.js).
+    const seen = await lookFirst(bot, Vec3(x, y, z), goToGoal);
+    if (!seen.block) { log(bot, seen.reason); return false; }
+    let block = seen.block;
     const javaName = mc.javaNameOf(block.name); // the list below is in Java's names (edition seam)
     if (javaName !== 'air' && javaName !== 'water' && javaName !== 'lava') {
         if (bot.modes.isOn('cheat')) {
@@ -709,9 +713,11 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
         return true;
     }
 
-    const targetBlock = bot.blockAt(target_dest);
+    // Read as the bot knows it, walking up to look when it doesn't (look_first.js).
+    const seenTarget = await lookFirst(bot, target_dest, goToGoal);
+    const targetBlock = seenTarget.block;
     if (!targetBlock) {
-        log(bot, `Cannot place ${blockType} at ${target_dest}: area is not loaded.`);
+        log(bot, `Cannot place ${blockType} at ${target_dest}: ${seenTarget.reason}`);
         return false;
     }
     // Placement describes the desired world state. An existing matching block
@@ -775,14 +781,9 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
     }
     dirs.push(...Object.values(dir_map).filter(d => !dirs.includes(d)));
 
-    for (let d of dirs) {
-        const block = bot.blockAt(target_dest.plus(d));
-        if (!empty_blocks.includes(mc.javaNameOf(block.name))) {
-            buildOffBlock = block;
-            faceVec = new Vec3(-d.x, -d.y, -d.z); // invert
-            break;
-        }
-    }
+    // Only a neighbor the bot knows about, preferring one whose side it can see (look_first.js).
+    const isEmpty = block => empty_blocks.includes(mc.javaNameOf(block.name));
+    ({ buildOffBlock, faceVec } = sideToPlaceAgainst(bot, target_dest, dirs, isEmpty) ?? {});
     if (!buildOffBlock) {
         log(bot, `Cannot place ${blockType} at ${targetBlock.position}: nothing to place on.`);
         return false;
@@ -806,6 +807,8 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
         bot.pathfinder.setMovements(movements);
         await goToGoal(bot, new pf.goals.GoalNear(pos.x, pos.y, pos.z, 4));
     }
+    // From where the bot now stands another side may be the one in view.
+    ({ buildOffBlock, faceVec } = sideToPlaceAgainst(bot, target_dest, dirs, isEmpty) ?? { buildOffBlock, faceVec });
 
     // will throw error if an entity is in the way, and sometimes even if the block was placed
     try {
@@ -822,7 +825,7 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
         }
     } catch (err) {
         assertActionOwner(bot);
-        if (placementMatches(bot.blockAt(target_dest)?.name, blockType)) {
+        if (placementMatches(knownBlockAt(bot, target_dest)?.name, blockType)) {
             log(bot, `Confirmed ${blockType} at ${target_dest} after placement feedback: ${err.message}.`);
             return true;
         }
@@ -1638,7 +1641,10 @@ export async function useDoor(bot, door_pos=null) {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
     
-    let door_block = bot.blockAt(door_pos);
+    // Read as the bot knows it, walking up to look when it doesn't (look_first.js).
+    const seenDoor = await lookFirst(bot, door_pos, goToGoal);
+    if (!seenDoor.block) { log(bot, seenDoor.reason); return false; }
+    let door_block = seenDoor.block;
     // Face the middle of the doorway: the walk below is straight ahead. A block's position is its corner,
     // and facing that, the bot walks into the edge of a door that is already open.
     await bot.lookAt(door_pos.offset(0.5, 0.5, 0.5));
@@ -1699,7 +1705,10 @@ export async function tillAndSow(bot, x, y, z, seedType=null) {
      * await skills.tillAndSow(bot, position.x, position.y - 1, position.x, "wheat");
      **/
     let pos = new Vec3(Math.floor(x), Math.floor(y), Math.floor(z));
-    let block = bot.blockAt(pos);
+    // Read as the bot knows it, walking up to look when it doesn't (look_first.js).
+    const seen = await lookFirst(bot, pos, goToGoal);
+    if (!seen.block) { log(bot, seen.reason); return false; }
+    let block = seen.block;
     log(bot, `Planting ${seedType} at x:${x.toFixed(1)}, y:${y.toFixed(1)}, z:${z.toFixed(1)}.`);
 
     if (bot.modes.isOn('cheat')) {
@@ -1718,7 +1727,9 @@ export async function tillAndSow(bot, x, y, z, seedType=null) {
         log(bot, `Cannot till ${block.name}, must be grass_block or dirt.`);
         return false;
     }
-    let above = bot.blockAt(new Vec3(x, y+1, z));
+    const seenAbove = await lookFirst(bot, pos.offset(0, 1, 0), goToGoal);
+    if (!seenAbove.block) { log(bot, seenAbove.reason); return false; }
+    let above = seenAbove.block;
     if (above.name !== 'air') {
         if (block.name === 'farmland') {
             log(bot, `Land is already farmed with ${above.name}.`);

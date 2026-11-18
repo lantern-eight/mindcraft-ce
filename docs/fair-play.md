@@ -118,6 +118,10 @@ player's legs do.
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model
   explores instead of giving up.
+- A skill given a spot by its coordinates (`!placeHere`, the `placeBlockAt` tool, `breakBlockAt` and
+  `tillAndSow` in generated code) looks at the block there before deciding anything from it. When the bot
+  doesn't know the block, it walks within three blocks and looks; one still hidden is reported as "can't
+  see the block at …", never by name. `placeBlock` places against a side the bot can see.
 
 ## The Server's Part
 
@@ -193,9 +197,8 @@ Fair play is honest about what it doesn't cover yet:
 - **The pathfinder isn't held to the reach rule.** It digs and places from its own timer while carrying
   out a walk that was itself checked. The combat plugin, which also swings from its own timer, is held
   to a lighter form of it: its target must be within reach and have been in view within the last second.
-- **A few skills name a block before the bot has looked at it** when given exact coordinates
-  (`breakBlockAt`, `placeBlock`, `tillAndSow`). No command passes them arbitrary coordinates; generated
-  code can.
+- **Told a spot by its coordinates, the bot looks from at most three blocks away.** A block still hidden
+  from there (buried a little deeper) is refused as unseen; the bot doesn't dig its way down to look.
 - **`!digDown` checks for lava and water under the block it is about to dig,** which a player couldn't see.
 - **Good-neighbor rules** (don't break players' builds, loot their chests, or hurt their animals) are
   planned and not built yet. The `good_neighbor` setting is reserved for them.

@@ -9,6 +9,18 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- Under fair play, skills given a spot by its coordinates (`!placeHere`, the `placeBlockAt` tool, and
+  `breakBlockAt`, `placeBlock`, `tillAndSow` and `useDoor` in generated code) look at the block there
+  before deciding anything from it. When the bot doesn't know it, it walks within three blocks and looks;
+  a block still hidden is reported as one it can't see. They used to read it from the world data and say
+  what it was ("Skipping ... because it is lava", "diamond_ore in the way"), even buried in the ground, so
+  they could be used to look inside it.
+- Under fair play, `placeBlock` places against a side the bot can see. It took the first solid neighbor,
+  often by its side facing away from the bot, and the placement was then refused.
+- `breakBlockAt` at a spot whose chunk isn't loaded walks there and looks, instead of failing with an error.
+
 ## [1.3.0-bedrock.1.4.0] - 2026-11-18
 
 A release for both editions. Fair play closes gaps in what the bot knows and does: the combat plugin no
