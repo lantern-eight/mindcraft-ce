@@ -36,6 +36,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   failed, so the model couldn't tell a block in the way from a side out of reach, and tried the same again.
 - With fair play off and cheat mode on, `placeBlock` sends a second `/setblock` only for a door's top half or
   a bed's head. It sent both of them for every block it placed, each failing with an error on the server.
+- With fair play off and cheat mode on, `tillAndSow` with no seed tills the block instead of crashing, and
+  waits for its blocks to be placed before it says it is done.
 
 ## [1.3.0-bedrock.1.4.0] - 2026-11-18
 
