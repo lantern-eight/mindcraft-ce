@@ -50,6 +50,9 @@ unless noted. Each comes from a `fix/...` branch of this repository, cut from th
 | [#132](https://github.com/mindcraft-ce/mindcraft-ce/pull/132) | The bot's surroundings say "unknown" for a block it doesn't have, not "air" |
 | [#133](https://github.com/mindcraft-ce/mindcraft-ce/pull/133) | `useDoor` finds the nearest door with one search, not one per kind (rewrites the loop #108 and #118 change) |
 | [#134](https://github.com/mindcraft-ce/mindcraft-ce/pull/134) | A stop cancels an action that is about to start (on `agent-system`, the only branch with the code) |
+| [#135](https://github.com/mindcraft-ce/mindcraft-ce/pull/135) | `placeBlock` says why a placement failed |
+| [#136](https://github.com/mindcraft-ce/mindcraft-ce/pull/136) | In cheat mode `placeBlock` sends a door's top half and a bed's head only for doors and beds |
+| [#137](https://github.com/mindcraft-ce/mindcraft-ce/pull/137) | In cheat mode `tillAndSow` tills without a seed, and waits for its blocks |
 
 
 ## Libraries
