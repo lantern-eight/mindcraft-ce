@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.4.0-bedrock.1.5.0] - 2026-11-18
+
+A release for both editions. Under fair play, skills handed a spot by its coordinates look at the block
+before deciding anything from it, instead of naming blocks buried in the ground; `placeBlock` places against
+a side the bot can see; `!digDown` digs a staircase that sees each step before it stands on it; and
+`!goToSurface` climbs by what the bot knows of the column above it. Three fixes to inherited code, all
+offered to Mindcraft-CE. Built on the same Mindcraft-CE commit as 0.1.0.
+
 ### Changed
 
 - Under fair play, `!digDown` digs a staircase, one block forward for each block down, the way the bot
@@ -709,7 +717,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...HEAD
+[1.4.0-bedrock.1.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...v1.4.0-bedrock.1.5.0
 [1.3.0-bedrock.1.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...v1.3.0-bedrock.1.4.0
 [1.2.2-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...v1.2.2-bedrock.1.3.1
 [1.2.1-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.0-bedrock.1.3.0...v1.2.1-bedrock.1.3.1
