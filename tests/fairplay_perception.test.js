@@ -301,6 +301,34 @@ test('describeDirection and soundSubject', () => {
     assert.equal(soundSubject('entity.cave_spider.ambient'), 'cave_spider');
     assert.equal(soundSubject('minecraft:block.stone.break'), null);
     assert.equal(soundSubject('minecraft:entity.player.hurt'), null);
+    assert.equal(soundSubject('minecraft:block.wooden_door.open'), 'door (opened)');
+    assert.equal(soundSubject('minecraft:block.iron_door.close'), 'door (closed)');
+    assert.equal(soundSubject('minecraft:block.cherry_wood_trapdoor.open'), 'trapdoor (opened)');
+    assert.equal(soundSubject('minecraft:block.nether_wood_fence_gate.close'), 'fence_gate (closed)');
+    assert.equal(soundSubject('minecraft:block.chest.open'), 'chest (opened)');
+    assert.equal(soundSubject('minecraft:block.copper_chest_oxidized.close'), 'chest (closed)');
+    assert.equal(soundSubject('minecraft:block.barrel.open'), 'barrel (opened)');
+    assert.equal(soundSubject('minecraft:block.eyeblossom.open'), null, 'a flower opening is not worth telling');
+    assert.equal(soundSubject('minecraft:block.grass.step'), 'footsteps');
+    assert.equal(soundSubject('minecraft:entity.generic.explode'), 'explosion');
+});
+
+test('W7: doors, chests, footsteps and explosions are heard; a source in view is marked seen, a blast is always news', () => {
+    const cow = { id: 8, type: 'animal', name: 'cow', position: at(-6.5, 1, 0.5), height: 1.4 };
+    const { perception } = setup(w => w.fill('stone', [4, 1, -6], [4, 6, 6]), { entities: [cow] }); // a wall to the east
+    perception.hearSound('minecraft:block.wooden_door.open', at(8, 1, 0));   // behind the wall
+    perception.hearSound('minecraft:block.chest.open', at(-2, 1, 2));        // in plain view, west
+    perception.hearSound('minecraft:block.grass.step', at(-6.5, 1, 0.5));    // the cow, walking in view
+    perception.hearSound('minecraft:block.grass.step', at(9, 1, 3));         // something behind the wall
+    perception.hearSound('minecraft:entity.generic.explode', at(-10, 1, -2)); // in plain view, and still news
+    const heard = Object.fromEntries(perception.heard().map(h => [`${h.subject} ${h.direction}`, h]));
+    assert.equal(heard['door (opened) east'].seen, false);
+    assert.equal(heard['chest (opened) south-west'].seen, true, 'a chest whose spot is in view');
+    assert.equal(heard['footsteps west'].seen, true, 'the cow it can see');
+    assert.equal(heard['footsteps east'].seen, false);
+    assert.equal(heard['explosion west'].seen, false);
+    assert.equal(heard['explosion west'].news, true);
+    assert.equal(heard['door (opened) east'].news, false);
 });
 
 test('a search that runs out of its time budget is counted and noted in the log, at most once a minute', () => {

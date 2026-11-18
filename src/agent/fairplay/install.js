@@ -200,12 +200,12 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         reach: null,
         /**
          * Lines for the !entities report: what the bot heard lately but can't see, as "zombie (east,
-         * close)". Direction and rough distance only, never coordinates. A hissing creeper is listed
-         * even when it's in view, because the hiss is the news.
+         * close)" or "door (opened) (north, near)". Direction and rough distance only, never coordinates.
+         * A hissing creeper or an explosion is listed even when it's in view, because the sound is the news.
          */
         heardLines() {
             return (handle.perception?.heard() ?? [])
-                .filter(sound => !sound.seen || sound.subject.includes('('))
+                .filter(sound => !sound.seen || sound.news)
                 .map(sound => `heard: ${sound.subject} (${sound.text})`);
         },
         /**

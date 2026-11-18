@@ -57,9 +57,48 @@ export function describeDirection(from, to) {
     return { direction, distance: howFar, text: `${direction}${vertical}, ${howFar}` };
 }
 
-/** Turns a sound name like "minecraft:entity.zombie.ambient" into what made it ("zombie"), or null. */
+// Blocks whose opening and closing a player hears, by the word in their sound's name. Every kind of
+// wooden door, trapdoor and fence gate has its own sound, so those are matched by how the word ends.
+const CONTAINER_SOUNDS = { chest: 'chest', trapped_chest: 'chest', ender_chest: 'ender_chest',
+    barrel: 'barrel', shulker_box: 'shulker_box' };
+function openedBlock(word) {
+    if (word.startsWith('copper_chest')) return 'chest'; // and its weathered and oxidized sounds
+    if (word.endsWith('trapdoor')) return 'trapdoor';
+    if (word.endsWith('door')) return 'door';
+    if (word.endsWith('fence_gate')) return 'fence_gate';
+    return CONTAINER_SOUNDS[word] ?? null;
+}
+
+/**
+ * The kinds of sound that don't come from a mob the bot could look at, and how `heard` treats them:
+ * a door or chest is "seen" when the spot it sounded from is in view; footsteps, when a mob is standing
+ * there; an explosion is news even in plain view.
+ */
+export const SOUND_SOURCES = Object.freeze({ block: 'block', footsteps: 'footsteps', explosion: 'explosion', mob: 'mob' });
+export function soundSource(subject) {
+    if (subject === 'explosion') return SOUND_SOURCES.explosion;
+    if (subject === 'footsteps') return SOUND_SOURCES.footsteps;
+    if (/ \((opened|closed)\)$/.test(subject)) return SOUND_SOURCES.block;
+    return SOUND_SOURCES.mob;
+}
+
+/**
+ * Turns a sound name into what made it, or null for one not worth telling the model about. Mobs by
+ * their kind ("minecraft:entity.zombie.ambient" is "zombie"); doors, trapdoors, fence gates and
+ * containers by what happened to them ("door (opened)"); a block's step sound, which the server plays
+ * for a mob walking on it, as "footsteps"; and "explosion". Other players' footsteps never arrive:
+ * each player's own game plays them, the server doesn't send them.
+ */
 export function soundSubject(soundName) {
-    const name = String(soundName).replace(/^minecraft:/, '').replace(/_/g, '.');
+    const raw = String(soundName).replace(/^minecraft:/, '');
+    if (raw === 'entity.generic.explode') return 'explosion';
+    const opened = raw.match(/^block\.([a-z_]+)\.(open|close)$/);
+    if (opened) {
+        const what = openedBlock(opened[1]);
+        return what ? `${what} (${opened[2] === 'open' ? 'opened' : 'closed'})` : null;
+    }
+    if (/^block\.[a-z_]+\.step$/.test(raw)) return 'footsteps';
+    const name = raw.replace(/_/g, '.');
     const match = name.match(/^entity\.([a-z]+(?:\.[a-z]+)?)\./);
     if (!match) return null;
     const subject = match[1].replace(/\.(ambient|hurt|death|step|attack|shoot|primed)$/, '');
@@ -440,15 +479,16 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         const subject = soundSubject(soundName);
         if (!subject || !position || !bot.entity?.position) return;
         if (Math.hypot(position.x - bot.entity.position.x, position.y - bot.entity.position.y, position.z - bot.entity.position.z) > policy.hearing_radius) return;
-        heardLog.push({ subject, position: { x: position.x, y: position.y, z: position.z }, at: now() });
+        heardLog.push({ subject, source: soundSource(subject), position: { x: position.x, y: position.y, z: position.z }, at: now() });
         if (heardLog.length > 50) heardLog.shift();
     }
 
     /**
      * What the bot heard recently: subject, direction and rough distance, newest first, no coordinates.
-     * Two cows in different directions are two entries. `seen` says whether something of that kind the
-     * bot can see is standing where the sound came from, so callers can leave out noises whose source
-     * is already in view.
+     * Two cows in different directions are two entries. `seen` says whether the source is in view (a mob
+     * of that kind standing where the sound came from, or the spot a door or chest sounded from), so
+     * callers can leave out noises whose source the bot can already see. `news` marks a sound worth
+     * telling even then: a creeper's hiss, an explosion.
      */
     function heard({ withinMs = 10000 } = {}) {
         const t = now();
@@ -459,13 +499,23 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             if (t - sound.at > withinMs) continue;
             const where = describeDirection(here, sound.position);
             const kind = sound.subject.replace(/ \(.*$/, '');
-            const seen = inView.some(e => e.name === kind
-                && Math.hypot(e.position.x - sound.position.x, e.position.y - sound.position.y, e.position.z - sound.position.z) <= 4);
-            latest.set(`${sound.subject}|${where.direction}`, { subject: sound.subject, ...where, seen, at: sound.at });
+            const near = (p, range) => Math.hypot(p.x - sound.position.x, p.y - sound.position.y, p.z - sound.position.z) <= range;
+            let seen;
+            if (sound.source === SOUND_SOURCES.block) seen = seesCellNow(sound.position);
+            else if (sound.source === SOUND_SOURCES.footsteps) seen = inView.some(e => near(e.position, 2));
+            else if (sound.source === SOUND_SOURCES.explosion) seen = false;
+            else seen = inView.some(e => e.name === kind && near(e.position, 4));
+            const news = sound.source === SOUND_SOURCES.explosion || / \(hissing\)$/.test(sound.subject);
+            latest.set(`${sound.subject}|${where.direction}`, { subject: sound.subject, ...where, seen, news, at: sound.at });
         }
         return [...latest.values()].sort((a, b) => b.at - a.at)
             .map(({ at, ...sound }) => ({ ...sound, secondsAgo: Math.round((t - at) / 1000) }));
     }
+
+    const seesCellNow = p => {
+        beginLook();
+        return perceivable(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z));
+    };
 
     // ---- Lifetime ----
 

@@ -39,7 +39,7 @@ through walls.
 | **Touch** | The cells its body is in, the ones just above and below, and the four beside it |
 | **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way, at any point along its middle or the edges of its body |
 | **Memory** | With world memory on, blocks it saw before are remembered exactly as they were last seen. A furnace that someone removed while the bot was away is still "there" until the bot looks again |
-| **Hearing** | Mob sounds the server actually sent, reported as "zombie (north-east, close)". A direction and a rough distance, never coordinates |
+| **Hearing** | Sounds the server actually sent: mobs, doors, trapdoors and gates, chests and barrels opening and closing, a mob's footsteps, and explosions, reported as "zombie (north-east, close)" or "door (opened) (east, near)". A direction and a rough distance, never coordinates. Other players' footsteps aren't heard: the server never sends them |
 | **Name tags** | Players within 64 blocks are known even through walls, unless they are sneaking. Vanilla shows name tags the same way |
 
 Details that matter:
@@ -112,7 +112,8 @@ player's legs do.
 ## What Changes for the Model
 
 - `!nearbyBlocks` and `!entities` (and the state summary built from them) list only what the bot perceives.
-- `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view.
+- `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view. A
+  creeper's hiss and an explosion are listed even in plain view.
 - With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model

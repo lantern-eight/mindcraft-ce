@@ -11,6 +11,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Added
 
+- The bot hears doors, trapdoors and fence gates, chests, barrels and shulker boxes opening and closing, a
+  mob's footsteps, and explosions, on both editions, as it already heard mobs: `heard: door (opened) (east,
+  near)`. One whose spot is in view is left out, as a mob in view is; an explosion is always listed.
 - Fair play checks its own wiring each time the bot spawns: a block buried under the bot must be unknown to
   the searches every command and skill makes. If it isn't, the bot refuses every action and says why. A
   mistake in how fair play is hooked in used to leave the bot seeing through walls without a word.
