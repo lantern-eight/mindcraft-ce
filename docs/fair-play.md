@@ -122,6 +122,8 @@ player's legs do.
   `tillAndSow` in generated code) looks at the block there before deciding anything from it. When the bot
   doesn't know the block, it walks within three blocks and looks; one still hidden is reported as "can't
   see the block at …", never by name. `placeBlock` places against a side the bot can see.
+- `!goToSurface` climbs to the highest ground the bot knows of above it, looks again from there, and stops
+  under open sky. It no longer names the height of a surface it hasn't seen.
 
 ## The Server's Part
 

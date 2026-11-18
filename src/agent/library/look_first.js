@@ -99,3 +99,98 @@ export function sideToPlaceAgainst(bot, target, dirs, isEmpty) {
     }
     return fallback;
 }
+
+// ---- Going up to the surface ----
+
+const OPEN = new Set(['air', 'cave_air', 'void_air']);
+// One round goes up to the highest ground the bot knows of; from there it looks again. Underground with
+// nothing remembered that is only the ceiling, so the climb goes a few blocks at a time.
+const MAX_ROUNDS = 16;
+
+/**
+ * What the bot knows of the column above its head: the highest block in it, and whether every cell up to
+ * the top of the world is known to be open sky.
+ */
+function columnAbove(bot) {
+    const feet = cellOf(bot.entity.position);
+    const top = (bot.game?.minY ?? -64) + (bot.game?.height ?? 384) - 1;
+    let highest = null, open = true;
+    for (let y = feet.y + 2; y <= top; y++) {
+        const block = knownBlockAt(bot, new Vec3(feet.x, y, feet.z));
+        if (!block) { open = false; continue; }
+        if (OPEN.has(block.name)) continue;
+        highest = block;
+        open = false;
+    }
+    return { highest, open };
+}
+
+const SIDEWAYS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const solid = block => Boolean(block) && !OPEN.has(block.name) && block.boundingBox === 'block';
+
+/**
+ * Under open sky, the bot may still stand at the bottom of a pit: the shaft it dug its way up, say, with
+ * its head just level with the ground. That is when all four sides are solid at head height. Then the way
+ * out is to rise until one side is open: the feet height above the lowest of the four walls. Returns that
+ * height, or null when the bot isn't walled in.
+ */
+function pitExit(bot) {
+    const feet = cellOf(bot.entity.position);
+    let exit = Infinity;
+    for (const [dx, dz] of SIDEWAYS) {
+        let y = feet.y + 1;
+        if (!solid(knownBlockAt(bot, new Vec3(feet.x + dx, y, feet.z + dz)))) return null;
+        while (solid(knownBlockAt(bot, new Vec3(feet.x + dx, y, feet.z + dz)))) y++;
+        exit = Math.min(exit, y);
+    }
+    return exit;
+}
+
+/**
+ * Goes up to the surface over the bot's own column. Mindcraft's version read the whole column from the
+ * world data and went straight to the top of it, which told the model the height of the surface above a
+ * sealed cave. This one goes to the highest block the bot knows of above it (the ceiling, or ground it
+ * remembers from earlier), looks again from there, and stops when it sees open sky overhead and can
+ * step out sideways. With fair play off the bot knows the whole column, so the first round goes all the
+ * way, as before.
+ *
+ * @param {object} bot
+ * @param {object} options
+ * @param {(bot, x, y, z, minDistance) => Promise<boolean>} options.goToPosition - skills.goToPosition
+ * @param {(bot, text) => void} options.log - skills.log
+ * @returns {Promise<boolean>} true once the bot stands under open sky
+ */
+export async function climbToSurface(bot, { goToPosition, log }) {
+    for (let round = 0; round < MAX_ROUNDS; round++) {
+        const feetY = Math.floor(bot.entity.position.y);
+        const { highest, open } = columnAbove(bot);
+        if (open) {
+            const exitY = pitExit(bot);
+            if (exitY === null) {
+                log(bot, round === 0 ? `Already at the surface, with open sky above, at y=${feetY}.` : `Reached the surface at y=${feetY}.`);
+                return true;
+            }
+            const feet = cellOf(bot.entity.position);
+            log(bot, `Open sky above, but walls all round: climbing to y=${exitY} to step out.`);
+            await goToPosition(bot, feet.x, exitY, feet.z, 0);
+            if (Math.floor(bot.entity.position.y) <= feetY) {
+                log(bot, `Could not climb out of the pit at y=${Math.floor(bot.entity.position.y)}.`);
+                return false;
+            }
+            continue;
+        }
+        if (!highest) {
+            log(bot, `Can't tell where the surface is: you can't see anything above you.`);
+            return false;
+        }
+        const goal = highest.position.offset(0, 1, 0);
+        log(bot, `Going up to the highest ground you know of above you, at y=${goal.y}.`);
+        await goToPosition(bot, goal.x, goal.y, goal.z, 0);
+        if (Math.floor(bot.entity.position.y) <= feetY) {
+            log(bot, `Could not get any higher than y=${Math.floor(bot.entity.position.y)}.`);
+            return false;
+        }
+    }
+    log(bot, `Climbed to y=${Math.floor(bot.entity.position.y)}, but there is still no open sky above.`);
+    return false;
+}

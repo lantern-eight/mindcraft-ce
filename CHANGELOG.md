@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- `!goToSurface` climbs to the highest ground the bot knows of above it, looks again from there, and stops
+  under open sky with a way to step out sideways. Under fair play it used to read the surface's height from
+  the world data and name it before the bot could have seen it. With fair play off the first trip still
+  goes all the way up; on either, it no longer stops at the bottom of a pit open to the sky.
+
 ### Fixed
 
 - Under fair play, skills given a spot by its coordinates (`!placeHere`, the `placeBlockAt` tool, and
