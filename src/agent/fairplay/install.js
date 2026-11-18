@@ -32,6 +32,7 @@ import { setWorldQueries, worldQueries } from '../library/world_queries.js';
 import { checkFairWiring } from './wiring_check.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
+import { setAttackReach } from '../library/attack_reach.js';
 import { installFairLegs } from './fair_legs.js';
 import { withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
@@ -272,6 +273,9 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // By the first spawn the bot's plugins are loaded, so its methods exist to be wrapped.
         handle.reach ??= createReachGuard({ policy, getPerception: () => handle.perception, getRegistry: () => bot.registry });
         installReachGuard(bot, handle.reach);
+        // A single hit walks within the reach the guard allows first, instead of swinging from where the
+        // stock skill would and being refused.
+        setAttackReach(bot, entity => handle.reach.withinReach(entity));
         // And the pathfinder is there to be told what the bot has seen. The legs ask for perception each
         // time they need it, so they keep working when a new dimension brings a new one.
         if (policy.route_planning === 'seen' && bot.pathfinder) {

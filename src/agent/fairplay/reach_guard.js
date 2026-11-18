@@ -42,7 +42,8 @@ function distanceToBox(p, minX, minY, minZ, maxX, maxY, maxZ) {
  * @param {() => object|null} options.getPerception - the current perception service, or null before spawn
  * @param {() => object|null} [options.getRegistry] - the bot's game data, for the game's own reach. Without
  *   it, as in tests on hand-built worlds, the game is taken to be Java
- * @returns {{checkBlock: function, checkEntity: function}} each throws when the action isn't allowed
+ * @returns {{checkBlock: function, checkEntity: function, withinReach: function}} the checks throw when the
+ *   action isn't allowed; withinReach says whether a mob is near enough to hit
  */
 export function createReachGuard({ policy, getPerception, getRegistry = () => null }) {
     // "survival" in the policy means whatever a survival player of the game in play can reach. Asked each
@@ -80,6 +81,21 @@ export function createReachGuard({ policy, getPerception, getRegistry = () => nu
             throw refusal(`You can't see the side of ${where} that you would place against. Try another side, or move.`);
     }
 
+    // Eye to the nearest part of the mob's box, as the game measures a hit.
+    function distanceToEntity(perception, entity) {
+        const pos = entity.position;
+        const half = (entity.width ?? 0.6) / 2, height = entity.height ?? 1.8;
+        return distanceToBox(perception.eye(), pos.x - half, pos.y, pos.z - half, pos.x + half, pos.y + height, pos.z + half);
+    }
+
+    /** True when the entity is within the bot's reach right now. Sight is not asked: only distance. */
+    function withinReach(entity) {
+        const perception = getPerception();
+        entity = perception?.liveOf?.(entity) ?? entity;
+        if (!perception || !entity?.position) return false;
+        return distanceToEntity(perception, entity) <= reachOf('entities') + 1e-6;
+    }
+
     function checkEntity(entity, verb = 'hit it') {
         const perception = ready();
         // A mob that just slipped out of view is handed out as a stand-in where it was last seen. Reach
@@ -88,8 +104,7 @@ export function createReachGuard({ policy, getPerception, getRegistry = () => nu
         const pos = entity?.position;
         if (!pos) throw refusal('That is not something you can reach.');
         const what = `the ${entity.name ?? entity.username ?? 'entity'}`;
-        const half = (entity.width ?? 0.6) / 2, height = entity.height ?? 1.8;
-        const distance = distanceToBox(perception.eye(), pos.x - half, pos.y, pos.z - half, pos.x + half, pos.y + height, pos.z + half);
+        const distance = distanceToEntity(perception, entity);
         const reach = reachOf('entities');
         if (distance > reach + 1e-6)
             throw refusal(`You can't reach ${what}: it is ${distance.toFixed(1)} blocks away and you can reach ${reach}. Move closer first.`);
@@ -98,7 +113,7 @@ export function createReachGuard({ policy, getPerception, getRegistry = () => nu
             throw refusal(`You can't see ${what} from here, so you can't ${verb}.`);
     }
 
-    return { checkBlock, checkEntity };
+    return { checkBlock, checkEntity, withinReach };
 }
 
 /**

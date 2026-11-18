@@ -25,6 +25,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- Under fair play, `attackEntity` told to land one hit walks within a survival player's reach of the mob
+  first. It swung from up to five blocks away, and fair play refused a swing from beyond three.
 - `useDoor` with no position goes to the nearest door of any kind, found with one search. It searched once
   for each of the twenty-odd kinds of door and took the first kind it found, not the nearest door.
 - `!stop`, or the bot dying, while a new action is taking over from the one running now stops the new one

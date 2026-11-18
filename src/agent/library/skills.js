@@ -2,6 +2,7 @@ import * as mc from "../../utils/mcdata.js";
 import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
 import { followKnownWay } from './travel_guide.js';
+import { withinAttackReach } from './attack_reach.js';
 import { assertActionOwner, actionContext, onActionCleanup, cancellable } from '../action_context.js';
 import pf from 'mineflayer-pathfinder';
 import Vec3 from 'vec3';
@@ -374,7 +375,7 @@ export async function attackEntity(bot, entity, kill=true) {
     await equipHighestAttack(bot)
 
     if (!kill) {
-        if (bot.entity.position.distanceTo(pos) > 5) {
+        if (!withinAttackReach(bot, entity)) {
             console.log('moving to mob...')
             await goToPosition(bot, pos.x, pos.y, pos.z);
         }
