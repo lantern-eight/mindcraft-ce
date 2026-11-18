@@ -37,7 +37,7 @@ adapted here with its own test, and stays under the inherited code's MIT License
 
 | Fork | What was taken | License |
 |---|---|---|
-| [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`). Listing an agent on the MindServer only after the server check, in `src/mindcraft/mindcraft.js` (`f18b8f6`). `attackNearest` refusing an empty mob type, in `src/agent/library/skills.js` (`6533ada`), and `attackEntity` naming a player it killed (`e16fc01`) | MIT |
+| [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`). Listing an agent on the MindServer only after the server check, in `src/mindcraft/mindcraft.js` (`f18b8f6`). `attackNearest` refusing an empty mob type, in `src/agent/library/skills.js` (`6533ada`), and `attackEntity` naming a player it killed (`e16fc01`). The removal of a dead method and unused imports from `src/models/vllm.js` (`f18b8f6`) | MIT |
 
 ## Libraries
 
