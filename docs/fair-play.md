@@ -249,4 +249,6 @@ node tests/live/fairplay_perception_smoke.js  # perception alone on a real serve
 The live tests need Node 22, Java 25, and `MC_TEST_SERVER_JAR` pointing at a Minecraft 26.3 server jar
 (`MC_TEST_VERSION` names another version, for a jar of that version).
 They start their own throwaway server, build each scene from the server console, and make no model calls.
-`tests/live/fairplay_perception_bench.js` times perception against a server that is already running.
+`tests/live/fairplay_perception_bench.js` times perception on a world of normal terrain from a fixed seed, and
+compares the timings with the last release's in `tests/live/perception_bench_results.json`. It is run once per
+release, with `--record` to save the new result; `--port=N` times against a server already running instead.

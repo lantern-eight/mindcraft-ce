@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- A timing record for each release: the perception bench, `tests/live/fairplay_perception_bench.js`, now
+  starts its own server on a world of normal terrain from a fixed seed, and compares its timings with the
+  last release's, kept with the seed and game version in `tests/live/perception_bench_results.json`. It
+  fails when fair play's perception got more than half again slower, and `--record` saves a release's
+  result. Making a release now runs it.
+
 ## [1.2.0-bedrock.1.3.0] - 2026-11-18
 
 A release for both editions. World memory no longer takes a change that happened in plain view for news, and

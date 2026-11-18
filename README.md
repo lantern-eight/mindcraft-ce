@@ -157,8 +157,15 @@ node tests/live/fairplay_scenarios.js
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
 The last three replay recorded model replies, so they cost nothing; `--live-model` makes them call the
-configured model instead. `fairplay_perception_bench.js` is a timing bench, not a test, and needs a server
-already running. Each run leaves its server's folder under `server_data/`, which can be deleted.
+configured model instead. Each run leaves its server's folder under `server_data/`, which can be deleted.
+
+`fairplay_perception_bench.js` times fair play's perception rather than checking it, once per release. It
+makes a world of normal terrain from a fixed seed, takes each timing five times, and compares the middle
+values with the last release's, kept in `tests/live/perception_bench_results.json` under the seed and game
+version they were measured on (one seed makes different land in different game versions). It fails if a fair
+timing is more than 1.5 times its last value plus 3 ms; `--record` saves the result for the version in
+`package.json`. Timings depend on the computer, so compare releases measured on the same one: mineflayer's own
+searches are timed alongside as a yardstick.
 
 What the server jar unpacks on its first start (and for Paper, downloads and patches) is kept in
 `server_data/jar-cache` and shared by every run after. `MC_TEST_JAR_CACHE` picks another folder; `off` gives
