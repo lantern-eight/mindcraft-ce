@@ -25,6 +25,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   crafts nothing. It crashed on the missing spot, and after a failed placement tried the recipe with no table.
 - `craftRecipe` asked for something with no crafting recipe, such as raw meat or a misspelled name, says so
   instead of crashing.
+- Worn armor is no longer counted as carried. `!inventory` listed a worn helmet twice, once among the items
+  and once under WEARING, and recipes counted it as material in the bag. An NPC goal for a piece of armor is
+  still met by one the bot wears.
 
 - World memory no longer reports a change that happened in plain view as news, on either edition. A bot that
   stood a quiet minute looking at a wall took the wall coming down for something that happened while it was
