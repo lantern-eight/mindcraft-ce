@@ -17,7 +17,6 @@ import { javaEdition } from '../src/agent/edition/java.js';
 import { buildStopsSightTable } from '../src/agent/fairplay/sight.js';
 import { scanSection } from '../src/agent/fairplay/block_scan.js';
 import { createPerception } from '../src/agent/fairplay/perception.js';
-import { createSeenMap } from '../src/agent/fairplay/seen_map.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 import { needsBedrockLibraries } from './helpers/bedrock_libraries.js';
 
@@ -203,8 +202,7 @@ test('standing on a flat grass floor, the bot knows the grass and not the dirt o
     columns.get('0,0').setBlockStateId(new Vec3(5, -60, 0), registry.blocksByName.diamond_ore.defaultState); // in the open
     columns.get('0,0').setBlockStateId(new Vec3(6, -63, 3), registry.blocksByName.diamond_ore.defaultState); // buried
     const bot = bedrockBot(registry, columns, [0.5, -60, 0.5]);
-    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), seenMap: createSeenMap({ scope: 'test' }),
-        searchBudgetMs: Infinity, tickBudgetMs: Infinity });
+    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), searchBudgetMs: Infinity });
     const nameAt = (x, y, z) => perception.blockAt(new Vec3(x, y, z))?.name ?? null;
 
     assert.equal(nameAt(4, -61, 2), 'grass_block', 'the floor a few blocks off');

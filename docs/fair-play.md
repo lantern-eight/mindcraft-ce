@@ -33,7 +33,7 @@ If the setting is missing entirely, it counts as `"off"`.
 |---|---|
 | **Touch** | The cells its body is in, the ones just above and below, and the four beside it |
 | **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way |
-| **Memory** | Blocks it saw before are remembered exactly as they were last seen. A furnace that someone removed while the bot was away is still "there" until the bot looks again |
+| **Memory** | With world memory on, blocks it saw before are remembered exactly as they were last seen. A furnace that someone removed while the bot was away is still "there" until the bot looks again |
 | **Hearing** | Mob sounds the server actually sent, reported as "zombie (north-east, close)". A direction and a rough distance, never coordinates |
 | **Name tags** | Players within 64 blocks are known even through walls, unless they are sneaking. Vanilla shows name tags the same way |
 
@@ -49,9 +49,8 @@ Details that matter:
 - **Memory is per world and dimension.** With [world memory](world-memory.md) on, which is the
   default, the bot remembers every block it has seen, what was in the chests it opened, places, the ways
   it has walked, and whether a place has changed. It records only what was in view.
-- **With world memory off, the bot remembers less:** only "notable" blocks, saved under
-  `bots/<name>/seen/`. Those are ores, logs, sand, gravel, clay, containers, crafting stations, beds,
-  doors, crops and a few rarer ones. Other blocks are known only while in view.
+- **With world memory off, the bot remembers nothing:** it knows only what it touches and sees now, and
+  has no `!recall`.
 - **Coordinates are fair.** Players have them on the debug screen.
 
 This applies to everything that decides what the bot does: the state summary the model reads each turn,
@@ -107,8 +106,8 @@ player's legs do.
 
 - `!nearbyBlocks` and `!entities` (and the state summary built from them) list only what the bot perceives.
 - `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view.
-- `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far, which way, how long
-  ago. Searches like `!searchForBlock` use the same memory.
+- With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
+  which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model
   explores instead of giving up.
 
@@ -202,13 +201,12 @@ All of it lives in `src/agent/fairplay/`:
 | `sight.js` | The geometry: can a straight line from the eye reach this block, point or mob? Pure, no mineflayer |
 | `block_scan.js` | A fast private read of chunk data, for perception only |
 | `perception.js` | **The boundary.** The one place that reads raw world data; it returns only what touch, sight, memory and hearing allow |
-| `seen_map.js` | What the bot has seen, saved per world. With `world_memory` on, the store in `src/agent/memory/` takes its place |
 | `policy.js` | Turns the settings into one frozen object of rules |
 | `fair_queries.js` | The provider plugged into `world.js`, where the through-walls switches are applied |
 | `reach_guard.js` | Reach and line of sight for clicking, digging, placing and hitting |
 | `fair_legs.js` | What the pathfinder is told while it plans a route, and the watch on the way ahead |
 | `fair_bot.js`, `code_runner.js` | The stand-in bot and the compartment for model-written code |
-| `commands.js` | `!recall` (world memory registers a fuller one in its place when it is on), and the "not found means not seen" sentence |
+| `commands.js` | The "not found means not seen" sentence added to an empty-handed search. `!recall` comes with world memory |
 | `install.js` | Switches all of the above on for one agent |
 
 **What depends on the edition of the game.** How block states are numbered, how a chunk section lists the

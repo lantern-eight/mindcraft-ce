@@ -12,7 +12,7 @@
 // bot-side rules hold with no help from the server.
 //
 // World memory is on, as it is in the shipped settings, so these are the rules as a person runs them.
-// `--no-world-memory` runs the same scenes on the smaller seen-world map that stands in when it is off.
+// `--no-world-memory` runs the same scenes with it off, when the bot knows only what is in view now.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -44,7 +44,8 @@ try {
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
-    const { SEARCH_HINT } = await import('../../src/agent/fairplay/commands.js');
+    const { SEARCH_HINT: MEMORY_HINT, SEARCH_HINT_NO_MEMORY } = await import('../../src/agent/fairplay/commands.js');
+    const SEARCH_HINT = worldMemory ? MEMORY_HINT : SEARCH_HINT_NO_MEMORY; // the sentence an empty search gets
     const { getCommand } = await import('../../src/agent/commands/index.js');
     const skills = await import('../../src/agent/library/skills.js');
 
@@ -70,7 +71,6 @@ try {
     initModes(agent);
     // What the bot remembers goes to a throwaway folder either way, never into this repository.
     const handle = installFairPlay(agent, {
-        seenDir: mkdtempSync(path.join(tmpdir(), 'fair-live-')),
         memoryDir: mkdtempSync(path.join(tmpdir(), 'fair-live-memory-')),
     });
     assert.ok(handle, 'fair play installed');
@@ -139,8 +139,10 @@ try {
         }
         assert.deepEqual(dug, [], 'only the diamond was dug');
         assert.equal(count('dirt'), 8, 'no block was placed');
-        const recall = getCommand('!recall').perform(agent, 'diamond_ore');
-        for (const [x, y, z] of buried) assert.ok(!recall.includes(`${x}, ${y}, ${z}`), recall);
+        if (worldMemory) {
+            const recall = getCommand('!recall').perform(agent, 'diamond_ore');
+            for (const [x, y, z] of buried) assert.ok(!recall.includes(`${x}, ${y}, ${z}`), recall);
+        }
         return { text: result.text.replace(SEARCH_HINT, '').trim() };
     });
 
@@ -169,7 +171,7 @@ try {
         const after = await act('test:chest', () => skills.putInChest(bot, 'dirt', 1));
         assert.equal(after.status, 'ok', after.text);
         assert.equal(count('dirt'), dirt - 1, after.text);
-        assert.match(getCommand('!recall').perform(agent, 'chest'), /REMEMBERED chest/);
+        if (worldMemory) assert.match(getCommand('!recall').perform(agent, 'chest'), /REMEMBERED chest/);
         return { text: after.text.trim() };
     });
 

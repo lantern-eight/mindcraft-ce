@@ -54,11 +54,11 @@ function setup(build = () => {}, { memory = true, legs = true, position = [0.5, 
     if (memory) {
         store = openMemory({ baseDir: mkdtempSync(path.join(tmpdir(), 'legs-')), scope: SCOPE, now, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
         recorder = createRecorder({ bot, memory: store, now, tickBudgetMs: Infinity });
-        perception = createPerception({ bot, policy, seenMap: recorder.view, backgroundPass: false, now, ...NO_BUDGETS });
+        perception = createPerception({ bot, policy, memory: recorder.view, now, ...NO_BUDGETS });
         recorder.attach(perception);
         recorder.listen();
     } else {
-        perception = createPerception({ bot, policy, backgroundPass: false, now, ...NO_BUDGETS });
+        perception = createPerception({ bot, policy, now, ...NO_BUDGETS });
     }
     // The tests call check() themselves, and time stands still unless a test moves it.
     const handle = legs ? installFairLegs(bot, { getPerception: () => perception, clock: now, checkEveryMs: 0 }) : null;
@@ -349,7 +349,7 @@ test('installing fair play gives the bot fair legs, unless the policy says route
         const agent = { name: 'Fairy', bot, task: null, openChat: () => {}, prompter: { profile: {}, getInitModes: () => ({}) } };
         initModes(agent);
         const dir = mkdtempSync(path.join(tmpdir(), 'legs-install-'));
-        const handle = installFairPlay(agent, { config: { host: 'localhost', port: 1, ...config }, seenDir: dir, memoryDir: dir, perceptionOptions: NO_BUDGETS });
+        const handle = installFairPlay(agent, { config: { host: 'localhost', port: 1, ...config }, memoryDir: dir, perceptionOptions: NO_BUDGETS });
         return { bot, handle };
     };
     try {

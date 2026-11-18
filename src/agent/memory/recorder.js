@@ -67,23 +67,56 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     const props = new Map();   // state id -> properties by name
     const propsFor = stateId => { let p = props.get(stateId); if (p === undefined) props.set(stateId, p = propsOfState(registry, stateId)); return p; };
 
-    // Which cells the bot has seen in the last minute, per cube: one bit a cell. A difference at a cell
-    // it just saw happened in front of it, which is not news. `before` is when the cube was last looked
-    // over before this stretch of watching began, so "I had looked here on an earlier visit" stays true
-    // however long the bot stays.
-    const recent = new Map();
+    // Which cells the bot has been watching, so that a difference at a cell it was looking at is not
+    // reported as news: it happened in front of it.
+    //
+    // Each look-around has a number, and each cell keeps the number of the last look that saw it. A look
+    // stays the bot's view of the world until the next one begins, because the recorder only looks again
+    // when the bot moves or something near it changes: a bot standing still in an unchanged world goes on
+    // seeing what its last look saw, however long it stands there. Each tick confirms that the current
+    // look is still what the bot sees (the tick is what would have noticed otherwise). So a cell counts
+    // as watched while the look that last saw it was confirmed under a minute ago.
+    //
+    // Before, the time was refreshed only by a new look, and a bot that stood a quiet minute in front of
+    // a wall reported the wall gone when it was torn down in front of it. And it was kept per cube, so the
+    // cells still in view kept the cube fresh, and a cell seen long ago, out of view since, counted as
+    // watched with them.
+    //
+    // `before` is when the cube was last looked over before this stretch of watching began, so "I had
+    // looked here on an earlier visit" stays true however long the bot stays.
+    const recent = new Map();     // cube key -> { seen: look number per cell, latest, before }
+    const lookEnded = new Map();  // look number -> when it was last confirmed, for looks that ended lately
+    let lookNumber = 1;           // the current look
+    let confirmed = -Infinity;    // when a tick last found the current look still to be what the bot sees
+    const watching = (number, t) => {
+        const ended = number === lookNumber ? confirmed : lookEnded.get(number);
+        return ended !== undefined && t - ended <= WATCHING_MS;
+    };
     function recently(x, y, z, t) {
         const key = cubeKey(x >> 4, y >> 4, z >> 4);
         let entry = recent.get(key);
-        if (!entry || t - entry.last > WATCHING_MS) {
-            entry = { bits: new Uint8Array(512), last: t, before: cells.lookedAt(x >> 4, y >> 4, z >> 4) };
+        if (!entry || !watching(entry.latest, t)) {
+            entry = { seen: new Uint32Array(4096), latest: 0, before: cells.lookedAt(x >> 4, y >> 4, z >> 4) };
             recent.set(key, entry);
         }
         const i = ((y & 15) << 8) | ((z & 15) << 4) | (x & 15);
-        const seen = (entry.bits[i >> 3] >> (i & 7)) & 1;
-        entry.bits[i >> 3] |= 1 << (i & 7);
-        entry.last = t;
-        return { watched: seen === 1, lookedBefore: entry.before > 0 };
+        const last = entry.seen[i];
+        entry.seen[i] = entry.latest = lookNumber;
+        return { watched: last !== 0 && watching(last, t), lookedBefore: entry.before > 0 };
+    }
+    /**
+     * A new look begins: the one before it stops being what the bot sees now. It was last known to be
+     * true at the tick before this one; what changed came after.
+     */
+    function nextLook(t) {
+        if (confirmed > -Infinity) lookEnded.set(lookNumber, confirmed);
+        lookNumber++;
+        confirmed = t;
+    }
+    /** Forgets looks, and cubes, that ended too long ago to count as watched. */
+    function forgetOldLooks(t) {
+        for (const [number, ended] of lookEnded) if (t - ended > WATCHING_MS) lookEnded.delete(number);
+        for (const [key, entry] of recent) if (!watching(entry.latest, t)) recent.delete(key);
     }
 
     let eye = null;                 // where the current look is from
@@ -235,6 +268,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
             crumb: trail.current, fresh: new Map(), appeared: [] };
         lastPassEye = eye;
         worldChanged = false;
+        nextLook(now());
         try {
             const biome = registry.biomes?.[bot.world.getBiome(p)]?.name;
             if (biome) things.recordBiome(p, biome);
@@ -304,8 +338,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
             things.setHerds(...key.split(',').map(Number), [...group.values()].map(h => ({ kind: h.kind, count: h.count,
                 x: Math.floor(h.x / h.count), y: Math.floor(h.y / h.count), z: Math.floor(h.z / h.count) })), how);
         }
-        const t = now();
-        for (const [key, entry] of recent) if (t - entry.last > WATCHING_MS) recent.delete(key);
+        forgetOldLooks(now());
     }
 
     /** One slice of work. Call it often; it returns as soon as its time is used up or nothing is left to do. */
@@ -316,10 +349,12 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         if (!pass) {
             const e = perception.eye();
             const moved = !lastPassEye || Math.hypot(e.x - lastPassEye.x, e.y - lastPassEye.y, e.z - lastPassEye.z) >= 1;
-            if (!moved && !worldChanged) return; // standing still in an unchanged world: nothing new to see
+            if (!moved && !worldChanged) { confirmed = now(); return; } // standing still in an unchanged world: still seeing the same
             startPass();
         } else if (Math.abs(Math.floor(p.x) - feet.x) + Math.abs(Math.floor(p.y) - feet.y) + Math.abs(Math.floor(p.z) - feet.z) > 16) {
             startPass(); // the bot has left the area this look was covering
+        } else {
+            confirmed = now();
         }
         const deadline = clock() + budgetMs;
         do {
@@ -450,9 +485,8 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     // ---- What perception is told the bot remembers ----
     //
     // Perception answers "what is there?" for cells out of sight from memory. This is world memory in
-    // the shape perception expects of a memory: the same few calls the seen-world map offers.
+    // the shape perception expects of a memory (its `memory` option).
     const view = {
-        recordsAll: true,
         scope: memory.scope,
         observeBlock(pos, name, provenance, stateId) {
             if (Number.isInteger(stateId)) record(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), stateId);
@@ -484,9 +518,6 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
          * from above.
          */
         sawOpen: (x, y, z) => cells.seenOpen(x, y, z, radius),
-        within: () => [],
-        markExplored() {},
-        recordBiome: (pos, name) => things.recordBiome(pos, name),
     };
 
     return {

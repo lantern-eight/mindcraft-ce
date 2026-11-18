@@ -3,8 +3,8 @@
 //
 // This is the geometric heart of fair play. Mineflayer receives every block in every loaded chunk,
 // buried ore included, so "what the bot knows" has to be narrowed to "what a straight line from
-// its eye can reach". Everything else in the fair-play layer (the perception service, the seen-world
-// map, the reach guard) asks these questions.
+// its eye can reach". Everything else in the fair-play layer (the perception service, the reach guard)
+// and world memory's recorder ask these questions.
 //
 // The module is pure: it never touches mineflayer. The caller passes
 //   - getStateId(x, y, z): the block state id at a cell, or null/undefined when the client doesn't

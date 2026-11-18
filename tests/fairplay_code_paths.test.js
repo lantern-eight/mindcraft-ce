@@ -4,8 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { existsSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { setSettings } from '../src/agent/settings.js';
 import { initModes } from '../src/agent/modes.js';
@@ -40,7 +39,6 @@ function agentWith(custom = {}, build = () => {}) {
     initModes(agent);
     installFairPlay(agent, {
         config: { fair_play: Object.keys(custom).length ? 'custom' : 'strict', fair_play_custom: custom, host: 'h', port: 1 },
-        seenDir: mkdtempSync(path.join(tmpdir(), 'fair-code-')),
         perceptionOptions: { getStateId: w.getStateId, ...NO_BUDGETS },
     });
     const done = () => { bot.emit('end'); setWorldQueries(null); };

@@ -74,8 +74,8 @@ try {
     const memory = openMemory({ baseDir: mkdtempSync(path.join(tmpdir(), 'bedrock-memory-')), scope: 'live/overworld', now,
         canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
-    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), seenMap: recorder.view,
-        backgroundPass: false, now, searchBudgetMs: Infinity, tickBudgetMs: Infinity });
+    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), memory: recorder.view,
+        now, searchBudgetMs: Infinity });
     recorder.attach(perception);
 
     await step('a look around keeps what is in view, and nothing that is buried', () => {
