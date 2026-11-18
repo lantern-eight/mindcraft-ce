@@ -37,7 +37,7 @@ adapted here with its own test, and stays under the inherited code's MIT License
 
 | Fork | What was taken | License |
 |---|---|---|
-| [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`) | MIT |
+| [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`) | MIT |
 
 ## Libraries
 
@@ -113,7 +113,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
   `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/item_goal_hunt.test.js`,
   `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`,
-  `tests/inventory_counts_armor.test.js`, `tests/bedrock_*.test.js`
+  `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`, `tests/bedrock_*.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
