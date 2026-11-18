@@ -57,6 +57,7 @@ conflict instead of passing silently.
 
 Libraries that `package.json` takes from a commit on GitHub instead of an npm release, because a fix or a
 newer game version is not released yet. Each goes back to the npm release as soon as one has the change.
+Fixes of this fork's own in these libraries are offered upstream too; [upstream.md](upstream.md) lists them.
 
 All are forks under `lantern-eight`, on a branch named `pc26_3-combined`, pinned by commit. Each fork branch
 holds exactly the upstream work named below, so the commits stay reachable whatever happens to the branches
