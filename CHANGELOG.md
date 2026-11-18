@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.2.2-bedrock.1.3.1] - 2026-11-18
+
+A release for the people making releases: nothing a player sees changes. The perception timing bench now
+measures every release on the same land and fails one that made fair play's perception clearly slower. Built
+on the same Mindcraft-CE commit as 0.1.0.
+
 ### Added
 
 - A timing record for each release: the perception bench, `tests/live/fairplay_perception_bench.js`, now
@@ -621,7 +627,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...HEAD
+[1.2.2-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...v1.2.2-bedrock.1.3.1
 [1.2.1-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.0-bedrock.1.3.0...v1.2.1-bedrock.1.3.1
 [1.2.0-bedrock.1.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...v1.2.0-bedrock.1.3.0
 [1.1.1-bedrock.1.2.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.0-bedrock.1.2.0...v1.1.1-bedrock.1.2.1
