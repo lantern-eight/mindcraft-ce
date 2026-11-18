@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 // Installing fair play on an agent: the cheat-mode lock, the slash-command guard, the operator and
-// game-mode watch, and the spawn-time wiring of perception, the seen-world map and the world.js provider.
+// game-mode watch, and the spawn-time wiring of perception and the world.js provider.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, readdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
 import Vec3 from 'vec3';
 import { initModes } from '../src/agent/modes.js';
 import { getCommand } from '../src/agent/commands/index.js';
@@ -15,7 +12,7 @@ import { setWorldQueries } from '../src/agent/library/world_queries.js';
 import { withAction } from '../src/agent/action_context.js';
 import { installFairPlay, lockModes, makeChatGuard, guardChat, watchPermissions } from '../src/agent/fairplay/install.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
-import { withSearchHint, SEARCH_HINT } from '../src/agent/fairplay/commands.js';
+import { withSearchHint, SEARCH_HINT, SEARCH_HINT_NO_MEMORY } from '../src/agent/fairplay/commands.js';
 import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
 
 const STRICT = resolvePolicy({ fair_play: 'strict' });
@@ -74,7 +71,7 @@ test("the chat guard survives mineflayer injecting bot.chat after the install ho
     bot.modes = agent.bot.modes;
     agent.bot = bot;
     agent.prompter.profile = {};
-    installFairPlay(agent, { config: { fair_play: 'strict', host: 'h', port: 1 }, seenDir: mkdtempSync(path.join(tmpdir(), 'fair-late-')) });
+    installFairPlay(agent, { config: { fair_play: 'strict', host: 'h', port: 1 } });
     const sent = [];
     bot.chat = message => sent.push(message); // the chat plugin injecting itself
     bot.emit('inject_allowed');
@@ -127,9 +124,8 @@ function fairAgent(build, config = { fair_play: 'strict', host: 'localhost', por
         } },
     };
     initModes(agent);
-    const seenDir = mkdtempSync(path.join(tmpdir(), 'fair-install-'));
-    const handle = installFairPlay(agent, { config, seenDir, perceptionOptions: { getStateId: w.getStateId, ...NO_BUDGETS } });
-    return { agent, bot, handle, ran, seenDir };
+    const handle = installFairPlay(agent, { config, perceptionOptions: { getStateId: w.getStateId, ...NO_BUDGETS } });
+    return { agent, bot, handle, ran };
 }
 
 test('installing with fair_play off changes nothing', () => {
@@ -139,19 +135,19 @@ test('installing with fair_play off changes nothing', () => {
     assert.equal(agent.fairPlay, undefined);
 });
 
-test('installing strict on a spawned bot makes world.js fair and saves the map when the bot leaves', () => {
-    const { agent, bot, handle, seenDir } = fairAgent(w => {
+test('installing strict on a spawned bot makes world.js fair', () => {
+    const { agent, bot, handle } = fairAgent(w => {
         w.fill('stone', [4, 1, -2], [8, 5, 2]);
         w.set('diamond_ore', 6, 3, 0); // buried
         w.set('diamond_ore', -6, 1, 0); // in the open
     });
-    assert.ok(handle.perception && handle.seenMap);
+    assert.ok(handle.perception);
+    assert.equal(handle.memory, null, 'world memory is off unless the setting says so');
     assert.equal(agent.fairPlay, handle);
-    assert.equal(handle.seenMap.scope, 'world:w1/overworld');
+    assert.equal(handle.scope, 'world:w1/overworld');
     const found = world.getNearestBlocksWhere(bot, b => b.name === 'diamond_ore', 32, 5);
     assert.deepEqual(found.map(b => b.position.x), [-6]);
     bot.emit('end');
-    assert.equal(readdirSync(seenDir).filter(f => f.endsWith('.json')).length, 1);
     setWorldQueries(null);
 });
 
@@ -188,20 +184,16 @@ test('R1 end to end: once installed, a skill cannot open a chest it cannot see, 
     setWorldQueries(null);
 });
 
-test('!recall answers from memory: where, how far, which way, how long ago', async () => {
-    const { agent, bot, handle } = fairAgent(w => {
-        w.fill('sand', [6, 1, -1], [7, 1, 1]);      // a patch of sand in view to the east
-        w.fill('stone', [-6, 1, -2], [-3, 4, 2]);
-        w.set('diamond_ore', -4, 2, 0);             // buried
+test('with world memory off the bot knows what is in view, nothing beyond it, and has no !recall', () => {
+    const { bot, handle } = fairAgent(w => {
+        w.set('chest', 6, 1, 0);
+        w.fill('stone', [6, 1, 3], [6, 5, 8]); // a wall to hide behind, south of the chest
     });
-    handle.perception.tick(); // the background pass notices the sand
-    const recall = getCommand('!recall');
-    assert.ok(recall, 'installing fair play registers the command');
-    const sand = recall.perform(agent, 'sand');
-    assert.match(sand, /^REMEMBERED sand \(nearest first\)\n- at 6, 1, 0: 6 blocks east, seen just now/);
-    assert.match(sand, /and 1 more farther away/);
-    assert.equal(recall.perform(agent, 'diamond_ore'), "You haven't seen any diamond_ore yet. Explore to find some.");
-    assert.match(recall.perform(agent, 'stone'), /isn't a kind of block you keep track of/);
+    const chest = new Vec3(6, 1, 0);
+    assert.equal(handle.perception.blockAt(chest)?.name, 'chest', 'in view');
+    bot.moveTo(6.5, 1, 10.5); // behind the wall
+    assert.equal(handle.perception.blockAt(chest), null, 'out of view, it is not remembered');
+    assert.equal(getCommand('!recall'), undefined, 'nothing to recall, so no command for it');
     bot.emit('end');
     setWorldQueries(null);
 });
@@ -211,7 +203,8 @@ test('an empty-handed search is explained once: not found means not seen', async
     const found = await agent.actions.runAction('action:collectBlocks', async () => {});
     assert.equal(found.message, 'done', 'ordinary results are left alone');
     const empty = await agent.actions.runAction('search:sand', async () => {});
-    assert.equal(empty.message, 'Could not find any sand in 64 blocks.' + SEARCH_HINT, 'the action runner adds the sentence');
+    assert.equal(empty.message, 'Could not find any sand in 64 blocks.' + SEARCH_HINT_NO_MEMORY,
+        'the action runner adds the sentence, which offers no memory when world memory is off');
     assert.deepEqual(withSearchHint({ status: 'failed', text: 'Could not find any sand in 64 blocks.', message: 'Could not find any sand in 64 blocks.' }).message,
         'Could not find any sand in 64 blocks.' + SEARCH_HINT);
     assert.equal(withSearchHint({ text: 'There is no furnace nearby and you have no furnace.' }).text.endsWith(SEARCH_HINT), true);
@@ -222,13 +215,13 @@ test('an empty-handed search is explained once: not found means not seen', async
     setWorldQueries(null);
 });
 
-test('a new dimension gets its own seen-world map on respawn', () => {
+test('a new dimension gets its own perception on respawn', () => {
     const { bot, handle } = fairAgent(() => {});
-    const first = handle.seenMap;
+    const first = handle.perception;
     bot.game.dimension = 'the_nether';
     bot.emit('spawn');
-    assert.notEqual(handle.seenMap, first);
-    assert.equal(handle.seenMap.scope, 'world:w1/the_nether');
+    assert.notEqual(handle.perception, first);
+    assert.equal(handle.scope, 'world:w1/the_nether');
     bot.emit('end');
     setWorldQueries(null);
 });

@@ -19,7 +19,7 @@ function clock(start = 1_000_000) {
     return now;
 }
 
-// ---- K1: what the seen-world map did, things do too ----
+// ---- K1: a thing is remembered, with when and from where ----
 
 test('K1: a thing seen once is remembered after walking away, with when and from where', () => {
     const now = clock();

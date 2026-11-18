@@ -9,15 +9,15 @@
 //      the server. This also catches CE's login-time /skin command and any cheat branch a port forgets.
 //   3. Permission watch: if the server makes the bot an operator or puts it outside survival, strict fair
 //      play stops acting and says why, instead of quietly playing with powers a survival player lacks.
-//   4. On spawn (and on every respawn, since the dimension may change): the seen-world map for this
-//      server/world/dimension, the perception service, and the fair query provider for world.js.
+//   4. On spawn (and on every respawn, since the dimension may change): the perception service, with
+//      world memory for this world and dimension when it is on, and the fair query provider for world.js.
 //   5. Reach guard, on the first spawn: the bot's click, dig, place and hit methods only work on targets
 //      within a player's reach and in view.
-//   6. For the model: a !recall command (what the bot remembers seeing), and a sentence added to an
-//      empty-handed search explaining that "not found" now means "not seen".
-//   7. World memory, when `world_memory` is on: in place of the seen-world map, the bot remembers every
-//      block it has seen, things, places, a trail and changes (src/agent/memory/). It adds !places and
-//      !namePlace, and saved places move into it.
+//   6. For the model: a sentence added to an empty-handed search explaining that "not found" now means
+//      "not seen".
+//   7. World memory, when `world_memory` is on: the bot remembers every block it has seen, things,
+//      places, a trail and changes (src/agent/memory/). It adds !recall, !places and !namePlace, and
+//      saved places move into it. With it off, the bot knows only what it touches and sees now.
 //   8. Fair legs, on the first spawn: the pathfinder plans its routes over what the bot has seen, not
 //      over every loaded block (fair_legs.js).
 // With `fair_play: "off"` (the default when the setting is absent) nothing is installed.
@@ -25,16 +25,15 @@ import settings from '../settings.js';
 import { resolvePolicy } from './policy.js';
 import { createPerception } from './perception.js';
 import { editionOf } from '../edition/index.js';
-import { loadSeenMap } from './seen_map.js';
 import { fairQueries, registerFairPlay } from './fair_queries.js';
 import { setWorldQueries } from '../library/world_queries.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
 import { installFairLegs } from './fair_legs.js';
-import { recallCommand, withSearchHint } from './commands.js';
+import { withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
 import { adoptFormerScope } from '../memory/files.js';
-import { namePlaceCommand, placesCommand, recallCommand as memoryRecallCommand, withNotes } from '../memory/commands.js';
+import { namePlaceCommand, placesCommand, recallCommand, withNotes } from '../memory/commands.js';
 import { registerCommand } from '../commands/index.js';
 import * as skills from '../library/skills.js';
 import * as worldModule from '../library/world.js';
@@ -143,7 +142,7 @@ export function isFormerScope(old, scope) {
  * @param {object} agent - the CE Agent, after initModes
  * @returns {object|null} the fair-play handle (also stored on agent.fairPlay), or null when off
  */
-export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000, seenDir = null, memoryDir = null, perceptionOptions = {} } = {}) {
+export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000, memoryDir = null, perceptionOptions = {} } = {}) {
     const policy = resolvePolicy({ ...config, ...(agent.prompter?.profile ?? {}) });
     if (policy.mode === 'off') return null;
     const bot = agent.bot;
@@ -165,7 +164,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         agent.actions.runAction = async (label, fn, options) => {
             // An empty-handed search gets one sentence explaining what "not found" means under fair play.
             // And, with world memory on, any change the bot noticed along the way, once.
-            if (!violation) return withNotes(withSearchHint(await runAction(label, fn, options)), handle.memory);
+            if (!violation) return withNotes(withSearchHint(await runAction(label, fn, options), { remembers: worldMemory }), handle.memory);
             const text = `Refused: fair play is on, but ${violation}.`;
             return { status: 'blocked', text, code: 'fair_play', success: false, message: text, interrupted: false, timedout: false };
         };
@@ -181,7 +180,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
 
     const handle = {
         policy, chatGuard,
-        perception: null, seenMap: null,
+        perception: null,
         memory: null, recorder: null, navigator: null, scope: null, // world memory, when `world_memory` is on
         legs: null, // route planning over what the bot has seen, unless the policy says `route_planning: "all"`
         get violation() { return violation; },
@@ -228,15 +227,13 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     };
     let runner = null;
 
-    // The shipped settings turn world memory on. A config that leaves the key out gets the seen-world
-    // map instead, the same way a config that leaves `fair_play` out gets no fair play.
+    // The shipped settings turn world memory on. A config that leaves the key out gets none, the same
+    // way a config that leaves `fair_play` out gets no fair play: the bot then knows only what is in view.
     const worldMemory = config.world_memory === true;
-    const mapDir = seenDir ?? `./bots/${agent.name}/seen`;
     const worldDir = memoryDir ?? `./bots/${agent.name}/memory`;
     // Saving on the timer gets a few milliseconds and carries on next time; the save at the end takes all it needs.
     const saveMap = ({ budgetMs = 8 } = {}) => {
         try {
-            handle.seenMap?.save(mapDir);
             handle.memory?.save({ budgetMs });
         } catch (error) { console.warn('[fair play] Could not save what the bot remembers:', error.message); }
     };
@@ -253,12 +250,11 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         if (worldMemory) {
             // Memory kept under this world's old name (scopes once included the address) is brought along.
             adoptFormerScope(worldDir, scope, { isFormer: old => isFormerScope(old, scope), say: note => console.log(`[world memory] ${note}`) });
-            // World memory takes the seen-world map's place: perception answers from it instead.
-            Object.assign(handle, attachWorldMemory({ bot, policy, scope, baseDir: worldDir, perceptionOptions }), { seenMap: null });
+            // Perception answers from world memory for what is out of sight.
+            Object.assign(handle, attachWorldMemory({ bot, policy, scope, baseDir: worldDir, perceptionOptions }));
             handle.recorder.start();
         } else {
-            handle.seenMap = loadSeenMap(mapDir, scope, { gameVersion: bot.version });
-            handle.perception = createPerception({ bot, policy, seenMap: handle.seenMap, ...perceptionOptions });
+            handle.perception = createPerception({ bot, policy, ...perceptionOptions });
         }
         handle.perception.start();
         registerFairPlay(bot, { perception: handle.perception, policy });
@@ -279,9 +275,9 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     saveTimer.unref?.();
     bot.on('end', () => { clearInterval(saveTimer); handle.legs?.stop(); handle.recorder?.stop(); handle.perception?.stop(); saveMap({ budgetMs: Infinity }); });
 
-    // The model's way to ask what the bot remembers. World memory brings a fuller one.
-    registerCommand(worldMemory ? memoryRecallCommand : recallCommand);
+    // The model's ways to ask what the bot remembers.
     if (worldMemory) {
+        registerCommand(recallCommand);
         registerCommand(placesCommand);
         registerCommand(namePlaceCommand);
         // Saved places (!rememberHere, !goToRememberedPlace) now live in world memory, as places.

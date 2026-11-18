@@ -50,7 +50,7 @@ export function attachWorldMemory({ bot, policy, scope, baseDir, perceptionOptio
     let recorder = null;
     const memory = openMemory({ baseDir, scope, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory });
-    const perception = createPerception({ bot, policy, seenMap: recorder.view, backgroundPass: false, ...perceptionOptions });
+    const perception = createPerception({ bot, policy, memory: recorder.view, ...perceptionOptions });
     recorder.attach(perception);
     // Travel follows the trail from here on. A bot without the pathfinder (a test stub) simply has none.
     // A remembered block stands in the way when it is solid and is not a door or gate, which opens.
