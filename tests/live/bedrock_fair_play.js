@@ -286,6 +286,52 @@ try {
         return found;
     });
 
+    // Skills handed a spot by its coordinates look at the block before deciding anything from it
+    // (look_first.js). The cell under the platform is open air below, but the bot stands on top.
+    await step('told to break a block under the platform, the bot goes to look, and says it cannot see it rather than what it is', async () => {
+        const hidden = [3, -1, 0];
+        try {
+            await set(hidden, 'diamond_ore');
+            await delay(800);
+            const target = at(...hidden);
+            const result = await act('test:break', () => skills.breakBlockAt(bot, target.x, target.y, target.z));
+            assert.notEqual(result.status, 'ok', result.text);
+            assert.match(result.text, /can't see the block at/);
+            assert.doesNotMatch(result.text, /diamond/);
+            assert.equal(rawName(hidden), 'diamond_ore', 'and nothing was dug');
+            return { text: result.text.trim() };
+        } finally {
+            await set(hidden, 'air');
+            await tpTo([0, 1, 0], -90);
+        }
+    });
+
+    // digDown under fair play digs a staircase (stairs_down.js): each block the bot stands on next is in
+    // view first, so it never learns of lava under where a shaft would have gone.
+    await step('digDown digs a staircase east, and never learns of the lava under where a shaft would have gone', async () => {
+        const lava = [0, -3, 0];
+        try {
+            await fill([-2, -6, -2], [8, -1, 2], 'stone');
+            await set(lava, 'lava');
+            await tpTo([0, 1, 0], -90, 2000);
+            await cmd(`give ${NAME} iron_pickaxe 1`, 700);
+            const start = bot.entity.position.floored();
+            const result = await act('test:dig', () => skills.digDown(bot, 3));
+            assert.equal(result.status, 'ok', result.text);
+            assert.match(result.text, /Dug down 3 blocks as a staircase heading east/);
+            assert.doesNotMatch(result.text, /lava/);
+            const end = bot.entity.position.floored();
+            assert.equal(start.y - end.y, 3, `it went down ${start.y - end.y}`);
+            assert.ok(end.x >= start.x + 2, `it went east, to x ${end.x - origin.x} from the middle`);
+            assert.ok(['lava', 'flowing_lava'].includes(rawName(lava)), 'the lava under its first spot is untouched');
+            return { text: result.text.trim() };
+        } finally {
+            await fill([-2, -6, -2], [8, -1, 2], 'air');
+            await fill([-14, 0, -14], [14, 0, 14], 'stone'); // the platform, where the staircase began
+            await tpTo([0, 1, 0], -90);
+        }
+    });
+
     await step('L4: made an operator, or put in creative, the bot refuses to act until that is undone', async () => {
         await cmd(`op ${NAME}`);
         await waitFor(() => handle.violation, 5000, () => 'the bot never noticed it was made an operator');

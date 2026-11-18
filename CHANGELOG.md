@@ -9,6 +9,44 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.4.0-bedrock.1.5.0] - 2026-11-18
+
+A release for both editions. Under fair play, skills handed a spot by its coordinates look at the block
+before deciding anything from it, instead of naming blocks buried in the ground; `placeBlock` places against
+a side the bot can see; `!digDown` digs a staircase that sees each step before it stands on it; and
+`!goToSurface` climbs by what the bot knows of the column above it. Three fixes to inherited code, all
+offered to Mindcraft-CE. Built on the same Mindcraft-CE commit as 0.1.0.
+
+### Changed
+
+- Under fair play, `!digDown` digs a staircase, one block forward for each block down, the way the bot
+  faces, and sees each block it will stand on before it steps onto it. It stops at lava or water it
+  uncovers, a drop of more than two blocks, or a block it can't dig, and says which and where. It used to
+  dig straight down, checking the blocks under the floor for lava, water or a drop, which a player
+  standing there can't see.
+- `!goToSurface` climbs to the highest ground the bot knows of above it, looks again from there, and stops
+  under open sky with a way to step out sideways. Under fair play it used to read the surface's height from
+  the world data and name it before the bot could have seen it. With fair play off the first trip still
+  goes all the way up; on either, it no longer stops at the bottom of a pit open to the sky.
+
+### Fixed
+
+- Under fair play, skills given a spot by its coordinates (`!placeHere`, the `placeBlockAt` tool, and
+  `breakBlockAt`, `placeBlock`, `tillAndSow` and `useDoor` in generated code) look at the block there
+  before deciding anything from it. When the bot doesn't know it, it walks within three blocks and looks;
+  a block still hidden is reported as one it can't see. They used to read it from the world data and say
+  what it was ("Skipping ... because it is lava", "diamond_ore in the way"), even buried in the ground, so
+  they could be used to look inside it.
+- Under fair play, `placeBlock` places against a side the bot can see. It took the first solid neighbor,
+  often by its side facing away from the bot, and the placement was then refused.
+- `breakBlockAt` at a spot whose chunk isn't loaded walks there and looks, instead of failing with an error.
+- `placeBlock` says why a placement failed ("Failed to place torch at (1, 64, 2): ..."). It said only that it
+  failed, so the model couldn't tell a block in the way from a side out of reach, and tried the same again.
+- With fair play off and cheat mode on, `placeBlock` sends a second `/setblock` only for a door's top half or
+  a bed's head. It sent both of them for every block it placed, each failing with an error on the server.
+- With fair play off and cheat mode on, `tillAndSow` with no seed tills the block instead of crashing, and
+  waits for its blocks to be placed before it says it is done.
+
 ## [1.3.0-bedrock.1.4.0] - 2026-11-18
 
 A release for both editions. Fair play closes gaps in what the bot knows and does: the combat plugin no
@@ -679,7 +717,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...HEAD
+[1.4.0-bedrock.1.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...v1.4.0-bedrock.1.5.0
 [1.3.0-bedrock.1.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...v1.3.0-bedrock.1.4.0
 [1.2.2-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...v1.2.2-bedrock.1.3.1
 [1.2.1-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.0-bedrock.1.3.0...v1.2.1-bedrock.1.3.1

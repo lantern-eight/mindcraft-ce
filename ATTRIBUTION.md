@@ -103,7 +103,8 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/storage/` (all files)
 - `src/agent/edition/` (all files)
 - `src/agent/bedrock/` (all files)
-- `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`
+- `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
+  `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`
 - `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
@@ -113,15 +114,17 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/action_error_message.test.js`, `tests/action_stop_race.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
   `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/door_search.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
   `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/item_goal_hunt.test.js`,
-  `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`,
+  `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`, `tests/place_block_failure.test.js`,
+  `tests/place_block_cheat.test.js`, `tests/till_and_sow_cheat.test.js`,
   `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
-  `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`
+  `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
+  `tests/helpers/named_cells.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/bedrock_*.js`,
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`

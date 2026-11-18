@@ -18,6 +18,11 @@ const rawQueries = Object.freeze({
     entities: (bot) => Object.values(bot.entities),
     /** The nearest entity (not the bot itself) that matches. */
     nearestEntity: (bot, match) => bot.nearestEntity(match),
+    /**
+     * Whether one side of a block is in view, for choosing which side to place a block against. `face` is
+     * a unit step out of that side. Stock Mindcraft never asked, so the raw answer is always yes.
+     */
+    seesFace: (_bot, _position, _face) => true,
 });
 
 let current = rawQueries;

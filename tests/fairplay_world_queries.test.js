@@ -149,3 +149,19 @@ test('raw entities allowed by a switch still respect the entity distance', () =>
     assert.deepEqual(world.getNearbyEntities(bot, 64).map(e => e.id).sort(), [1, 2], 'the zombie is 5 blocks away');
     setWorldQueries(null);
 });
+
+test('which side of a block is in view comes from perception, and only the policy loosens it', () => {
+    const { bot, perception } = scene();
+    const asked = [];
+    perception.seesFace = (pos, face) => { asked.push([pos, face]); return face.y === 1; };
+    const face = (x, y, z) => new Vec3(x, y, z);
+    // Not under fair play: stock Mindcraft never asked, so every side counts as in view.
+    assert.equal(fairQueries.seesFace(bot, new Vec3(1, 63, 0), face(1, 0, 0)), true);
+    registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'strict' }) });
+    assert.equal(fairQueries.seesFace(bot, new Vec3(1, 63, 0), face(0, 1, 0)), true);
+    assert.equal(fairQueries.seesFace(bot, new Vec3(1, 63, 0), face(1, 0, 0)), false);
+    assert.equal(asked.length, 2);
+    // Clicking through walls allowed: the reach guard doesn't ask about sides, so neither does this.
+    registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'custom', fair_play_custom: { interact_through_walls: true } }) });
+    assert.equal(fairQueries.seesFace(bot, new Vec3(1, 63, 0), face(1, 0, 0)), true);
+});
