@@ -60,8 +60,13 @@ async function buildScene() {
 // A box of stone around the bot's body, diagonals and lid included, which hides everything else from it.
 // The bot stands a quiet minute inside it looking at the stone, so the box opening is something it
 // watched happen, and no news; what changed outside the box while it couldn't see is.
-const BOX = [[[-1, 1, -1], [1, 3, -1]], [[-1, 1, 1], [1, 3, 1]], [[-1, 1, 0], [-1, 3, 0]], [[1, 1, 0], [1, 3, 0]], [[0, 3, 0], [0, 3, 0]]];
-const box = async block => { for (const [a, b] of BOX) await fill(a, b, block); };
+// The box goes up one fill at a time, and the bot looks around between fills. So the order matters: lid
+// first, then the two short sides, then the long sides that close the corners. Built the other way, the
+// bot glimpses corner and rim stones through the gaps before the box is shut, and those stones, out of
+// view for the whole minute, are rightly not counted as watched when the box opens. It comes down in the
+// reverse order, for the same reason: the corners go first, before the bot could ever see them.
+const BOX = [[[0, 3, 0], [0, 3, 0]], [[-1, 1, 0], [-1, 3, 0]], [[1, 1, 0], [1, 3, 0]], [[-1, 1, -1], [1, 3, -1]], [[-1, 1, 1], [1, 3, 1]]];
+const box = async block => { for (const [a, b] of block === 'air' ? [...BOX].reverse() : BOX) await fill(a, b, block); };
 
 try {
     setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'strict', world_memory: true });
@@ -222,7 +227,7 @@ try {
         const text = result.text ?? result.message ?? '';
         assert.match(text, /Noticed .*Gone: chest 1\./, text);
         assert.match(text, /Noticed .*New: oak_planks \d+\./, text);
-        assert.doesNotMatch(text, /Gone: [^.]*stone/, `it watched its box of stone open: ${text}`);
+        assert.doesNotMatch(text, /stone/, `it watched its box of stone open: ${text}`);
         assert.ok(Number(text.match(/oak_planks (\d+)/)[1]) >= 20, `the walls it can see are counted, not only the ground row: ${text}`);
         assert.equal(memory().things.count('chest'), 0);
         const again = await act('test:noop', async () => true);
