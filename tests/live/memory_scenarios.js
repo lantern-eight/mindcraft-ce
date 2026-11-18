@@ -7,7 +7,8 @@
 // server can: real chunk data, a real double chest, a real container window, the bot's real movement.
 // The server console is the "director" that builds each scene and moves the bot about, so the bot never
 // needs a command or operator rights itself. One scenario waits a minute on purpose: a change counts as
-// news only when the bot had not seen the spot for that long.
+// news only when the bot had not seen the spot for that long, and standing still in front of a spot all
+// that time counts as seeing it.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -156,15 +157,30 @@ try {
         // The place stays loaded meanwhile: a vanilla server unloads a chunk the player has left, and an edit
         // made while it is unloading is lost, so the bot would come back to the place as it was.
         await cmd('forceload add -16 -16 16 16');
-        await cmd(`tp ${NAME} 300.5 70 300.5`);
+        // The far spot is loaded before the bot goes, so its platform is there when it lands. Built on
+        // chunks still loading, the platform was missing and the bot fell to its death.
+        await cmd('forceload add 288 288 319 319');
+        await delay(1000);
         await cmd('fill 295 69 295 305 69 305 stone');
+        // A stone wall in front of it while it waits. It stands the whole minute looking at the wall, with
+        // nothing changing, and then sees the wall torn down: that happened in front of it, and is no news.
+        await cmd('fill 303 70 298 303 72 302 stone');
+        await cmd(`tp ${NAME} 300.5 70 300.5`);
         await delay(1500);
+        assert.ok(bot.entity.position.x > 299 && bot.entity.position.y >= 69.9, `it stands on the far platform: ${bot.entity.position}`);
         await cmd('fill 8 70 -8 12 72 -4 oak_planks');
         await cmd('fill 9 70 -7 11 71 -5 air');
         await cmd('setblock 4 70 0 air');
         await cmd('setblock 4 70 1 air');
         await cmd('kill @e[type=item]');
         await delay(61_000);
+        await cmd('fill 303 70 298 303 72 302 air');
+        await delay(1500);
+        await settled();
+        await delay(2500);
+        await settled();
+        const watched = await act('test:noop', async () => true);
+        assert.doesNotMatch(watched.text ?? watched.message ?? '', /Noticed/, 'it watched the wall come down');
         await cmd(`tp ${NAME} 0.5 70 0.5 -90 0`);
         await delay(1500);
         await settled();

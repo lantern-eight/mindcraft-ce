@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- World memory no longer reports a change that happened in plain view as news, on either edition. A bot that
+  stood a quiet minute looking at a wall took the wall coming down for something that happened while it was
+  away, and a block it had not seen for minutes could count as watched because others near it were in view.
+
 ## [1.1.1-bedrock.1.2.1] - 2026-11-17
 
 A documentation release for both editions; the code is unchanged. Built on the same Mindcraft-CE commit as 0.1.0.

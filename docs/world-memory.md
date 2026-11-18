@@ -130,7 +130,7 @@ log that `!recall("changes")` shows. It states what was seen and carries no inst
 | Any other block the bot simply had not seen before | No. It is newly seen, not changed |
 | A chest, door or other thing it never recorded, in a place it had looked over on an earlier visit | Yes, as "first seen" |
 | What the bot dug or placed itself | No |
-| A change that happened while the bot was watching that spot | No |
+| A change that happened while the bot was watching that spot: it had that very cell in view under a minute ago, and standing still in front of it all along counts | No |
 | Crops, leaves, grass, snow, fire, water, lava and falling sand changing | No. They change by themselves |
 
 Small differences are dropped as noise: a note needs a thing (a chest, a door) or at least eight blocks.
