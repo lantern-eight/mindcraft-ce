@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import Vec3 from 'vec3';
 import { createCodeRunner } from '../src/agent/fairplay/code_runner.js';
+import { createFairBot } from '../src/agent/fairplay/fair_bot.js';
 
 function stubWorld() {
     // Blocks the bot's perception knows about (seen or touched). Anything else is unknown to it.
@@ -220,4 +221,28 @@ test('parameters are passed by name and must be plain identifiers', async () => 
     const { run, runner } = setup();
     assert.equal(await run(`return count * 2;`, ['count', 21]), 42);
     assert.throws(() => runner.compileBody(['a) => {}; (b'], 'return 1;'), /parameter/i);
+});
+
+test('results that refer back to themselves come back as finite copies, each shared object copied once', () => {
+    const { bot } = setup(); // also locks the realm down, which the facade's freezing needs
+    const { toSafe } = createFairBot(bot, { Vec3, perception: { blockAt: () => null, findBlocks: () => [], entities: () => [] } });
+    // A skill result that holds its own parent and shares one object between two fields.
+    const shared = { name: 'oak_log' };
+    const result = { status: 'ok', a: shared, b: shared };
+    result.self = result;
+    // Twenty nodes that each point at all twenty: copied once per route, up to the depth limit, this
+    // was 20^6 copies. Copied once each, it is twenty.
+    const web = Array.from({ length: 20 }, (_, i) => ({ i }));
+    for (const node of web) node.all = web;
+    result.web = web;
+    const started = Date.now();
+    const copy = toSafe(result);
+    assert.ok(Date.now() - started < 500, 'the copy finishes quickly');
+    assert.equal(copy.status, 'ok');
+    assert.equal(copy.a, copy.b, 'one shared object, one copy');
+    assert.equal(copy.a.name, 'oak_log');
+    assert.equal(copy.self, undefined, 'a loop back to the object being copied is dropped');
+    assert.equal(copy.web.length, 20);
+    assert.equal(copy.web[3].i, 3);
+    assert.ok(Object.isFrozen(copy) && Object.isFrozen(copy.web[3]));
 });

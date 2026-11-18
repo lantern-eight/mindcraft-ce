@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- Model-written code no longer stalls the agent when a skill hands back data that refers to itself. The copy
+  that keeps live objects away from that code followed every route through such data, up to six levels deep.
+
 ## [1.2.2-bedrock.1.3.1] - 2026-11-18
 
 A release for the people making releases: nothing a player sees changes. The perception timing bench now
