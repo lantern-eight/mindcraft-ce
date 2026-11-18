@@ -77,9 +77,13 @@ export async function createAgent(settings) {
     try {
         // Bedrock Edition (docs/core-hooks.md): the lookup below asks the server what it is in Java's
         // protocol, which a Bedrock server doesn't answer. So on Bedrock the settings are used as they
-        // stand, and a version that can't work fails the agent here instead of in its own process.
+        // stand, and a version that can't work fails the agent here instead of in its own process. That
+        // check comes before the agent is listed on the MindServer, so a failed agent isn't left there
+        // with no process. The Java lookup keeps the inherited order, listed first, so the MindServer's
+        // "already exists" check sees the agent while a slow lookup is still scanning.
         if (isBedrock(settings)) Object.assign(settings, bedrockServer(settings));
-        else try {
+        registerAgent(settings, viewer_port, process_token);
+        if (!isBedrock(settings)) try {
             const server = await getServer(settings.host, settings.port, settings.minecraft_version);
             settings.host = server.host;
             settings.port = server.port;
@@ -92,9 +96,6 @@ export async function createAgent(settings) {
             console.warn(`Attempting to connect anyway...`);
         }
 
-        // Listed on the MindServer only now, once the server check has passed: an agent that fails it
-        // must not stay behind there with no process.
-        registerAgent(settings, viewer_port, process_token);
         const agentProcess = new AgentProcess(agent_name, mindserver_port, process_token);
         agentProcess.start(load_memory, init_message, agentIndex);
         agent_processes[settings.profile.name] = agentProcess;
