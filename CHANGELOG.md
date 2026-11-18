@@ -9,6 +9,17 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.1.1-bedrock.1.2.1] - 2026-11-17
+
+A documentation release for both editions; the code is unchanged. Built on the same Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- `docs/upstream.md`: every fix this fork has offered back to Mindcraft-CE and to the libraries it uses, each
+  linked to its pull request, and how to work on a fix in one of the library forks.
+- The README lists what each Java live test script checks. `docs/bedrock.md` notes quirks of the Bedrock server
+  that need no fix, and a few things that can make a Bedrock test run fail for reasons outside the bot.
+
 ## [1.1.0-bedrock.1.2.0] - 2026-11-17
 
 A release for both editions. On Bedrock Edition, fair play holds the bot to a Bedrock player's reach, `digDown`
@@ -552,7 +563,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.0-bedrock.1.2.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...HEAD
+[1.1.1-bedrock.1.2.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.0-bedrock.1.2.0...v1.1.1-bedrock.1.2.1
 [1.1.0-bedrock.1.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.1.0...v1.1.0-bedrock.1.2.0
 [1.0.0-bedrock.1.1.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.2...v1.0.0-bedrock.1.1.0
 [1.0.0-bedrock.1.0.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.1...v1.0.0-bedrock.1.0.2
