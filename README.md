@@ -232,7 +232,8 @@ your work:
   this is built on. A fix or a feature there reaches everyone, this fork included.
 
 Fixes this fork makes to inherited code are kept in their own commits, so they can be offered to
-Mindcraft-CE one at a time. [CLAUDE.md](CLAUDE.md) holds the working rules used here, if you want the same
+Mindcraft-CE one at a time. [docs/upstream.md](docs/upstream.md) lists those offered so far, to Mindcraft-CE and to
+the libraries. [CLAUDE.md](CLAUDE.md) holds the working rules used here, if you want the same
 approach in your fork.
 
 ## License

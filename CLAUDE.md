@@ -36,8 +36,6 @@ Working notes (plans, research, task lists, logs) live in `plans/`, which is git
 - **Commit messages, code comments and docs never point at those notes.** No task numbers, phases, plan
   names or "as planned". A commit explains its own change and the intent of the branch or pull request it
   belongs to, and nothing else.
-- `plans/upstream-candidates.md` is the running list of changes worth offering back to Mindcraft-CE. Add a
-  line whenever a commit fixes something in Mindcraft-CE's own code.
 
 ## Public and Clean
 
@@ -160,6 +158,10 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
    pull requests first: one it already closed for the same change means it was declined.
 4. When Mindcraft-CE merges it, the next merge of its code brings a change this fork already has, and goes
    in cleanly.
+
+**Every fix offered upstream, to Mindcraft-CE or a library, gets a line in `docs/upstream.md`** when it is
+offered, on the next working branch. Its line comes out once it is merged and this fork is on a release that
+has it; a declined one stays, marked declined.
 
 **Libraries** (mineflayer, minecraft-protocol, minecraft-data, prismarine-*, the pathfinder):
 
