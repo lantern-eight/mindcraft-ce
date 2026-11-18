@@ -48,6 +48,7 @@ try {
     const SEARCH_HINT = worldMemory ? MEMORY_HINT : SEARCH_HINT_NO_MEMORY; // the sentence an empty search gets
     const { getCommand } = await import('../../src/agent/commands/index.js');
     const skills = await import('../../src/agent/library/skills.js');
+    const world = await import('../../src/agent/library/world.js');
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -208,6 +209,20 @@ try {
         await cmd('kill @e[type=zombie]');
         await cmd('difficulty peaceful');
         return { reflex, heardBeforeSeen: /heard: zombie/.test(report) };
+    });
+
+    await step('U2: told to hit a pig four and a half blocks away once, the bot walks within reach and hits it', async () => {
+        await cmd(`tp ${NAME} 0.5 70 0.5 90 0`); // facing west
+        await cmd('summon pig -4 70 0.5 {NoAI:1b}');
+        await delay(1200);
+        const pig = world.getNearestEntityWhere(bot, e => e.name === 'pig', 16);
+        assert.ok(pig, 'the pig is in view');
+        const result = await act('test:hit', () => skills.attackEntity(bot, pig, false));
+        assert.equal(result.status, 'ok', result.text);
+        assert.doesNotMatch(result.text, /can't reach/);
+        assert.ok(bot.entity.position.distanceTo(pig.position) < 3.5, 'it walked up to the pig');
+        await cmd('kill @e[type=pig]');
+        return { text: result.text.trim() };
     });
 
     await step('L4: made an operator, or put in creative, the bot refuses to act until that is undone', async () => {
