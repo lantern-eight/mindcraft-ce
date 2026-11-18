@@ -30,6 +30,19 @@ test('stops-sight table marks only full opaque cubes, using filterLight rather t
         assert.equal(stops(name), false, name);
 });
 
+test('a shulker box is a wall; a piston is one while drawn in, and not once it has pushed out', () => {
+    const world = fixtureWorld();
+    const table = buildStopsSightTable(world.registry);
+    const stops = (name, props) => table.get(world.stateIdOf(name, props)) === 1;
+    // minecraft-data says shulker boxes let light through, but a shut one is a solid box of shell.
+    for (const name of ['shulker_box', 'red_shulker_box', 'light_blue_shulker_box']) assert.equal(stops(name), true, name);
+    for (const name of ['piston', 'sticky_piston']) {
+        assert.equal(stops(name, { extended: 'false', facing: 'up' }), true, `${name} drawn in`);
+        assert.equal(stops(name, { extended: 'true', facing: 'up' }), false, `${name} pushed out`);
+        assert.equal(stops(name, { extended: 'true', facing: 'east' }), false, `${name} pushed out sideways`);
+    }
+});
+
 test('a double slab is a wall, a single slab is not', () => {
     const world = fixtureWorld();
     const table = buildStopsSightTable(world.registry);

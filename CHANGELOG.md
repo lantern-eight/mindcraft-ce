@@ -16,6 +16,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- Fair play's sight takes a shulker box for the solid box it looks like, so the bot no longer sees through
+  one, and sees past a piston that has pushed its head out, as past a stair or a slab. The game data rates
+  shulker boxes as letting light through, and a piston as a full block whatever its state.
 - `fair_play_custom` refuses a number out of range at startup: a field of view of 0 or over 360 degrees, or a
   negative or infinite `entity_distance` or `hearing_radius`. Such a number used to be taken as it was.
 - Model-written code no longer stalls the agent when a skill hands back data that refers to itself. The copy

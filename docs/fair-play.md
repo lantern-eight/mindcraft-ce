@@ -40,7 +40,8 @@ If the setting is missing entirely, it counts as `"off"`.
 Details that matter:
 
 - **You can see through** glass, leaves, water, ice, and anything that isn't a full cube: single slabs,
-  stairs, fences, chests, doors, torches. That is slightly generous (a slab does hide a little).
+  stairs, fences, chests, doors, torches, and a piston that has pushed its head out. That is slightly
+  generous (a slab does hide a little). A shulker box is a wall, as it looks.
 - **Chunks the client hasn't been sent count as walls,** so the bot can't see into them.
 - **The view is all around (360°)** and light is ignored, as if the bot glances around constantly with
   brightness turned up. Both can be tightened later.

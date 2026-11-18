@@ -30,6 +30,16 @@ const FACE_OFFSET = 1e-3;
 // Blocks that stop light (so minecraft-data rates them filterLight 15) but that you can see through.
 const SEE_THROUGH_OVERRIDES = new Set(['tinted_glass']);
 
+// Blocks minecraft-data rates as letting light through, but that look like a solid box: a shut shulker
+// box is a full cube of shell. Its lid lifts a little when opened, not enough to see past.
+const isOpaqueOverride = name => name.endsWith('shulker_box');
+
+// Blocks that stop light in every state but are a full cube in only some. A piston is a full block
+// while it is drawn in, and a three-quarter block once it has pushed its head out; like a slab or a
+// stair, the smaller shape counts as see-through. On an edition whose states don't say whether a
+// piston is out, or with no shapes to read, it stays a wall.
+const SHAPE_DECIDES = new Set(['piston', 'sticky_piston']);
+
 // Points on an entity we try to see: just above its feet, its middle, and just below its head.
 // Seeing any one of them is enough, the way a player spots a mob's head over a wall.
 const ENTITY_SAMPLE_HEIGHTS = [0.1, 0.5, 0.9];
@@ -50,6 +60,8 @@ const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[
  *      practice that is the double slab: a single slab lets you see over it, two stacked are a wall.
  * Other non-full shapes (single slabs, stairs, fences) count as see-through. That is slightly generous,
  * since a bottom slab does hide the lower half of what's behind it, and can be tightened later.
+ * Two kinds of block are set by name on top of that: shulker boxes are walls, and a piston follows its
+ * shape (a wall when drawn in, see-through when pushed out).
  *
  * @param {object} registry - minecraft-data or bot.registry
  * @returns {{get:(stateId:number) => number}} 1 for a state that blocks sight, else 0
@@ -60,9 +72,10 @@ export function buildStopsSightTable(registry) {
     const shapes = registry.blockCollisionShapes;
     for (const block of registry.blocksArray) {
         if (SEE_THROUGH_OVERRIDES.has(block.name)) continue;
-        if (block.boundingBox === 'block' && block.filterLight === 15) {
+        if (isOpaqueOverride(block.name) || (block.boundingBox === 'block' && block.filterLight === 15
+            && !(SHAPE_DECIDES.has(block.name) && shapes?.blocks[block.name] !== undefined))) {
             table.setBlock(block, 1);
-        } else if (!block.transparent && shapes) {
+        } else if ((!block.transparent || SHAPE_DECIDES.has(block.name)) && shapes) {
             const perState = shapes.blocks[block.name];
             const shapeOf = offset => shapes.shapes[Array.isArray(perState) ? perState[offset] : perState];
             edition.stateIdsOf(block).forEach((stateId, offset) => {
