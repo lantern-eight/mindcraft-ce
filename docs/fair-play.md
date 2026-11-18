@@ -262,6 +262,7 @@ npm test                                      # all unit tests; fair-play ones a
 node tests/live/fairplay_scenarios.js         # the whole stack on a real server, about 90 seconds
 node tests/live/fairplay_scenarios.js --no-world-memory   # the same, with world memory off
 node tests/live/legs_scenarios.js             # route planning: a wall and a trench not seen from the start, and a long trip
+node tests/live/look_first_scenarios.js       # skills given a spot look first; digDown's staircase; goToSurface
 node tests/live/fairplay_perception_smoke.js  # perception alone on a real server
 ```
 
