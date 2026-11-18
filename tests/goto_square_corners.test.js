@@ -55,11 +55,12 @@ function movesFrom(movements, x, z) {
 //       x=0 1 2 3
 const tunnel = [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3], [2, 3], [3, 3]];
 
-test('stock movements plan a diagonal past the inside corner of a 1-wide tunnel', () => {
-    // This is the step the walker can't make. If the pathfinder ever stops offering it, squareCorners can go.
+test('the patched pathfinder no longer plans a diagonal past the inside corner of a 1-wide tunnel', () => {
+    // This is the step the walker can't make. The pathfinder patch now refuses it too (see
+    // pathfinder_diagonal_corners.test.js), so squareCorners only repeats that rule for a pathfinder without it.
     const movements = new pf.Movements(botInWorld(tunnel));
     movements.canDig = false;
-    assert.ok(movesFrom(movements, 0, 2).includes('1,3'));
+    assert.ok(!movesFrom(movements, 0, 2).includes('1,3'));
 });
 
 test('squareCorners leaves only the two straight steps round that corner', () => {
