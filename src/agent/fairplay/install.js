@@ -264,7 +264,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         registerFairPlay(bot, { perception: handle.perception, policy });
         setWorldQueries(fairQueries);
         // By the first spawn the bot's plugins are loaded, so its methods exist to be wrapped.
-        handle.reach ??= createReachGuard({ policy, getPerception: () => handle.perception });
+        handle.reach ??= createReachGuard({ policy, getPerception: () => handle.perception, getRegistry: () => bot.registry });
         installReachGuard(bot, handle.reach);
         // And the pathfinder is there to be told what the bot has seen. The legs ask for perception each
         // time they need it, so they keep working when a new dimension brings a new one.

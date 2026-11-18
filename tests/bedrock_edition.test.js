@@ -149,6 +149,30 @@ test('Bedrock answers every question the edition seam asks', () => {
     assert.deepEqual(missing, []);
 });
 
+test('a survival player on Bedrock reaches half a block farther to a block than on Java, and as far to a mob', () => {
+    // The keyboard, mouse and controller reach. A touch screen reaches a block 6 away; the bot is held to 5.
+    assert.deepEqual(bedrockEdition.survivalReach(), { blocks: 5, entities: 3 });
+});
+
+test('a Bedrock block is named in Java\'s terms for Mindcraft\'s lists, from the game data\'s own table', () => {
+    // Mindcraft's skills and reflexes name blocks the way Java does: a thin layer of snow is "snow", water
+    // is "water" whether still or flowing. Bedrock's names for the same things differ.
+    const registry = { version: { type: 'bedrock', minecraftVersion: BEDROCK_VERSION } };
+    const asJava = name => bedrockEdition.javaNameOf(registry, name);
+    assert.equal(asJava('snow_layer'), 'snow', 'the thin layer');
+    assert.equal(asJava('snow'), 'snow_block', 'a whole block of snow, on Bedrock');
+    assert.equal(asJava('flowing_water'), 'water');
+    assert.equal(asJava('water'), 'water');
+    assert.equal(asJava('flowing_lava'), 'lava');
+    assert.equal(asJava('deadbush'), 'dead_bush');
+    assert.equal(asJava('golden_rail'), 'powered_rail');
+    assert.equal(asJava('trip_wire'), 'tripwire');
+    assert.equal(asJava('cobblestone'), 'cobblestone', 'a name both games share');
+    assert.equal(asJava('water_bucket'), 'water_bucket', 'an item that is no block keeps its name');
+    assert.equal(bedrockEdition.javaNameOf({ version: { type: 'bedrock', minecraftVersion: '0.0.1' } }, 'snow_layer'), 'snow_layer',
+        'game data with no table: the name as it is');
+});
+
 test('a Bedrock mob is a baby by its flags, not by Java\'s numbered entry', () => {
     assert.equal(bedrockEdition.isBaby({ name: 'cow', metadata: { flags: { baby: true, breathing: true } } }), true);
     assert.equal(bedrockEdition.isBaby({ name: 'cow', metadata: { flags: { baby: false } } }), false);

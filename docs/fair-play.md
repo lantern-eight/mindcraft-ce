@@ -62,7 +62,7 @@ the bot plans to get somewhere.
 
 | Rule | What happens |
 |---|---|
-| **Reach** | Clicking, digging, placing against or hitting something needs it within a survival player's reach of the bot's eye (4.5 blocks for a block, 3 for a mob) **and in view right now**. To place a block, the side being clicked must be in view |
+| **Reach** | Clicking, digging, placing against or hitting something needs it within a survival player's reach of the bot's eye (on Java 4.5 blocks for a block and 3 for a mob, on Bedrock 5 and 3) **and in view right now**. To place a block, the side being clicked must be in view |
 | **No slash commands** | A chat message starting with `/` is dropped before it reaches the server, except whispers (`/tell`, `/msg`, `/w`) |
 | **No cheat mode** | Mindcraft's `cheat` mode stays off whoever asks: the model, a player typing `!setMode("cheat", true)`, a profile, or generated code |
 | **Never an operator** | If the server makes the bot an operator, or puts it outside survival, it stops acting and says why until that is undone |
@@ -149,7 +149,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `hearing_radius` | `16` | blocks |
 | `route_planning` | `"seen"` | `"all"` (routes are planned over every loaded block, as stock Mindcraft does) |
 | `interact_through_walls` | `false` | `true` (keeps the reach limit, drops the "in view" rule) |
-| `reach_blocks`, `reach_entities` | `4.5`, `3` | blocks |
+| `reach_blocks`, `reach_entities` | `"survival"` (the game's own: 4.5 and 3 on Java, 5 and 3 on Bedrock) | a number of blocks |
 | `slash_commands` | `false` | `true` |
 | `slash_allowlist` | `["tell", "msg", "w"]` | a list of command names |
 | `cheat_mode` | `false` | `true` |

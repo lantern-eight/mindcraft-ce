@@ -239,6 +239,17 @@ export function villagerOf(mob) {
     return editionOf(mcdata).villagerOf(mob);
 }
 
+/**
+ * A block's name as Java Edition calls it. Mindcraft's lists of blocks are written in Java's names, and
+ * another edition names some blocks its own way (Bedrock's spreading water is "flowing_water"), so a check
+ * against such a list asks the edition seam first. On Java a name is its own.
+ * @param {string} name - a block's name, or the name of the item that places it
+ * @returns {string}
+ */
+export function javaNameOf(name) {
+    return editionOf(mcdata).javaNameOf(mcdata, name);
+}
+
 export function isHostile(mob) {
     if (!mob || !mob.name) return false;
     return  (mob.type === 'mob' || mob.type === 'hostile') && mob.name !== 'iron_golem' && mob.name !== 'snow_golem';

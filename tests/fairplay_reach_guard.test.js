@@ -8,10 +8,11 @@ import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
 import { createPerception } from '../src/agent/fairplay/perception.js';
 import { createReachGuard, installReachGuard } from '../src/agent/fairplay/reach_guard.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
+import '../src/agent/bedrock/edition.js'; // registers Bedrock's answers at the edition seam
 
 // The bot stands at the origin on a stone floor, eye at y 2.62. Its click and hit methods just record
 // what reached "the server".
-function setup(build, { custom = null, entities = [], deciding = true } = {}) {
+function setup(build, { custom = null, entities = [], deciding = true, edition = null } = {}) {
     const world = fixtureWorld({ min: [-16, -4, -16], max: [16, 16, 16] });
     world.fill('stone', [-16, 0, -16], [16, 0, 16]);
     build(world);
@@ -22,7 +23,8 @@ function setup(build, { custom = null, entities = [], deciding = true } = {}) {
     bot.attack = target => { sent.push(['attack', target.name]); };
     const policy = resolvePolicy(custom ? { fair_play: 'custom', fair_play_custom: custom } : { fair_play: 'strict' });
     const perception = createPerception({ bot, policy, ...NO_BUDGETS });
-    const guard = createReachGuard({ policy, getPerception: () => perception });
+    // Hand-built game data has no edition, and counts as Java's; `edition` names another game.
+    const guard = createReachGuard({ policy, getPerception: () => perception, getRegistry: () => (edition ? { version: { type: edition } } : bot.registry) });
     let isDeciding = deciding;
     installReachGuard(bot, guard, { deciding: () => isDeciding });
     const block = (x, y, z) => bot.blockAt(new Vec3(x, y, z));
@@ -112,4 +114,45 @@ test('refusals carry a code, and the guard only wraps once', async () => {
     assert.equal(bot.dig, dig, 'a second install leaves the methods alone');
     const error = await bot.dig(block(9, 1, 0)).catch(e => e);
     assert.equal(error.code, 'fair_play_reach');
+});
+
+test('the reach is the game\'s own: half a block more for a block on Bedrock, the same for a mob', async () => {
+    // A log whose near face is 4.8 blocks from the eye: past Java's reach of 4.5, inside Bedrock's 5.
+    const log = w => { w.set('oak_log', 5, 2, 0); w.set('oak_log', 6, 2, 0); };
+    const java = setup(log);
+    java.bot.moveTo(0.2, 1, 0.5);
+    await assert.rejects(java.bot.dig(java.block(5, 2, 0)), /it is 4\.8 blocks away and you can reach 4\.5/);
+
+    const bedrock = setup(log, { edition: 'bedrock' });
+    bedrock.bot.moveTo(0.2, 1, 0.5);
+    await bedrock.bot.dig(bedrock.block(5, 2, 0));
+    bedrock.world.set('air', 5, 2, 0);
+    await assert.rejects(bedrock.bot.dig(bedrock.block(6, 2, 0)), /it is 5\.8 blocks away and you can reach 5\./);
+    assert.deepEqual(bedrock.sent, [['dig', 'oak_log']]);
+
+    // A mob 3.3 blocks away is out of reach on both.
+    const cow = { id: 6, name: 'cow', type: 'animal', position: new Vec3(-3.25, 1, 0.5), height: 1.4, width: 0.9 };
+    const mob = setup(() => {}, { entities: [cow], edition: 'bedrock' });
+    assert.throws(() => mob.bot.attack(cow), /it is 3\.3 blocks away and you can reach 3\./);
+});
+
+test('a reach set by hand is used on either game', async () => {
+    const far = w => w.set('oak_log', 6, 2, 0); // near face 5.5 blocks from the eye
+    for (const edition of [null, 'bedrock']) {
+        const { bot, block, sent } = setup(far, { custom: { reach_blocks: 6 }, edition });
+        await bot.dig(block(6, 2, 0));
+        assert.equal(sent.length, 1, edition ?? 'java');
+    }
+    const near = setup(w => w.set('oak_log', 4, 2, 0), { custom: { reach_blocks: 3 }, edition: 'bedrock' });
+    await assert.rejects(near.bot.dig(near.block(4, 2, 0)), /you can reach 3\./);
+});
+
+test('a reach is "survival" (the game\'s own) to begin with, and only a positive number may replace it', () => {
+    const strict = resolvePolicy({ fair_play: 'strict' });
+    assert.equal(strict.reach_blocks, 'survival');
+    assert.equal(strict.reach_entities, 'survival');
+    assert.equal(resolvePolicy({ fair_play: 'custom', fair_play_custom: { reach_entities: 4 } }).reach_entities, 4);
+    assert.equal(resolvePolicy({ fair_play: 'custom', fair_play_custom: { reach_blocks: 'survival' } }).reach_blocks, 'survival');
+    for (const wrong of ['far', 0, -1, Infinity, '6'])
+        assert.throws(() => resolvePolicy({ fair_play: 'custom', fair_play_custom: { reach_blocks: wrong } }), /reach_blocks must be "survival" or a positive number/);
 });

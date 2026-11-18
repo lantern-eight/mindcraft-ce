@@ -17,7 +17,7 @@ Checked against a Bedrock Dedicated Server, versions 1.26.60 and 1.26.63, in sur
 | | |
 |---|---|
 | **Works** | Joining and spawning. Reading the blocks around the bot, and the biome it is in. Chat, both ways. Walking with the pathfinder, at a speed the server accepts. Digging, picking up drops, placing blocks. Chests, crafting, smelting, farming, fighting, sleeping and the rest of Mindcraft's stock skills, listed under [Skills](#skills). Eating by itself when hungry. Fair play, world memory and chest sorting. The whole agent starts, hears a player and answers through a model |
-| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, and code that reads a block's properties expects Java's names for them |
+| **Does not work yet** | See [Known Gaps](#known-gaps). In short: fair play hears less than on Java, and cheat mode writes a block that faces a way in Java's terms |
 | **Not tried** | Signing in to a server in online mode. Realms. Other server software. The Nether and the End. The bot's view in a browser and screenshots |
 
 Treat a Bedrock bot as something to experiment with on a world you can afford to lose.
@@ -30,7 +30,7 @@ the world was checked afterwards:
 
 | | |
 |---|---|
-| **Gathering and building** | `collectBlock` (logs by hand and overhead, ore in view and buried in stone, obsidian, stopped partway and asked again, with an enchanted pickaxe), `breakBlockAt`, `placeBlock`, `digDown`, `pickupNearbyItems`, `tillAndSow` |
+| **Gathering and building** | `collectBlock` (logs by hand and overhead, ore in view and buried in stone, obsidian, stopped partway and asked again, with an enchanted pickaxe), `breakBlockAt`, `placeBlock` (over a thin layer of snow, and not over a block of it), `digDown` (also straight after a walk), `pickupNearbyItems`, `tillAndSow` |
 | **Making things** | `craftRecipe` (in the bot's own grid, and at a crafting table), `smeltItem`, `clearNearestFurnace` |
 | **Items** | `equip` (a tool, armor), `discard`, `consume`, `putInChest`, `takeFromChest`, `viewChest`, `useToolOn` (shears on a sheep, a bucket on water) |
 | **Getting around** | `goToPosition`, `goToNearestBlock`, `goToNearestEntity`, `goToSurface`, `moveAway`, `stay`, `wait`, `useDoor`, `activateNearestBlock`, `goToBed` |
@@ -118,12 +118,12 @@ stay.
 
 | Gap | What happens today |
 |---|---|
-| **Fair play** | Works, with the two limits in the next rows. Checked on a server by `bedrock_perception.js`: sight (the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet), hearing a mob's cry from behind a wall, and noticing that the server made the bot an operator. And by `bedrock_fair_play.js`, as the agent runs it: what the model is told, skills that find and walk to only what the bot has seen, the reach guard, the reflex to flee a monster in view, model-written code, refusing to act as an operator or in creative mode, and no slash command sent. Reach uses Java's numbers |
+| **Fair play** | Works, with the two limits in the next rows. Checked on a server by `bedrock_perception.js`: sight (the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet), hearing a mob's cry from behind a wall, and noticing that the server made the bot an operator. And by `bedrock_fair_play.js`, as the agent runs it: what the model is told, skills that find and walk to only what the bot has seen, the reach guard, the reflex to flee a monster in view, model-written code, refusing to act as an operator or in creative mode, and no slash command sent. The reach guard holds the bot to a Bedrock player's reach, 5 blocks to a block and 3 to a mob, and a block 4.8 blocks away, past Java's reach, is dug |
 | **Mobs' everyday noises** | Not heard. A Bedrock client makes a mob's moos and groans up by itself, and the server never sends them, so the bot hears a mob only when it is hurt or dies, or does something the server plays a sound for |
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
 | **World memory** | Works. Checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. And by `bedrock_memory_scenarios.js`, as the agent runs it: a chest opened and walked away from is recalled with what was in it and the way back; the trail, saved places, what a sign says, and the changes found after a minute out of sight, told once; memory saved to disk. Each world has its own memory, named by a hash of the seed the server sends |
-| **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder shifts the bot there when it stops; a Bedrock server refuses the shift, and the bot goes by the server |
-| **Block and state names** | Bedrock names many states differently (a stair's `upside_down_bit` where Java has `half`) and some blocks too. Code that reads a block's properties expects Java's. A few of Mindcraft's lists name blocks by Java's names only: `placeBlock` takes Java's `snow` (a thin layer) for empty space where it may build, which on Bedrock is a whole block of snow, and does not take Bedrock's `flowing_water` or `snow_layer` for empty space |
+| **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder moves the bot there in one go when it stops; a Bedrock server refuses that move, and has the last word on where a walk stopped up to a second later. Before the bot digs the block under its feet (as `digDown` does), it steps to the middle of its block, so it drops into the hole it digs. Nothing else is known to need the middle |
+| **Block and state names in cheat mode** | Bedrock names some blocks and most block states its own way (a stair's `upside_down_bit` where Java has `half`). Mindcraft's lists of blocks are in Java's names, and each check against one asks the [edition seam](edition-seam.md) for the Java name of the block in front of the bot, so `placeBlock` builds over a thin layer of snow (`snow_layer`) and not over a block of snow (`snow`), and the checks for water and lava (in `digDown`, `breakBlockAt` and the reflex that keeps the bot alive) take Bedrock's `flowing_water` and `flowing_lava` for water and lava too. What is left: with fair play off and cheat mode on, `placeBlock` writes its `/setblock` line in Java's terms for a block that faces a way (a torch on a wall, a lever, stairs, a door's top half, a bed's head), which Bedrock writes another way. Not tried; fair play keeps cheat mode off |
 
 ## Testing
 
@@ -141,6 +141,7 @@ one line of JSON for each step:
 export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
 export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 
+node tests/live/bedrock_all.js                         # all seven below, one after another
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
@@ -199,64 +200,58 @@ themselves.
 ### A Throwaway Server
 
 The Bedrock Dedicated Server runs on Linux (x86-64) and Windows, so it often can't run on the machine the
-tests run on. It doesn't have to: the test only needs its address. One way to run it is the
-[itzg/minecraft-bedrock-server](https://github.com/itzg/docker-minecraft-bedrock-server) image, on any
-machine with Docker that the test machine can reach:
+tests run on. It doesn't have to: the tests only need its address. `tests/live/bedrock-server/` holds one ready
+to start, in the [itzg/minecraft-bedrock-server](https://github.com/itzg/docker-minecraft-bedrock-server)
+image, for any machine with Docker:
 
-```yaml
-# docker-compose.yml: a Bedrock server to test against. Not for a world you want to keep.
-services:
-  bedrock-test:
-    image: itzg/minecraft-bedrock-server
-    container_name: bedrock-test
-    restart: "no"
-    stdin_open: true
-    tty: true
-    ports:
-      - "19132:19132/tcp"               # the game port: the bot's first contact is HTTP on it
-      - "19140-19155:19140-19155/udp"   # the range the connection itself uses
-    environment:
-      EULA: "TRUE"                      # setting this accepts Minecraft's end user license agreement
-      VERSION: "1.26.60.6"              # a full build number, or LATEST
-      LEVEL_TYPE: "FLAT"
-      GAMEMODE: "survival"
-      DIFFICULTY: "peaceful"
-      ONLINE_MODE: "false"
-      ALLOW_CHEATS: "true"              # for the console commands the test uses
-      # The address the bot will reach this machine at, then the same range twice.
-      SERVER_UDP_PORTS: "<address>:19140-19155:19140-19155"
-    volumes:
-      - ./data:/data
+- `docker-compose.yml`: a flat survival world, peaceful, offline, cheats on for the console, on the Bedrock
+  version the tests last passed on. `docker compose up -d` in that folder starts it and `docker compose down`
+  stops it. The world goes in `data/` beside it, which git ignores; delete that folder for a fresh world.
+  Starting it accepts Minecraft's end user license agreement (`EULA` in the file).
+- `console.sh`: types one line into that server's console, for `BEDROCK_TEST_CONSOLE`.
+
+With the server on the machine the tests run on, from the repo's root:
+
+```bash
+docker compose -f tests/live/bedrock-server/docker-compose.yml up -d
+export BEDROCK_TEST_HOST=127.0.0.1 BEDROCK_TEST_PORT=19132
+export BEDROCK_TEST_CONSOLE=tests/live/bedrock-server/console.sh
+node tests/live/bedrock_all.js
 ```
 
-`docker compose up -d` starts it and `docker compose down` stops it; deleting the folder removes the
-world. The console command for the tests is then `docker exec bedrock-test send-command`, with
-`ssh <machine>` in front when the server is on another machine.
+It listens on 127.0.0.1 only, on game port 19132. `BEDROCK_TEST_HOST` and `BEDROCK_TEST_PORT`, set when it
+starts, move it: for tests run from another machine, start it with `BEDROCK_TEST_HOST` set to the IP address
+they will reach this machine at, and give the tests `BEDROCK_TEST_CONSOLE="ssh <that machine> docker exec
+bedrock-test send-command"`.
+
+What depends on the machine the server runs on:
+
+- **Docker on x86-64 Linux** runs the server as it is, and the image's own `send-command` is a console that
+  works.
+- **Docker Desktop on an Apple silicon Mac** runs it under x86-64 emulation (the file's `platform:
+  linux/amd64`, which changes nothing on an x86-64 machine), and all the Bedrock live tests pass on it. The
+  image's `send-command` doesn't find the server there: it looks for the server's own program, and under the
+  emulation every program in the container is the emulator. `console.sh` finds the server by its command line
+  instead, so use it as the console.
+
+`BEDROCK_TEST_CONSOLE` is split on spaces, so give the console a path that has none. The relative path above has
+none, even when a folder above the repo does.
 
 The console line passes through a shell on its way, so the tests only send lines made of letters, digits,
 spaces and `_ . : -`, and write coordinates out in full.
 
-**On an Apple silicon Mac** the server runs too, under Docker Desktop's x86-64 emulation (add `platform:
-linux/amd64` to the service), and all the Bedrock live tests pass on it. Two things differ:
+### When Several Scripts Fail at Once
 
-- The image's `send-command` doesn't find the server there. It looks for the server's own program, and
-  under the emulation every program in the container is the emulator. A console command that finds the
-  server by its command line works instead, saved as a script of its own:
+A player joining for the first time is put above whatever stands at the world spawn, and the scripts build their
+scenes where the bot then is, most of them 40 blocks above it. Whatever is left standing there lifts every later
+spawn and the scenes with it: a scene from a run stopped part way through, or something built by hand. Once
+the scenes run into the top of the world, several scripts fail at once while building them: a buried block the
+bot was never sent, a chest it can't find, a walk that comes up short.
 
-  ```bash
-  #!/bin/sh
-  # Sends one console line to the Bedrock server in the container named bedrock-test.
-  exec docker exec bedrock-test bash -c '
-  for p in /proc/[0-9]*; do
-    cmd=$(tr "\0" " " < "$p/cmdline" 2>/dev/null)
-    case "$cmd" in ./bedrock_server-*) echo "$*" > "$p/fd/0"; exit 0 ;; esac
-  done
-  echo "unable to find the bedrock server process"; exit 2' _ "$@"
-  ```
-
-- `BEDROCK_TEST_CONSOLE` is split on spaces, so give the script a path that has none.
-
-Set `SERVER_UDP_PORTS` to `127.0.0.1:19140-19155:19140-19155` when the tests run on the same Mac.
+`node tests/live/bedrock_spawn_check.js` prints, layer by layer, what stands above the flat ground within 32
+blocks of the spawn. With `--clear` it fills that space with air from the console, and then looks again. It
+does so only on a flat world like the one above (grass at y -61), and stops without changing anything on any
+other.
 
 ## Where Things Are
 
@@ -272,4 +267,6 @@ Set `SERVER_UDP_PORTS` to `127.0.0.1:19140-19155:19140-19155` when the tests run
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
 | `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |
+| `tests/live/bedrock_all.js`, `tests/live/bedrock_spawn_check.js` | Running all of them in turn; what stands at the world spawn, and clearing it |
+| `tests/live/bedrock-server/` | A throwaway server to run them against: its Docker Compose file and a console that works under emulation |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |

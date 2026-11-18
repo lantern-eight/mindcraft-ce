@@ -96,8 +96,9 @@ try {
         const speed = distance / seconds;
         // A server that thinks the bot moved too fast pulls it back. Standing still afterwards shows it:
         // the position would jump. A jump of under half a block is something else and is expected: when
-        // the pathfinder stops it shifts the bot to the middle of its block, a Bedrock server does not
-        // go along with that, and the bot takes the server's word for where it is.
+        // the pathfinder stops the bot it sets its speed to nothing at once, which a Bedrock server doesn't
+        // do. The server lets the player slow down by its own reckoning, and up to a second later says
+        // where it stopped, and the bot takes the server's word for it.
         const stopped = bot.entity.position.clone();
         await delay(1500);
         const pulledBack = bot.entity.position.distanceTo(stopped);

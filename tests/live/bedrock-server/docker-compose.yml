@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: CC0-1.0
+# A throwaway Bedrock Dedicated Server for the Bedrock live tests (tests/live/bedrock_*.js). NEVER a world you
+# want to keep: the tests dig, build, hand out items and change the rules. docs/bedrock.md, "A Throwaway
+# Server", says how to use it.
+#
+#   docker compose up -d     start it, in this folder. The world goes in ./data, which git ignores; delete that
+#                            folder to start again from a fresh world.
+#   docker compose down      stop it.
+#
+# Starting it accepts Minecraft's end user license agreement (EULA below), as running any Bedrock server does.
+#
+# It listens on 127.0.0.1, this machine only, on game port 19132. BEDROCK_TEST_HOST and BEDROCK_TEST_PORT, the
+# variables the tests read, move it when they are set as it starts: for tests run from another machine, set
+# BEDROCK_TEST_HOST to the address (an IP address) they will reach this machine at.
+services:
+  bedrock-test:
+    image: itzg/minecraft-bedrock-server:stable
+    # The server is an x86-64 program. On an x86-64 machine this changes nothing. On an Apple silicon Mac it
+    # runs the server under Docker Desktop's emulation, where the image's own send-command can't reach the
+    # server's console; console.sh, beside this file, can.
+    platform: linux/amd64
+    container_name: bedrock-test
+    restart: "no"
+    stop_grace_period: 30s
+    stdin_open: true
+    tty: true
+    ports:
+      # The game port: a bot's first contact is HTTP on it.
+      - "${BEDROCK_TEST_HOST:-127.0.0.1}:${BEDROCK_TEST_PORT:-19132}:${BEDROCK_TEST_PORT:-19132}/tcp"
+      - "${BEDROCK_TEST_HOST:-127.0.0.1}:${BEDROCK_TEST_PORT:-19132}:${BEDROCK_TEST_PORT:-19132}/udp"
+      # The range the connection itself then uses.
+      - "${BEDROCK_TEST_HOST:-127.0.0.1}:19140-19155:19140-19155/udp"
+    environment:
+      EULA: "TRUE"
+      # The version the live tests last passed on. A full build number, or LATEST.
+      VERSION: "1.26.63.1"
+      SERVER_NAME: "bot-test"
+      LEVEL_NAME: "bot-test"
+      # The scenes are built on flat ground, and bedrock_spawn_check.js --clear only works on a flat world.
+      LEVEL_TYPE: "FLAT"
+      GAMEMODE: "survival"
+      DIFFICULTY: "peaceful"
+      MAX_PLAYERS: "5"
+      # The bots join without a Microsoft account.
+      ONLINE_MODE: "false"
+      ALLOW_LIST: "false"
+      # For the console commands the tests build their scenes with.
+      ALLOW_CHEATS: "true"
+      DEFAULT_PLAYER_PERMISSION_LEVEL: "member"
+      SERVER_PORT: "${BEDROCK_TEST_PORT:-19132}"
+      # The address the bot will reach this machine at, then the same range twice.
+      SERVER_UDP_PORTS: "${BEDROCK_TEST_HOST:-127.0.0.1}:19140-19155:19140-19155"
+      VIEW_DISTANCE: "8"
+    volumes:
+      - ./data:/data

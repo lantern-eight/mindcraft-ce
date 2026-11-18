@@ -12,7 +12,9 @@
 //   BEDROCK_TEST_CONSOLE  a command that sends one line to the server's console, the line being added as its
 //                         last argument. For a server in the itzg/minecraft-bedrock-server image:
 //                           docker exec <container> send-command
-//                         and for the same on another machine, put `ssh <that machine>` in front.
+//                         and for the same on another machine, put `ssh <that machine>` in front. For the
+//                         server in tests/live/bedrock-server/, its console.sh, which also works where
+//                         send-command doesn't (an Apple silicon Mac).
 //                         Without it the smoke test still runs and skips the steps that need the console.
 //                         The skills walk builds every scene from the console and does not run without it.
 //
