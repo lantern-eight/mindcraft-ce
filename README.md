@@ -142,6 +142,24 @@ export MC_TEST_SERVER_JAR=/path/to/server.jar
 node tests/live/fairplay_scenarios.js
 ```
 
+| Script | What it checks |
+|---|---|
+| `fairplay_perception_smoke.js` | Fair play's sight and hearing on real chunks, packets and sounds |
+| `fairplay_scenarios.js` | Fair play as a whole, as the agent runs it (`--no-world-memory` for the path without memory) |
+| `memory_scenarios.js` | World memory: what the bot is told it saw, and what changed while it was away (one step waits a minute) |
+| `navigator_scenarios.js` | Travel back along the trail the bot walked |
+| `legs_scenarios.js` | Route planning over only what the bot has seen |
+| `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
+| `mining_scenarios.js` | Mining and digging |
+| `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
+| `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
+| `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
+| `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
+
+The last three replay recorded model replies, so they cost nothing; `--live-model` makes them call the
+configured model instead. `fairplay_perception_bench.js` is a timing bench, not a test, and needs a server
+already running. Each run leaves its server's folder under `server_data/`, which can be deleted.
+
 What the server jar unpacks on its first start (and for Paper, downloads and patches) is kept in
 `server_data/jar-cache` and shared by every run after. `MC_TEST_JAR_CACHE` picks another folder; `off` gives
 each server its own copy again. Run the live scripts one at a time: they share a port and that folder.
