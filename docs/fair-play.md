@@ -142,7 +142,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `stations_through_walls` | `false` | `true` (crafting tables, beds, doors, anvils) |
 | `mobs_through_walls` | `false` | `true` |
 | `players_through_walls` | `"nametag"` | `true`, `false` |
-| `fov_degrees` | `360` | a narrower field of view, such as `110` |
+| `fov_degrees` | `360` | a narrower field of view, such as `110` (above 0, up to 360) |
 | `sight_distance` | `"server"` (whatever is loaded) | a number of blocks |
 | `entity_distance` | `64` | blocks |
 | `hearing_radius` | `16` | blocks |
@@ -154,7 +154,8 @@ place in the code, so flipping one changes that rule and nothing else.
 | `cheat_mode` | `false` | `true` |
 | `generated_code` | `"wrapped"` | `"off"` (refuse to write code), `"raw"` (stock behavior, for measuring only) |
 
-A misspelled switch is an error at startup, not a rule silently left on.
+A misspelled switch is an error at startup, not a rule silently left on, and so is a number out of range: a
+negative hearing radius, or a field of view of 0 or over 360 degrees.
 
 **Why switches:** to measure what a "cheat" is worth. Run a task under strict, then again with one switch
 flipped, and compare. When a strict run fails, flipping switches one at a time shows which limit caused it.

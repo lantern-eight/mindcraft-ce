@@ -11,6 +11,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- `fair_play_custom` refuses a number out of range at startup: a field of view of 0 or over 360 degrees, or a
+  negative or infinite `entity_distance` or `hearing_radius`. Such a number used to be taken as it was.
 - Model-written code no longer stalls the agent when a skill hands back data that refers to itself. The copy
   that keeps live objects away from that code followed every route through such data, up to six levels deep.
 
