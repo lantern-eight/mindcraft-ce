@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.2.0-bedrock.1.3.0] - 2026-11-18
+
+A release for both editions. World memory no longer takes a change that happened in plain view for news, and
+the seen-world map that stood in when world memory is off is gone. Fixes to inherited skills, NPC goals, the
+Novita provider and the MindServer, most of them also offered to Mindcraft-CE. Built on the same Mindcraft-CE
+commit as 0.1.0.
+
 ### Removed
 
 - The seen-world map, the smaller memory that stood in when `world_memory` is off. With world memory off,
@@ -30,12 +37,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   still met by one the bot wears.
 - With a Novita model, a conversation too long for the model is retried without its oldest turn, as meant.
   The retry crashed instead.
-- An agent that fails to start, such as a Bedrock agent set to a version that can't work, no longer stays
-  listed on the MindServer with no process behind it, its name refused when tried again from the page.
+- A Bedrock agent set to a version that can't work no longer stays listed on the MindServer with no process
+  behind it, its name refused when tried again from the page.
 - `!attack` with no mob type says so, instead of pausing the bot's cowardice and looking for a mob with no
   name.
 - After `!attackPlayer`, the bot says which player it killed, instead of "Successfully killed player."
-
 - World memory no longer reports a change that happened in plain view as news, on either edition. A bot that
   stood a quiet minute looking at a wall took the wall coming down for something that happened while it was
   away, and a block it had not seen for minutes could count as watched because others near it were in view.
@@ -594,7 +600,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.0-bedrock.1.3.0...HEAD
+[1.2.0-bedrock.1.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...v1.2.0-bedrock.1.3.0
 [1.1.1-bedrock.1.2.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.0-bedrock.1.2.0...v1.1.1-bedrock.1.2.1
 [1.1.0-bedrock.1.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.1.0...v1.1.0-bedrock.1.2.0
 [1.0.0-bedrock.1.1.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.2...v1.0.0-bedrock.1.1.0
