@@ -78,6 +78,9 @@ upstream authors and fork owners is fine and needed where their licenses ask for
 - **Fixes found along the way are made on the working branch,** and reach `main` or `bedrock` with its pull
   request. A fix that could go upstream is also broken off onto a small branch of its own, to offer it
   there (see "Fixes to Inherited Code").
+- **Pull requests are merged with a merge commit,** never squashed or rebased, so each commit stays as it
+  was made. With `gh`, name this repository (`--repo lantern-eight/mindcraft-ce`): the checkout also has
+  Mindcraft-CE as a remote, and `gh` may pick it.
 
 ## Two Editions, Two Branches
 
@@ -207,6 +210,21 @@ has it; a declined one stays, marked declined.
   bumps the Bedrock part on `bedrock`, and the next release of `main` takes a Bedrock part above it, so no
   number is used twice. The lines for such a release go in `CHANGELOG-bedrock.md`, which only `bedrock`
   has; every other line goes in `CHANGELOG.md`, on `main`.
+
+**Making a release:**
+
+1. On the working branch, every commit passes `npm test` and every live script passes on its tip (Java,
+   and Bedrock on `bedrock`'s libraries when the change reaches Bedrock).
+2. A last commit, "Release X": the Unreleased lines move under a heading with the version and the date,
+   with its compare link at the bottom of `CHANGELOG.md`; the version goes in `package.json` and in both
+   places at the top of `package-lock.json`.
+3. With the maintainer's word, push the branch and open its pull request into `main`. Once it is merged,
+   put a signed, annotated tag `vX` on the merge commit and push the tag.
+4. Then bring it to `bedrock`: merge `main` into a working branch cut from `bedrock` (with any pin changes),
+   check `git diff --stat origin/main origin/bedrock` lists only the files in "What Differs Between the
+   Branches", and open its pull request into `bedrock`.
+5. After both merge: `git fetch --prune`, fast-forward the local `main` and `bedrock`, delete the local
+   working branches, and offer the `fix/` branches upstream when the maintainer says so.
 
 ## Code Style
 
