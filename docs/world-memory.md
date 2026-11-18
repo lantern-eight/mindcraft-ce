@@ -4,8 +4,8 @@ World memory lets the bot remember the world the way a player who has been there
 where, what was in the chests it opened, where its base is, the ways it has walked, and whether a place
 is as it left it.
 
-Without it, the bot remembers a short list of notable blocks. With it, the bot can answer "where is the
-iron?", walk back to "the base" by the way it came, and say "two chests are gone" when it comes home.
+Without it, the bot remembers nothing out of view. With it, the bot can answer "where is the iron?",
+walk back to "the base" by the way it came, and say "two chests are gone" when it comes home.
 
 - [Turning It On or Off](#turning-it-on-or-off)
 - [What the Bot Remembers](#what-the-bot-remembers)
@@ -27,7 +27,7 @@ World memory is **on by default**. To turn it off, in `settings.js`:
 
 It needs `fair_play` to be on (`"strict"` or `"custom"`), because it sees through fair play's eyes. With
 fair play off it does nothing, whatever this setting says. With `world_memory` off, nothing here runs:
-the bot remembers a short list of notable blocks, and every walk is planned afresh.
+the bot knows only what it touches and sees now, has no `!recall`, and every walk is planned afresh.
 
 Memory is kept per world and dimension, under `bots/<name>/memory/`. The Nether never mixes with the
 overworld, and one world's base is never looked for in another. A world is known by its seed, as the server
@@ -243,8 +243,8 @@ otherwise asked of the [edition seam](edition-seam.md) (`otherHalfOf`), so a dou
 either way. What a sign says is asked of the seam too (`signSidesOf`): each edition keeps it in a block
 entity of its own shape.
 
-**How it hooks in.** Perception takes world memory as its memory in place of the seen-world map, and
-leaves the looking around to the recorder. Route planning asks perception in turn, so the pathfinder plans
+**How it hooks in.** Perception takes world memory as its memory (its `memory` option), and the
+recorder does the looking around. Route planning asks perception in turn, so the pathfinder plans
 over remembered blocks, and over the air above ground the bot has looked down on (`seenOpen` in `cells.js`). Saved places are swapped in through a stand-in with the same
 calls as the place bank. Travel has one line added: before it plans a walk, it asks a guide whether the
 bot knows a way, and the navigator is that guide. See [`core-hooks.md`](core-hooks.md).

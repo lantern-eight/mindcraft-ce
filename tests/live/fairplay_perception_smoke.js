@@ -31,7 +31,6 @@ try {
     setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline' });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { createPerception } = await import('../../src/agent/fairplay/perception.js');
-    const { createSeenMap } = await import('../../src/agent/fairplay/seen_map.js');
     const { resolvePolicy } = await import('../../src/agent/fairplay/policy.js');
     const { fairQueries, registerFairPlay } = await import('../../src/agent/fairplay/fair_queries.js');
     const { setWorldQueries } = await import('../../src/agent/library/world_queries.js');
@@ -58,8 +57,7 @@ try {
     await delay(2500);
 
     const policy = resolvePolicy({ fair_play: 'strict' });
-    const seenMap = createSeenMap({ scope: 'smoke' });
-    const perception = createPerception({ bot, policy, seenMap, tickBudgetMs: Infinity, searchBudgetMs: Infinity });
+    const perception = createPerception({ bot, policy, searchBudgetMs: Infinity });
     const ore = bot.registry.blocksByName.diamond_ore.id;
     const chest = bot.registry.blocksByName.chest.id;
 
@@ -91,16 +89,12 @@ try {
         setWorldQueries(null);
     });
 
-    await step('timing: background pass and a !nearbyBlocks-sized query', () => {
-        let t = performance.now();
-        perception.tick();
-        const tickMs = performance.now() - t;
+    await step('timing: a !nearbyBlocks-sized query', () => {
         const everything = bot.registry.blocksArray.filter(b => b.name !== 'air').map(b => b.id);
-        t = performance.now();
+        const t = performance.now();
         const near = perception.findBlocks({ matching: everything, maxDistance: 8, count: 10000 });
         const nearbyMs = performance.now() - t;
-        assert.ok(seenMap.count('diamond_ore') === 1, 'the pass remembered the visible diamond only');
-        return { tickMs: Math.round(tickMs), nearbyBlocksMs: Math.round(nearbyMs), nearbyKnown: near.length };
+        return { nearbyBlocksMs: Math.round(nearbyMs), nearbyKnown: near.length };
     });
 
     await step('the cow behind the wall is heard, by name and direction, though it is not seen', async () => {

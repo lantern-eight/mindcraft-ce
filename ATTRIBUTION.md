@@ -81,8 +81,8 @@ No code was copied for these. They are credited because the work builds on them.
   the route planning in `src/agent/fairplay/fair_legs.js`, which searches afresh each time where those
   repair the last search.
 - **Keeping what a player told the bot apart from what the bot has seen** comes from the place registry in
-  the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by the seen-world
-  map in `src/agent/fairplay/seen_map.js`.
+  the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by world memory's
+  things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw.
 
 ## What This Fork Added
 

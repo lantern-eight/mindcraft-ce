@@ -182,7 +182,7 @@ export function stubBot(world, { position = [0.5, 1, 0.5], yaw = 0, pitch = 0, e
 }
 
 /**
- * Options for createPerception in tests: no time budgets, so a result never depends on how fast the
+ * Options for createPerception in tests: no time budget, so a result never depends on how fast the
  * machine running the tests happens to be.
  */
-export const NO_BUDGETS = Object.freeze({ searchBudgetMs: Infinity, tickBudgetMs: Infinity });
+export const NO_BUDGETS = Object.freeze({ searchBudgetMs: Infinity });

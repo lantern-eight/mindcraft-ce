@@ -68,7 +68,6 @@ try {
     setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'strict' });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { createPerception } = await import('../../src/agent/fairplay/perception.js');
-    const { createSeenMap } = await import('../../src/agent/fairplay/seen_map.js');
     const { resolvePolicy } = await import('../../src/agent/fairplay/policy.js');
     const { fairQueries, registerFairPlay } = await import('../../src/agent/fairplay/fair_queries.js');
     const { setWorldQueries } = await import('../../src/agent/library/world_queries.js');
@@ -91,8 +90,7 @@ try {
     });
 
     const policy = resolvePolicy({ fair_play: 'strict' });
-    const seenMap = createSeenMap({ scope: 'bedrock-sight' });
-    const perception = createPerception({ bot, policy, seenMap, tickBudgetMs: Infinity, searchBudgetMs: Infinity });
+    const perception = createPerception({ bot, policy, searchBudgetMs: Infinity });
     const id = name => bot.registry.blocksByName[name].id;
     const coords = list => list.map(p => [p.x - origin.x, p.y - origin.y, p.z - origin.z]);
 
@@ -142,16 +140,12 @@ try {
         }
     });
 
-    await step('timing: background pass and a !nearbyBlocks-sized query', () => {
-        let t = performance.now();
-        perception.tick();
-        const tickMs = performance.now() - t;
+    await step('timing: a !nearbyBlocks-sized query', () => {
         const everything = bot.registry.blocksArray.filter(b => b.name !== 'air').map(b => b.id);
-        t = performance.now();
+        const t = performance.now();
         const near = perception.findBlocks({ matching: everything, maxDistance: 8, count: 10000 });
         const nearbyMs = performance.now() - t;
-        assert.equal(seenMap.count('diamond_ore'), 1, 'the pass remembered the visible diamond only');
-        return { tickMs: Math.round(tickMs), nearbyBlocksMs: Math.round(nearbyMs), nearbyKnown: near.length };
+        return { nearbyBlocksMs: Math.round(nearbyMs), nearbyKnown: near.length };
     });
 
     // A Bedrock server never sends a mob's everyday noises (the client makes those up itself), so the cow

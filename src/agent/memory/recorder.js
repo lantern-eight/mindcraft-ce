@@ -485,9 +485,8 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     // ---- What perception is told the bot remembers ----
     //
     // Perception answers "what is there?" for cells out of sight from memory. This is world memory in
-    // the shape perception expects of a memory: the same few calls the seen-world map offers.
+    // the shape perception expects of a memory (its `memory` option).
     const view = {
-        recordsAll: true,
         scope: memory.scope,
         observeBlock(pos, name, provenance, stateId) {
             if (Number.isInteger(stateId)) record(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), stateId);
@@ -519,9 +518,6 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
          * from above.
          */
         sawOpen: (x, y, z) => cells.seenOpen(x, y, z, radius),
-        within: () => [],
-        markExplored() {},
-        recordBiome: (pos, name) => things.recordBiome(pos, name),
     };
 
     return {

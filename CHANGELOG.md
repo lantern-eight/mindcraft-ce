@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Removed
+
+- The seen-world map, the smaller memory that stood in when `world_memory` is off. With world memory off,
+  the bot now remembers nothing out of view and has no `!recall`, and an empty-handed search no longer
+  points it at memory it doesn't have. The `bots/<name>/seen/` folders it saved are no longer read and can
+  be deleted. World memory, on in the shipped settings, is unchanged.
+
 ### Fixed
 
 - World memory no longer reports a change that happened in plain view as news, on either edition. A bot that

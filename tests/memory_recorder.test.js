@@ -41,7 +41,7 @@ function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'me
     const memory = openMemory({ baseDir, scope: SCOPE, now, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
     // Perception is handed world memory as its memory, and leaves the looking around to the recorder.
-    const perception = createPerception({ bot, policy: STRICT, seenMap: recorder.view, backgroundPass: false, now, ...NO_BUDGETS });
+    const perception = createPerception({ bot, policy: STRICT, memory: recorder.view, now, ...NO_BUDGETS });
     recorder.attach(perception);
     recorder.listen(); // hear the bot move, dig, place and open things; the tests call tick() themselves
     const lookAround = () => { bot.emit('blockUpdate', null, { position: bot.entity.position }); recorder.tick(); };
@@ -73,7 +73,7 @@ test('only what is in view is written: a buried ore is not, a chest in the open 
     assert.equal(memory.cells.read(5, 3, 0), null, 'nor the stone around it');
     assert.equal(memory.cells.read(4, 3, 0), 'stone', 'the face of the stone was');
     assert.equal(memory.cells.read(4, 2, -5), 'diamond_ore');
-    assert.equal(memory.cells.read(2, 0, 2), 'stone', 'the floor is remembered too, not only notable blocks');
+    assert.equal(memory.cells.read(2, 0, 2), 'stone', 'the floor is remembered too, not only things like chests');
     assert.equal(memory.cells.read(2, 1, 2), 'air', 'and the air just above it was seen to be empty');
     assert.equal(memory.cells.read(2, 5, 2), null, 'open air higher up is not recorded');
 
@@ -409,13 +409,12 @@ test('perception answers from memory for what is out of sight, in the state it w
     assert.equal(propsOfState(bot.registry, door.stateId).open, 'true', 'and that it was open');
     assert.ok(door.rememberedAt, 'the answer is marked as a memory');
 
-    // A search finds remembered blocks of any kind, not only notable ones.
+    // A search finds remembered blocks of any kind.
     const stone = bot.registry.blocksByName.sand.id;
     const [found] = perception.findBlocks({ matching: stone, maxDistance: 32, count: 1 });
     assert.deepEqual([found.x, found.y, found.z], [-4, 1, -2]);
     const byTest = perception.findBlocks({ matching: block => block.name === 'sand', maxDistance: 32, count: 3 });
     assert.equal(byTest.length, 1);
-    assert.equal(perception.remembers('dirt'), true);
 });
 
 test('block states go to names and back, and survive a game version that renumbers them', () => {

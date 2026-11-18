@@ -153,7 +153,6 @@ test('world_memory: true turns it all on through the fair-play installer, per wo
     const handle = installFairPlay(agent, { config, memoryDir, perceptionOptions: { ...NO_BUDGETS } });
     try {
         assert.ok(handle.memory, 'world memory is open');
-        assert.equal(handle.seenMap, null, 'in place of the seen-world map');
         assert.equal(handle.memory.scope, 'world:w1/overworld');
         handle.recorder.tick({ budgetMs: Infinity });
         assert.equal(handle.memory.cells.read(3, 1, 3), 'chest');
