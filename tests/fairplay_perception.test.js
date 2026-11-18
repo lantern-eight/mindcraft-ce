@@ -280,3 +280,23 @@ test('describeDirection and soundSubject', () => {
     assert.equal(soundSubject('minecraft:block.stone.break'), null);
     assert.equal(soundSubject('minecraft:entity.player.hurt'), null);
 });
+
+test('a search that runs out of its time budget is counted and noted in the log, at most once a minute', () => {
+    const warnings = [];
+    let t = 0;
+    const tick = () => (t += 50); // every look at the clock takes 50 ms, so a 100 ms budget trips at once
+    const { world, perception } = setup(w => w.set('diamond_ore', 3, 1, 0),
+        { options: { searchBudgetMs: 100, clock: tick, warn: line => warnings.push(line) } });
+    const search = () => perception.findBlocks({ matching: diamond(world), maxDistance: 20, count: 5 });
+    search();
+    assert.equal(perception.stats().searchesCut, 1);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /ran out of its 100 ms/);
+    search(); search();
+    assert.equal(perception.stats().searchesCut, 3);
+    assert.equal(warnings.length, 1, 'no second line within the minute');
+    t += 60_000;
+    search();
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[1], /3 searches cut short since the last note/);
+});

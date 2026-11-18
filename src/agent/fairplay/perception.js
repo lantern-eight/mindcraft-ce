@@ -79,9 +79,10 @@ export function soundSubject(soundName) {
  * @param {function} [options.clock] - fine-grained clock in ms, for the time budgets below
  * @param {number} [options.permanenceMs] - how long a mob that slips out of view stays known
  * @param {number} [options.searchBudgetMs] - most time one findBlocks() may spend scanning
+ * @param {function} [options.warn] - where a search cut short by that budget is reported
  */
 export function createPerception({ bot, policy, memory = null, getStateId = null, getColumn = null, now = Date.now,
-    clock = () => performance.now(), permanenceMs = 3000, searchBudgetMs = 200 } = {}) {
+    clock = () => performance.now(), permanenceMs = 3000, searchBudgetMs = 200, warn = console.warn } = {}) {
     const edition = editionOf(bot.registry);
     const liveReader = getStateId ? null : liveStateReader(bot, edition);
     const readState = getStateId ?? liveReader.read;
@@ -93,6 +94,21 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     const nameOfState = stateId => bot.registry.blocksByStateId[stateId]?.name;
 
     const lastSeenEntity = new Map(); // entity id -> time last seen (object permanence)
+
+    // Searches cut short by the time budget. A cut search still answers with the nearest it found, so
+    // nothing fails: without a count and a line in the log, a budget that trips all the time (a slow
+    // machine, a huge radius) would only show as a bot that misses blocks a little farther out.
+    let searchesCut = 0, cutsSinceWarning = 0, lastWarning = -Infinity;
+    function noteSearchCut(maxDistance) {
+        searchesCut++;
+        cutsSinceWarning++;
+        const at = clock();
+        if (at - lastWarning < 60_000) return; // at most one line a minute, saying how many since the last
+        warn(`[fair play] A block search within ${maxDistance} blocks ran out of its ${searchBudgetMs} ms and answered from what it had scanned`
+            + (cutsSinceWarning > 1 ? ` (${cutsSinceWarning} searches cut short since the last note).` : '.'));
+        lastWarning = at;
+        cutsSinceWarning = 0;
+    }
     const heardLog = [];
 
     // ---- Where the bot is looking from, worked out once at the start of each query ----
@@ -300,7 +316,8 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             // Sections come nearest first, so once enough are found and the next section is farther than
             // all of them, nothing better is left. The time budget is a safety net for huge searches:
             // what was found so far is still the nearest known within the part that was scanned.
-            if ((found.length >= count && section.minDistSq > worst) || clock() > deadline) break;
+            if (found.length >= count && section.minDistSq > worst) break;
+            if (clock() > deadline) { noteSearchCut(maxDistance); break; }
             const column = columnAt(section.cx, section.cz);
             if (!column) continue;
             scanSection(edition, column, section.cx, section.sy, section.cz, minY, mayMatch, (x, y, z, stateId) => {
@@ -454,6 +471,8 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
         },
         knowsCell: pos => blockAt(pos) !== null,
+        /** Counts for live runs: `searchesCut` is how many block searches ran out of their time budget. */
+        stats: () => ({ searchesCut }),
         sight,
         // For the world-memory recorder, which does its own looking around with the same eyes: the raw
         // block reader and chunk columns. Nothing that decides what the bot does may use these.

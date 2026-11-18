@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- A block search that runs out of its 200 ms and answers from part of the world now says so in the log, at
+  most once a minute, and `tests/live/fairplay_scenarios.js` reports how many searches were cut short.
+
 ### Fixed
 
 - `fair_play_custom` refuses a number out of range at startup: a field of view of 0 or over 360 degrees, or a

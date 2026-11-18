@@ -224,7 +224,9 @@ try {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });
 
-    console.log(JSON.stringify({ status: 'passed', steps: results.length, worldMemory }));
+    // Searches that ran out of time answered from part of the world: worth knowing, not a failure.
+    const searchesCut = handle.perception?.stats().searchesCut ?? 0;
+    console.log(JSON.stringify({ status: 'passed', steps: results.length, worldMemory, searchesCut }));
 } catch (error) {
     console.error(error);
     console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: results.length }));
