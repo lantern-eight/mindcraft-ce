@@ -25,6 +25,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- `!stop`, or the bot dying, while a new action is taking over from the one running now stops the new one
+  too, and any action still waiting to start. The new one used to start anyway, a moment after the stop.
 - The bot's surroundings say "unknown" for a spot it has no block for, instead of "air". Under fair play
   that is any spot it hasn't seen; without it, a spot in a chunk that isn't loaded. Either way "air" told
   the model there was open space there.
