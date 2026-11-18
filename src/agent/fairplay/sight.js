@@ -119,8 +119,10 @@ export function createSight({ getStateId, stopsSight }) {
      *
      * Each axis takes exactly as many steps as the cells between start and end, so the walk always ends
      * on b's cell even when floating point rounds a crossing the wrong way. When a line crosses exactly
-     * through an edge or corner, it steps through one of the neighbouring cells, so two solid blocks
-     * touching at an edge stay a closed wall rather than leaking sight through the seam.
+     * through an edge or corner, it grazes the cells on either side of it: it is blocked only when the
+     * seam is closed (both cells beside an edge are walls), so two solid blocks touching at an edge stay
+     * a wall, and a single block's edge doesn't hide what lies past it. Which axis came first used to
+     * decide it, so the same line was seen or not by which way it ran.
      */
     function segmentClear(ax, ay, az, bx, by, bz) {
         let x = Math.floor(ax), y = Math.floor(ay), z = Math.floor(az);
@@ -143,12 +145,41 @@ export function createSight({ getStateId, stopsSight }) {
             const mx = rx > 0 ? tMaxX : Infinity;
             const my = ry > 0 ? tMaxY : Infinity;
             const mz = rz > 0 ? tMaxZ : Infinity;
-            if (mx <= my && mx <= mz) { x += sx; tMaxX += tDeltaX; rx--; }
+            const tx = mx <= my && mx <= mz, ty = my <= mx && my <= mz, tz = mz <= mx && mz <= my;
+            if (tx + ty + tz > 1) {
+                // Exactly through an edge or a corner: step every tied axis at once, if the seam is open.
+                if (!seamOpen(x, y, z, tx ? sx : 0, ty ? sy : 0, tz ? sz : 0)) return false;
+                if (tx) { x += sx; tMaxX += tDeltaX; rx--; }
+                if (ty) { y += sy; tMaxY += tDeltaY; ry--; }
+                if (tz) { z += sz; tMaxZ += tDeltaZ; rz--; }
+                if (blocksSight(x, y, z)) return false;
+                continue;
+            }
+            if (tx) { x += sx; tMaxX += tDeltaX; rx--; }
             else if (my <= mz) { y += sy; tMaxY += tDeltaY; ry--; }
             else { z += sz; tMaxZ += tDeltaZ; rz--; }
             if (blocksSight(x, y, z)) return false;
         }
         return true;
+    }
+
+    /**
+     * Is there a way through the seam a line crosses exactly, from the cell at (x, y, z) to the one
+     * across an edge (two of ox, oy, oz set) or a corner (all three)? Across an edge, either cell beside
+     * it will do. Across a corner, a cell one step away and then one a second step away must both be open.
+     */
+    function seamOpen(x, y, z, ox, oy, oz) {
+        const steps = [];
+        if (ox) steps.push([ox, 0, 0]);
+        if (oy) steps.push([0, oy, 0]);
+        if (oz) steps.push([0, 0, oz]);
+        for (const a of steps) {
+            if (blocksSight(x + a[0], y + a[1], z + a[2])) continue;
+            if (steps.length === 2) return true;
+            for (const b of steps)
+                if (b !== a && !blocksSight(x + a[0] + b[0], y + a[1] + b[1], z + a[2] + b[2])) return true;
+        }
+        return false;
     }
 
     /** Distance and field-of-view limits. Returns false when the point is out of range or out of view. */

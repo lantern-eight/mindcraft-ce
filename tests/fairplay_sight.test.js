@@ -186,6 +186,24 @@ test('lines through a diagonal gap between two solid blocks are blocked, not lea
     assert.equal(sight.canSeePoint({ x: 2.5, y: 2.5, z: 1.5 }, { x: 3.5, y: 2.5, z: 0.5 }), false);
 });
 
+test('a line exactly through one block\'s edge is seen, whichever side the block is on', () => {
+    // From the middle of one cell to the middle of the cell two over and two across, the line crosses
+    // an edge exactly. A block on either side of that edge leaves the other side open.
+    const eye = { x: 0.5, y: 2.5, z: 0.5 }, target = { x: 2.5, y: 2.5, z: 2.5 };
+    const onX = setup(w => w.set('stone', 1, 2, 0));
+    const onZ = setup(w => w.set('stone', 0, 2, 1));
+    assert.equal(onX.sight.canSeePoint(eye, target), true, 'a block past the edge along x');
+    assert.equal(onZ.sight.canSeePoint(eye, target), true, 'a block past the edge along z');
+    const both = setup(w => { w.set('stone', 1, 2, 0); w.set('stone', 0, 2, 1); });
+    assert.equal(both.sight.canSeePoint(eye, target), false, 'two blocks touching at the edge close it');
+    // Straight through a corner of three cells: open while any way round it is open.
+    const corner = { x: 1.5, y: 3.5, z: 1.5 };
+    const cornerAt = build => setup(build).sight.canSeePoint(eye, corner);
+    assert.equal(cornerAt(w => { w.set('stone', 1, 2, 0); w.set('stone', 0, 3, 0); }), true, 'z is still open');
+    assert.equal(cornerAt(w => { w.set('stone', 1, 2, 0); w.set('stone', 0, 3, 0); w.set('stone', 0, 2, 1); }), false,
+        'all three neighbours closed');
+});
+
 test('canSeePoint never treats the eye cell itself as an obstacle', () => {
     const { sight } = setup(w => w.set('water', 0, 2, 0)); // bot standing with its head in water
     assert.equal(sight.canSeePoint({ x: 0.5, y: 2.62, z: 0.5 }, { x: 5.5, y: 2.5, z: 0.5 }), true);

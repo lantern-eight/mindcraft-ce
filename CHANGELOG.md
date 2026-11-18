@@ -16,6 +16,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- A line of sight that passes exactly along one block's edge is no longer hidden by that block when the
+  other side of the edge is open. Which way the line ran used to decide it.
 - Fair play's sight takes a shulker box for the solid box it looks like, so the bot no longer sees through
   one, and sees past a piston that has pushed its head out, as past a stair or a slab. The game data rates
   shulker boxes as letting light through, and a piston as a full block whatever its state.
