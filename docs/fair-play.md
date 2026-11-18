@@ -32,7 +32,7 @@ If the setting is missing entirely, it counts as `"off"`.
 | Sense | Rule |
 |---|---|
 | **Touch** | The cells its body is in, the ones just above and below, and the four beside it |
-| **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way |
+| **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way, at any point along its middle or the edges of its body |
 | **Memory** | With world memory on, blocks it saw before are remembered exactly as they were last seen. A furnace that someone removed while the bot was away is still "there" until the bot looks again |
 | **Hearing** | Mob sounds the server actually sent, reported as "zombie (north-east, close)". A direction and a rough distance, never coordinates |
 | **Name tags** | Players within 64 blocks are known even through walls, unless they are sneaking. Vanilla shows name tags the same way |

@@ -44,6 +44,13 @@ const SHAPE_DECIDES = new Set(['piston', 'sticky_piston']);
 // Seeing any one of them is enough, the way a player spots a mob's head over a wall.
 const ENTITY_SAMPLE_HEIGHTS = [0.1, 0.5, 0.9];
 
+// Then the four upright edges of its box, at its middle and near its head, for a mob half out from
+// behind a corner: its middle is hidden but its side is plain to see. Set a little in from the edge,
+// so a mob pressed against a wall isn't looked for inside the wall.
+const ENTITY_EDGE_HEIGHTS = [0.5, 0.9];
+const ENTITY_EDGE_INSET = 0.9;
+const ENTITY_EDGES = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+
 // A collision shape that fills its whole cell.
 const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[0].join(',') === '0,0,0,1,1,1';
 
@@ -257,14 +264,20 @@ export function createSight({ getStateId, stopsSight }) {
     }
 
     /**
-     * Can the eye see any of an entity's sample points (feet, middle, head)?
-     * @param {{position:{x:number,y:number,z:number}, height:number}} entity - position is at the feet
+     * Can the eye see any of an entity's sample points (feet, middle, head, then the edges of its box)?
+     * @param {{position:{x:number,y:number,z:number}, height:number, width?:number}} entity - position is at the feet
      */
     function canSeeEntity(eye, entity, opts) {
         const height = entity.height ?? 1.8;
+        const { x, y, z } = entity.position;
         for (const fraction of ENTITY_SAMPLE_HEIGHTS) {
-            const point = { x: entity.position.x, y: entity.position.y + height * fraction, z: entity.position.z };
-            if (canSeePoint(eye, point, opts)) return true;
+            if (canSeePoint(eye, { x, y: y + height * fraction, z }, opts)) return true;
+        }
+        const half = ((entity.width ?? 0.6) / 2) * ENTITY_EDGE_INSET;
+        for (const fraction of ENTITY_EDGE_HEIGHTS) {
+            for (const [ex, ez] of ENTITY_EDGES) {
+                if (canSeePoint(eye, { x: x + ex * half, y: y + height * fraction, z: z + ez * half }, opts)) return true;
+            }
         }
         return false;
     }

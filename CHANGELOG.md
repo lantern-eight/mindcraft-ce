@@ -16,6 +16,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- A mob half out from behind a corner is seen. Sight looked only along the middle of its body, so a mob
+  whose side was in plain view stayed hidden until its middle came out too.
 - A mob that slips out of view is known for its 3 seconds where it was last seen, not where it has gone. A
   skill handed it during that time could follow it behind the wall. Reach and sight for hitting it are
   still judged on the mob itself.

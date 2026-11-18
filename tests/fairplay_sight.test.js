@@ -175,6 +175,17 @@ test('E1: a mob behind a wall is not seen; a window at head height is enough to 
     assert.equal(open.sight.canSeeEntity(EYE, zombie, { maxDistance: 4 }), false);
 });
 
+test('a mob half out from behind a corner is seen by the side of its body', () => {
+    // A wall runs east from the bot's line of sight, ending at z 0. The mob's middle is just behind the
+    // wall's end; its west side sticks out past it.
+    const { sight } = setup(w => w.fill('stone', [4, 1, 0], [4, 5, 6]));
+    const peeking = { position: { x: 5.35, y: 1, z: 0.1 }, height: 1.95, width: 0.6 };
+    assert.equal(sight.canSeeEntity(EYE, { ...peeking, width: 0 }), false, 'its centre line is behind the wall');
+    assert.equal(sight.canSeeEntity(EYE, peeking), true, 'its side is in view');
+    const hidden = { position: { x: 5.5, y: 1, z: 1.5 }, height: 1.95, width: 0.6 };
+    assert.equal(sight.canSeeEntity(EYE, hidden), false, 'wholly behind the wall');
+});
+
 test('lines through a diagonal gap between two solid blocks are blocked, not leaked through the corner', () => {
     const { sight } = setup(w => {
         // Two stones touching only at an edge, with the target straight beyond that edge.
