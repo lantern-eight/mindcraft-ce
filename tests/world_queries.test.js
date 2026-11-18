@@ -52,7 +52,7 @@ test('an installed provider answers every search, and methods it leaves out fall
     assert.deepEqual(world.getNearbyEntities(bot, 16), [cow]);
     assert.deepEqual(world.getNearbyPlayers(bot, 16), []);
     assert.equal(world.getPlayerEntity(bot, 'Alex'), null, 'a player the provider does not report is not found');
-    assert.equal(world.getBlockAtPosition(bot, 0.5, -1, -0.5).name, 'air', 'an unknown cell reads as air, like an unloaded one');
+    assert.equal(world.getBlockAtPosition(bot, 0.5, -1, -0.5).name, 'unknown', 'a cell the provider does not know is unknown, like an unloaded one');
     assert.deepEqual(calls, [], 'the raw bot was never asked');
     assert.equal(world.getNearestEntityWhere(bot, e => e.name === 'cow', 16), cow);
     assert.deepEqual(calls, ['nearestEntity'], 'a method the provider leaves out uses the bot');

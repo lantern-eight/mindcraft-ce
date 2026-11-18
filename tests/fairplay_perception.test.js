@@ -199,6 +199,28 @@ test('E4: a mob that slips out of view stays known for a moment, then is forgott
     assert.equal(perception.entities().length, 0);
 });
 
+test('a mob that slipped out of view is known where it was last seen, not where it has gone', () => {
+    const now = clock();
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: at(8.5, 1, 0.5), height: 1.95, yaw: 1 };
+    const { world, perception } = setup(() => {}, { entities: [zombie], now });
+    assert.equal(perception.entities()[0], zombie, 'in view: the live mob');
+    world.fill('stone', [4, 1, -3], [4, 6, 3]);
+    zombie.position = at(12.5, 1, 3.5); // it walks on behind the wall
+    now.advance(1000);
+    const [standIn] = perception.entities();
+    assert.notEqual(standIn, zombie);
+    assert.deepEqual([standIn.position.x, standIn.position.z], [8.5, 0.5], 'where it was seen');
+    assert.equal(standIn.id, 7);
+    assert.equal(standIn.name, 'zombie');
+    assert.ok(Object.isFrozen(standIn));
+    assert.equal(perception.entities()[0], standIn, 'the same stand-in while it stays out of view');
+    assert.equal(perception.liveOf(standIn), zombie);
+    assert.equal(perception.liveOf(zombie), zombie);
+    assert.equal(perception.seesEntity(standIn), false, 'judged where the mob is now');
+    world.fill('air', [4, 1, -3], [4, 6, 3]); // back in view
+    assert.equal(perception.entities()[0], zombie);
+});
+
 test('E3: name tags show standing players through walls within 64 blocks, but not sneaking ones', () => {
     const standing = { id: 9, type: 'player', username: 'Alex', position: at(10.5, 1, 0.5), height: 1.8, eyeHeight: 1.62 };
     const sneaking = { id: 10, type: 'player', username: 'Sam', position: at(10.5, 1, 4.5), height: 1.5, eyeHeight: 1.27 };
@@ -279,4 +301,52 @@ test('describeDirection and soundSubject', () => {
     assert.equal(soundSubject('entity.cave_spider.ambient'), 'cave_spider');
     assert.equal(soundSubject('minecraft:block.stone.break'), null);
     assert.equal(soundSubject('minecraft:entity.player.hurt'), null);
+    assert.equal(soundSubject('minecraft:block.wooden_door.open'), 'door (opened)');
+    assert.equal(soundSubject('minecraft:block.iron_door.close'), 'door (closed)');
+    assert.equal(soundSubject('minecraft:block.cherry_wood_trapdoor.open'), 'trapdoor (opened)');
+    assert.equal(soundSubject('minecraft:block.nether_wood_fence_gate.close'), 'fence_gate (closed)');
+    assert.equal(soundSubject('minecraft:block.chest.open'), 'chest (opened)');
+    assert.equal(soundSubject('minecraft:block.copper_chest_oxidized.close'), 'chest (closed)');
+    assert.equal(soundSubject('minecraft:block.barrel.open'), 'barrel (opened)');
+    assert.equal(soundSubject('minecraft:block.eyeblossom.open'), null, 'a flower opening is not worth telling');
+    assert.equal(soundSubject('minecraft:block.grass.step'), 'footsteps');
+    assert.equal(soundSubject('minecraft:entity.generic.explode'), 'explosion');
+});
+
+test('W7: doors, chests, footsteps and explosions are heard; a source in view is marked seen, a blast is always news', () => {
+    const cow = { id: 8, type: 'animal', name: 'cow', position: at(-6.5, 1, 0.5), height: 1.4 };
+    const { perception } = setup(w => w.fill('stone', [4, 1, -6], [4, 6, 6]), { entities: [cow] }); // a wall to the east
+    perception.hearSound('minecraft:block.wooden_door.open', at(8, 1, 0));   // behind the wall
+    perception.hearSound('minecraft:block.chest.open', at(-2, 1, 2));        // in plain view, west
+    perception.hearSound('minecraft:block.grass.step', at(-6.5, 1, 0.5));    // the cow, walking in view
+    perception.hearSound('minecraft:block.grass.step', at(9, 1, 3));         // something behind the wall
+    perception.hearSound('minecraft:entity.generic.explode', at(-10, 1, -2)); // in plain view, and still news
+    const heard = Object.fromEntries(perception.heard().map(h => [`${h.subject} ${h.direction}`, h]));
+    assert.equal(heard['door (opened) east'].seen, false);
+    assert.equal(heard['chest (opened) south-west'].seen, true, 'a chest whose spot is in view');
+    assert.equal(heard['footsteps west'].seen, true, 'the cow it can see');
+    assert.equal(heard['footsteps east'].seen, false);
+    assert.equal(heard['explosion west'].seen, false);
+    assert.equal(heard['explosion west'].news, true);
+    assert.equal(heard['door (opened) east'].news, false);
+});
+
+test('a search that runs out of its time budget is counted and noted in the log, at most once a minute', () => {
+    const warnings = [];
+    let t = 0;
+    const tick = () => (t += 50); // every look at the clock takes 50 ms, so a 100 ms budget trips at once
+    const { world, perception } = setup(w => w.set('diamond_ore', 3, 1, 0),
+        { options: { searchBudgetMs: 100, clock: tick, warn: line => warnings.push(line) } });
+    const search = () => perception.findBlocks({ matching: diamond(world), maxDistance: 20, count: 5 });
+    search();
+    assert.equal(perception.stats().searchesCut, 1);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /ran out of its 100 ms/);
+    search(); search();
+    assert.equal(perception.stats().searchesCut, 3);
+    assert.equal(warnings.length, 1, 'no second line within the minute');
+    t += 60_000;
+    search();
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[1], /3 searches cut short since the last note/);
 });

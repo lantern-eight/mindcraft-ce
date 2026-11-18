@@ -10,6 +10,7 @@ import { getCommand } from '../src/agent/commands/index.js';
 import * as world from '../src/agent/library/world.js';
 import { setWorldQueries } from '../src/agent/library/world_queries.js';
 import { withAction } from '../src/agent/action_context.js';
+import { withinAttackReach } from '../src/agent/library/attack_reach.js';
 import { installFairPlay, lockModes, makeChatGuard, guardChat, watchPermissions } from '../src/agent/fairplay/install.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 import { withSearchHint, SEARCH_HINT, SEARCH_HINT_NO_MEMORY } from '../src/agent/fairplay/commands.js';
@@ -211,6 +212,15 @@ test('an empty-handed search is explained once: not found means not seen', async
     assert.equal(withSearchHint({ text: 'Collected 3 oak_log.' }).text, 'Collected 3 oak_log.');
     const once = withSearchHint(withSearchHint({ text: 'Could not find a chest nearby.' }));
     assert.equal(once.text.split(SEARCH_HINT).length, 2, 'the sentence is not added twice');
+    bot.emit('end');
+    setWorldQueries(null);
+});
+
+test('installed, a single hit walks within a survival player\'s reach first, not the stock five blocks', () => {
+    const { bot } = fairAgent(() => {});
+    const mob = x => ({ id: 9, name: 'pig', position: new Vec3(x, 1, 0.5), width: 0.9, height: 0.9 });
+    assert.equal(withinAttackReach(bot, mob(3.4)), true, 'eye to hitbox within 3');
+    assert.equal(withinAttackReach(bot, mob(4.5)), false, 'four blocks off: walk closer first');
     bot.emit('end');
     setWorldQueries(null);
 });

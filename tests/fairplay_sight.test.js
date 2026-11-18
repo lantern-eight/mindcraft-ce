@@ -30,6 +30,19 @@ test('stops-sight table marks only full opaque cubes, using filterLight rather t
         assert.equal(stops(name), false, name);
 });
 
+test('a shulker box is a wall; a piston is one while drawn in, and not once it has pushed out', () => {
+    const world = fixtureWorld();
+    const table = buildStopsSightTable(world.registry);
+    const stops = (name, props) => table.get(world.stateIdOf(name, props)) === 1;
+    // minecraft-data says shulker boxes let light through, but a shut one is a solid box of shell.
+    for (const name of ['shulker_box', 'red_shulker_box', 'light_blue_shulker_box']) assert.equal(stops(name), true, name);
+    for (const name of ['piston', 'sticky_piston']) {
+        assert.equal(stops(name, { extended: 'false', facing: 'up' }), true, `${name} drawn in`);
+        assert.equal(stops(name, { extended: 'true', facing: 'up' }), false, `${name} pushed out`);
+        assert.equal(stops(name, { extended: 'true', facing: 'east' }), false, `${name} pushed out sideways`);
+    }
+});
+
 test('a double slab is a wall, a single slab is not', () => {
     const world = fixtureWorld();
     const table = buildStopsSightTable(world.registry);
@@ -162,6 +175,17 @@ test('E1: a mob behind a wall is not seen; a window at head height is enough to 
     assert.equal(open.sight.canSeeEntity(EYE, zombie, { maxDistance: 4 }), false);
 });
 
+test('a mob half out from behind a corner is seen by the side of its body', () => {
+    // A wall runs east from the bot's line of sight, ending at z 0. The mob's middle is just behind the
+    // wall's end; its west side sticks out past it.
+    const { sight } = setup(w => w.fill('stone', [4, 1, 0], [4, 5, 6]));
+    const peeking = { position: { x: 5.35, y: 1, z: 0.1 }, height: 1.95, width: 0.6 };
+    assert.equal(sight.canSeeEntity(EYE, { ...peeking, width: 0 }), false, 'its centre line is behind the wall');
+    assert.equal(sight.canSeeEntity(EYE, peeking), true, 'its side is in view');
+    const hidden = { position: { x: 5.5, y: 1, z: 1.5 }, height: 1.95, width: 0.6 };
+    assert.equal(sight.canSeeEntity(EYE, hidden), false, 'wholly behind the wall');
+});
+
 test('lines through a diagonal gap between two solid blocks are blocked, not leaked through the corner', () => {
     const { sight } = setup(w => {
         // Two stones touching only at an edge, with the target straight beyond that edge.
@@ -171,6 +195,24 @@ test('lines through a diagonal gap between two solid blocks are blocked, not lea
     });
     // The point sits exactly on the shared edge's line of travel; either neighbour cell blocks it.
     assert.equal(sight.canSeePoint({ x: 2.5, y: 2.5, z: 1.5 }, { x: 3.5, y: 2.5, z: 0.5 }), false);
+});
+
+test('a line exactly through one block\'s edge is seen, whichever side the block is on', () => {
+    // From the middle of one cell to the middle of the cell two over and two across, the line crosses
+    // an edge exactly. A block on either side of that edge leaves the other side open.
+    const eye = { x: 0.5, y: 2.5, z: 0.5 }, target = { x: 2.5, y: 2.5, z: 2.5 };
+    const onX = setup(w => w.set('stone', 1, 2, 0));
+    const onZ = setup(w => w.set('stone', 0, 2, 1));
+    assert.equal(onX.sight.canSeePoint(eye, target), true, 'a block past the edge along x');
+    assert.equal(onZ.sight.canSeePoint(eye, target), true, 'a block past the edge along z');
+    const both = setup(w => { w.set('stone', 1, 2, 0); w.set('stone', 0, 2, 1); });
+    assert.equal(both.sight.canSeePoint(eye, target), false, 'two blocks touching at the edge close it');
+    // Straight through a corner of three cells: open while any way round it is open.
+    const corner = { x: 1.5, y: 3.5, z: 1.5 };
+    const cornerAt = build => setup(build).sight.canSeePoint(eye, corner);
+    assert.equal(cornerAt(w => { w.set('stone', 1, 2, 0); w.set('stone', 0, 3, 0); }), true, 'z is still open');
+    assert.equal(cornerAt(w => { w.set('stone', 1, 2, 0); w.set('stone', 0, 3, 0); w.set('stone', 0, 2, 1); }), false,
+        'all three neighbours closed');
 });
 
 test('canSeePoint never treats the eye cell itself as an obstacle', () => {

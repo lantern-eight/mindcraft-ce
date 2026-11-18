@@ -27,25 +27,32 @@ In `settings.js` (a profile can override it):
 
 If the setting is missing entirely, it counts as `"off"`.
 
+**It checks itself when the bot spawns.** It picks a block buried in the ground under the bot and asks for
+it the way every command and skill does. If the answer is anything but "unknown", fair play isn't really in
+the way of what the bot is told, so the bot refuses every action and says why, instead of quietly seeing
+through walls.
+
 ## What the Bot Can Know
 
 | Sense | Rule |
 |---|---|
 | **Touch** | The cells its body is in, the ones just above and below, and the four beside it |
-| **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way |
+| **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way, at any point along its middle or the edges of its body |
 | **Memory** | With world memory on, blocks it saw before are remembered exactly as they were last seen. A furnace that someone removed while the bot was away is still "there" until the bot looks again |
-| **Hearing** | Mob sounds the server actually sent, reported as "zombie (north-east, close)". A direction and a rough distance, never coordinates |
+| **Hearing** | Sounds the server actually sent: mobs, doors, trapdoors and gates, chests and barrels opening and closing, a mob's footsteps, and explosions, reported as "zombie (north-east, close)" or "door (opened) (east, near)". A direction and a rough distance, never coordinates. Other players' footsteps aren't heard: the server never sends them |
 | **Name tags** | Players within 64 blocks are known even through walls, unless they are sneaking. Vanilla shows name tags the same way |
 
 Details that matter:
 
 - **You can see through** glass, leaves, water, ice, and anything that isn't a full cube: single slabs,
-  stairs, fences, chests, doors, torches. That is slightly generous (a slab does hide a little).
+  stairs, fences, chests, doors, torches, and a piston that has pushed its head out. That is slightly
+  generous (a slab does hide a little). A shulker box is a wall, as it looks.
 - **Chunks the client hasn't been sent count as walls,** so the bot can't see into them.
 - **The view is all around (360°)** and light is ignored, as if the bot glances around constantly with
   brightness turned up. Both can be tightened later.
 - **A mob that steps out of view stays known for 3 seconds,** so reflexes don't flicker when something
-  walks behind a tree.
+  walks behind a tree. It is known where it was last seen, standing still: the bot can't follow it
+  behind the wall.
 - **Memory is per world and dimension.** With [world memory](world-memory.md) on, which is the
   default, the bot remembers every block it has seen, what was in the chests it opened, places, the ways
   it has walked, and whether a place has changed. It records only what was in view.
@@ -105,7 +112,8 @@ player's legs do.
 ## What Changes for the Model
 
 - `!nearbyBlocks` and `!entities` (and the state summary built from them) list only what the bot perceives.
-- `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view.
+- `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view. A
+  creeper's hiss and an explosion are listed even in plain view.
 - With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model
@@ -142,7 +150,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `stations_through_walls` | `false` | `true` (crafting tables, beds, doors, anvils) |
 | `mobs_through_walls` | `false` | `true` |
 | `players_through_walls` | `"nametag"` | `true`, `false` |
-| `fov_degrees` | `360` | a narrower field of view, such as `110` |
+| `fov_degrees` | `360` | a narrower field of view, such as `110` (above 0, up to 360) |
 | `sight_distance` | `"server"` (whatever is loaded) | a number of blocks |
 | `entity_distance` | `64` | blocks |
 | `hearing_radius` | `16` | blocks |
@@ -154,7 +162,8 @@ place in the code, so flipping one changes that rule and nothing else.
 | `cheat_mode` | `false` | `true` |
 | `generated_code` | `"wrapped"` | `"off"` (refuse to write code), `"raw"` (stock behavior, for measuring only) |
 
-A misspelled switch is an error at startup, not a rule silently left on.
+A misspelled switch is an error at startup, not a rule silently left on, and so is a number out of range: a
+negative hearing radius, or a field of view of 0 or over 360 degrees.
 
 **Why switches:** to measure what a "cheat" is worth. Run a task under strict, then again with one switch
 flipped, and compare. When a strict run fails, flipping switches one at a time shows which limit caused it.
@@ -181,8 +190,9 @@ Fair play is honest about what it doesn't cover yet:
   be made. So does the pathfinder's test of whether a block to be mined, or a spot to build on, could be
   reached from where a route would end. The target itself was seen; the cells between are not asked of
   perception.
-- **The pathfinder and the combat plugin aren't held to the reach rule.** They act from their own timers
-  while carrying out an action that was itself checked.
+- **The pathfinder isn't held to the reach rule.** It digs and places from its own timer while carrying
+  out a walk that was itself checked. The combat plugin, which also swings from its own timer, is held
+  to a lighter form of it: its target must be within reach and have been in view within the last second.
 - **A few skills name a block before the bot has looked at it** when given exact coordinates
   (`breakBlockAt`, `placeBlock`, `tillAndSow`). No command passes them arbitrary coordinates; generated
   code can.
@@ -208,6 +218,7 @@ All of it lives in `src/agent/fairplay/`:
 | `fair_bot.js`, `code_runner.js` | The stand-in bot and the compartment for model-written code |
 | `commands.js` | The "not found means not seen" sentence added to an empty-handed search. `!recall` comes with world memory |
 | `install.js` | Switches all of the above on for one agent |
+| `wiring_check.js` | The check at each spawn that a buried block is unknown to `world.js`, so a wiring mistake can't fail open |
 
 **What depends on the edition of the game.** How block states are numbered, how a chunk section lists the
 blocks it holds, which sounds the server sends and how it tells the bot it is an operator are asked for by

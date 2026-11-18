@@ -128,6 +128,18 @@ const SOUND_WORDS = { fuse: 'primed' };
 const SILENT = new Set(['spawn']);
 // The mob events a Bedrock client plays a cry for, as the word in Java's sound name.
 const CRIES = { hurt_animation: 'hurt', death_animation: 'death' };
+// Sounds a Bedrock server plays for a block or a blast rather than a mob, as the Java sound hearing knows.
+// One door, trapdoor or gate sound stands for all of their kinds, as hearing names them all alike.
+const BLOCK_SOUNDS = {
+    door_open: 'block.wooden_door.open', door_close: 'block.wooden_door.close',
+    trapdoor_open: 'block.wooden_trapdoor.open', trapdoor_close: 'block.wooden_trapdoor.close',
+    fence_gate_open: 'block.fence_gate.open', fence_gate_close: 'block.fence_gate.close',
+    chest_open: 'block.chest.open', chest_closed: 'block.chest.close',
+    ender_chest_open: 'block.ender_chest.open', ender_chest_closed: 'block.ender_chest.close',
+    barrel_open: 'block.barrel.open', barrel_close: 'block.barrel.close',
+    shulker_box_open: 'block.shulker_box.open', shulker_box_closed: 'block.shulker_box.close',
+    explode: 'entity.generic.explode',
+};
 
 // ---- Operator rights ----
 
@@ -249,10 +261,13 @@ export const bedrockEdition = Object.freeze({
     /**
      * Sounds by their Java names ("entity.cow.hurt"), from the two things a Bedrock server sends about mob
      * noises: a sound it plays for a mob, and the event the client plays a hurt or death cry for. The
-     * bot's own cries are left out. Only listens.
+     * bot's own cries are left out. Doors, chests and the like, and explosions, come as sounds played at
+     * a spot, and are named too. Only listens.
      */
     onSound(bot, hear) {
         const played = packet => {
+            const block = BLOCK_SOUNDS[packet?.sound_id];
+            if (block) return hear(block, packet.position); // whatever made it: a creeper's blast is an explosion
             const kind = String(packet?.entity_type ?? '').replace(/^minecraft:/, '');
             if (!kind || typeof packet.sound_id !== 'string' || SILENT.has(packet.sound_id)) return;
             hear(`entity.${kind}.${SOUND_WORDS[packet.sound_id] ?? packet.sound_id}`, packet.position);
