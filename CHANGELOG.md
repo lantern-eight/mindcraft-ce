@@ -14,6 +14,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - The bot no longer fights a creeper hand to hand. `defendSelf` (and so the `self_defense` reflex) handed a
   creeper to the combat plugin, which followed it to melee range and stood there while it exploded. Both
   now leave creepers out.
+- Running from mobs (`cowardice`, `avoidEnemies`) no longer stops to hit a creeper that comes within 3
+  blocks; it keeps walking away from it.
 
 ## [1.4.0-bedrock.1.5.0] - 2026-11-18
 
