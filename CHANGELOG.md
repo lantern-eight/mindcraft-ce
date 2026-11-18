@@ -16,6 +16,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- The bot's surroundings say "unknown" for a spot it has no block for, instead of "air". Under fair play
+  that is any spot it hasn't seen; without it, a spot in a chunk that isn't loaded. Either way "air" told
+  the model there was open space there.
 - A mob half out from behind a corner is seen. Sight looked only along the middle of its body, so a mob
   whose side was in plain view stayed hidden until its middle came out too.
 - A mob that slips out of view is known for its 3 seconds where it was last seen, not where it has gone. A
