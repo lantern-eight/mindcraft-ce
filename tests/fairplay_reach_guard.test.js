@@ -89,11 +89,24 @@ test('a mob behind a wall cannot be hit, and one in the open only from within 3 
     assert.deepEqual(sent, [['attack', 'pig']]);
 });
 
-test('the pathfinder and combat plugin, which act outside a command, are not held to the guard', async () => {
+test('the pathfinder, which acts outside a command, is not held to the guard for blocks', async () => {
     const { bot, block, sent, setDeciding } = setup(w => { w.fill('stone', [2, 1, -2], [2, 4, 2]); w.set('chest', 3, 1, 0); });
     setDeciding(false); // what a call from the pathfinder's own timer looks like
     await bot.openContainer(block(3, 1, 0));
     assert.equal(sent.length, 1);
+});
+
+test('the combat plugin\'s own swings land only on a mob within reach that was in view within the last second', () => {
+    // A zombie sealed behind a wall within reach, a pig in the open within reach, and a cow out of reach.
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: new Vec3(3.5, 1, 0.5), height: 1.95, width: 0.6 };
+    const pig = { id: 8, type: 'animal', name: 'pig', position: new Vec3(0.5, 1, -2.5), height: 0.9, width: 0.9 };
+    const cow = { id: 9, type: 'animal', name: 'cow', position: new Vec3(-5.5, 1, 0.5), height: 1.4, width: 0.9 };
+    const { bot, sent, setDeciding } = setup(w => w.fill('stone', [2, 1, -1], [2, 4, 1]), { entities: [zombie, pig, cow] });
+    setDeciding(false); // the plugin's timer, outside any action
+    assert.equal(bot.attack(zombie), undefined, 'the swing simply does not happen: no error inside the plugin');
+    bot.attack(pig);
+    bot.attack(cow);
+    assert.deepEqual(sent, [['attack', 'pig']]);
 });
 
 test('interact_through_walls lifts the sight rule but not the reach rule', async () => {
@@ -155,4 +168,25 @@ test('a reach is "survival" (the game\'s own) to begin with, and only a positive
     assert.equal(resolvePolicy({ fair_play: 'custom', fair_play_custom: { reach_blocks: 'survival' } }).reach_blocks, 'survival');
     for (const wrong of ['far', 0, -1, Infinity, '6'])
         assert.throws(() => resolvePolicy({ fair_play: 'custom', fair_play_custom: { reach_blocks: wrong } }), /reach_blocks must be "survival" or a positive number/);
+});
+
+test('a mob known only from where it was last seen is hit, or not, by where it is now', async () => {
+    // The zombie stands in view within reach, then a wall goes up and it walks off behind it. For a
+    // moment it is still known, where it was seen; a swing at that stand-in is judged on the zombie.
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: new Vec3(2.5, 1, 0.5), height: 1.95, width: 0.6 };
+    const { world, bot, sent } = setup(() => {}, { entities: [zombie] });
+    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), ...NO_BUDGETS });
+    assert.equal(perception.entities()[0], zombie);
+    world.fill('stone', [-2, 1, 1], [3, 4, 1]); // a wall north of the bot, out of the line to where it stood
+    zombie.position = new Vec3(0.5, 1, 2.5);      // within reach, behind the wall
+    const standIn = perception.entities()[0];
+    assert.notEqual(standIn, zombie);
+    const guard = createReachGuard({ policy: resolvePolicy({ fair_play: 'strict' }), getPerception: () => perception, getRegistry: () => bot.registry });
+    assert.ok(perception.seesCell(new Vec3(2, 2, 0)), 'the spot where it stood is still in view');
+    assert.throws(() => guard.checkEntity(standIn), /can't see the zombie/);
+    zombie.position = new Vec3(2.5, 1, 0.5); // back where it was, in plain view
+    guard.checkEntity(standIn);
+    zombie.position = new Vec3(6.5, 1, -2.5); // in plain view, out of reach
+    assert.throws(() => guard.checkEntity(standIn), /can't reach the zombie/);
+    assert.deepEqual(sent, []);
 });

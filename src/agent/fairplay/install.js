@@ -20,15 +20,19 @@
 //      saved places move into it. With it off, the bot knows only what it touches and sees now.
 //   8. Fair legs, on the first spawn: the pathfinder plans its routes over what the bot has seen, not
 //      over every loaded block (fair_legs.js).
+//   9. A wiring check on each spawn: a block buried under the bot must be unknown to world.js. If it
+//      isn't, fair play is not in the way and every action is refused (wiring_check.js).
 // With `fair_play: "off"` (the default when the setting is absent) nothing is installed.
 import settings from '../settings.js';
 import { resolvePolicy } from './policy.js';
 import { createPerception } from './perception.js';
 import { editionOf } from '../edition/index.js';
 import { fairQueries, registerFairPlay } from './fair_queries.js';
-import { setWorldQueries } from '../library/world_queries.js';
+import { setWorldQueries, worldQueries } from '../library/world_queries.js';
+import { checkFairWiring } from './wiring_check.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
+import { setAttackReach } from '../library/attack_reach.js';
 import { installFairLegs } from './fair_legs.js';
 import { withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
@@ -140,9 +144,11 @@ export function isFormerScope(old, scope) {
 
 /**
  * @param {object} agent - the CE Agent, after initModes
+ * @param {object} [options.wiringWorld] - what the wiring check asks; world.js, or a stand-in in tests
  * @returns {object|null} the fair-play handle (also stored on agent.fairPlay), or null when off
  */
-export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000, memoryDir = null, perceptionOptions = {} } = {}) {
+export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000, memoryDir = null, perceptionOptions = {},
+    wiringWorld = worldModule } = {}) {
     const policy = resolvePolicy({ ...config, ...(agent.prompter?.profile ?? {}) });
     if (policy.mode === 'off') return null;
     const bot = agent.bot;
@@ -159,13 +165,17 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     // While fair play is broken (operator, creative, or a task harness that needs operator rights),
     // every action is refused with a reason the model can read.
     let violation = config.task ? "CE's task harness needs an operator bot; fair play uses the server console as director instead" : null;
+    // Kept apart from `violation`, which the permission watch clears when the bot is deopped: a broken
+    // wiring stays broken until a spawn's check passes.
+    let wiringBroken = null;
     if (agent.actions?.runAction) {
         const runAction = agent.actions.runAction.bind(agent.actions);
         agent.actions.runAction = async (label, fn, options) => {
             // An empty-handed search gets one sentence explaining what "not found" means under fair play.
             // And, with world memory on, any change the bot noticed along the way, once.
-            if (!violation) return withNotes(withSearchHint(await runAction(label, fn, options), { remembers: worldMemory }), handle.memory);
-            const text = `Refused: fair play is on, but ${violation}.`;
+            const reason = violation ?? wiringBroken;
+            if (!reason) return withNotes(withSearchHint(await runAction(label, fn, options), { remembers: worldMemory }), handle.memory);
+            const text = `Refused: fair play is on, but ${reason}.`;
             return { status: 'blocked', text, code: 'fair_play', success: false, message: text, interrupted: false, timedout: false };
         };
     }
@@ -183,19 +193,20 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         perception: null,
         memory: null, recorder: null, navigator: null, scope: null, // world memory, when `world_memory` is on
         legs: null, // route planning over what the bot has seen, unless the policy says `route_planning: "all"`
-        get violation() { return violation; },
+        get violation() { return violation ?? wiringBroken; },
+        wiring: null, // the last wiring check's result: { status: 'ok' | 'broken' | 'skipped', reason }
         // The reach guard wraps the bot's own methods (see reach_guard.js), so it covers skills and
         // generated code alike. This hook is where good-neighbor rules will plug in; the code runner calls it.
         guard: () => {},
         reach: null,
         /**
          * Lines for the !entities report: what the bot heard lately but can't see, as "zombie (east,
-         * close)". Direction and rough distance only, never coordinates. A hissing creeper is listed
-         * even when it's in view, because the hiss is the news.
+         * close)" or "door (opened) (north, near)". Direction and rough distance only, never coordinates.
+         * A hissing creeper or an explosion is listed even when it's in view, because the sound is the news.
          */
         heardLines() {
             return (handle.perception?.heard() ?? [])
-                .filter(sound => !sound.seen || sound.subject.includes('('))
+                .filter(sound => !sound.seen || sound.news)
                 .map(sound => `heard: ${sound.subject} (${sound.text})`);
         },
         /**
@@ -262,10 +273,35 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // By the first spawn the bot's plugins are loaded, so its methods exist to be wrapped.
         handle.reach ??= createReachGuard({ policy, getPerception: () => handle.perception, getRegistry: () => bot.registry });
         installReachGuard(bot, handle.reach);
+        // A single hit walks within the reach the guard allows first, instead of swinging from where the
+        // stock skill would and being refused.
+        setAttackReach(bot, entity => handle.reach.withinReach(entity));
         // And the pathfinder is there to be told what the bot has seen. The legs ask for perception each
         // time they need it, so they keep working when a new dimension brings a new one.
         if (policy.route_planning === 'seen' && bot.pathfinder) {
             handle.legs ??= installFairLegs(bot, { getPerception: () => handle.perception, getEntities: () => fairQueries.entities(bot) });
+        }
+        checkWiring();
+    };
+
+    // With every rule loosened to "see everything" there is nothing to check. Otherwise a check that
+    // found no buried block to test with (the ground under the bot not loaded yet) is tried again, a few
+    // times, five seconds apart.
+    const checkWiring = (triesLeft = 6) => {
+        if (policy.sight === 'all') return;
+        const perception = handle.perception;
+        const result = checkFairWiring({ bot, perception, world: wiringWorld, queries: worldQueries() });
+        handle.wiring = result;
+        if (result.status === 'broken') {
+            wiringBroken = `its wiring is broken: ${result.reason}`;
+            console.error(`[fair play] The wiring check failed: ${result.reason}. Refusing to act until this is fixed.`);
+            say(`Fair play is on, but its wiring is broken, so I could see through walls. I won't act until that's fixed.`);
+        } else if (result.status === 'ok') {
+            wiringBroken = null;
+        } else if (triesLeft > 1) {
+            setTimeout(() => { if (handle.perception === perception) checkWiring(triesLeft - 1); }, 5000).unref?.();
+        } else {
+            console.warn(`[fair play] Could not check the wiring: ${result.reason}.`);
         }
     };
     bot.on('spawn', onSpawn);

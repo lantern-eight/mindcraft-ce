@@ -48,6 +48,7 @@ try {
     const SEARCH_HINT = worldMemory ? MEMORY_HINT : SEARCH_HINT_NO_MEMORY; // the sentence an empty search gets
     const { getCommand } = await import('../../src/agent/commands/index.js');
     const skills = await import('../../src/agent/library/skills.js');
+    const world = await import('../../src/agent/library/world.js');
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -102,6 +103,12 @@ try {
         await delay(1200);
         assert.equal(count('diamond'), 0);
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
+    });
+
+    await step('F6: at spawn, fair play checked its own wiring: a block buried under the bot was unknown to it', async () => {
+        // A check that found no buried block at once (the ground not loaded yet) tries again five seconds later.
+        await waitFor(() => handle.wiring && handle.wiring.status !== 'skipped', 12000, () => `the check said: ${handle.wiring?.reason}`);
+        assert.equal(handle.wiring.status, 'ok', handle.wiring.reason);
     });
 
     await step('what the model reads about its surroundings leaves out the buried diamonds', () => {
@@ -204,6 +211,52 @@ try {
         return { reflex, heardBeforeSeen: /heard: zombie/.test(report) };
     });
 
+    await step('U2: told to hit a pig four and a half blocks away once, the bot walks within reach and hits it', async () => {
+        await cmd(`tp ${NAME} 0.5 70 0.5 90 0`); // facing west
+        await cmd('summon pig -4 70 0.5 {NoAI:1b}');
+        await delay(1200);
+        const pig = world.getNearestEntityWhere(bot, e => e.name === 'pig', 16);
+        assert.ok(pig, 'the pig is in view');
+        const result = await act('test:hit', () => skills.attackEntity(bot, pig, false));
+        assert.equal(result.status, 'ok', result.text);
+        assert.doesNotMatch(result.text, /can't reach/);
+        assert.ok(bot.entity.position.distanceTo(pig.position) < 3.5, 'it walked up to the pig');
+        await cmd('kill @e[type=pig]');
+        return { text: result.text.trim() };
+    });
+
+    await step('F2: the combat plugin, swinging on its own timer, does not hit a zombie sealed behind a wall', async () => {
+        await cmd('difficulty easy');
+        await cmd(`tp ${NAME} 0.5 70 0.5 90 0`); // facing west
+        await cmd('fill -4 70 -1 -2 72 1 stone');  // a stone box west of the bot...
+        await cmd('fill -3 70 0 -3 71 0 air');     // ...with room for one zombie, within reach but out of sight
+        await cmd('summon zombie -2.5 70 0.5 {NoAI:1b,PersistenceRequired:1b}');
+        await delay(1200);
+        const zombie = Object.values(bot.entities).find(e => e.name === 'zombie'); // the test may peek; the bot may not
+        assert.ok(zombie, 'the raw bot knows about the zombie');
+        let hurt = 0;
+        const onHurt = entity => { if (entity === zombie) hurt++; };
+        bot.on('entityHurt', onHurt);
+        // As a reflex's fight leaves it: the plugin told to fight, and swinging whenever its timer says.
+        bot.pvp.attack(zombie);
+        await delay(4000);
+        bot.pvp.stop();
+        const throughWall = hurt;
+        // With the wall in front of it gone, the same fight lands its hits.
+        await cmd('fill -2 70 0 -2 71 0 air');
+        await delay(800);
+        bot.pvp.attack(zombie);
+        await delay(3000);
+        bot.pvp.stop();
+        bot.off('entityHurt', onHurt);
+        await cmd('kill @e[type=zombie]');
+        await cmd('fill -4 70 -1 -2 72 1 air');
+        await cmd('difficulty peaceful');
+        assert.equal(throughWall, 0, `the zombie was hit ${throughWall} times through the wall`);
+        assert.ok(hurt > 0, 'in plain view, the plugin hits it');
+        return { throughWall, inView: hurt };
+    });
+
     await step('L4: made an operator, or put in creative, the bot refuses to act until that is undone', async () => {
         await cmd(`op ${NAME}`);
         await waitFor(() => handle.violation, 5000, () => 'the bot never noticed it was made an operator');
@@ -224,7 +277,9 @@ try {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });
 
-    console.log(JSON.stringify({ status: 'passed', steps: results.length, worldMemory }));
+    // Searches that ran out of time answered from part of the world: worth knowing, not a failure.
+    const searchesCut = handle.perception?.stats().searchesCut ?? 0;
+    console.log(JSON.stringify({ status: 'passed', steps: results.length, worldMemory, searchesCut }));
 } catch (error) {
     console.error(error);
     console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: results.length }));

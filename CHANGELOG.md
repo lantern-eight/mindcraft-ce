@@ -9,6 +9,58 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.3.0-bedrock.1.4.0] - 2026-11-18
+
+A release for both editions. Fair play closes gaps in what the bot knows and does: the combat plugin no
+longer hits through walls, a mob that slips out of view is known only where it was last seen, sight sees a
+mob by the side of its body and gets shulker boxes, pistons and block edges right, and fair play checks its
+own wiring at each spawn. The bot hears doors, chests, footsteps and explosions. Fixes to inherited code,
+three of them offered to Mindcraft-CE. Built on the same Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- The bot hears doors, trapdoors and fence gates, chests, barrels and shulker boxes opening and closing, a
+  mob's footsteps, and explosions, on both editions, as it already heard mobs: `heard: door (opened) (east,
+  near)`. One whose spot is in view is left out, as a mob in view is; an explosion is always listed.
+- Fair play checks its own wiring each time the bot spawns: a block buried under the bot must be unknown to
+  the searches every command and skill makes. If it isn't, the bot refuses every action and says why. A
+  mistake in how fair play is hooked in used to leave the bot seeing through walls without a word.
+
+### Changed
+
+- A block search that runs out of its 200 ms and answers from part of the world now says so in the log, at
+  most once a minute, and `tests/live/fairplay_scenarios.js` reports how many searches were cut short.
+
+### Fixed
+
+- Under fair play the combat plugin no longer hits a mob through a wall. It swings from its own timer for as
+  long as its target is within its range, and those swings weren't checked: on a test server it hit a
+  zombie sealed in stone five times in four seconds. Its swings now land only on a mob within reach that
+  the bot saw within the last second.
+- Under fair play, `attackEntity` told to land one hit walks within a survival player's reach of the mob
+  first. It swung from up to five blocks away, and fair play refused a swing from beyond three.
+- `useDoor` with no position goes to the nearest door of any kind, found with one search. It searched once
+  for each of the twenty-odd kinds of door and took the first kind it found, not the nearest door.
+- `!stop`, or the bot dying, while a new action is taking over from the one running now stops the new one
+  too, and any action still waiting to start. The new one used to start anyway, a moment after the stop.
+- The bot's surroundings say "unknown" for a spot it has no block for, instead of "air". Under fair play
+  that is any spot it hasn't seen; without it, a spot in a chunk that isn't loaded. Either way "air" told
+  the model there was open space there.
+- A mob half out from behind a corner is seen. Sight looked only along the middle of its body, so a mob
+  whose side was in plain view stayed hidden until its middle came out too.
+- A mob that slips out of view is known for its 3 seconds where it was last seen, not where it has gone. A
+  skill handed it during that time could follow it behind the wall. Reach and sight for hitting it are
+  still judged on the mob itself.
+- A line of sight that passes exactly along one block's edge is no longer hidden by that block when the
+  other side of the edge is open. Which way the line ran used to decide it.
+- Fair play's sight takes a shulker box for the solid box it looks like, so the bot no longer sees through
+  one, and sees past a piston that has pushed its head out, as past a stair or a slab. The game data rates
+  shulker boxes as letting light through, and a piston as a full block whatever its state.
+- `fair_play_custom` refuses a number out of range at startup: a field of view of 0 or over 360 degrees, or a
+  negative or infinite `entity_distance` or `hearing_radius`. Such a number used to be taken as it was.
+- Model-written code no longer stalls the agent when a skill hands back data that refers to itself. The copy
+  that keeps live objects away from that code followed every route through such data, up to six levels deep.
+
 ## [1.2.2-bedrock.1.3.1] - 2026-11-18
 
 A release for the people making releases: nothing a player sees changes. The perception timing bench now
@@ -627,7 +679,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...HEAD
+[1.3.0-bedrock.1.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...v1.3.0-bedrock.1.4.0
 [1.2.2-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...v1.2.2-bedrock.1.3.1
 [1.2.1-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.0-bedrock.1.3.0...v1.2.1-bedrock.1.3.1
 [1.2.0-bedrock.1.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...v1.2.0-bedrock.1.3.0

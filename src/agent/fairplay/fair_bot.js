@@ -320,14 +320,29 @@ export function createFairBot(realBot, { Vec3, perception, guard = () => {}, cha
 
     harden(fairBot);
 
-    /** Converts a value coming back from host code (skills, world functions) into something safe to hand out. */
-    function toSafe(value, depth = 0) {
+    /**
+     * Converts a value coming back from host code (skills, world functions) into something safe to hand out.
+     * `seen` maps each object already met in this one conversion to its copy. Host data can refer back to
+     * itself (a result that holds its own parent, two fields that share one object), and the depth limit
+     * alone would still copy every route through such a tangle: wide objects that point at each other
+     * grow the work with every level. With `seen`, an object shared by two fields is copied once and both
+     * get that copy, and a loop back to an object still being copied is dropped, as a function would be.
+     */
+    function toSafe(value, depth = 0, seen = new WeakMap()) {
         if (value === null || value === undefined) return value;
         const type = typeof value;
         if (type !== 'object') return type === 'function' ? undefined : value;
         if (value === realBot) return fairBot;
         if (depth > 6) return undefined;
-        if (Array.isArray(value)) return harden(value.map(v => toSafe(v, depth + 1)));
+        if (seen.has(value)) return seen.get(value);
+        seen.set(value, undefined); // a loop that comes back here before the copy is done gets nothing
+        const copy = copyOf(value, depth, seen);
+        seen.set(value, copy);
+        return copy;
+    }
+
+    function copyOf(value, depth, seen) {
+        if (Array.isArray(value)) return harden(value.map(v => toSafe(v, depth + 1, seen)));
         if (typeof value.stateId === 'number' && value.position) return blockSnapshot(value);
         if (value.id !== undefined && value.position && typeof value.height === 'number') return entitySnapshot(value);
         if (typeof value.count === 'number' && typeof value.name === 'string' && 'slot' in value) return itemSnapshot(value);
@@ -335,7 +350,7 @@ export function createFairBot(realBot, { Vec3, perception, guard = () => {}, cha
         // Plain data (like a tool result): copy own enumerable fields, dropping functions and host objects.
         const copy = {};
         for (const [key, v] of Object.entries(value)) {
-            const safe = toSafe(v, depth + 1);
+            const safe = toSafe(v, depth + 1, seen);
             if (safe !== undefined) copy[key] = safe;
         }
         return harden(copy);

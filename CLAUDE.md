@@ -155,16 +155,19 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
    Mindcraft-CE's code: a test that leans on this fork's code is rewritten there to use only
    Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node --test tests/*.test.js`.
    The fix branch is never merged anywhere in this repository; the working branch already has the fix.
-3. **Offer it once the working branch is merged, when the maintainer says so:** push the fix branch to
-   `origin` and open a pull request from it to Mindcraft-CE's `develop`. **One fix per pull request**.
-   More fixes go together only when they are the same mistake in the same place. Search Mindcraft-CE's
-   pull requests first: one it already closed for the same change means it was declined.
+3. **Offer it before the working branch's pull request merges:** ask the maintainer once the fix branch
+   is ready, and when they say so, push the fix branch to `origin` and open a pull request from it to
+   Mindcraft-CE's `develop`. Offering first means its line in `docs/upstream.md` (below) goes into the
+   working branch's own pull request, instead of waiting for another release. **One fix per pull
+   request**. More fixes go together only when they are the same mistake in the same place. Search
+   Mindcraft-CE's pull requests first: one it already closed for the same change means it was declined.
 4. When Mindcraft-CE merges it, the next merge of its code brings a change this fork already has, and goes
    in cleanly.
 
 **Every fix offered upstream, to Mindcraft-CE or a library, gets a line in `docs/upstream.md`** when it is
-offered, on the next working branch. Its line comes out once it is merged and this fork is on a release that
-has it; a declined one stays, marked declined.
+offered, on the working branch the fix came from, so the line ships in that branch's pull request. Its line
+comes out once it is merged and this fork is on a release that has it; a declined one stays, marked
+declined.
 
 **Libraries** (mineflayer, minecraft-protocol, minecraft-data, prismarine-*, the pathfinder):
 
@@ -214,7 +217,8 @@ has it; a declined one stays, marked declined.
 **Making a release:**
 
 1. On the working branch, every commit passes `npm test` and every live script passes on its tip (Java,
-   and Bedrock on `bedrock`'s libraries when the change reaches Bedrock).
+   and Bedrock on `bedrock`'s libraries when the change reaches Bedrock). The `fix/` branches it broke off
+   are offered upstream, when the maintainer says so, and their lines are in `docs/upstream.md`.
 2. A last commit, "Release X": the Unreleased lines move under a heading with the version and the date,
    with its compare link at the bottom of `CHANGELOG.md`; the version goes in `package.json` and in both
    places at the top of `package-lock.json`. With the version set, run `node
@@ -226,8 +230,8 @@ has it; a declined one stays, marked declined.
 4. Then bring it to `bedrock`: merge `main` into a working branch cut from `bedrock` (with any pin changes),
    check `git diff --stat origin/main origin/bedrock` lists only the files in "What Differs Between the
    Branches", and open its pull request into `bedrock`.
-5. After both merge: `git fetch --prune`, fast-forward the local `main` and `bedrock`, delete the local
-   working branches, and offer the `fix/` branches upstream when the maintainer says so.
+5. After both merge: `git fetch --prune`, fast-forward the local `main` and `bedrock`, and delete the local
+   working branches. The `fix/` branches were already offered, in step 1.
 
 ## Code Style
 

@@ -108,6 +108,20 @@ try {
         return { heard: heard.map(h => `${h.subject} (${h.text})`) };
     });
 
+    await step('a door opening and a blast behind the wall are heard from the server\'s sound packets', async () => {
+        perception.start();
+        // The sounds a server plays when a player opens a door and when something blows up, sent as it
+        // sends them to every player in earshot.
+        await cmd('playsound minecraft:block.wooden_door.open block @a 0 71 -8');
+        await cmd('playsound minecraft:entity.generic.explode block @a 0 71 -8');
+        await delay(1500);
+        const heard = perception.heard();
+        perception.stop();
+        assert.ok(heard.some(h => h.subject === 'door (opened)' && h.direction === 'north' && !h.seen), `heard ${JSON.stringify(heard)}`);
+        assert.ok(heard.some(h => h.subject === 'explosion' && h.news), `heard ${JSON.stringify(heard)}`);
+        return { heard: heard.map(h => `${h.subject} (${h.text})`) };
+    });
+
     console.log(JSON.stringify({ status: 'passed', steps: results.length }));
 } catch (error) {
     console.error(error);
