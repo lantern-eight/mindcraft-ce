@@ -125,6 +125,21 @@ stay.
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder moves the bot there in one go when it stops; a Bedrock server refuses that move, and has the last word on where a walk stopped up to a second later. Before the bot digs the block under its feet (as `digDown` does), it steps to the middle of its block, so it drops into the hole it digs. Nothing else is known to need the middle |
 | **Block and state names in cheat mode** | Bedrock names some blocks and most block states its own way (a stair's `upside_down_bit` where Java has `half`). Mindcraft's lists of blocks are in Java's names, and each check against one asks the [edition seam](edition-seam.md) for the Java name of the block in front of the bot, so `placeBlock` builds over a thin layer of snow (`snow_layer`) and not over a block of snow (`snow`), and the checks for water and lava (in `digDown`, `breakBlockAt` and the reflex that keeps the bot alive) take Bedrock's `flowing_water` and `flowing_lava` for water and lava too. What is left: with fair play off and cheat mode on, `placeBlock` writes its `/setblock` line in Java's terms for a block that faces a way (a torch on a wall, a lever, stairs, a door's top half, a bed's head), which Bedrock writes another way. Not tried; fair play keeps cheat mode off |
 
+## Quirks Worth Knowing
+
+Seen on a Bedrock Dedicated Server (1.26.63) and the adapter, and left as they are. None needs a fix here;
+they are written down so nobody looks into them again.
+
+- **The server doesn't hold players to reach** by default: it accepts digging from about 10 blocks away,
+  opening a trapdoor from 7 and a hit from 6 (it doesn't check attack range unless told to). Set to enforce
+  it with no tolerance, it refuses hits past 3. Fair play holds the bot to 5 blocks for blocks and 3 for
+  hits by itself, on either edition.
+- **Spreading water and lava aren't named `flowing_water` and `flowing_lava`** as on Java. They read as
+  `water` and `lava` with a `liquid_depth` state.
+- **The adapter's `updateSign` is ignored** unless the server opened that sign for the bot first. No skill
+  writes signs.
+- **mineflayer warns that 1.26.60 to 1.26.63 are untested.** They work.
+
 ## Testing
 
 `npm test` covers how the bot is started (`tests/bedrock_connect.test.js`), that the installed
@@ -238,7 +253,15 @@ What depends on the machine the server runs on:
 none, even when a folder above the repo does.
 
 The console line passes through a shell on its way, so the tests only send lines made of letters, digits,
-spaces and `_ . : -`, and write coordinates out in full.
+spaces and `_ . : -`, and write coordinates out in full. A line with a selector (`kill @e[type=...]`) can't
+pass that rule; type it into the server's console by hand, with a player near, or it finds nothing.
+
+**If the computer sleeps during a run,** Docker Desktop's clock falls behind, and every join after that fails
+with "jwt expired". Restart Docker Desktop, or wait for its clock to catch up, then run again.
+
+**Summoning on the server isn't exact.** `summon villager ~ ~ ~ minecraft:spawn_<job>` often gives another
+job or none, so the scenes summon several and use whichever has the job; a plain `summon sheep` makes a lamb
+one time in twenty, so they use the `minecraft:spawn_adult` event.
 
 ### When Several Scripts Fail at Once
 
@@ -263,7 +286,7 @@ other.
 | `src/agent/bedrock/names.js` | Bedrock's names for blocks and states in Java's terms, so world memory knows a Bedrock bed or door for what it is. Memory itself keeps Bedrock's names |
 | `src/agent/bedrock/window_moves.js` | Moving a stack in an open chest, one item stack request a move, for chest sorting |
 | `src/agent/bedrock/lockdown_ready.js` | Loads a library the connection uses before the connection does, so that the sandbox for model-written code can still be set up afterwards |
-| `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, and a villager's trade window |
+| `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, and a villager's trade window. A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
 | `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |
