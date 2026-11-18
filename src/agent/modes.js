@@ -3,6 +3,7 @@ import * as world from './library/world.js';
 import * as mc from '../utils/mcdata.js';
 import settings from './settings.js'
 import convoManager from './conversation.js';
+import { heldFrom } from './action_hold.js'; // fork hook (docs/core-hooks.md)
 
 async function say(agent, message) {
     agent.bot.modes.behavior_log += message + '\n';
@@ -397,6 +398,7 @@ class ModeController {
             this.unPauseAll();
         }
         for (let mode of modes_list) {
+            if (heldFrom(_agent, `mode:${mode.name}`)) continue; // fork hook: a reflex is holding starts (action_hold.js)
             let interruptible = mode.interrupts.some(i => i === 'all') || mode.interrupts.some(i => i === _agent.actions.currentActionLabel);
             if (mode.on && !mode.paused && !mode.active && (_agent.isIdle() || interruptible)) {
                 await mode.update(_agent);
