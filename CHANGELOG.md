@@ -32,6 +32,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   The retry crashed instead.
 - An agent that fails to start, such as a Bedrock agent set to a version that can't work, no longer stays
   listed on the MindServer with no process behind it, its name refused when tried again from the page.
+- `!attack` with no mob type says so, instead of pausing the bot's cowardice and looking for a mob with no
+  name.
 
 - World memory no longer reports a change that happened in plain view as news, on either edition. A bot that
   stood a quiet minute looking at a wall took the wall coming down for something that happened while it was
