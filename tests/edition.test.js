@@ -150,6 +150,23 @@ test('Java keeps a mob\'s age in its metadata, at index 16', () => {
     assert.equal(javaEdition.isBaby({ name: 'cow' }), false, 'no metadata at all');
 });
 
+test('Java reads a creeper\'s lit fuse from its metadata, found by the entry\'s name', () => {
+    const registry = minecraftData(GAME_VERSION);
+    const keys = registry.entitiesByName.creeper.metadataKeys;
+    const swell = keys.indexOf('swell_dir'), ignited = keys.indexOf('is_ignited');
+    assert.ok(swell > 0 && ignited > 0, 'the game data names both entries');
+    const creeper = entries => ({ name: 'creeper', metadata: Object.fromEntries(entries) });
+    assert.equal(javaEdition.isFusing(registry, creeper([[swell, 1]])), true, 'the fuse burns');
+    assert.equal(javaEdition.isFusing(registry, creeper([[swell, -1]])), false, 'the fuse runs back down');
+    assert.equal(javaEdition.isFusing(registry, creeper([[swell, -1], [ignited, true]])), true, 'lit with flint and steel');
+    assert.equal(javaEdition.isFusing(registry, creeper([])), false, 'nothing said yet');
+    assert.equal(javaEdition.isFusing(registry, { name: 'zombie', metadata: { [swell]: 1 } }), false, 'only a creeper has a fuse');
+    // An older game whose list put the entry elsewhere is still read by name.
+    const shifted = { entitiesByName: { creeper: { metadataKeys: ['a', 'swell_dir'] } } };
+    assert.equal(javaEdition.isFusing(shifted, creeper([[1, 1]])), true);
+    assert.equal(javaEdition.isFusing({}, creeper([[swell, 1]])), false, 'game data with no creeper: never lit');
+});
+
 test('Java keeps a villager\'s job and level together in one metadata entry, and its age at 16', () => {
     const librarian = { name: 'villager', metadata: { 16: false, 18: { villagerType: 2, villagerProfession: 9, level: 3 } } };
     assert.deepEqual(javaEdition.villagerOf(librarian), { baby: false, profession: 'librarian', level: 3 });
