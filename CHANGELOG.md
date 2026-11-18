@@ -32,6 +32,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Under fair play, `placeBlock` places against a side the bot can see. It took the first solid neighbor,
   often by its side facing away from the bot, and the placement was then refused.
 - `breakBlockAt` at a spot whose chunk isn't loaded walks there and looks, instead of failing with an error.
+- `placeBlock` says why a placement failed ("Failed to place torch at (1, 64, 2): ..."). It said only that it
+  failed, so the model couldn't tell a block in the way from a side out of reach, and tried the same again.
 
 ## [1.3.0-bedrock.1.4.0] - 2026-11-18
 

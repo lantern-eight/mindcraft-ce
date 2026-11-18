@@ -830,7 +830,7 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
             log(bot, `Confirmed ${blockType} at ${target_dest} after placement feedback: ${err.message}.`);
             return true;
         }
-        log(bot, `Failed to place ${blockType} at ${target_dest}.`);
+        log(bot, `Failed to place ${blockType} at ${target_dest}: ${err.message}`);
         return false;
     }
 }
