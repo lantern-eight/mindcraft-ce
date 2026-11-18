@@ -9,7 +9,7 @@ How a fix is made and offered is in [CLAUDE.md](../CLAUDE.md), "Fixes to Inherit
 unreleased work, and the release each waits for, are in
 [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch).
 
-*As of `1.2.0-bedrock.1.3.0`: all of these are open.* A line is removed once its fix is merged upstream and
+*As of `1.2.1-bedrock.1.3.1`: all of these are open.* A line is removed once its fix is merged upstream and
 this fork is on a release that has it. A fix that is declined stays on `main`, and its line says so.
 
 ## Mindcraft-CE
@@ -46,12 +46,15 @@ unless noted. Each comes from a `fix/...` branch of this repository, cut from th
 | [#128](https://github.com/mindcraft-ce/mindcraft-ce/pull/128) | `attackEntity` names the player it killed |
 | [#129](https://github.com/mindcraft-ce/mindcraft-ce/pull/129) | NPC item goals for uncraftable items run, hunting included |
 | [#130](https://github.com/mindcraft-ce/mindcraft-ce/pull/130) | Novita retries a too-long conversation without its oldest turn, as meant |
+| [#131](https://github.com/mindcraft-ce/mindcraft-ce/pull/131) | The pathfinder patch plans no slantwise steps past solid corners, for every skill (backports PrismarineJS/mineflayer-pathfinder#393; makes #113 unneeded) |
 
 
 ## Libraries
 
 | Library | Pull request or issue | Fix |
 |---|---|---|
+| mineflayer | [PrismarineJS/mineflayer#4231](https://github.com/PrismarineJS/mineflayer/pull/4231) | `_syncWindow` waits for the answer to its own click, not an older copy of the window still on its way. This fork's chest sorting waits for the last copy itself |
+| mineflayer | [PrismarineJS/mineflayer#4232](https://github.com/PrismarineJS/mineflayer/pull/4232) | `moveSlotItem` checks the open window's cursor, not the inventory's. This fork's chest sorting makes its own clicks |
 | minecraft-data | [PrismarineJS/minecraft-data#1348](https://github.com/PrismarineJS/minecraft-data/pull/1348) | 26.3's entity attributes listed in the game's own order (stacked on #1345, the 26.3 data) |
 | minecraft-data | [PrismarineJS/minecraft-data#1349](https://github.com/PrismarineJS/minecraft-data/pull/1349) | Bedrock 1.21.60 biomes numbered by Bedrock's own ids |
 | mineflayer-pathfinder | [PrismarineJS/mineflayer-pathfinder#406](https://github.com/PrismarineJS/mineflayer-pathfinder/pull/406) | `fullStop()` doesn't shift a Bedrock bot to the middle of its block |

@@ -194,9 +194,6 @@ load only when something asks about that part of the world.
 - **The trail leads only where the bot has been.** To a spot it has only seen from afar, such as sand
   across a valley, travel is planned as before unless the trail happens to lead much closer.
 - **Getting past a blockage may dig.** The bot does not yet tell a cave-in from a wall someone built.
-- **Ordinary travel can stand still at a tight corner.** The pathfinder this fork inherits plans a
-  diagonal step past a solid corner and then cannot walk it. Hops along the trail avoid this; a walk
-  planned the ordinary way, in a tunnel one block wide, may not.
 - **It needs fair play on.** Recording with fair play off is planned.
 - **Only names are kept for ordinary blocks,** not which way a stair faces or how grown one plant is.
   Things (chests, doors, beds) keep their full state.
