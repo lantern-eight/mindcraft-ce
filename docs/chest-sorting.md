@@ -268,9 +268,8 @@ Nothing is lost in any of these.
 - **The groups are fixed.** There is no way yet to say "this chest is for building blocks", beyond the
   rule that a group stays in the chest that already holds most of it.
 - **An interrupted sort leaves what the bot had picked up in its inventory.** It does not put it back.
-- **A walk can be given up on.** The pathfinder this fork inherits can plan a step that cuts the corner
-  of a block and then stand still for good. The walk to a chest goes round corners squarely to avoid
-  that, and still gets a deadline, after which that chest is left out.
+- **A walk can be given up on.** The walk to each chest gets a deadline, in case the pathfinder stands
+  still for good on the way. After it, that chest is left out.
 - **Stack sizes come from the game's item data.** On a server that changes them, moves come out
   differently from the plan. The bot notices and stops after a few tries, with nothing lost.
 - **A trapped chest gives off its redstone signal** when the bot opens it, as it does for a player.
