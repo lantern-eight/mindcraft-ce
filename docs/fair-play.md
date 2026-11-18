@@ -190,8 +190,9 @@ Fair play is honest about what it doesn't cover yet:
   be made. So does the pathfinder's test of whether a block to be mined, or a spot to build on, could be
   reached from where a route would end. The target itself was seen; the cells between are not asked of
   perception.
-- **The pathfinder and the combat plugin aren't held to the reach rule.** They act from their own timers
-  while carrying out an action that was itself checked.
+- **The pathfinder isn't held to the reach rule.** It digs and places from its own timer while carrying
+  out a walk that was itself checked. The combat plugin, which also swings from its own timer, is held
+  to a lighter form of it: its target must be within reach and have been in view within the last second.
 - **A few skills name a block before the bot has looked at it** when given exact coordinates
   (`breakBlockAt`, `placeBlock`, `tillAndSow`). No command passes them arbitrary coordinates; generated
   code can.

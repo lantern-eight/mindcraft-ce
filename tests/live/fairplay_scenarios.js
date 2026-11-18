@@ -225,6 +225,38 @@ try {
         return { text: result.text.trim() };
     });
 
+    await step('F2: the combat plugin, swinging on its own timer, does not hit a zombie sealed behind a wall', async () => {
+        await cmd('difficulty easy');
+        await cmd(`tp ${NAME} 0.5 70 0.5 90 0`); // facing west
+        await cmd('fill -4 70 -1 -2 72 1 stone');  // a stone box west of the bot...
+        await cmd('fill -3 70 0 -3 71 0 air');     // ...with room for one zombie, within reach but out of sight
+        await cmd('summon zombie -2.5 70 0.5 {NoAI:1b,PersistenceRequired:1b}');
+        await delay(1200);
+        const zombie = Object.values(bot.entities).find(e => e.name === 'zombie'); // the test may peek; the bot may not
+        assert.ok(zombie, 'the raw bot knows about the zombie');
+        let hurt = 0;
+        const onHurt = entity => { if (entity === zombie) hurt++; };
+        bot.on('entityHurt', onHurt);
+        // As a reflex's fight leaves it: the plugin told to fight, and swinging whenever its timer says.
+        bot.pvp.attack(zombie);
+        await delay(4000);
+        bot.pvp.stop();
+        const throughWall = hurt;
+        // With the wall in front of it gone, the same fight lands its hits.
+        await cmd('fill -2 70 0 -2 71 0 air');
+        await delay(800);
+        bot.pvp.attack(zombie);
+        await delay(3000);
+        bot.pvp.stop();
+        bot.off('entityHurt', onHurt);
+        await cmd('kill @e[type=zombie]');
+        await cmd('fill -4 70 -1 -2 72 1 air');
+        await cmd('difficulty peaceful');
+        assert.equal(throughWall, 0, `the zombie was hit ${throughWall} times through the wall`);
+        assert.ok(hurt > 0, 'in plain view, the plugin hits it');
+        return { throughWall, inView: hurt };
+    });
+
     await step('L4: made an operator, or put in creative, the bot refuses to act until that is undone', async () => {
         await cmd(`op ${NAME}`);
         await waitFor(() => handle.violation, 5000, () => 'the bot never noticed it was made an operator');

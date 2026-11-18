@@ -555,6 +555,23 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             return Boolean(sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z),
                 { ...viewOpts, face: [Math.sign(face.x), Math.sign(face.y), Math.sign(face.z)] }));
         },
+        /**
+         * Was this entity in view at some moment within the last `ms`? In view now counts. For hits the
+         * combat plugin times on its own: a mob that slips behind a tree mid-swing may still be struck,
+         * one sealed behind a wall may not.
+         */
+        seenWithin: (entity, ms) => {
+            const live = liveOf(entity);
+            if (policy.sight === 'all') return true;
+            beginLook();
+            if (sight.canSeeEntity(eyeNow, live, { ...viewOpts, maxDistance: policy.entity_distance })) {
+                const p = live.position;
+                lastSeenEntity.set(live.id, { at: now(), x: p.x, y: p.y, z: p.z, yaw: live.yaw, pitch: live.pitch });
+                return true;
+            }
+            const seen = lastSeenEntity.get(live.id);
+            return Boolean(seen) && now() - seen.at <= ms;
+        },
         /** Is this entity in view right now? No name-tag rule and no "just slipped out of view" grace. */
         seesEntity: entity => {
             entity = liveOf(entity); // a stand-in's own spot is where the mob was, not where it is

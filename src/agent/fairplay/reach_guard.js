@@ -113,8 +113,26 @@ export function createReachGuard({ policy, getPerception, getRegistry = () => nu
             throw refusal(`You can't see ${what} from here, so you can't ${verb}.`);
     }
 
-    return { checkBlock, checkEntity, withinReach };
+    /**
+     * A hit nobody decided on just now: the combat plugin's, struck from its own timer while it carries
+     * out a fight an action started. That action was checked when it began, but the plugin swings at
+     * its target for as long as it stays within its range, wall or no wall. Such a hit is let through
+     * when the target is within reach and the bot saw it within the last second, so a mob that slips
+     * behind a tree for a moment can still be struck.
+     */
+    function allowsUndecidedHit(entity) {
+        const perception = getPerception();
+        if (!perception) return false;
+        entity = perception.liveOf?.(entity) ?? entity;
+        if (!entity?.position || distanceToEntity(perception, entity) > reachOf('entities') + 1e-6) return false;
+        return policy.interact_through_walls === true || perception.seenWithin(entity, UNDECIDED_HIT_SIGHT_MS);
+    }
+
+    return { checkBlock, checkEntity, withinReach, allowsUndecidedHit };
 }
+
+// How recently a target must have been in view for the combat plugin's own swing at it.
+const UNDECIDED_HIT_SIGHT_MS = 1000;
 
 /**
  * Wraps the bot's own click, dig, place and hit methods so each one asks the guard first. Safe to call
@@ -143,8 +161,11 @@ export function installReachGuard(bot, guard, { deciding = () => actionContext(b
         if (typeof original !== 'function') continue;
         if (name === 'attack') {
             // mineflayer's attack is not async, and the combat plugin calls it for its return value's timing.
+            // A swing from the plugin's own timer is not refused with an error, which would land inside the
+            // plugin: it just doesn't happen, and the plugin swings again on its next turn.
             bot[name] = function (entity, ...rest) {
                 if (deciding()) guard.checkEntity(entity, verb);
+                else if (guard.allowsUndecidedHit && !guard.allowsUndecidedHit(entity)) return undefined;
                 return original.call(this, entity, ...rest);
             };
         } else {

@@ -25,6 +25,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- Under fair play the combat plugin no longer hits a mob through a wall. It swings from its own timer for as
+  long as its target is within its range, and those swings weren't checked: on a test server it hit a
+  zombie sealed in stone five times in four seconds. Its swings now land only on a mob within reach that
+  the bot saw within the last second.
 - Under fair play, `attackEntity` told to land one hit walks within a survival player's reach of the mob
   first. It swung from up to five blocks away, and fair play refused a swing from beyond three.
 - `useDoor` with no position goes to the nearest door of any kind, found with one search. It searched once
