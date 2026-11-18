@@ -39,6 +39,13 @@ unless noted. Each comes from a `fix/...` branch of this repository, cut from th
 | [#120](https://github.com/mindcraft-ce/mindcraft-ce/pull/120) | Baby villagers aren't taken for adults |
 | [#121](https://github.com/mindcraft-ce/mindcraft-ce/pull/121) | A villager's job is read right on 26.x |
 | [#122](https://github.com/mindcraft-ce/mindcraft-ce/pull/122) | `useDoor` faces the doorway, not the door's corner |
+| [#124](https://github.com/mindcraft-ce/mindcraft-ce/pull/124) | `craftRecipe` crafts nothing when its crafting table has no spot or can't be placed |
+| [#125](https://github.com/mindcraft-ce/mindcraft-ce/pull/125) | `craftRecipe` says an item has no recipe instead of crashing |
+| [#126](https://github.com/mindcraft-ce/mindcraft-ce/pull/126) | Worn armor isn't counted as carried, and NPC goals still count it as owned |
+| [#127](https://github.com/mindcraft-ce/mindcraft-ce/pull/127) | `attackNearest` refuses an empty mob type before pausing any reflex |
+| [#128](https://github.com/mindcraft-ce/mindcraft-ce/pull/128) | `attackEntity` names the player it killed |
+| [#129](https://github.com/mindcraft-ce/mindcraft-ce/pull/129) | NPC item goals for uncraftable items run, hunting included |
+| [#130](https://github.com/mindcraft-ce/mindcraft-ce/pull/130) | Novita retries a too-long conversation without its oldest turn, as meant |
 
 
 ## Libraries
