@@ -47,6 +47,9 @@ unless noted. Each comes from a `fix/...` branch of this repository, cut from th
 | [#129](https://github.com/mindcraft-ce/mindcraft-ce/pull/129) | NPC item goals for uncraftable items run, hunting included |
 | [#130](https://github.com/mindcraft-ce/mindcraft-ce/pull/130) | Novita retries a too-long conversation without its oldest turn, as meant |
 | [#131](https://github.com/mindcraft-ce/mindcraft-ce/pull/131) | The pathfinder patch plans no slantwise steps past solid corners, for every skill (backports PrismarineJS/mineflayer-pathfinder#393; makes #113 unneeded) |
+| [#132](https://github.com/mindcraft-ce/mindcraft-ce/pull/132) | The bot's surroundings say "unknown" for a block it doesn't have, not "air" |
+| [#133](https://github.com/mindcraft-ce/mindcraft-ce/pull/133) | `useDoor` finds the nearest door with one search, not one per kind (rewrites the loop #108 and #118 change) |
+| [#134](https://github.com/mindcraft-ce/mindcraft-ce/pull/134) | A stop cancels an action that is about to start (on `agent-system`, the only branch with the code) |
 
 
 ## Libraries
