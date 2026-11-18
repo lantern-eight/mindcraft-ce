@@ -69,7 +69,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 659 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 688 offline tests, plus live scenarios on a real server that make no model calls |
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
 | Fixes | | Fixes to inherited code, each listed in the [changelog](CHANGELOG.md) |
 
@@ -149,6 +149,7 @@ node tests/live/fairplay_scenarios.js
 | `memory_scenarios.js` | World memory: what the bot is told it saw, and what changed while it was away (one step waits a minute) |
 | `navigator_scenarios.js` | Travel back along the trail the bot walked |
 | `legs_scenarios.js` | Route planning over only what the bot has seen |
+| `look_first_scenarios.js` | Skills given a spot by its coordinates look before they decide; `digDown`'s staircase; `goToSurface` |
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
