@@ -9,6 +9,15 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- A throwaway Bedrock server for the Bedrock live tests, ready to start: `tests/live/bedrock-server/` holds its
+  Docker Compose file and a console script that also works on an Apple silicon Mac, where the server image's
+  own console command can't find the server. `tests/live/bedrock_all.js` runs all seven Bedrock live scripts in
+  turn, each into its own log, with a line for each. `tests/live/bedrock_spawn_check.js` shows what stands at
+  the test world's spawn and, with `--clear`, takes it away: leftovers there lift the spawn, and the scenes with
+  it, until several scripts fail at once while building them. `docs/bedrock.md` says how to use all three.
+
 ### Fixed
 
 - On Bedrock, a loom keeps the dyes a pattern doesn't use. Given a stack of dye, the Bedrock adapter put the

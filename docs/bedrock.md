@@ -141,6 +141,7 @@ one line of JSON for each step:
 export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
 export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 
+node tests/live/bedrock_all.js                         # all seven below, one after another
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
@@ -199,64 +200,58 @@ themselves.
 ### A Throwaway Server
 
 The Bedrock Dedicated Server runs on Linux (x86-64) and Windows, so it often can't run on the machine the
-tests run on. It doesn't have to: the test only needs its address. One way to run it is the
-[itzg/minecraft-bedrock-server](https://github.com/itzg/docker-minecraft-bedrock-server) image, on any
-machine with Docker that the test machine can reach:
+tests run on. It doesn't have to: the tests only need its address. `tests/live/bedrock-server/` holds one ready
+to start, in the [itzg/minecraft-bedrock-server](https://github.com/itzg/docker-minecraft-bedrock-server)
+image, for any machine with Docker:
 
-```yaml
-# docker-compose.yml: a Bedrock server to test against. Not for a world you want to keep.
-services:
-  bedrock-test:
-    image: itzg/minecraft-bedrock-server
-    container_name: bedrock-test
-    restart: "no"
-    stdin_open: true
-    tty: true
-    ports:
-      - "19132:19132/tcp"               # the game port: the bot's first contact is HTTP on it
-      - "19140-19155:19140-19155/udp"   # the range the connection itself uses
-    environment:
-      EULA: "TRUE"                      # setting this accepts Minecraft's end user license agreement
-      VERSION: "1.26.60.6"              # a full build number, or LATEST
-      LEVEL_TYPE: "FLAT"
-      GAMEMODE: "survival"
-      DIFFICULTY: "peaceful"
-      ONLINE_MODE: "false"
-      ALLOW_CHEATS: "true"              # for the console commands the test uses
-      # The address the bot will reach this machine at, then the same range twice.
-      SERVER_UDP_PORTS: "<address>:19140-19155:19140-19155"
-    volumes:
-      - ./data:/data
+- `docker-compose.yml`: a flat survival world, peaceful, offline, cheats on for the console, on the Bedrock
+  version the tests last passed on. `docker compose up -d` in that folder starts it and `docker compose down`
+  stops it. The world goes in `data/` beside it, which git ignores; delete that folder for a fresh world.
+  Starting it accepts Minecraft's end user license agreement (`EULA` in the file).
+- `console.sh`: types one line into that server's console, for `BEDROCK_TEST_CONSOLE`.
+
+With the server on the machine the tests run on, from the repo's root:
+
+```bash
+docker compose -f tests/live/bedrock-server/docker-compose.yml up -d
+export BEDROCK_TEST_HOST=127.0.0.1 BEDROCK_TEST_PORT=19132
+export BEDROCK_TEST_CONSOLE=tests/live/bedrock-server/console.sh
+node tests/live/bedrock_all.js
 ```
 
-`docker compose up -d` starts it and `docker compose down` stops it; deleting the folder removes the
-world. The console command for the tests is then `docker exec bedrock-test send-command`, with
-`ssh <machine>` in front when the server is on another machine.
+It listens on 127.0.0.1 only, on game port 19132. `BEDROCK_TEST_HOST` and `BEDROCK_TEST_PORT`, set when it
+starts, move it: for tests run from another machine, start it with `BEDROCK_TEST_HOST` set to the IP address
+they will reach this machine at, and give the tests `BEDROCK_TEST_CONSOLE="ssh <that machine> docker exec
+bedrock-test send-command"`.
+
+What depends on the machine the server runs on:
+
+- **Docker on x86-64 Linux** runs the server as it is, and the image's own `send-command` is a console that
+  works.
+- **Docker Desktop on an Apple silicon Mac** runs it under x86-64 emulation (the file's `platform:
+  linux/amd64`, which changes nothing on an x86-64 machine), and all the Bedrock live tests pass on it. The
+  image's `send-command` doesn't find the server there: it looks for the server's own program, and under the
+  emulation every program in the container is the emulator. `console.sh` finds the server by its command line
+  instead, so use it as the console.
+
+`BEDROCK_TEST_CONSOLE` is split on spaces, so give the console a path that has none. The relative path above has
+none, even when a folder above the repo does.
 
 The console line passes through a shell on its way, so the tests only send lines made of letters, digits,
 spaces and `_ . : -`, and write coordinates out in full.
 
-**On an Apple silicon Mac** the server runs too, under Docker Desktop's x86-64 emulation (add `platform:
-linux/amd64` to the service), and all the Bedrock live tests pass on it. Two things differ:
+### When Several Scripts Fail at Once
 
-- The image's `send-command` doesn't find the server there. It looks for the server's own program, and
-  under the emulation every program in the container is the emulator. A console command that finds the
-  server by its command line works instead, saved as a script of its own:
+A player joining for the first time is put above whatever stands at the world spawn, and the scripts build their
+scenes where the bot then is, most of them 40 blocks above it. Whatever is left standing there lifts every later
+spawn and the scenes with it: a scene from a run stopped part way through, or something built by hand. Once
+the scenes run into the top of the world, several scripts fail at once while building them: a buried block the
+bot was never sent, a chest it can't find, a walk that comes up short.
 
-  ```bash
-  #!/bin/sh
-  # Sends one console line to the Bedrock server in the container named bedrock-test.
-  exec docker exec bedrock-test bash -c '
-  for p in /proc/[0-9]*; do
-    cmd=$(tr "\0" " " < "$p/cmdline" 2>/dev/null)
-    case "$cmd" in ./bedrock_server-*) echo "$*" > "$p/fd/0"; exit 0 ;; esac
-  done
-  echo "unable to find the bedrock server process"; exit 2' _ "$@"
-  ```
-
-- `BEDROCK_TEST_CONSOLE` is split on spaces, so give the script a path that has none.
-
-Set `SERVER_UDP_PORTS` to `127.0.0.1:19140-19155:19140-19155` when the tests run on the same Mac.
+`node tests/live/bedrock_spawn_check.js` prints, layer by layer, what stands above the flat ground within 32
+blocks of the spawn. With `--clear` it fills that space with air from the console, and then looks again. It
+does so only on a flat world like the one above (grass at y -61), and stops without changing anything on any
+other.
 
 ## Where Things Are
 
@@ -272,4 +267,6 @@ Set `SERVER_UDP_PORTS` to `127.0.0.1:19140-19155:19140-19155` when the tests run
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
 | `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |
+| `tests/live/bedrock_all.js`, `tests/live/bedrock_spawn_check.js` | Running all of them in turn; what stands at the world spawn, and clearing it |
+| `tests/live/bedrock-server/` | A throwaway server to run them against: its Docker Compose file and a console that works under emulation |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |
