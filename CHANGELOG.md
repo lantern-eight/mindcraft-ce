@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- The pathfinder no longer plans a slantwise step past a solid corner, or a slantwise jump onto a raised
+  block, for any skill. Its walker can't take such a step, so a bot walking with its own movement settings
+  (fighting, collecting blocks) stood still at each turn of a tunnel one block wide. `goToGoal` and
+  world-memory travel already went round those corners.
+
 ## [1.2.0-bedrock.1.3.0] - 2026-11-18
 
 A release for both editions. World memory no longer takes a change that happened in plain view for news, and
