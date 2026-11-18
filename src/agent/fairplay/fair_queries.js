@@ -80,16 +80,18 @@ export const fairQueries = Object.freeze({
         const reg = registrations.get(bot);
         if (!reg) return Object.values(bot.entities);
         const { policy } = reg;
-        const known = new Set(reg.perception.entities());
-        if (bot.entity) known.add(bot.entity); // the bot always knows where it is
+        // By id: a mob that just slipped out of view comes from perception as a stand-in where it was last
+        // seen, and a switch that lets it be known through walls puts the live one in its place.
+        const known = new Map(reg.perception.entities().map(e => [e.id, e]));
+        if (bot.entity) known.set(bot.entity.id, bot.entity); // the bot always knows where it is
         if (policy.mobs_through_walls === true || policy.players_through_walls === true) {
             const here = bot.entity.position;
             for (const entity of Object.values(bot.entities)) {
                 if (allowsRawEntity(policy, entity) && entity.position.distanceTo(here) <= policy.entity_distance)
-                    known.add(entity);
+                    known.set(entity.id, entity);
             }
         }
-        return [...known];
+        return [...known.values()];
     },
 
     nearestEntity(bot, match = () => true) {

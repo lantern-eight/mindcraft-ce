@@ -25,7 +25,9 @@
 //   blockAt(pos)            the block the bot knows there (live or remembered), else null
 //   believedAt(x, y, z)     the same for route planning, which also needs "known to be empty" told from "never seen"
 //   findBlocks(options)     mineflayer findBlocks options; positions of known matching blocks, nearest first
-//   entities()              live entities the bot perceives (not itself)
+//   entities()              entities the bot perceives (not itself): the live ones in view, and a stand-in
+//                           frozen where it was last seen for one that just slipped out of view
+//   liveOf(entity)          the live entity behind such a stand-in, for the reach guard
 //   seesCell / seesFace / seesEntity   what is in view this instant, for the reach guard
 //   heard(options)          recent sounds, summarised
 //   start() / stop()        start listening for sounds; end the service for good and remove its listeners
@@ -93,7 +95,10 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     const narrowView = (policy.fov_degrees ?? 360) < 360;
     const nameOfState = stateId => bot.registry.blocksByStateId[stateId]?.name;
 
-    const lastSeenEntity = new Map(); // entity id -> time last seen (object permanence)
+    const lastSeenEntity = new Map(); // entity id -> { at, x, y, z, yaw, pitch }: when and where last seen
+    const standIns = new Map(); // entity id -> the stand-in handed out while it is out of view
+    const liveBehind = new WeakMap(); // stand-in -> the live entity
+    const stillOut = new Set(); // ids handed out as stand-ins in the current entities() pass
 
     // Searches cut short by the time budget. A cut search still answers with the nearest it found, so
     // nothing fails: without a count and a line in the log, a budget that trips all the time (a slow
@@ -383,12 +388,47 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             } else if (distance <= policy.entity_distance && sight.canSeeEntity(eyeNow, entity, entityView)) {
                 known = true;
             }
-            if (known) lastSeenEntity.set(entity.id, t);
-            else if (t - (lastSeenEntity.get(entity.id) ?? -Infinity) <= permanenceMs) known = true; // just slipped out of view
-            if (known) out.push(entity);
+            if (known) {
+                const p = entity.position;
+                lastSeenEntity.set(entity.id, { at: t, x: p.x, y: p.y, z: p.z, yaw: entity.yaw, pitch: entity.pitch });
+                out.push(entity);
+                continue;
+            }
+            const seen = lastSeenEntity.get(entity.id);
+            if (seen && t - seen.at <= permanenceMs) out.push(standInFor(entity, seen)); // just slipped out of view
         }
+        // Stand-ins last only while their mob is out of view and still remembered.
+        for (const id of standIns.keys()) if (!stillOut.has(id)) standIns.delete(id);
+        stillOut.clear();
         return out;
     }
+
+    /**
+     * A mob that slipped out of view is still known for a moment, so reflexes don't flicker when it walks
+     * behind a tree. But a player who loses sight of it knows only where it was, not where it has gone:
+     * handing out the live entity would let a skill follow it behind the wall. So it is handed out as a
+     * stand-in, standing still where it was last seen. Everything else (its id, kind, size) reads through
+     * to the live entity. The same stand-in is handed out for as long as the mob stays out of view, so a
+     * caller that keeps it can still find it in the next list.
+     */
+    function standInFor(entity, seen) {
+        stillOut.add(entity.id);
+        const kept = standIns.get(entity.id);
+        if (kept && liveBehind.get(kept) === entity && kept.lastSeenAt === seen.at) return kept;
+        const standIn = Object.freeze(Object.create(entity, {
+            position: { value: new Vec3(seen.x, seen.y, seen.z), enumerable: true },
+            velocity: { value: new Vec3(0, 0, 0), enumerable: true },
+            yaw: { value: seen.yaw, enumerable: true },
+            pitch: { value: seen.pitch, enumerable: true },
+            lastSeenAt: { value: seen.at },
+        }));
+        liveBehind.set(standIn, entity);
+        standIns.set(entity.id, standIn);
+        return standIn;
+    }
+
+    /** The live entity behind a stand-in from entities(); anything else is returned as it is. */
+    const liveOf = entity => liveBehind.get(entity) ?? entity;
 
     // ---- Hearing ----
     //
@@ -449,7 +489,7 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     }
 
     return {
-        eye, blockAt, believedAt, findBlocks, entities, heard, start, stop, hearSound, invalidate,
+        eye, blockAt, believedAt, findBlocks, entities, liveOf, heard, start, stop, hearSound, invalidate,
         canSeeBlock: pos => {
             beginLook();
             return sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), viewOpts);
@@ -467,6 +507,7 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         },
         /** Is this entity in view right now? No name-tag rule and no "just slipped out of view" grace. */
         seesEntity: entity => {
+            entity = liveOf(entity); // a stand-in's own spot is where the mob was, not where it is
             beginLook();
             return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
         },

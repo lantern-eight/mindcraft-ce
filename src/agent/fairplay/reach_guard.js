@@ -82,6 +82,9 @@ export function createReachGuard({ policy, getPerception, getRegistry = () => nu
 
     function checkEntity(entity, verb = 'hit it') {
         const perception = ready();
+        // A mob that just slipped out of view is handed out as a stand-in where it was last seen. Reach
+        // and sight are judged on the mob itself, where it is now.
+        entity = perception.liveOf?.(entity) ?? entity;
         const pos = entity?.position;
         if (!pos) throw refusal('That is not something you can reach.');
         const what = `the ${entity.name ?? entity.username ?? 'entity'}`;

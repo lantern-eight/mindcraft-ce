@@ -46,7 +46,8 @@ Details that matter:
 - **The view is all around (360°)** and light is ignored, as if the bot glances around constantly with
   brightness turned up. Both can be tightened later.
 - **A mob that steps out of view stays known for 3 seconds,** so reflexes don't flicker when something
-  walks behind a tree.
+  walks behind a tree. It is known where it was last seen, standing still: the bot can't follow it
+  behind the wall.
 - **Memory is per world and dimension.** With [world memory](world-memory.md) on, which is the
   default, the bot remembers every block it has seen, what was in the chests it opened, places, the ways
   it has walked, and whether a place has changed. It records only what was in view.

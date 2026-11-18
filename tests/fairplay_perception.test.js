@@ -199,6 +199,28 @@ test('E4: a mob that slips out of view stays known for a moment, then is forgott
     assert.equal(perception.entities().length, 0);
 });
 
+test('a mob that slipped out of view is known where it was last seen, not where it has gone', () => {
+    const now = clock();
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: at(8.5, 1, 0.5), height: 1.95, yaw: 1 };
+    const { world, perception } = setup(() => {}, { entities: [zombie], now });
+    assert.equal(perception.entities()[0], zombie, 'in view: the live mob');
+    world.fill('stone', [4, 1, -3], [4, 6, 3]);
+    zombie.position = at(12.5, 1, 3.5); // it walks on behind the wall
+    now.advance(1000);
+    const [standIn] = perception.entities();
+    assert.notEqual(standIn, zombie);
+    assert.deepEqual([standIn.position.x, standIn.position.z], [8.5, 0.5], 'where it was seen');
+    assert.equal(standIn.id, 7);
+    assert.equal(standIn.name, 'zombie');
+    assert.ok(Object.isFrozen(standIn));
+    assert.equal(perception.entities()[0], standIn, 'the same stand-in while it stays out of view');
+    assert.equal(perception.liveOf(standIn), zombie);
+    assert.equal(perception.liveOf(zombie), zombie);
+    assert.equal(perception.seesEntity(standIn), false, 'judged where the mob is now');
+    world.fill('air', [4, 1, -3], [4, 6, 3]); // back in view
+    assert.equal(perception.entities()[0], zombie);
+});
+
 test('E3: name tags show standing players through walls within 64 blocks, but not sneaking ones', () => {
     const standing = { id: 9, type: 'player', username: 'Alex', position: at(10.5, 1, 0.5), height: 1.8, eyeHeight: 1.62 };
     const sneaking = { id: 10, type: 'player', username: 'Sam', position: at(10.5, 1, 4.5), height: 1.5, eyeHeight: 1.27 };

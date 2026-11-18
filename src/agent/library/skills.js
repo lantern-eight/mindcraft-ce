@@ -383,7 +383,7 @@ export async function attackEntity(bot, entity, kill=true) {
     }
     else {
         bot.pvp.attack(entity);
-        while (world.getNearbyEntities(bot, 24).includes(entity)) {
+        while (world.getNearbyEntities(bot, 24).some(e => e.id === entity.id)) { // by id: a provider may hand out a stand-in
             await new Promise(resolve => setTimeout(resolve, 1000));
             if (bot.interrupt_code) {
                 bot.pvp.stop();

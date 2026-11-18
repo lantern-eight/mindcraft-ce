@@ -16,6 +16,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- A mob that slips out of view is known for its 3 seconds where it was last seen, not where it has gone. A
+  skill handed it during that time could follow it behind the wall. Reach and sight for hitting it are
+  still judged on the mob itself.
 - A line of sight that passes exactly along one block's edge is no longer hidden by that block when the
   other side of the edge is open. Which way the line ran used to decide it.
 - Fair play's sight takes a shulker box for the solid box it looks like, so the bot no longer sees through

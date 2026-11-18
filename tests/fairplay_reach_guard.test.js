@@ -156,3 +156,24 @@ test('a reach is "survival" (the game\'s own) to begin with, and only a positive
     for (const wrong of ['far', 0, -1, Infinity, '6'])
         assert.throws(() => resolvePolicy({ fair_play: 'custom', fair_play_custom: { reach_blocks: wrong } }), /reach_blocks must be "survival" or a positive number/);
 });
+
+test('a mob known only from where it was last seen is hit, or not, by where it is now', async () => {
+    // The zombie stands in view within reach, then a wall goes up and it walks off behind it. For a
+    // moment it is still known, where it was seen; a swing at that stand-in is judged on the zombie.
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: new Vec3(2.5, 1, 0.5), height: 1.95, width: 0.6 };
+    const { world, bot, sent } = setup(() => {}, { entities: [zombie] });
+    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), ...NO_BUDGETS });
+    assert.equal(perception.entities()[0], zombie);
+    world.fill('stone', [-2, 1, 1], [3, 4, 1]); // a wall north of the bot, out of the line to where it stood
+    zombie.position = new Vec3(0.5, 1, 2.5);      // within reach, behind the wall
+    const standIn = perception.entities()[0];
+    assert.notEqual(standIn, zombie);
+    const guard = createReachGuard({ policy: resolvePolicy({ fair_play: 'strict' }), getPerception: () => perception, getRegistry: () => bot.registry });
+    assert.ok(perception.seesCell(new Vec3(2, 2, 0)), 'the spot where it stood is still in view');
+    assert.throws(() => guard.checkEntity(standIn), /can't see the zombie/);
+    zombie.position = new Vec3(2.5, 1, 0.5); // back where it was, in plain view
+    guard.checkEntity(standIn);
+    zombie.position = new Vec3(6.5, 1, -2.5); // in plain view, out of reach
+    assert.throws(() => guard.checkEntity(standIn), /can't reach the zombie/);
+    assert.deepEqual(sent, []);
+});
