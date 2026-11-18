@@ -79,3 +79,31 @@ fork's `bedrock-combined` branch, which the `bedrock` branch pins.
 | [#14](https://github.com/Pix3lPirat3/mineflayer/pull/14) | A chunk's biomes are read when its blocks come by subchunk request |
 | [#15](https://github.com/Pix3lPirat3/mineflayer/pull/15) | A loom puts in only the one dye a pattern uses |
 | [#16](https://github.com/Pix3lPirat3/mineflayer/pull/16) | `consume()` eats the way the game's client does |
+
+### Found, Not Offered
+
+Shapes in the adapter that differ from mineflayer on Java, each put right in
+`src/agent/bedrock/java_shapes.js` and too small for a pull request alone:
+
+- `bot.openContainer` returns nothing where Java returns the window.
+- `recipesFor` and `recipesAll` return the adapter's own recipe shape, not prismarine-recipe's.
+- A click that changes a block needs the world's update before the next click on it; Java code doesn't wait.
+- 1.26.60 and 1.26.63 aren't in `bedrockTestedVersions`, though both work.
+
+## Working on a Library Fix
+
+The libraries this fork pins are forked under [lantern-eight](https://github.com/lantern-eight). To fix one,
+clone the fork outside this repository and add the original as a second remote. Each fix is a commit on the
+fork's combined branch (the one the pin points at), and the same fix on a branch of its own from the
+library's head, which is what is offered upstream once this fork's release has it.
+
+| Fork | Its combined branch | Testing it |
+|---|---|---|
+| `mineflayer` (the Bedrock adapter) | `bedrock-combined`, on the adapter's `feat/bedrock-edition-adapter` | Link this repository's `node_modules` into the clone, then `npx -y mocha@11.0.1 --exit test/bedrock/*.test.js` and `npx -y standard@17`. Ten of the adapter's own tests and four lint errors in its files fail before any change of ours |
+| `mineflayer-pathfinder` | `bedrock-combined` (2.4.5 with PrismarineJS/mineflayer-pathfinder#388) | Its own `npm install`, then `npx mocha` |
+| `minecraft-data` | `pc26_3-combined` | `npx -y ajv-cli@5 validate --strict=false` against its schemas |
+| `node-minecraft-data` | `pc26_3-combined` (the data as files, not a submodule) | Its own `npm install` and tests |
+| `prismarine-block`, `mineflayer-util-plugin` | None: one `fix/...` branch each | Their own `npm install` and tests |
+
+Testing against this repository's `node_modules` tests the copy installed here, not the clone, except for
+files the clone's own tests load by path.
