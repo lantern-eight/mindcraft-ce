@@ -25,7 +25,9 @@
 //   blockAt(pos)            the block the bot knows there (live or remembered), else null
 //   believedAt(x, y, z)     the same for route planning, which also needs "known to be empty" told from "never seen"
 //   findBlocks(options)     mineflayer findBlocks options; positions of known matching blocks, nearest first
-//   entities()              live entities the bot perceives (not itself)
+//   entities()              entities the bot perceives (not itself): the live ones in view, and a stand-in
+//                           frozen where it was last seen for one that just slipped out of view
+//   liveOf(entity)          the live entity behind such a stand-in, for the reach guard
 //   seesCell / seesFace / seesEntity   what is in view this instant, for the reach guard
 //   heard(options)          recent sounds, summarised
 //   start() / stop()        start listening for sounds; end the service for good and remove its listeners
@@ -55,9 +57,48 @@ export function describeDirection(from, to) {
     return { direction, distance: howFar, text: `${direction}${vertical}, ${howFar}` };
 }
 
-/** Turns a sound name like "minecraft:entity.zombie.ambient" into what made it ("zombie"), or null. */
+// Blocks whose opening and closing a player hears, by the word in their sound's name. Every kind of
+// wooden door, trapdoor and fence gate has its own sound, so those are matched by how the word ends.
+const CONTAINER_SOUNDS = { chest: 'chest', trapped_chest: 'chest', ender_chest: 'ender_chest',
+    barrel: 'barrel', shulker_box: 'shulker_box' };
+function openedBlock(word) {
+    if (word.startsWith('copper_chest')) return 'chest'; // and its weathered and oxidized sounds
+    if (word.endsWith('trapdoor')) return 'trapdoor';
+    if (word.endsWith('door')) return 'door';
+    if (word.endsWith('fence_gate')) return 'fence_gate';
+    return CONTAINER_SOUNDS[word] ?? null;
+}
+
+/**
+ * The kinds of sound that don't come from a mob the bot could look at, and how `heard` treats them:
+ * a door or chest is "seen" when the spot it sounded from is in view; footsteps, when a mob is standing
+ * there; an explosion is news even in plain view.
+ */
+export const SOUND_SOURCES = Object.freeze({ block: 'block', footsteps: 'footsteps', explosion: 'explosion', mob: 'mob' });
+export function soundSource(subject) {
+    if (subject === 'explosion') return SOUND_SOURCES.explosion;
+    if (subject === 'footsteps') return SOUND_SOURCES.footsteps;
+    if (/ \((opened|closed)\)$/.test(subject)) return SOUND_SOURCES.block;
+    return SOUND_SOURCES.mob;
+}
+
+/**
+ * Turns a sound name into what made it, or null for one not worth telling the model about. Mobs by
+ * their kind ("minecraft:entity.zombie.ambient" is "zombie"); doors, trapdoors, fence gates and
+ * containers by what happened to them ("door (opened)"); a block's step sound, which the server plays
+ * for a mob walking on it, as "footsteps"; and "explosion". Other players' footsteps never arrive:
+ * each player's own game plays them, the server doesn't send them.
+ */
 export function soundSubject(soundName) {
-    const name = String(soundName).replace(/^minecraft:/, '').replace(/_/g, '.');
+    const raw = String(soundName).replace(/^minecraft:/, '');
+    if (raw === 'entity.generic.explode') return 'explosion';
+    const opened = raw.match(/^block\.([a-z_]+)\.(open|close)$/);
+    if (opened) {
+        const what = openedBlock(opened[1]);
+        return what ? `${what} (${opened[2] === 'open' ? 'opened' : 'closed'})` : null;
+    }
+    if (/^block\.[a-z_]+\.step$/.test(raw)) return 'footsteps';
+    const name = raw.replace(/_/g, '.');
     const match = name.match(/^entity\.([a-z]+(?:\.[a-z]+)?)\./);
     if (!match) return null;
     const subject = match[1].replace(/\.(ambient|hurt|death|step|attack|shoot|primed)$/, '');
@@ -79,9 +120,10 @@ export function soundSubject(soundName) {
  * @param {function} [options.clock] - fine-grained clock in ms, for the time budgets below
  * @param {number} [options.permanenceMs] - how long a mob that slips out of view stays known
  * @param {number} [options.searchBudgetMs] - most time one findBlocks() may spend scanning
+ * @param {function} [options.warn] - where a search cut short by that budget is reported
  */
 export function createPerception({ bot, policy, memory = null, getStateId = null, getColumn = null, now = Date.now,
-    clock = () => performance.now(), permanenceMs = 3000, searchBudgetMs = 200 } = {}) {
+    clock = () => performance.now(), permanenceMs = 3000, searchBudgetMs = 200, warn = console.warn } = {}) {
     const edition = editionOf(bot.registry);
     const liveReader = getStateId ? null : liveStateReader(bot, edition);
     const readState = getStateId ?? liveReader.read;
@@ -92,7 +134,25 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     const narrowView = (policy.fov_degrees ?? 360) < 360;
     const nameOfState = stateId => bot.registry.blocksByStateId[stateId]?.name;
 
-    const lastSeenEntity = new Map(); // entity id -> time last seen (object permanence)
+    const lastSeenEntity = new Map(); // entity id -> { at, x, y, z, yaw, pitch }: when and where last seen
+    const standIns = new Map(); // entity id -> the stand-in handed out while it is out of view
+    const liveBehind = new WeakMap(); // stand-in -> the live entity
+    const stillOut = new Set(); // ids handed out as stand-ins in the current entities() pass
+
+    // Searches cut short by the time budget. A cut search still answers with the nearest it found, so
+    // nothing fails: without a count and a line in the log, a budget that trips all the time (a slow
+    // machine, a huge radius) would only show as a bot that misses blocks a little farther out.
+    let searchesCut = 0, cutsSinceWarning = 0, lastWarning = -Infinity;
+    function noteSearchCut(maxDistance) {
+        searchesCut++;
+        cutsSinceWarning++;
+        const at = clock();
+        if (at - lastWarning < 60_000) return; // at most one line a minute, saying how many since the last
+        warn(`[fair play] A block search within ${maxDistance} blocks ran out of its ${searchBudgetMs} ms and answered from what it had scanned`
+            + (cutsSinceWarning > 1 ? ` (${cutsSinceWarning} searches cut short since the last note).` : '.'));
+        lastWarning = at;
+        cutsSinceWarning = 0;
+    }
     const heardLog = [];
 
     // ---- Where the bot is looking from, worked out once at the start of each query ----
@@ -300,7 +360,8 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             // Sections come nearest first, so once enough are found and the next section is farther than
             // all of them, nothing better is left. The time budget is a safety net for huge searches:
             // what was found so far is still the nearest known within the part that was scanned.
-            if ((found.length >= count && section.minDistSq > worst) || clock() > deadline) break;
+            if (found.length >= count && section.minDistSq > worst) break;
+            if (clock() > deadline) { noteSearchCut(maxDistance); break; }
             const column = columnAt(section.cx, section.cz);
             if (!column) continue;
             scanSection(edition, column, section.cx, section.sy, section.cz, minY, mayMatch, (x, y, z, stateId) => {
@@ -366,12 +427,47 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             } else if (distance <= policy.entity_distance && sight.canSeeEntity(eyeNow, entity, entityView)) {
                 known = true;
             }
-            if (known) lastSeenEntity.set(entity.id, t);
-            else if (t - (lastSeenEntity.get(entity.id) ?? -Infinity) <= permanenceMs) known = true; // just slipped out of view
-            if (known) out.push(entity);
+            if (known) {
+                const p = entity.position;
+                lastSeenEntity.set(entity.id, { at: t, x: p.x, y: p.y, z: p.z, yaw: entity.yaw, pitch: entity.pitch });
+                out.push(entity);
+                continue;
+            }
+            const seen = lastSeenEntity.get(entity.id);
+            if (seen && t - seen.at <= permanenceMs) out.push(standInFor(entity, seen)); // just slipped out of view
         }
+        // Stand-ins last only while their mob is out of view and still remembered.
+        for (const id of standIns.keys()) if (!stillOut.has(id)) standIns.delete(id);
+        stillOut.clear();
         return out;
     }
+
+    /**
+     * A mob that slipped out of view is still known for a moment, so reflexes don't flicker when it walks
+     * behind a tree. But a player who loses sight of it knows only where it was, not where it has gone:
+     * handing out the live entity would let a skill follow it behind the wall. So it is handed out as a
+     * stand-in, standing still where it was last seen. Everything else (its id, kind, size) reads through
+     * to the live entity. The same stand-in is handed out for as long as the mob stays out of view, so a
+     * caller that keeps it can still find it in the next list.
+     */
+    function standInFor(entity, seen) {
+        stillOut.add(entity.id);
+        const kept = standIns.get(entity.id);
+        if (kept && liveBehind.get(kept) === entity && kept.lastSeenAt === seen.at) return kept;
+        const standIn = Object.freeze(Object.create(entity, {
+            position: { value: new Vec3(seen.x, seen.y, seen.z), enumerable: true },
+            velocity: { value: new Vec3(0, 0, 0), enumerable: true },
+            yaw: { value: seen.yaw, enumerable: true },
+            pitch: { value: seen.pitch, enumerable: true },
+            lastSeenAt: { value: seen.at },
+        }));
+        liveBehind.set(standIn, entity);
+        standIns.set(entity.id, standIn);
+        return standIn;
+    }
+
+    /** The live entity behind a stand-in from entities(); anything else is returned as it is. */
+    const liveOf = entity => liveBehind.get(entity) ?? entity;
 
     // ---- Hearing ----
     //
@@ -383,15 +479,16 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         const subject = soundSubject(soundName);
         if (!subject || !position || !bot.entity?.position) return;
         if (Math.hypot(position.x - bot.entity.position.x, position.y - bot.entity.position.y, position.z - bot.entity.position.z) > policy.hearing_radius) return;
-        heardLog.push({ subject, position: { x: position.x, y: position.y, z: position.z }, at: now() });
+        heardLog.push({ subject, source: soundSource(subject), position: { x: position.x, y: position.y, z: position.z }, at: now() });
         if (heardLog.length > 50) heardLog.shift();
     }
 
     /**
      * What the bot heard recently: subject, direction and rough distance, newest first, no coordinates.
-     * Two cows in different directions are two entries. `seen` says whether something of that kind the
-     * bot can see is standing where the sound came from, so callers can leave out noises whose source
-     * is already in view.
+     * Two cows in different directions are two entries. `seen` says whether the source is in view (a mob
+     * of that kind standing where the sound came from, or the spot a door or chest sounded from), so
+     * callers can leave out noises whose source the bot can already see. `news` marks a sound worth
+     * telling even then: a creeper's hiss, an explosion.
      */
     function heard({ withinMs = 10000 } = {}) {
         const t = now();
@@ -402,13 +499,23 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             if (t - sound.at > withinMs) continue;
             const where = describeDirection(here, sound.position);
             const kind = sound.subject.replace(/ \(.*$/, '');
-            const seen = inView.some(e => e.name === kind
-                && Math.hypot(e.position.x - sound.position.x, e.position.y - sound.position.y, e.position.z - sound.position.z) <= 4);
-            latest.set(`${sound.subject}|${where.direction}`, { subject: sound.subject, ...where, seen, at: sound.at });
+            const near = (p, range) => Math.hypot(p.x - sound.position.x, p.y - sound.position.y, p.z - sound.position.z) <= range;
+            let seen;
+            if (sound.source === SOUND_SOURCES.block) seen = seesCellNow(sound.position);
+            else if (sound.source === SOUND_SOURCES.footsteps) seen = inView.some(e => near(e.position, 2));
+            else if (sound.source === SOUND_SOURCES.explosion) seen = false;
+            else seen = inView.some(e => e.name === kind && near(e.position, 4));
+            const news = sound.source === SOUND_SOURCES.explosion || / \(hissing\)$/.test(sound.subject);
+            latest.set(`${sound.subject}|${where.direction}`, { subject: sound.subject, ...where, seen, news, at: sound.at });
         }
         return [...latest.values()].sort((a, b) => b.at - a.at)
             .map(({ at, ...sound }) => ({ ...sound, secondsAgo: Math.round((t - at) / 1000) }));
     }
+
+    const seesCellNow = p => {
+        beginLook();
+        return perceivable(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z));
+    };
 
     // ---- Lifetime ----
 
@@ -432,7 +539,7 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     }
 
     return {
-        eye, blockAt, believedAt, findBlocks, entities, heard, start, stop, hearSound, invalidate,
+        eye, blockAt, believedAt, findBlocks, entities, liveOf, heard, start, stop, hearSound, invalidate,
         canSeeBlock: pos => {
             beginLook();
             return sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), viewOpts);
@@ -448,12 +555,32 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             return Boolean(sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z),
                 { ...viewOpts, face: [Math.sign(face.x), Math.sign(face.y), Math.sign(face.z)] }));
         },
+        /**
+         * Was this entity in view at some moment within the last `ms`? In view now counts. For hits the
+         * combat plugin times on its own: a mob that slips behind a tree mid-swing may still be struck,
+         * one sealed behind a wall may not.
+         */
+        seenWithin: (entity, ms) => {
+            const live = liveOf(entity);
+            if (policy.sight === 'all') return true;
+            beginLook();
+            if (sight.canSeeEntity(eyeNow, live, { ...viewOpts, maxDistance: policy.entity_distance })) {
+                const p = live.position;
+                lastSeenEntity.set(live.id, { at: now(), x: p.x, y: p.y, z: p.z, yaw: live.yaw, pitch: live.pitch });
+                return true;
+            }
+            const seen = lastSeenEntity.get(live.id);
+            return Boolean(seen) && now() - seen.at <= ms;
+        },
         /** Is this entity in view right now? No name-tag rule and no "just slipped out of view" grace. */
         seesEntity: entity => {
+            entity = liveOf(entity); // a stand-in's own spot is where the mob was, not where it is
             beginLook();
             return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
         },
         knowsCell: pos => blockAt(pos) !== null,
+        /** Counts for live runs: `searchesCut` is how many block searches ran out of their time budget. */
+        stats: () => ({ searchesCut }),
         sight,
         // For the world-memory recorder, which does its own looking around with the same eyes: the raw
         // block reader and chunk columns. Nothing that decides what the bot does may use these.

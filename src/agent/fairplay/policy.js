@@ -56,6 +56,13 @@ const CHOICES = {
     generated_code: ['off', 'wrapped', 'raw'],
 };
 
+// The numeric switches, and the numbers each may take.
+const RANGES = {
+    fov_degrees: { min: 0, max: 360, minInclusive: false, text: 'a number of degrees above 0, up to 360' },
+    entity_distance: { min: 0, max: Infinity, minInclusive: true, text: 'a number of blocks, 0 or more' },
+    hearing_radius: { min: 0, max: Infinity, minInclusive: true, text: 'a number of blocks, 0 or more' },
+};
+
 const GOOD_NEIGHBOR_DEFAULTS = Object.freeze({
     protect_builds: true, protect_chests: true, protect_animals: true, protected_areas: Object.freeze([]),
 });
@@ -70,6 +77,12 @@ function validate(rules) {
             if (value !== 'server' && !(Number.isFinite(value) && value > 0)) throw new Error('fair_play_custom.sight_distance must be "server" or a positive number');
         } else if (key === 'reach_blocks' || key === 'reach_entities') {
             if (value !== 'survival' && !(Number.isFinite(value) && value > 0)) throw new Error(`fair_play_custom.${key} must be "survival" or a positive number`);
+        } else if (RANGES[key]) {
+            // A number out of range doesn't fail loudly where it is used: a negative hearing radius just
+            // hears nothing, and an infinite one hears the whole server. Catch it here, at startup.
+            const { min, max, minInclusive, text } = RANGES[key];
+            const inRange = Number.isFinite(value) && (minInclusive ? value >= min : value > min) && value <= max;
+            if (!inRange) throw new Error(`fair_play_custom.${key} must be ${text}`);
         } else if (key === 'slash_allowlist') {
             if (!Array.isArray(value) || !value.every(v => typeof v === 'string' && /^[a-z0-9_:-]+$/i.test(v)))
                 throw new Error('fair_play_custom.slash_allowlist must be a list of command names');

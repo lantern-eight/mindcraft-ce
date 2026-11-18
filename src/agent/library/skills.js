@@ -2,6 +2,7 @@ import * as mc from "../../utils/mcdata.js";
 import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
 import { followKnownWay } from './travel_guide.js';
+import { withinAttackReach } from './attack_reach.js';
 import { assertActionOwner, actionContext, onActionCleanup, cancellable } from '../action_context.js';
 import pf from 'mineflayer-pathfinder';
 import Vec3 from 'vec3';
@@ -374,7 +375,7 @@ export async function attackEntity(bot, entity, kill=true) {
     await equipHighestAttack(bot)
 
     if (!kill) {
-        if (bot.entity.position.distanceTo(pos) > 5) {
+        if (!withinAttackReach(bot, entity)) {
             console.log('moving to mob...')
             await goToPosition(bot, pos.x, pos.y, pos.z);
         }
@@ -383,7 +384,7 @@ export async function attackEntity(bot, entity, kill=true) {
     }
     else {
         bot.pvp.attack(entity);
-        while (world.getNearbyEntities(bot, 24).includes(entity)) {
+        while (world.getNearbyEntities(bot, 24).some(e => e.id === entity.id)) { // by id: a provider may hand out a stand-in
             await new Promise(resolve => setTimeout(resolve, 1000));
             if (bot.interrupt_code) {
                 bot.pvp.stop();
@@ -1618,10 +1619,11 @@ export async function useDoor(bot, door_pos=null) {
      * await skills.useDoor(bot, door);
      **/
     if (!door_pos) {
-        for (let door_type of mc.HAND_OPENED_DOORS) {
-            door_pos = world.getNearestBlock(bot, door_type, 16)?.position;
-            if (door_pos) break;
-        }
+        // One search for every kind of door at once, which also finds the nearest door, not the nearest of
+        // the first kind listed. A search per kind scanned the area once for each of them, and with no
+        // door nearby that held up the bot for about half a second.
+        const doors = mc.HAND_OPENED_DOORS.filter(name => mc.getBlockId(name) !== null);
+        door_pos = world.getNearestBlocks(bot, doors, 16, 1)[0]?.position;
     } else {
         door_pos = Vec3(door_pos.x, door_pos.y, door_pos.z);
     }

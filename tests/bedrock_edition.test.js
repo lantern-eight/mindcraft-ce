@@ -247,6 +247,12 @@ test('a mob is heard from what a Bedrock server sends: its sounds, and its hurt 
     assert.deepEqual(heard.map(([name]) => name), ['entity.creeper.primed', 'entity.cow.hurt', 'entity.cow.death']);
     assert.deepEqual(heard[0][1], at);
     assert.deepEqual(heard[1][1], bot.entities[40].position);
+    // Doors, chests and blasts are played at a spot, and named as Java names them.
+    heard.length = 0;
+    bot._client.emit('level_sound_event', { sound_id: 'door_open', position: at, entity_type: '' });
+    bot._client.emit('level_sound_event', { sound_id: 'chest_closed', position: at, entity_type: '' });
+    bot._client.emit('level_sound_event', { sound_id: 'explode', position: at, entity_type: 'minecraft:creeper' });
+    assert.deepEqual(heard.map(([name]) => name), ['block.wooden_door.open', 'block.chest.close', 'entity.generic.explode']);
     stop();
     assert.deepEqual(['level_sound_event', 'entity_event'].map(p => bot._client.listenerCount(p)), [0, 0]);
 });

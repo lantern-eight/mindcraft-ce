@@ -30,9 +30,26 @@ const FACE_OFFSET = 1e-3;
 // Blocks that stop light (so minecraft-data rates them filterLight 15) but that you can see through.
 const SEE_THROUGH_OVERRIDES = new Set(['tinted_glass']);
 
+// Blocks minecraft-data rates as letting light through, but that look like a solid box: a shut shulker
+// box is a full cube of shell. Its lid lifts a little when opened, not enough to see past.
+const isOpaqueOverride = name => name.endsWith('shulker_box');
+
+// Blocks that stop light in every state but are a full cube in only some. A piston is a full block
+// while it is drawn in, and a three-quarter block once it has pushed its head out; like a slab or a
+// stair, the smaller shape counts as see-through. On an edition whose states don't say whether a
+// piston is out, or with no shapes to read, it stays a wall.
+const SHAPE_DECIDES = new Set(['piston', 'sticky_piston']);
+
 // Points on an entity we try to see: just above its feet, its middle, and just below its head.
 // Seeing any one of them is enough, the way a player spots a mob's head over a wall.
 const ENTITY_SAMPLE_HEIGHTS = [0.1, 0.5, 0.9];
+
+// Then the four upright edges of its box, at its middle and near its head, for a mob half out from
+// behind a corner: its middle is hidden but its side is plain to see. Set a little in from the edge,
+// so a mob pressed against a wall isn't looked for inside the wall.
+const ENTITY_EDGE_HEIGHTS = [0.5, 0.9];
+const ENTITY_EDGE_INSET = 0.9;
+const ENTITY_EDGES = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
 
 // A collision shape that fills its whole cell.
 const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[0].join(',') === '0,0,0,1,1,1';
@@ -50,6 +67,8 @@ const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[
  *      practice that is the double slab: a single slab lets you see over it, two stacked are a wall.
  * Other non-full shapes (single slabs, stairs, fences) count as see-through. That is slightly generous,
  * since a bottom slab does hide the lower half of what's behind it, and can be tightened later.
+ * Two kinds of block are set by name on top of that: shulker boxes are walls, and a piston follows its
+ * shape (a wall when drawn in, see-through when pushed out).
  *
  * @param {object} registry - minecraft-data or bot.registry
  * @returns {{get:(stateId:number) => number}} 1 for a state that blocks sight, else 0
@@ -60,9 +79,10 @@ export function buildStopsSightTable(registry) {
     const shapes = registry.blockCollisionShapes;
     for (const block of registry.blocksArray) {
         if (SEE_THROUGH_OVERRIDES.has(block.name)) continue;
-        if (block.boundingBox === 'block' && block.filterLight === 15) {
+        if (isOpaqueOverride(block.name) || (block.boundingBox === 'block' && block.filterLight === 15
+            && !(SHAPE_DECIDES.has(block.name) && shapes?.blocks[block.name] !== undefined))) {
             table.setBlock(block, 1);
-        } else if (!block.transparent && shapes) {
+        } else if ((!block.transparent || SHAPE_DECIDES.has(block.name)) && shapes) {
             const perState = shapes.blocks[block.name];
             const shapeOf = offset => shapes.shapes[Array.isArray(perState) ? perState[offset] : perState];
             edition.stateIdsOf(block).forEach((stateId, offset) => {
@@ -106,8 +126,10 @@ export function createSight({ getStateId, stopsSight }) {
      *
      * Each axis takes exactly as many steps as the cells between start and end, so the walk always ends
      * on b's cell even when floating point rounds a crossing the wrong way. When a line crosses exactly
-     * through an edge or corner, it steps through one of the neighbouring cells, so two solid blocks
-     * touching at an edge stay a closed wall rather than leaking sight through the seam.
+     * through an edge or corner, it grazes the cells on either side of it: it is blocked only when the
+     * seam is closed (both cells beside an edge are walls), so two solid blocks touching at an edge stay
+     * a wall, and a single block's edge doesn't hide what lies past it. Which axis came first used to
+     * decide it, so the same line was seen or not by which way it ran.
      */
     function segmentClear(ax, ay, az, bx, by, bz) {
         let x = Math.floor(ax), y = Math.floor(ay), z = Math.floor(az);
@@ -130,12 +152,41 @@ export function createSight({ getStateId, stopsSight }) {
             const mx = rx > 0 ? tMaxX : Infinity;
             const my = ry > 0 ? tMaxY : Infinity;
             const mz = rz > 0 ? tMaxZ : Infinity;
-            if (mx <= my && mx <= mz) { x += sx; tMaxX += tDeltaX; rx--; }
+            const tx = mx <= my && mx <= mz, ty = my <= mx && my <= mz, tz = mz <= mx && mz <= my;
+            if (tx + ty + tz > 1) {
+                // Exactly through an edge or a corner: step every tied axis at once, if the seam is open.
+                if (!seamOpen(x, y, z, tx ? sx : 0, ty ? sy : 0, tz ? sz : 0)) return false;
+                if (tx) { x += sx; tMaxX += tDeltaX; rx--; }
+                if (ty) { y += sy; tMaxY += tDeltaY; ry--; }
+                if (tz) { z += sz; tMaxZ += tDeltaZ; rz--; }
+                if (blocksSight(x, y, z)) return false;
+                continue;
+            }
+            if (tx) { x += sx; tMaxX += tDeltaX; rx--; }
             else if (my <= mz) { y += sy; tMaxY += tDeltaY; ry--; }
             else { z += sz; tMaxZ += tDeltaZ; rz--; }
             if (blocksSight(x, y, z)) return false;
         }
         return true;
+    }
+
+    /**
+     * Is there a way through the seam a line crosses exactly, from the cell at (x, y, z) to the one
+     * across an edge (two of ox, oy, oz set) or a corner (all three)? Across an edge, either cell beside
+     * it will do. Across a corner, a cell one step away and then one a second step away must both be open.
+     */
+    function seamOpen(x, y, z, ox, oy, oz) {
+        const steps = [];
+        if (ox) steps.push([ox, 0, 0]);
+        if (oy) steps.push([0, oy, 0]);
+        if (oz) steps.push([0, 0, oz]);
+        for (const a of steps) {
+            if (blocksSight(x + a[0], y + a[1], z + a[2])) continue;
+            if (steps.length === 2) return true;
+            for (const b of steps)
+                if (b !== a && !blocksSight(x + a[0] + b[0], y + a[1] + b[1], z + a[2] + b[2])) return true;
+        }
+        return false;
     }
 
     /** Distance and field-of-view limits. Returns false when the point is out of range or out of view. */
@@ -213,14 +264,20 @@ export function createSight({ getStateId, stopsSight }) {
     }
 
     /**
-     * Can the eye see any of an entity's sample points (feet, middle, head)?
-     * @param {{position:{x:number,y:number,z:number}, height:number}} entity - position is at the feet
+     * Can the eye see any of an entity's sample points (feet, middle, head, then the edges of its box)?
+     * @param {{position:{x:number,y:number,z:number}, height:number, width?:number}} entity - position is at the feet
      */
     function canSeeEntity(eye, entity, opts) {
         const height = entity.height ?? 1.8;
+        const { x, y, z } = entity.position;
         for (const fraction of ENTITY_SAMPLE_HEIGHTS) {
-            const point = { x: entity.position.x, y: entity.position.y + height * fraction, z: entity.position.z };
-            if (canSeePoint(eye, point, opts)) return true;
+            if (canSeePoint(eye, { x, y: y + height * fraction, z }, opts)) return true;
+        }
+        const half = ((entity.width ?? 0.6) / 2) * ENTITY_EDGE_INSET;
+        for (const fraction of ENTITY_EDGE_HEIGHTS) {
+            for (const [ex, ez] of ENTITY_EDGES) {
+                if (canSeePoint(eye, { x: x + ex * half, y: y + height * fraction, z: z + ez * half }, opts)) return true;
+            }
         }
         return false;
     }
