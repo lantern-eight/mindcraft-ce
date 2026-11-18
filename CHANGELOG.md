@@ -16,6 +16,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   now leave creepers out.
 - Running from mobs (`cowardice`, `avoidEnemies`) no longer stops to hit a creeper that comes within 3
   blocks; it keeps walking away from it.
+- Running from mobs no longer switches off `self_preservation` until it is done, so a bot that flees into
+  lava, fire or deep water still gets itself out.
 
 ## [1.4.0-bedrock.1.5.0] - 2026-11-18
 
