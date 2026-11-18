@@ -13,12 +13,15 @@ export async function waitFor(check,timeout=30000,detail=()=> '') {
         await delay(50);
     }
 }
-export async function vanillaFixture(port=55918) {
+// Fork hook: `properties` overrides server.properties lines, e.g. normal terrain and a seed for the timing bench.
+export async function vanillaFixture(port=55918,{properties={}}={}) {
     const dir=path.resolve(`server_data/agent-verification-${Date.now()}`);
     const jar=path.resolve(process.env.MC_TEST_SERVER_JAR||'server_data/local-test/server.jar');
     if(!existsSync(jar)) throw new Error(`Set MC_TEST_SERVER_JAR to a Minecraft Java ${GAME_VERSION} server jar`);
     mkdirSync(dir,{recursive:true});writeFileSync(path.join(dir,'eula.txt'),'eula=true\n');
-    writeFileSync(path.join(dir,'server.properties'),`server-ip=127.0.0.1\nserver-port=${port}\nonline-mode=false\nwhite-list=false\nenforce-secure-profile=false\nlevel-type=minecraft:flat\ngamemode=survival\ndifficulty=peaceful\nspawn-protection=0\nview-distance=3\nsimulation-distance=3\nmax-tick-time=120000\npause-when-empty-seconds=0\n`);
+    const defaults=`server-ip=127.0.0.1\nserver-port=${port}\nonline-mode=false\nwhite-list=false\nenforce-secure-profile=false\nlevel-type=minecraft:flat\ngamemode=survival\ndifficulty=peaceful\nspawn-protection=0\nview-distance=3\nsimulation-distance=3\nmax-tick-time=120000\npause-when-empty-seconds=0\n`;
+    const lines=Object.fromEntries(defaults.trim().split('\n').map(line=>line.split('=')).map(([key,...value])=>[key,value.join('=')]));
+    writeFileSync(path.join(dir,'server.properties'),Object.entries({...lines,...properties}).map(([key,value])=>`${key}=${value}`).join('\n')+'\n');
     const server=spawn(process.env.MC_TEST_JAVA||'/usr/lib/jvm/java-25-openjdk-amd64/bin/java',
         ['-Djava.net.preferIPv4Stack=true',...jarCacheArgs(),'-Xms256M','-Xmx1G','-jar',jar,'nogui'],{cwd:dir,stdio:['pipe','pipe','pipe']});
     let log='';server.stdout.on('data',data=>{log+=data;});server.stderr.on('data',data=>{log+=data;});

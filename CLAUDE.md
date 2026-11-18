@@ -217,7 +217,10 @@ has it; a declined one stays, marked declined.
    and Bedrock on `bedrock`'s libraries when the change reaches Bedrock).
 2. A last commit, "Release X": the Unreleased lines move under a heading with the version and the date,
    with its compare link at the bottom of `CHANGELOG.md`; the version goes in `package.json` and in both
-   places at the top of `package-lock.json`.
+   places at the top of `package-lock.json`. With the version set, run `node
+   tests/live/fairplay_perception_bench.js --record`: it must pass against the last release's timings, and
+   its result in `tests/live/perception_bench_results.json` goes in this commit. Only for a release, not
+   for each commit on a working branch.
 3. When approved, push the branch and open its pull request into `main`. Once it is merged,
    put a signed, annotated tag `vX` on the merge commit and push the tag.
 4. Then bring it to `bedrock`: merge `main` into a working branch cut from `bedrock` (with any pin changes),
@@ -241,6 +244,9 @@ has it; a declined one stays, marked declined.
   `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
   to run. They need Java 25 and a 26.3 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
+- `tests/live/fairplay_perception_bench.js` times perception and is run only when making a release (see
+  "Changelog and Versions"). Its results are kept per seed and game version; a new game version starts a
+  new line of them, with nothing to compare against until the next release.
 - The Bedrock live scripts, `tests/live/bedrock_*.js`, run on `bedrock`'s libraries, and can't start their
   own server: they are pointed at a throwaway Bedrock server that is already running (`docs/bedrock.md`,
   "Testing"; `tests/live/bedrock-server/` has one ready to start, and `tests/live/bedrock_all.js` runs them
