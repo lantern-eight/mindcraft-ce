@@ -25,6 +25,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- `useDoor` with no position goes to the nearest door of any kind, found with one search. It searched once
+  for each of the twenty-odd kinds of door and took the first kind it found, not the nearest door.
 - `!stop`, or the bot dying, while a new action is taking over from the one running now stops the new one
   too, and any action still waiting to start. The new one used to start anyway, a moment after the stop.
 - The bot's surroundings say "unknown" for a spot it has no block for, instead of "air". Under fair play

@@ -1618,10 +1618,11 @@ export async function useDoor(bot, door_pos=null) {
      * await skills.useDoor(bot, door);
      **/
     if (!door_pos) {
-        for (let door_type of mc.HAND_OPENED_DOORS) {
-            door_pos = world.getNearestBlock(bot, door_type, 16)?.position;
-            if (door_pos) break;
-        }
+        // One search for every kind of door at once, which also finds the nearest door, not the nearest of
+        // the first kind listed. A search per kind scanned the area once for each of them, and with no
+        // door nearby that held up the bot for about half a second.
+        const doors = mc.HAND_OPENED_DOORS.filter(name => mc.getBlockId(name) !== null);
+        door_pos = world.getNearestBlocks(bot, doors, 16, 1)[0]?.position;
     } else {
         door_pos = Vec3(door_pos.x, door_pos.y, door_pos.z);
     }

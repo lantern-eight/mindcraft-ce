@@ -111,7 +111,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/goto_square_corners.test.js`, `tests/pathfinder_diagonal_corners.test.js`,
   `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/action_stop_race.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
-  `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
+  `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/door_search.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
   `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/item_goal_hunt.test.js`,
   `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`,
   `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
