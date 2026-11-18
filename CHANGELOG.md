@@ -30,6 +30,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   still met by one the bot wears.
 - With a Novita model, a conversation too long for the model is retried without its oldest turn, as meant.
   The retry crashed instead.
+- An agent that fails to start, such as a Bedrock agent set to a version that can't work, no longer stays
+  listed on the MindServer with no process behind it, its name refused when tried again from the page.
 
 - World memory no longer reports a change that happened in plain view as news, on either edition. A bot that
   stood a quiet minute looking at a wall took the wall coming down for something that happened while it was

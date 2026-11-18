@@ -71,7 +71,6 @@ export async function createAgent(settings) {
     const agentIndex = agent_count++;
     const viewer_port = 3000 + agentIndex;
     const process_token = randomBytes(32).toString('hex');
-    registerAgent(settings, viewer_port, process_token);
     let load_memory = settings.load_memory || false;
     let init_message = settings.init_message || null;
 
@@ -93,6 +92,9 @@ export async function createAgent(settings) {
             console.warn(`Attempting to connect anyway...`);
         }
 
+        // Listed on the MindServer only now, once the server check has passed: an agent that fails it
+        // must not stay behind there with no process.
+        registerAgent(settings, viewer_port, process_token);
         const agentProcess = new AgentProcess(agent_name, mindserver_port, process_token);
         agentProcess.start(load_memory, init_message, agentIndex);
         agent_processes[settings.profile.name] = agentProcess;
