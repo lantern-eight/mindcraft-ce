@@ -4,6 +4,7 @@ import { collectBlocks } from './mining.js';
 import { followKnownWay } from './travel_guide.js';
 import { withinAttackReach } from './attack_reach.js';
 import { lookFirst, knownBlockAt, sideToPlaceAgainst, climbToSurface } from './look_first.js';
+import { digDownWayOf } from './dig_down_way.js';
 import { assertActionOwner, actionContext, onActionCleanup, cancellable } from '../action_context.js';
 import pf from 'mineflayer-pathfinder';
 import Vec3 from 'vec3';
@@ -2043,6 +2044,9 @@ export async function digDown(bot, distance = 10) {
      * @example
      * await skills.digDown(bot, 10);
      **/
+    // An installed way of digging down takes over: under fair play, a staircase (dig_down_way.js).
+    const way = digDownWayOf(bot);
+    if (way) return await way(bot, distance);
 
     let start_block_pos = bot.blockAt(bot.entity.position).position;
     for (let i = 1; i <= distance; i++) {

@@ -122,6 +122,9 @@ player's legs do.
   `tillAndSow` in generated code) looks at the block there before deciding anything from it. When the bot
   doesn't know the block, it walks within three blocks and looks; one still hidden is reported as "can't
   see the block at …", never by name. `placeBlock` places against a side the bot can see.
+- `!digDown` digs a staircase, one block forward for each block down, the way the bot faces. Each block it
+  will stand on is in view before it steps onto it. It stops at lava or water it uncovers, a drop of more
+  than two blocks, or a block it can't dig, and says which.
 - `!goToSurface` climbs to the highest ground the bot knows of above it, looks again from there, and stops
   under open sky. It no longer names the height of a surface it hasn't seen.
 
@@ -201,7 +204,7 @@ Fair play is honest about what it doesn't cover yet:
   to a lighter form of it: its target must be within reach and have been in view within the last second.
 - **Told a spot by its coordinates, the bot looks from at most three blocks away.** A block still hidden
   from there (buried a little deeper) is refused as unseen; the bot doesn't dig its way down to look.
-- **`!digDown` checks for lava and water under the block it is about to dig,** which a player couldn't see.
+- **`!digDown` digs its staircase the way the bot happens to face,** not a way it chose for being safe.
 - **Good-neighbor rules** (don't break players' builds, loot their chests, or hurt their animals) are
   planned and not built yet. The `good_neighbor` setting is reserved for them.
 - **The code runner isn't a CPU sandbox.** Model-written code that loops forever without waiting stalls

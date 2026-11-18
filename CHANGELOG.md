@@ -11,6 +11,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- Under fair play, `!digDown` digs a staircase, one block forward for each block down, the way the bot
+  faces, and sees each block it will stand on before it steps onto it. It stops at lava or water it
+  uncovers, a drop of more than two blocks, or a block it can't dig, and says which and where. It used to
+  dig straight down, checking the blocks under the floor for lava, water or a drop, which a player
+  standing there can't see.
 - `!goToSurface` climbs to the highest ground the bot knows of above it, looks again from there, and stops
   under open sky with a way to step out sideways. Under fair play it used to read the surface's height from
   the world data and name it before the bot could have seen it. With fair play off the first trip still
