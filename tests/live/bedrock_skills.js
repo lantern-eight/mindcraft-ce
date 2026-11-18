@@ -241,6 +241,23 @@ const walk = [
         assert.ok(ok, said());
         assert.equal(blockName(2, 0, -2), 'cobblestone', said());
     } },
+    { name: 'placeBlock: a thin layer of snow is no block in the way; a Bedrock snow block is', async run() {
+        // Mindcraft's list of what may be built over names Java's thin layer "snow". On Bedrock that is
+        // "snow_layer", and "snow" is a whole block.
+        await give('cobblestone', 4);
+        await setblock(2, 0, -2, 'snow_layer');
+        await delay(400);
+        assert.ok(await withinTime(skills.placeBlock(bot, 'cobblestone', at(2, 0, -2).x, at(2, 0, -2).y, at(2, 0, -2).z), 30000, 'placeBlock'), said());
+        assert.equal(blockName(2, 0, -2), 'cobblestone', said());
+        assert.doesNotMatch(bot.output, /in the way/, `the layer was taken for a block: ${said()}`);
+        bot.output = '';
+        await give('iron_shovel', 1); // a block of snow is only broken with a shovel in hand
+        await setblock(2, 0, -2, 'snow');
+        await delay(400);
+        assert.ok(await withinTime(skills.placeBlock(bot, 'cobblestone', at(2, 0, -2).x, at(2, 0, -2).y, at(2, 0, -2).z), 30000, 'placeBlock'), said());
+        assert.equal(blockName(2, 0, -2), 'cobblestone', said());
+        assert.match(bot.output, /snow in the way/, `the snow block was built over: ${said()}`);
+    } },
     { name: 'breakBlockAt: break the block at a spot', async run() {
         await setblock(2, 0, -2, 'cobblestone'); await give('iron_pickaxe', 1);
         const ok = await withinTime(skills.breakBlockAt(bot, at(2, 0, -2).x, at(2, 0, -2).y, at(2, 0, -2).z), 30000, 'breakBlockAt');
@@ -364,6 +381,29 @@ const walk = [
         const ok = await withinTime(skills.digDown(bot, 2), 40000, 'digDown');
         assert.ok(ok, said());
         assert.ok(before - bot.entity.position.y >= 1.5, `went down ${(before - bot.entity.position.y).toFixed(1)} blocks; ${said()}`);
+    } },
+    { name: 'digDown after a walk: the bot goes down the hole it digs', async run() {
+        // digDown digs the column under the bot's feet. A bot standing off the middle of its block stands
+        // partly on the next one, and doesn't drop into the hole. On Java the pathfinder puts the bot in the
+        // middle of its block when it stops; on Bedrock it can't (the server refuses that shift).
+        await give('iron_shovel', 1);
+        const offsets = [];
+        for (const [dx, dz] of [[4, 3], [-3, 4], [3, -4]]) {
+            const there = at(dx, 0, dz);
+            assert.ok(await withinTime(skills.goToPosition(bot, there.x, there.y, there.z, 0), 30000, 'goToPosition'), said());
+            await delay(600);
+            const p = bot.entity.position;
+            offsets.push(Math.max(Math.abs(p.x - Math.floor(p.x) - 0.5), Math.abs(p.z - Math.floor(p.z) - 0.5)));
+            const before = p.y;
+            const ok = await withinTime(skills.digDown(bot, 2), 40000, 'digDown');
+            assert.ok(ok, said());
+            await delay(800);
+            assert.ok(before - bot.entity.position.y >= 1.5,
+                `went down ${(before - bot.entity.position.y).toFixed(1)} blocks, standing ${offsets.at(-1).toFixed(2)} off the middle; ${said()}`);
+            await reset();
+            await give('iron_shovel', 1);
+        }
+        return { offMiddle: offsets.map(o => Number(o.toFixed(2))) };
     } },
     { name: 'wait and stay: stand still', async run() {
         const before = bot.entity.position.clone();

@@ -9,6 +9,53 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.1.0-bedrock.1.2.0] - 2026-11-17
+
+A release for both editions. On Bedrock Edition, fair play holds the bot to a Bedrock player's reach, `digDown`
+after a walk takes the bot down its hole, Mindcraft's lists of Java block names hold for Bedrock's names, a loom
+keeps the dyes it doesn't use, the bot eats as the game's client does, and a hungry bot that isn't eating says
+why. The loom and eating fixes are in the Bedrock adapter, which the `bedrock` branch now pins. On Java Edition,
+the reach switches now start at `"survival"`, the game's own reach, which is the same 4.5 and 3 as before. The
+Bedrock live tests gain a ready-made server to run against. Built on the same Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- A throwaway Bedrock server for the Bedrock live tests, ready to start: `tests/live/bedrock-server/` holds its
+  Docker Compose file and a console script that also works on an Apple silicon Mac, where the server image's
+  own console command can't find the server. `tests/live/bedrock_all.js` runs all seven Bedrock live scripts in
+  turn, each into its own log, with a line for each. `tests/live/bedrock_spawn_check.js` shows what stands at
+  the test world's spawn and, with `--clear`, takes it away: leftovers there lift the spawn, and the scenes with
+  it, until several scripts fail at once while building them. `docs/bedrock.md` says how to use all three.
+
+### Fixed
+
+- On Bedrock, a loom keeps the dyes a pattern doesn't use. Given a stack of dye, the Bedrock adapter put the
+  whole stack into the loom and used one, and the server kept the rest. The fix is in the Bedrock adapter,
+  which the `bedrock` branch now pins. The enchanting table, the grindstone and the smithing table were
+  checked on a server too, and work.
+- On Bedrock, `digDown` straight after a walk takes the bot down the hole it digs. A walk can leave a Bedrock
+  bot up to a third of a block off the middle of its block, standing partly on the next one, so it dug the
+  hole and stayed on top. Before it digs the block under its feet, the bot now steps to the middle of its
+  block, as a player would.
+- On Bedrock, Mindcraft's lists of blocks, written in Java's names, now hold: `placeBlock` builds over a thin
+  layer of snow and treats a block of snow as in the way (Bedrock calls them `snow_layer` and `snow`; before,
+  it dug out the layer and built over the block), and the checks for water and lava in `digDown`,
+  `breakBlockAt` and the reflex that keeps the bot alive take Bedrock's `flowing_water` and `flowing_lava` for
+  water and lava too. Each check asks for the Java name of the block in front of the bot.
+
+### Changed
+
+- On Bedrock, fair play's reach guard holds the bot to a Bedrock player's reach: 5 blocks to a block and 3 to a
+  mob. It used Java's numbers, 4.5 and 3, so a block a Bedrock player could dig was out of the bot's reach.
+  The `reach_blocks` and `reach_entities` switches now start at `"survival"`, the reach of the game being
+  played; a number set by hand still wins.
+- On Bedrock, the bot eats the way the game's own client does: it marks the moment it starts eating, and lets
+  go of the food when a meal doesn't finish, so the server doesn't still have it eating when the next meal
+  starts. The change is in the Bedrock adapter, which the `bedrock` branch now pins.
+- On Bedrock, a hungry bot that isn't eating now says why in its log: a window is open, it is asleep, a meal
+  is still under way, it holds nothing it may eat, its hunger can't be read, or the game's ticks have stopped
+  so it never looks. Each reason is repeated at most every 30 seconds.
+
 ## [1.0.0-bedrock.1.1.0] - 2026-11-17
 
 A Bedrock Edition release: the bot can trade with villagers and knows which biome it is in, takes and puts
@@ -505,7 +552,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.1.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.0-bedrock.1.2.0...HEAD
+[1.1.0-bedrock.1.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.1.0...v1.1.0-bedrock.1.2.0
 [1.0.0-bedrock.1.1.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.2...v1.0.0-bedrock.1.1.0
 [1.0.0-bedrock.1.0.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.1...v1.0.0-bedrock.1.0.2
 [1.0.0-bedrock.1.0.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.0...v1.0.0-bedrock.1.0.1

@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import Vec3 from 'vec3';
-import { javaShapes, recipesLikeGameData } from '../src/agent/bedrock/java_shapes.js';
+import { javaShapes, recipesLikeGameData, stepToTheMiddle } from '../src/agent/bedrock/java_shapes.js';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -300,4 +300,113 @@ test('a world that already answers with a number, or has no answer, is left as i
     const unloaded = { world: { getBiome: () => null } };
     javaShapes(unloaded);
     assert.equal(unloaded.world.getBiome(new Vec3(0, 64, 0)), null);
+});
+
+// A bot that walks, with the adapter's physics in small: forward pushes it the way it faces each tick, less
+// while sneaking, and it slows by friction, so a step carries it on a little after it lets go. Ticks come
+// every few milliseconds. Its dig only records what it was asked to dig, and where the bot stood.
+function walkerBot({ at = [0.8, 64, 0.5], ground = 'block', ticking = true } = {}) {
+    const bot = new EventEmitter();
+    bot.entity = { position: new Vec3(...at), yaw: 1.2, pitch: -0.3, onGround: true, velocity: new Vec3(0, 0, 0) };
+    const controls = {};
+    const dug = [];
+    bot.setControlState = (name, on) => { controls[name] = on; };
+    bot.look = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.blockAt = position => ({ position, boundingBox: ground });
+    bot.dig = async block => { dug.push({ cell: block.position.toString(), stoodAt: bot.entity.position.clone() }); };
+    bot.pathfinder = { isMining: () => false };
+    // The adapter puts a new position on the bot each tick rather than changing the one it has.
+    const tick = () => {
+        const v = bot.entity.velocity;
+        if (controls.forward) {
+            const push = controls.sneak ? 0.03 : 0.1;
+            v.x += -Math.sin(bot.entity.yaw) * push;
+            v.z += -Math.cos(bot.entity.yaw) * push;
+        }
+        bot.entity.position = bot.entity.position.offset(v.x, 0, v.z);
+        v.x *= 0.546; v.z *= 0.546;
+        bot.emit('physicsTick');
+    };
+    const timer = ticking ? setInterval(tick, 2) : null;
+    javaShapes(bot);
+    const under = () => bot.entity.position.offset(0, -0.01, 0).floored();
+    return { bot, controls, dug, under, stop: () => clearInterval(timer) };
+}
+
+const offMiddle = position => Math.max(Math.abs(position.x - Math.floor(position.x) - 0.5), Math.abs(position.z - Math.floor(position.z) - 0.5));
+
+test('digging the block under its feet, a bot off the middle of its block first steps to the middle', async () => {
+    // Java's pathfinder leaves a bot in the middle of its block, which a Bedrock server refuses, and digDown
+    // counts on it: a bot off the middle stands partly on the next block and doesn't drop into the hole.
+    for (const at of [[0.8, 64, 0.5], [0.18, 64, 0.82], [-3.2, 70, 5.15]]) {
+        const { bot, controls, dug, under, stop } = walkerBot({ at });
+        try {
+            const below = under();
+            await bot.dig({ position: below });
+            assert.equal(dug.length, 1);
+            assert.equal(dug[0].cell, below.toString(), 'the block asked for is dug');
+            assert.ok(offMiddle(dug[0].stoodAt) <= 0.2, `${at}: dug standing ${offMiddle(dug[0].stoodAt).toFixed(2)} off the middle`);
+            assert.equal(dug[0].stoodAt.floored().toString(), new Vec3(...at).floored().toString(), 'in the block it stood in');
+            assert.equal(controls.forward, false);
+            assert.equal(controls.sneak, false);
+            assert.equal(bot.entity.yaw, 1.2, 'looking where it looked before');
+        } finally { stop(); }
+    }
+});
+
+test('digging anything else, or near enough the middle, or with no ground there, the bot stays put', async () => {
+    const beside = walkerBot();
+    await beside.bot.dig({ position: beside.under().offset(1, 0, 0) });
+    beside.stop();
+    assert.deepEqual(beside.controls, {}, 'the block beside it');
+    // Java leaves a bot within 0.2 of the middle alone: its box is then inside its own block.
+    const near = walkerBot({ at: [0.65, 64, 0.4] });
+    await near.bot.dig({ position: near.under() });
+    near.stop();
+    assert.deepEqual(near.controls, {});
+    assert.equal(near.dug[0].stoodAt.x, 0.65);
+    // A bot held up by the next block, over nothing: the middle of its own block would drop it.
+    const ledge = walkerBot({ ground: 'empty' });
+    await ledge.bot.dig({ position: ledge.under() });
+    ledge.stop();
+    assert.deepEqual(ledge.controls, {});
+});
+
+test('the pathfinder digging its own way down is left to itself', async () => {
+    const { bot, controls, dug, under, stop } = walkerBot();
+    bot.pathfinder.isMining = () => true;
+    await bot.dig({ position: under() });
+    stop();
+    assert.deepEqual(controls, {});
+    assert.equal(dug.length, 1);
+});
+
+test('the steps wait for the server\'s word on where the bot is, and step again when it moves the bot off', async () => {
+    const { bot, controls, stop } = walkerBot({ at: [0.5, 64, 0.5] });
+    try {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        // The server puts the bot a third of a block off, as it does a moment after a walk.
+        bot.entity.position = new Vec3(0.83, 64, 0.5);
+        const started = Date.now();
+        let moved = false;
+        const watch = setInterval(() => {
+            // And once more, after the first steps, as a server that disagreed with them would.
+            if (!moved && controls.forward === false && offMiddle(bot.entity.position) < 0.1 && Date.now() - started > 60) {
+                moved = true;
+                bot.entity.position = new Vec3(0.2, 64, 0.5);
+            }
+        }, 5);
+        assert.equal(await stepToTheMiddle(bot, { settleMs: 40 }), true);
+        clearInterval(watch);
+        assert.ok(Date.now() - started >= 40, 'it waited for the bot to stand still first');
+        assert.ok(moved, 'the server moved it off once');
+        assert.ok(offMiddle(bot.entity.position) <= 0.2, `ended ${offMiddle(bot.entity.position).toFixed(2)} off the middle`);
+    } finally { stop(); }
+});
+
+test('with no ticks coming, the steps give up in time and let go of the controls', async () => {
+    const { bot, controls } = walkerBot({ ticking: false });
+    assert.equal(await stepToTheMiddle(bot, { settleMs: 0, timeoutMs: 60 }), false);
+    assert.equal(controls.forward, false);
+    assert.equal(controls.sneak, false);
 });

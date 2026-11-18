@@ -189,6 +189,37 @@ try {
         await tpTo([0, 1, 0], 0);
     });
 
+    // A Bedrock player reaches a block half a block farther than a Java player (5 blocks against 4.5). The
+    // guard has to allow that, the server has to take it, and the guard still stops the bot past it.
+    await step('reach: a block 4.8 blocks away, past Java\'s reach, is dug; one 5.3 away is refused', async () => {
+        const block = [-5, 2, 0]; // west, at eye height: its near face is 4 blocks west of the middle of [0, 1, 0]
+        // Stand east of the middle by a fraction, so the near face is that far from the eye, straight west.
+        const standAt = async distance => {
+            const feet = at(0, 1, 0);
+            await cmd(`tp ${NAME} ${(feet.x - 4 + distance + 0.0001).toFixed(4)} ${feet.y} ${feet.z + 0.5} 90 0`, 1200);
+        };
+        try {
+            await set(block, 'dirt');
+            await standAt(4.8);
+            await delay(500);
+            const dug = await act('test:dig', () => bot.dig(bot.blockAt(at(...block))));
+            assert.notEqual(dug.status, 'failed', dug.text);
+            await waitFor(() => rawName(block) === 'air', 4000, () => `the server kept the dirt: ${dug.text}`);
+
+            await set(block, 'dirt');
+            await standAt(5.3);
+            await delay(500);
+            const refused = await act('test:dig', () => bot.dig(bot.blockAt(at(...block))));
+            assert.equal(refused.status, 'failed', refused.text);
+            assert.match(refused.text, /it is 5\.3 blocks away and you can reach 5\./);
+            assert.equal(rawName(block), 'dirt');
+            return { refused: refused.text.trim() };
+        } finally {
+            await set(block, 'air');
+            await tpTo([0, 1, 0], 0);
+        }
+    });
+
     await step('V6: the chest in the sealed room is not found; once a doorway is opened it is, and the skill works', async () => {
         const dirt = count('dirt');
         const before = await act('test:chest', () => skills.putInChest(bot, 'dirt', 1));

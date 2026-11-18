@@ -35,7 +35,9 @@ const modes_list = [
             let blockAbove = bot.blockAt(bot.entity.position.offset(0, 1, 0));
             if (!block) block = {name: 'air'}; // hacky fix when blocks are not loaded
             if (!blockAbove) blockAbove = {name: 'air'};
-            if (blockAbove.name === 'water') {
+            // Water, lava and fire by their Java names (edition seam): Bedrock's spreading water is "flowing_water".
+            const here = mc.javaNameOf(block.name), above = mc.javaNameOf(blockAbove.name);
+            if (above === 'water') {
                 // does not call execute so does not interrupt other actions
                 if (!bot.pathfinder.goal) {
                     bot.setControlState('jump', true);
@@ -46,8 +48,8 @@ const modes_list = [
                     await skills.moveAway(bot, 2);
                 });
             }
-            else if (block.name === 'lava' || block.name === 'fire' ||
-                blockAbove.name === 'lava' || blockAbove.name === 'fire') {
+            else if (here === 'lava' || here === 'fire' ||
+                above === 'lava' || above === 'fire') {
                 say(agent, 'I\'m on fire!');
                 // if you have a water bucket, use it
                 let waterBucket = bot.inventory.findInventoryItem('water_bucket');

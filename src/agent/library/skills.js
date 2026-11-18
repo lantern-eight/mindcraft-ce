@@ -578,7 +578,8 @@ export async function breakBlockAt(bot, x, y, z) {
      **/
     if (x == null || y == null || z == null) throw new Error('Invalid position to break block at.');
     let block = bot.blockAt(Vec3(x, y, z));
-    if (block.name !== 'air' && block.name !== 'water' && block.name !== 'lava') {
+    const javaName = mc.javaNameOf(block.name); // the list below is in Java's names (edition seam)
+    if (javaName !== 'air' && javaName !== 'water' && javaName !== 'lava') {
         if (bot.modes.isOn('cheat')) {
             if (useDelay) { await new Promise(resolve => setTimeout(resolve, blockPlaceDelay)); }
             let msg = '/setblock ' + Math.floor(x) + ' ' + Math.floor(y) + ' ' + Math.floor(z) + ' air';
@@ -722,8 +723,9 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
         return false;
     }
 
+    // In Java's names; blocks are checked against it by their Java names (edition seam).
     const empty_blocks = ['air', 'water', 'lava', 'grass', 'short_grass', 'tall_grass', 'snow', 'dead_bush', 'fern'];
-    if (!empty_blocks.includes(targetBlock.name)) {
+    if (!empty_blocks.includes(mc.javaNameOf(targetBlock.name))) {
         log(bot, `${targetBlock.name} in the way at ${targetBlock.position}.`);
         const removed = await breakBlockAt(bot, x, y, z);
         if (!removed) {
@@ -758,7 +760,7 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
 
     for (let d of dirs) {
         const block = bot.blockAt(target_dest.plus(d));
-        if (!empty_blocks.includes(block.name)) {
+        if (!empty_blocks.includes(mc.javaNameOf(block.name))) {
             buildOffBlock = block;
             faceVec = new Vec3(-d.x, -d.y, -d.z); // invert
             break;
@@ -773,7 +775,7 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
     const pos_above = pos.plus(Vec3(0,1,0));
     const dont_move_for = ['torch', 'redstone_torch', 'redstone', 'lever', 'button', 'rail', 'detector_rail', 
         'powered_rail', 'activator_rail', 'tripwire_hook', 'tripwire', 'water_bucket', 'string'];
-    if (!dont_move_for.includes(item_name) && (pos.distanceTo(targetBlock.position) < 1.1 || pos_above.distanceTo(targetBlock.position) < 1.1)) {
+    if (!dont_move_for.includes(mc.javaNameOf(item_name)) && (pos.distanceTo(targetBlock.position) < 1.1 || pos_above.distanceTo(targetBlock.position) < 1.1)) {
         // too close
         let goal = new pf.goals.GoalNear(targetBlock.position.x, targetBlock.position.y, targetBlock.position.z, 2);
         let inverted_goal = new pf.goals.GoalInvert(goal);
@@ -2024,8 +2026,10 @@ export async function digDown(bot, distance = 10) {
         }
 
         // Check for lava, water
-        if (targetBlock.name === 'lava' || targetBlock.name === 'water' || 
-            belowBlock.name === 'lava' || belowBlock.name === 'water') {
+        // By their Java names (edition seam): Bedrock's spreading lava is "flowing_lava".
+        const targetName = mc.javaNameOf(targetBlock.name), belowName = mc.javaNameOf(belowBlock.name);
+        if (targetName === 'lava' || targetName === 'water' ||
+            belowName === 'lava' || belowName === 'water') {
             log(bot, `Dug down ${i-1} blocks, but reached ${belowBlock ? belowBlock.name : '(lava/water)'}`)
             return false;
         }
@@ -2153,7 +2157,7 @@ export async function useToolOn(bot, toolName, targetName) {
      * @returns {Promise<boolean>} true if action succeeded
      */
 
-    const distance = toolName === 'water_bucket' && block.name !== 'lava' ? 1.5 : 2;
+    const distance = toolName === 'water_bucket' && mc.javaNameOf(block.name) !== 'lava' ? 1.5 : 2;
     await goToPosition(bot, block.position.x, block.position.y, block.position.z, distance);
     await bot.lookAt(block.position.offset(0.5, 0.5, 0.5));
 

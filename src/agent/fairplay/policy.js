@@ -25,8 +25,9 @@ export const STRICT_RULES = Object.freeze({
     route_planning: 'seen',         // 'seen' (routes are planned over what the bot has seen) | 'all' (over every loaded block)
     // Actions
     interact_through_walls: false,
-    reach_blocks: 4.5,              // how far a survival player can click or dig a block, eye to block
-    reach_entities: 3,              // how far a survival player can hit or use a mob, eye to hitbox
+    reach_blocks: 'survival',       // how far the bot can click or dig a block, eye to block: 'survival' (the
+                                    // game's own reach for a survival player) or a number of blocks
+    reach_entities: 'survival',     // how far it can hit or use a mob, eye to hitbox: the same choices
     slash_commands: false,
     slash_allowlist: Object.freeze(['tell', 'msg', 'w']),
     cheat_mode: false,
@@ -67,6 +68,8 @@ function validate(rules) {
             if (!CHOICES[key].includes(value)) throw new Error(`fair_play_custom.${key} must be one of ${CHOICES[key].join(', ')}`);
         } else if (key === 'sight_distance') {
             if (value !== 'server' && !(Number.isFinite(value) && value > 0)) throw new Error('fair_play_custom.sight_distance must be "server" or a positive number');
+        } else if (key === 'reach_blocks' || key === 'reach_entities') {
+            if (value !== 'survival' && !(Number.isFinite(value) && value > 0)) throw new Error(`fair_play_custom.${key} must be "survival" or a positive number`);
         } else if (key === 'slash_allowlist') {
             if (!Array.isArray(value) || !value.every(v => typeof v === 'string' && /^[a-z0-9_:-]+$/i.test(v)))
                 throw new Error('fair_play_custom.slash_allowlist must be a list of command names');
