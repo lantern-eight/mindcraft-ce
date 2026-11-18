@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.3.0-bedrock.1.4.0] - 2026-11-18
+
+A release for both editions. Fair play closes gaps in what the bot knows and does: the combat plugin no
+longer hits through walls, a mob that slips out of view is known only where it was last seen, sight sees a
+mob by the side of its body and gets shulker boxes, pistons and block edges right, and fair play checks its
+own wiring at each spawn. The bot hears doors, chests, footsteps and explosions. Fixes to inherited code,
+three of them offered to Mindcraft-CE. Built on the same Mindcraft-CE commit as 0.1.0.
+
 ### Added
 
 - The bot hears doors, trapdoors and fence gates, chests, barrels and shulker boxes opening and closing, a
@@ -671,7 +679,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...HEAD
+[1.3.0-bedrock.1.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...v1.3.0-bedrock.1.4.0
 [1.2.2-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...v1.2.2-bedrock.1.3.1
 [1.2.1-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.0-bedrock.1.3.0...v1.2.1-bedrock.1.3.1
 [1.2.0-bedrock.1.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...v1.2.0-bedrock.1.3.0
