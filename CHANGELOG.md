@@ -21,6 +21,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Item goals for things that can't be crafted, such as raw meat, wool or an ore's drop, no longer crash, and
   hunting for one runs. The goal treated "no recipe" as a list of recipes, and the hunting loop stored each
   attack's result in a variable it never declared.
+- `craftRecipe` says so when it has no free spot for its crafting table, or the table can't be placed, and
+  crafts nothing. It crashed on the missing spot, and after a failed placement tried the recipe with no table.
 
 - World memory no longer reports a change that happened in plain view as news, on either edition. A bot that
   stood a quiet minute looking at a wall took the wall coming down for something that happened while it was
