@@ -4,10 +4,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import Vec3 from 'vec3';
 import { fixtureWorld, stubBot, NO_BUDGETS } from './helpers/fixture_world.js';
 import { createPerception, describeDirection, soundSubject } from '../src/agent/fairplay/perception.js';
-import { createSeenMap } from '../src/agent/fairplay/seen_map.js';
+import { openMemory } from '../src/agent/memory/store.js';
+import { createRecorder } from '../src/agent/memory/recorder.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 
 const STRICT = resolvePolicy({ fair_play: 'strict' });
@@ -24,25 +28,30 @@ function setup(build, { policy = STRICT, entities = [], now = clock(), options =
     world.fill('stone', [-24, 0, -24], [24, 0, 24]); // floor
     build(world);
     const bot = stubBot(world, { entities });
-    const seenMap = createSeenMap({ scope: 'test', now });
+    // Memory is world memory, as on a real bot: the recorder looks around and perception answers from it.
+    let recorder = null;
+    const memory = openMemory({ baseDir: mkdtempSync(path.join(tmpdir(), 'perception-')), scope: 'test', now,
+        canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
+    recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
     // No getStateId is passed, so these tests also exercise the reader that perception uses on a live bot.
-    const perception = createPerception({ bot, policy, seenMap, now, ...NO_BUDGETS, ...options });
-    return { world, bot, seenMap, perception, now };
+    const perception = createPerception({ bot, policy, memory: recorder.view, now, ...NO_BUDGETS, ...options });
+    recorder.attach(perception);
+    return { world, bot, remembered: recorder.view, recorder, perception, now };
 }
 
 const at = (x, y, z) => new Vec3(x, y, z);
 const diamond = w => w.registry.blocksByName.diamond_ore.id;
 
 test('blockAt: a buried ore is unknown, an ore in plain view is known and remembered', () => {
-    const { perception, seenMap } = setup(w => {
+    const { perception, remembered } = setup(w => {
         w.fill('stone', [4, 1, -2], [8, 5, 2]);
         w.set('diamond_ore', 6, 3, 0); // buried
         w.set('diamond_ore', 4, 2, -3); // standing alone, in view
     });
     assert.equal(perception.blockAt(at(6, 3, 0)), null);
     assert.equal(perception.blockAt(at(4, 2, -3)).name, 'diamond_ore');
-    assert.equal(seenMap.get(4, 2, -3)?.name, 'diamond_ore', 'seeing a notable block records it');
-    assert.equal(seenMap.get(6, 3, 0), null);
+    assert.equal(remembered.get(4, 2, -3)?.name, 'diamond_ore', 'seeing a block records it');
+    assert.equal(remembered.get(6, 3, 0), null);
 });
 
 test('touch: blocks around a bot sealed in a tiny hole are known; the diagonal ones are not', () => {
@@ -95,7 +104,7 @@ test('findBlocks takes a predicate, including one that looks at where the block 
 
 test('memory: a block seen earlier stays known out of view, exactly as it was seen, until the bot looks again', () => {
     const now = clock();
-    const { world, bot, seenMap, perception } = setup(w => {
+    const { world, bot, remembered, recorder, perception } = setup(w => {
         w.set('chest', 6, 1, 0);
         w.fill('stone', [6, 1, 3], [6, 5, 8]); // a wall to hide behind, south of the chest
     }, { now });
@@ -109,11 +118,11 @@ test('memory: a block seen earlier stays known out of view, exactly as it was se
     assert.equal(believed.name, 'chest', 'the bot still believes the chest is there');
     assert.equal(believed.rememberedAt, 1_000_000, 'and the answer is marked as memory');
     assert.deepEqual(perception.findBlocks({ matching: chest, maxDistance: 32, count: 3 }).map(p => p.x), [6]);
-    assert.equal(seenMap.get(6, 1, 0).provenance, 'observed');
+    assert.equal(remembered.get(6, 1, 0)?.name, 'chest');
     bot.moveTo(0.5, 1, 0.5); // back in view
     now.advance(2000);
-    perception.tick();
-    assert.equal(seenMap.get(6, 1, 0).provenance, 'gone', 'looking again corrects memory');
+    recorder.tick();
+    assert.equal(remembered.get(6, 1, 0), null, 'looking again corrects memory');
     assert.equal(perception.blockAt(at(6, 1, 0)).name, 'air');
     assert.deepEqual(perception.findBlocks({ matching: chest, maxDistance: 32, count: 3 }), []);
 });
@@ -133,10 +142,10 @@ test('memory never peeks at the live world: a crop that grew out of sight is rem
 });
 
 test('place memory: a block seen earlier is still found after its chunk is no longer loaded', () => {
-    const { world, bot, seenMap, perception } = setup(w => w.fill('sand', [20, 1, -1], [22, 1, 1]));
+    const { world, bot, remembered, recorder, perception } = setup(w => w.fill('sand', [20, 1, -1], [22, 1, 1]));
     const sand = world.registry.blocksByName.sand.id;
-    perception.tick(); // the background pass notices the sand
-    assert.equal(seenMap.count('sand'), 9);
+    recorder.tick(); // the look-around notices the sand
+    assert.equal(remembered.recall({ names: ['sand'], point: { x: 0, y: 1, z: 0 }, maxDistance: 64, count: 100 }).length, 9);
     world.unload([16, -4, -24], [24, 24, 24]); // the bot walks off and that chunk unloads
     bot.emit('chunkColumnUnload'); // mineflayer announces it, which is what tells perception to look afresh
     const found = perception.findBlocks({ matching: sand, maxDistance: 64, count: 1 });
@@ -155,30 +164,6 @@ test('what digging uncovers is seen straight away, without the bot having to mov
     world.set('air', 3, 2, 0); // the bot digs the block in front of the ore
     bot.emit('blockUpdate');
     assert.equal(perception.blockAt(at(4, 2, 0)).name, 'iron_ore');
-});
-
-test('tick records visible notable blocks (ores, sand) and skips buried ones', () => {
-    const { seenMap, perception } = setup(w => {
-        w.fill('sand', [8, 1, -2], [10, 1, 2]); // a sandy patch in the open
-        w.fill('stone', [-8, 1, -2], [-4, 5, 2]);
-        w.set('gold_ore', -6, 3, 0); // buried
-        w.set('oak_log', 0, 1, 8);
-    });
-    perception.tick();
-    assert.equal(seenMap.count('sand'), 15);
-    assert.equal(seenMap.count('gold_ore'), 0);
-    assert.equal(seenMap.count('oak_log'), 1);
-    assert.equal(seenMap.isExplored({ x: 0, y: 1, z: 0 }), true);
-});
-
-test('the background pass is spread over several ticks, each stopping at its time budget', () => {
-    // A clock that moves on 1 ms every time it is read, so a 3 ms budget allows about three steps per tick.
-    let ms = 0;
-    const { seenMap, perception } = setup(w => w.fill('sand', [8, 1, -2], [10, 1, 2]), { options: { clock: () => ms++, tickBudgetMs: 3 } });
-    perception.tick();
-    assert.ok(seenMap.count('sand') < 15, 'one tick is not enough');
-    for (let i = 0; i < 200; i++) perception.tick();
-    assert.equal(seenMap.count('sand'), 15, 'the pass finishes over later ticks');
 });
 
 test('stop() removes every listener perception added, so respawns do not pile them up', () => {

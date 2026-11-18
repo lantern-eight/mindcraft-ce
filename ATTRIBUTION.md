@@ -30,6 +30,15 @@ trailers say, and CC0 leaves no question about what rights attach to it.
 | [Mindcraft](https://github.com/mindcraft-bots/mindcraft) | The original LLM agent for Minecraft, by Kolby Nottingham, Max Robinson, Isadora White and its contributors. Described in [Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning](https://arxiv.org/abs/2504.17950) | MIT |
 | [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce) | The community edition, by [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip), [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors. This fork is built on its `agent-system` branch at commit `6a1ce8b`, and takes its later updates by merge | MIT |
 
+## Fixes Taken From Other Forks
+
+Fixes to inherited code that someone else made first, in their own fork of Mindcraft-CE. Each is redone or
+adapted here with its own test, and stays under the inherited code's MIT License.
+
+| Fork | What was taken | License |
+|---|---|---|
+| [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`). Listing an agent on the MindServer only after the server check, in `src/mindcraft/mindcraft.js` (`f18b8f6`). `attackNearest` refusing an empty mob type, in `src/agent/library/skills.js` (`6533ada`), and `attackEntity` naming a player it killed (`e16fc01`). The removal of a dead method and unused imports from `src/models/vllm.js` (`f18b8f6`) | MIT |
+
 ## Libraries
 
 Libraries are installed by `npm install` and are not copied into this repository. Each keeps its own
@@ -81,8 +90,8 @@ No code was copied for these. They are credited because the work builds on them.
   the route planning in `src/agent/fairplay/fair_legs.js`, which searches afresh each time where those
   repair the last search.
 - **Keeping what a player told the bot apart from what the bot has seen** comes from the place registry in
-  the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by the seen-world
-  map in `src/agent/fairplay/seen_map.js`.
+  the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by world memory's
+  things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw.
 
 ## What This Fork Added
 
@@ -102,7 +111,11 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/goto_square_corners.test.js`, `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
   `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
-  `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/bedrock_*.test.js`
+  `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/item_goal_hunt.test.js`,
+  `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`,
+  `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
+  `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
+  `tests/attack_player_name.test.js`, `tests/bedrock_*.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,

@@ -9,6 +9,43 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.2.0-bedrock.1.3.0] - 2026-11-18
+
+A release for both editions. World memory no longer takes a change that happened in plain view for news, and
+the seen-world map that stood in when world memory is off is gone. Fixes to inherited skills, NPC goals, the
+Novita provider and the MindServer, most of them also offered to Mindcraft-CE. Built on the same Mindcraft-CE
+commit as 0.1.0.
+
+### Removed
+
+- The seen-world map, the smaller memory that stood in when `world_memory` is off. With world memory off,
+  the bot now remembers nothing out of view and has no `!recall`, and an empty-handed search no longer
+  points it at memory it doesn't have. The `bots/<name>/seen/` folders it saved are no longer read and can
+  be deleted. World memory, on in the shipped settings, is unchanged.
+
+### Fixed
+
+- Item goals for things that can't be crafted, such as raw meat, wool or an ore's drop, no longer crash, and
+  hunting for one runs. The goal treated "no recipe" as a list of recipes, and the hunting loop stored each
+  attack's result in a variable it never declared.
+- `craftRecipe` says so when it has no free spot for its crafting table, or the table can't be placed, and
+  crafts nothing. It crashed on the missing spot, and after a failed placement tried the recipe with no table.
+- `craftRecipe` asked for something with no crafting recipe, such as raw meat or a misspelled name, says so
+  instead of crashing.
+- Worn armor is no longer counted as carried. `!inventory` listed a worn helmet twice, once among the items
+  and once under WEARING, and recipes counted it as material in the bag. An NPC goal for a piece of armor is
+  still met by one the bot wears.
+- With a Novita model, a conversation too long for the model is retried without its oldest turn, as meant.
+  The retry crashed instead.
+- A Bedrock agent set to a version that can't work no longer stays listed on the MindServer with no process
+  behind it, its name refused when tried again from the page.
+- `!attack` with no mob type says so, instead of pausing the bot's cowardice and looking for a mob with no
+  name.
+- After `!attackPlayer`, the bot says which player it killed, instead of "Successfully killed player."
+- World memory no longer reports a change that happened in plain view as news, on either edition. A bot that
+  stood a quiet minute looking at a wall took the wall coming down for something that happened while it was
+  away, and a block it had not seen for minutes could count as watched because others near it were in view.
+
 ## [1.1.1-bedrock.1.2.1] - 2026-11-17
 
 A documentation release for both editions; the code is unchanged. Built on the same Mindcraft-CE commit as 0.1.0.
@@ -563,7 +600,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.0-bedrock.1.3.0...HEAD
+[1.2.0-bedrock.1.3.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.1-bedrock.1.2.1...v1.2.0-bedrock.1.3.0
 [1.1.1-bedrock.1.2.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.1.0-bedrock.1.2.0...v1.1.1-bedrock.1.2.1
 [1.1.0-bedrock.1.2.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.1.0...v1.1.0-bedrock.1.2.0
 [1.0.0-bedrock.1.1.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.0.0-bedrock.1.0.2...v1.0.0-bedrock.1.1.0

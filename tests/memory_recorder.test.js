@@ -41,7 +41,7 @@ function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'me
     const memory = openMemory({ baseDir, scope: SCOPE, now, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
     // Perception is handed world memory as its memory, and leaves the looking around to the recorder.
-    const perception = createPerception({ bot, policy: STRICT, seenMap: recorder.view, backgroundPass: false, now, ...NO_BUDGETS });
+    const perception = createPerception({ bot, policy: STRICT, memory: recorder.view, now, ...NO_BUDGETS });
     recorder.attach(perception);
     recorder.listen(); // hear the bot move, dig, place and open things; the tests call tick() themselves
     const lookAround = () => { bot.emit('blockUpdate', null, { position: bot.entity.position }); recorder.tick(); };
@@ -73,7 +73,7 @@ test('only what is in view is written: a buried ore is not, a chest in the open 
     assert.equal(memory.cells.read(5, 3, 0), null, 'nor the stone around it');
     assert.equal(memory.cells.read(4, 3, 0), 'stone', 'the face of the stone was');
     assert.equal(memory.cells.read(4, 2, -5), 'diamond_ore');
-    assert.equal(memory.cells.read(2, 0, 2), 'stone', 'the floor is remembered too, not only notable blocks');
+    assert.equal(memory.cells.read(2, 0, 2), 'stone', 'the floor is remembered too, not only things like chests');
     assert.equal(memory.cells.read(2, 1, 2), 'air', 'and the air just above it was seen to be empty');
     assert.equal(memory.cells.read(2, 5, 2), null, 'open air higher up is not recorded');
 
@@ -244,6 +244,34 @@ test('A5: the bot\'s own digging and placing, and what it watched change, make n
     assert.deepEqual(notes(), [], 'it saw those cells a moment ago: it watched them change');
 });
 
+test('a wall torn down in front of a bot that stood a quiet while looking at it is no news', () => {
+    const { world, recorder, lookAround, notes, now } = setup(w => w.fill('stone', [4, 1, -4], [4, 3, 4]));
+    lookAround();
+    // Two minutes standing still with nothing changing: the timer ticks, and there is nothing new to see.
+    for (let s = 0; s < 120; s++) { now.advance(1000); recorder.tick(); }
+    world.fill('air', [4, 1, -4], [4, 3, 4]);
+    lookAround();
+    assert.deepEqual(notes(), [], 'it was looking at the wall the whole time');
+});
+
+test('a cell out of view for minutes is not counted as watched because its cube stayed in view', () => {
+    // A pillar with a slab of glowstone on its east side. Seen from the east, then the bot walks round to
+    // the west, where the pillar hides the glowstone but not the floor, which shares the glowstone's cube.
+    const { world, lookAround, notes, now, walkTo, memory } = setup(w => {
+        w.fill('stone', [5, 1, -1], [5, 4, 1]);
+        w.fill('glowstone', [6, 1, -1], [6, 4, 1]);
+    });
+    walkTo(10, 1, 0);
+    lookAround();
+    assert.equal(memory.cells.read(6, 2, 0), 'glowstone', 'seen from the east');
+    walkTo(1, 1, 0);
+    for (let s = 0; s < 120; s++) { now.advance(1000); lookAround(); }   // looking around all the while
+    world.fill('air', [6, 1, -1], [6, 4, 1]);
+    walkTo(10, 1, 0);
+    lookAround();
+    assert.deepEqual(notes(), ['Noticed near 6, 4, 1: Gone: glowstone 12.'], 'it last saw the glowstone minutes ago, from the other side');
+});
+
 // mineflayer's digging plugin drops every 'diggingCompleted' listener when the bot dies, the recorder's
 // among them. The plugin may have registered its own 'death' handler before the recorder or after it.
 for (const order of ['before', 'after']) {
@@ -381,13 +409,12 @@ test('perception answers from memory for what is out of sight, in the state it w
     assert.equal(propsOfState(bot.registry, door.stateId).open, 'true', 'and that it was open');
     assert.ok(door.rememberedAt, 'the answer is marked as a memory');
 
-    // A search finds remembered blocks of any kind, not only notable ones.
+    // A search finds remembered blocks of any kind.
     const stone = bot.registry.blocksByName.sand.id;
     const [found] = perception.findBlocks({ matching: stone, maxDistance: 32, count: 1 });
     assert.deepEqual([found.x, found.y, found.z], [-4, 1, -2]);
     const byTest = perception.findBlocks({ matching: block => block.name === 'sand', maxDistance: 32, count: 3 });
     assert.equal(byTest.length, 1);
-    assert.equal(perception.remembers('dirt'), true);
 });
 
 test('block states go to names and back, and survive a game version that renumbers them', () => {

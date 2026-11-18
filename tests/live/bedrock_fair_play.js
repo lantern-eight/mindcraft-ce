@@ -120,7 +120,6 @@ try {
         initModes(agent);
         // What the bot remembers goes to a throwaway folder, never into this repository.
         handle = installFairPlay(agent, {
-            seenDir: mkdtempSync(path.join(tmpdir(), 'bedrock-fair-')),
             memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-fair-memory-')),
         });
         assert.ok(handle, 'fair play installed');
