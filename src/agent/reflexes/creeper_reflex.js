@@ -132,7 +132,7 @@ export function createCreeperReflex({ now = Date.now } = {}) {
         const bot = agent.bot;
         if (!bot?.entity || !(sound.subject === 'explosion' || /^creeper \(hissing\)$/.test(sound.subject))) return;
         picture.hear(sound, selfOf(bot));
-        bot.emit?.('threat_reflex', { event: 'heard', at: performance.now(), subject: sound.subject });
+        bot.emit?.('threat_reflex', { event: 'heard', at: performance.now(), subject: sound.subject, mode: MODE_NAME });
         if (mode.on && !mode.active && !mode.paused) round(agent);
     }
 
@@ -147,7 +147,7 @@ export function createCreeperReflex({ now = Date.now } = {}) {
         const where = describeDirection(self.position, decision.from).text;
         const line = sayLine(decision, where);
         say(agent, line);
-        const report = event => bot.emit?.('threat_reflex', { ...event, stance: decision.stance, key: decision.key });
+        const report = event => bot.emit?.('threat_reflex', { ...event, stance: decision.stance, key: decision.key, mode: MODE_NAME });
         report({ event: 'decided', at: performance.now() });
 
         // Where the creeper is now, as the bot knows it, while it moves.
