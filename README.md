@@ -153,6 +153,7 @@ node tests/live/fairplay_scenarios.js
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
+| `threat_scenarios.js` | The creeper reflex: how fast it steps away from a creeper seen lit or only heard, how far off it is at the blast, a following creeper finished or left behind, and no false alarms among other mobs (`--runs=` sets the timing runs, 5 by default) |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
