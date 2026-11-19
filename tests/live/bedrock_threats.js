@@ -307,8 +307,9 @@ try {
         assert.equal(decided.find(e => e.mode === 'mob_safety')?.key, 'crowd', JSON.stringify(decided));
         const zombies = Object.values(bot.entities).filter(e => e.name === 'zombie');
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
-        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest`);
-        return { endedFromNearest: Number(nearest.toFixed(1)), stances: decided.map(e => `${e.mode}:${e.stance}`) };
+        const ended = events.find(e => e.event === 'done' && e.mode === 'mob_safety')?.ended;
+        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest (${ended}); zones: ${JSON.stringify(reflexes.zones.list().map(z => z.kind))}`);
+        return { endedFromNearest: Number(nearest.toFixed(1)), ended, stances: decided.map(e => `${e.mode}:${e.stance}`) };
     });
 
     await step('a lone zombie, the bot with a stone sword: the fight takes it on', async () => {
@@ -319,6 +320,57 @@ try {
         await waitFor(() => events.some(e => e.event === 'decided' && e.mode === 'self_defense'), 15000, () => JSON.stringify(events));
         await waitFor(() => !rawMob('zombie'), 30000, () => JSON.stringify(events));
         return { fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length, lowestHealth };
+    });
+
+    await step('illagers in view leave a danger zone, an evoker by its Bedrock name too, and the model is told nothing', async () => {
+        await reset();
+        reflexes.zones.clear();
+        bot.modes.behavior_log = '';
+        await cmd(`effect ${NAME} resistance 60 4 true`); // nothing they throw can hurt the bot here
+        reflexes.mob.mode.on = false; reflexes.fight.mode.on = false; // only watching here
+        const pens = { pillager: [20, 1, -12], evocation_illager: [20, 1, 12] };
+        for (const [mob, cell] of Object.entries(pens)) {
+            await fill([cell[0] - 1, 1, cell[2] - 1], [cell[0] + 1, 3, cell[2] + 1], 'glass');
+            await fill([cell[0], 1, cell[2]], [cell[0], 2, cell[2]], 'air');
+            const spot = at(...cell);
+            await cmd(`summon ${mob} ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        }
+        await waitFor(() => reflexes.zones.list().filter(z => z.kind === 'illagers').length >= 2, 10000, () => JSON.stringify(reflexes.zones.list()));
+        const kept = reflexes.zones.list();
+        for (const cell of Object.values(pens))
+            assert.ok(kept.some(z => flat(z, at(...cell).offset(0.5, 0, 0.5)) < 3), `a zone where each stood: ${JSON.stringify(kept)}`);
+        assert.equal(messages.length, 0, 'no message to the model');
+        reflexes.mob.mode.on = true; reflexes.fight.mode.on = true;
+        return { zones: kept.map(z => ({ kind: z.kind, radius: z.radius })), log: bot.modes.behavior_log.trim() };
+    });
+
+    await step('a walk across the floor goes round a danger zone, and straight across with none', async () => {
+        const walk = async () => {
+            const track = [];
+            const onMove = () => track.push(bot.entity.position.clone());
+            bot.on('move', onMove);
+            const started = Date.now();
+            const goal = at(25, 1, 0);
+            await act('test:walk', () => skills.goToPosition(bot, goal.x + 0.5, goal.y, goal.z + 0.5, 1));
+            bot.off('move', onMove);
+            const middle = at(0, 1, 0).offset(0.5, 0, 0.5);
+            return { ms: Date.now() - started, reached: flat(bot.entity.position, goal.offset(0.5, 0, 0.5)) <= 2,
+                closest: Number(Math.min(...track.map(p => flat(p, middle))).toFixed(1)) };
+        };
+        await reset();
+        reflexes.zones.clear();
+        await tpTo([-25, 1, 0], -90, 2500);
+        const straight = await walk();
+        // Without a zone the walk comes inside where the zone will be; with it, it keeps out.
+        assert.ok(straight.reached && straight.closest < 9, `across, through where the zone will be: ${JSON.stringify(straight)}`);
+        await reset();
+        reflexes.zones.clear();
+        const middle = at(0, 1, 0);
+        reflexes.zones.note('archer', { x: middle.x + 0.5, y: middle.y, z: middle.z + 0.5 }); // 12 blocks across
+        await tpTo([-25, 1, 0], -90, 2500);
+        const round = await walk();
+        assert.ok(round.reached && round.closest >= 9, `round the zone: ${JSON.stringify(round)}`);
+        return { straight, round };
     });
 
     await step('reaction times and distances over the runs', () => ({ hissMs: hissTimes, blastDistances }));

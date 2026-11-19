@@ -33,6 +33,7 @@
 import pf from 'mineflayer-pathfinder';
 import Move from 'mineflayer-pathfinder/lib/move.js';
 import Vec3 from 'vec3';
+import { patchRoutePricing } from '../library/place_costs.js';
 
 const legsOf = new WeakMap();      // bot -> its fair legs
 const VIEW = Symbol('believedView'); // on a Movements object: a copy of it that reads the believed world
@@ -76,6 +77,9 @@ function patchMovements() {
         const legs = legsOf.get(this.bot);
         return legs ? legs.updateCollisionIndex(this, libraryUpdateCollisionIndex) : libraryUpdateCollisionIndex.call(this);
     };
+    // Costs on places (danger zones) price every step a search considers, these legs' slantwise steps
+    // included, so that pricing goes back on top of the wrap just made.
+    patchRoutePricing();
 }
 
 /** The fair legs of a bot, or null when it plans as stock Mindcraft does. */
