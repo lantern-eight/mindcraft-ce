@@ -24,6 +24,12 @@ import { say } from './mobs.js';
 
 // By both editions' names: an evoker is `evocation_illager` on Bedrock.
 const ILLAGERS = new Set(['pillager', 'vindicator', 'evoker', 'evocation_illager', 'illusioner', 'ravager']);
+// What a player would call each, for the behavior log.
+const SPOKEN = { evocation_illager: 'evoker' };
+const spokenWithArticle = name => {
+    const word = SPOKEN[name] ?? name.replace(/_/g, ' ');
+    return `${/^[aeiou]/.test(word) ? 'an' : 'a'} ${word}`;
+};
 const LOOK_WITHIN = 48;   // illagers are noted as far as the bot can see them
 const AIM_WITHIN = 16;    // as the mob reflex: a skeleton shoots from about 15 blocks
 const LOOK_EVERY_MS = 1000;
@@ -63,7 +69,7 @@ export function createDangerWatch({ zones, everyMs = LOOK_EVERY_MS }) {
             const position = { x: entity.position.x, y: entity.position.y, z: entity.position.z };
             if (ILLAGERS.has(entity.name)) {
                 const noted = zones.note('illagers', position);
-                if (noted?.isNew) say(agent, `Saw a ${entity.name.replace(/_/g, ' ')} (${describeDirection(here, position).text}); keeping away from there for a while.`);
+                if (noted?.isNew) say(agent, `Saw ${spokenWithArticle(entity.name)} (${describeDirection(here, position).text}); keeping away from there for a while.`);
             }
             if (entity.position.distanceTo(here) <= AIM_WITHIN && edition.isAiming(bot.registry, entity, eye))
                 zones.note('archer', position);

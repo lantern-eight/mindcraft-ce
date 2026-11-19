@@ -118,6 +118,16 @@ test('illagers in view make one zone, and the behavior log says so once', () => 
     assert.match(agent.bot.modes.behavior_log, /Saw a pillager \(east/);
 });
 
+test("an evoker is noted and named as a player would, whichever edition's name it has", () => {
+    setWorldQueries(null);
+    const zones = createDangerZones({ now: clock() });
+    const watch = createDangerWatch({ zones, everyMs: 0 });
+    const agent = makeAgent([mob(1, 'evocation_illager', 0.5, 30)]);
+    watch.look(agent);
+    assert.deepEqual(zones.list().map(z => z.kind), ['illagers']);
+    assert.match(agent.bot.modes.behavior_log, /Saw an evoker \(south/);
+});
+
 test('a stand-in where a mob was last seen is not a sighting', () => {
     setWorldQueries(null);
     const zones = createDangerZones({ now: clock() });
