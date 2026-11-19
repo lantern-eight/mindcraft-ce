@@ -18,7 +18,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   kills it in 4 hits or fewer and half its health or more, or else left behind for good. The first step never
   goes into lava or fire or off a drop of more than 2 blocks. While it backs off, other reflexes and the
   model's commands wait for it instead of stopping it, and the model is told once per creeper, in one line.
-  It has its own switch in `!setMode`; `cowardice` has no say over it.
+  It has its own switch in `!setMode`; `cowardice` has no say over it. On Bedrock it works the same, except
+  that a creeper that keeps following is always left behind: a Bedrock creeper's own rules aren't measured
+  yet.
 - Under fair play the creeper reflex also hears: a creeper's hiss close by, or an explosion very close,
   starts a back-off the moment the sound arrives, even with the creeper out of sight around a corner. The
   hiss is remembered as a creeper that may still be lit until the bot has been away long enough for its fuse
