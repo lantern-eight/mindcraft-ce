@@ -388,7 +388,10 @@ against a real server with no model behind it, and measures the time to the firs
 the blast, damage, the rounds a following creeper takes, the messages to the model, and false alarms among
 other mobs at night. `tests/live/mob_scenarios.js` does the same for the mob reflex, the fight and the gaze
 guard, checks what the edition seam reads off the server, and counts the interruptions in a night full of
-mobs and the path searches while standing by, against Mindcraft's own reflexes with `--stock`.
+mobs and the path searches while standing by, against Mindcraft's own reflexes with `--stock`. Both, and
+`bedrock_threats.js`, give the bot standing orders and check what they change: an armed bot fighting two
+zombies, a zombie backed away from and a skeleton ignored or fought when told, a creeper met at once or
+left at once.
 `tests/live/danger_scenarios.js` checks the zones: a walk across an arena with no zone and with one where
 illagers were seen, a walk out of the middle of one, and the zones a skeleton aiming and an explosion heard
 leave (see the [README](../README.md#tests)).

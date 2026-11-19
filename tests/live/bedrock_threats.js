@@ -74,10 +74,14 @@ try {
         for (let x = -30; x < 30; x += 15) await fill([x, 1, -30], [x + 14, 6, 30], 'air');
         await fill([-30, 0, -30], [30, 0, 30], 'stone');
         await cmd(`effect ${NAME} clear`);
+        // Each scene gives the bot what it needs: a sword left from the last one would change what the
+        // standing orders let it fight.
+        await cmd(`clear ${NAME}`);
         await cmd(`effect ${NAME} instant_health 1 5`);
         await tpTo([0, 1, 0], -90, 2500);
         events.length = 0; messages.length = 0;
         reflexes?.creeper.picture.clear();
+        reflexes?.zones.clear(); // as on Java: no danger remembered from the last scene bends this one's escape
         lowestHealth = bot.health;
     }
     // A creeper lit where it stands, penned in glass so it can't walk.
@@ -121,7 +125,8 @@ try {
         initModes(agent);
         const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-memory-')) });
         assert.ok(handle, 'fair play installed');
-        reflexes = installThreatReflexes(agent);
+        // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
+        reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-orders-')) });
         assert.ok(reflexes, 'the threat reflexes installed');
         bot.on('threat_reflex', event => events.push(event));
         bot.on('health', () => { lowestHealth = Math.min(lowestHealth, bot.health); });
@@ -320,6 +325,47 @@ try {
         await waitFor(() => events.some(e => e.event === 'decided' && e.mode === 'self_defense'), 15000, () => JSON.stringify(events));
         await waitFor(() => !rawMob('zombie'), 30000, () => JSON.stringify(events));
         return { fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length, lowestHealth };
+    });
+
+    // ---- Standing orders ----
+
+    await step('armed with a stone sword, two zombies coming: the built-in order fights them instead of backing away, while health holds', async () => {
+        await reset();
+        await cmd(`give ${NAME} stone_sword 1`, 700);
+        const healthAt = [];
+        const note = event => { if (event.event === 'decided') healthAt.push({ mode: event.mode, key: event.key, health: bot.health }); };
+        bot.on('threat_reflex', note);
+        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`); }
+        const started = Date.now();
+        try {
+            await waitFor(() => !rawMob('zombie') || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
+        } finally { bot.off('threat_reflex', note); }
+        assert.ok(healthAt.some(d => d.mode === 'self_defense'), `it fought: ${JSON.stringify(healthAt)}`);
+        assert.equal(healthAt.filter(d => d.mode === 'mob_safety' && d.health >= 10).length, 0, `no retreat at half health or more: ${JSON.stringify(healthAt)}`);
+        assert.ok(lowestHealth >= 4, `lowest health ${lowestHealth}`);
+        return { killed: 2 - Object.values(bot.entities).filter(e => e.name === 'zombie').length, seconds: Math.round((Date.now() - started) / 1000),
+            fights: healthAt.filter(d => d.mode === 'self_defense').length, lowestHealth };
+    });
+
+    await step('told to flee creepers: one coming is left behind for good at the first meeting, no damage', async () => {
+        await reset();
+        assert.equal(reflexes.orders.give('creepers', 'flee').ok, true);
+        try {
+            act('action:stay', () => skills.stay(bot, -1));
+            await delay(500);
+            const start = at(10, 1, 0);
+            await cmd(`summon creeper ${start.x + 0.5} ${start.y} ${start.z + 0.5}`);
+            await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'creeper_safety'), 30000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
+            const stances = events.filter(e => e.event === 'decided').map(e => e.stance);
+            assert.equal(stances[0], 'leave', JSON.stringify(stances));
+            assert.match(messages[0] ?? '', /leaving it behind, as I was told to\./);
+            assert.equal(lowestHealth, 20, 'no damage');
+            const creeper = rawCreeper();
+            return { stances, endedAway: creeper ? Number(flat(bot.entity.position, creeper.position).toFixed(1)) : null };
+        } finally {
+            await agent.actions.stop();
+            reflexes.orders.give('creepers', 'default'); // the next reset's peaceful moment takes the creeper away
+        }
     });
 
     await step('illagers in view leave a danger zone, an evoker by its Bedrock name too, and the model is told nothing', async () => {
