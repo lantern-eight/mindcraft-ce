@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- `pickupNearbyItems` tries an item from another side when the first spot it walked to didn't reach it,
+  instead of walking back to the same spot. Mindcraft-CE's maintainer added this to the fix for picking up
+  items from beside them, and this fork takes it from Mindcraft-CE's `agent-system` branch.
+
 ## [1.7.0-bedrock.1.8.0] - 2026-11-19
 
 A release for both editions. The bot remembers for a while where it met danger (illagers, a mob aiming at
