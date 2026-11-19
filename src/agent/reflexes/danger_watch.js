@@ -22,7 +22,8 @@ import { describeDirection } from '../fairplay/perception.js';
 import { pointFromSound, slackOfBand } from './picture.js';
 import { say } from './mobs.js';
 
-const ILLAGERS = new Set(['pillager', 'vindicator', 'evoker', 'illusioner', 'ravager']);
+// By both editions' names: an evoker is `evocation_illager` on Bedrock.
+const ILLAGERS = new Set(['pillager', 'vindicator', 'evoker', 'evocation_illager', 'illusioner', 'ravager']);
 const LOOK_WITHIN = 48;   // illagers are noted as far as the bot can see them
 const AIM_WITHIN = 16;    // as the mob reflex: a skeleton shoots from about 15 blocks
 const LOOK_EVERY_MS = 1000;

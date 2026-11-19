@@ -205,9 +205,9 @@ function javaNamesFor(registry) {
 const SURVIVAL_REACH = Object.freeze({ blocks: 5, entities: 3 });
 
 // Mobs that attack any player they see, whatever happens, and the ones among them that shoot (see
-// isAggressive and isAiming).
+// isAggressive and isAiming). By Bedrock's names: an evoker is `evocation_illager` there.
 const ALWAYS_HOSTILE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'zombie_villager_v2', 'skeleton', 'stray', 'bogged',
-    'wither_skeleton', 'creeper', 'witch', 'pillager', 'vindicator', 'evoker', 'ravager', 'slime', 'magma_cube', 'silverfish',
+    'wither_skeleton', 'creeper', 'witch', 'pillager', 'vindicator', 'evocation_illager', 'ravager', 'slime', 'magma_cube', 'silverfish',
     'endermite', 'blaze', 'ghast', 'phantom', 'guardian', 'elder_guardian', 'hoglin', 'piglin_brute', 'vex', 'zoglin', 'breeze', 'shulker']);
 const SHOOTERS = new Set(['skeleton', 'stray', 'bogged', 'pillager', 'blaze', 'ghast']);
 const AIM_DEGREES = 20;

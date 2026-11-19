@@ -154,6 +154,7 @@ test('a Bedrock shooter aims when it faces the bot, or shows a flag for it; a mo
     assert.equal(bedrockEdition.isAggressive(null, { name: 'zombie', metadata: { flags: {} } }), true, 'a zombie always attacks');
     assert.equal(bedrockEdition.isAggressive(null, { name: 'enderman', metadata: { flags: {} } }), false, 'neutral until angry');
     assert.equal(bedrockEdition.isAggressive(null, { name: 'enderman', metadata: { flags: { angry: true } } }), true);
+    assert.equal(bedrockEdition.isAggressive(null, { name: 'evocation_illager', metadata: { flags: {} } }), true, "an evoker, by Bedrock's name for it");
 });
 
 test('a Bedrock bot feels a hit from the side opposite the push it gets', () => {

@@ -25,6 +25,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - On Java Edition 1.21.2 and later, fair play's hearing never heard an explosion: those servers send an
   explosion's sound inside the explosion itself, not as a sound of its own. So the creeper reflex never
   backed off from an explosion heard very close, and `!entities` never listed one. It hears them now.
+- On Bedrock Edition an evoker was neither a mob that always attacks nor one that fights from afar: Bedrock
+  calls it `evocation_illager`, and the lists had only Java's name. So the bot waited for one to show a
+  target it never shows, and could pick a fight with it. Both lists know it by either name now.
 
 ## [1.6.0-bedrock.1.7.0] - 2026-11-19
 
