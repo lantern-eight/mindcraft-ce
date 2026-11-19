@@ -26,6 +26,7 @@ says what works, what doesn't and how to try it.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
+| **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, whatever it is doing. `threat_reflexes: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
 | **Runs on** | Node 22 |
@@ -67,7 +68,8 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
-| Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates |
+| Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates. A creeper's hiss sets off the creeper reflex at once |
+| Creepers | A creeper is one more hostile: nothing knows when it is lit, other actions pause the reflexes that would flee or fight it, and fighting follows it into melee range | A creeper reflex that no action pauses backs off from one about to explode, and finishes one that keeps following, by a hit and a step back or by leaving it behind. See [docs/threat-reflexes.md](docs/threat-reflexes.md) |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
 | Tests | 100 offline tests | 688 offline tests, plus live scenarios on a real server that make no model calls |
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
@@ -180,6 +182,7 @@ each server its own copy again. Run the live scripts one at a time: they share a
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
 | [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
+| [docs/threat-reflexes.md](docs/threat-reflexes.md) | The creeper reflex: when it backs off, how it finishes with a creeper that follows, what it knows, and how it holds other work |
 | [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
 | [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
