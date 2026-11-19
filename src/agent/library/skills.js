@@ -1146,6 +1146,7 @@ export async function searchPath(bot, movements, goal, timeoutMs) {
         last = result;
         if (result.status !== 'partial' || bot.interrupt_code) break;
         await new Promise(resolve => setImmediate(resolve));
+        if (bot.interrupt_code) break;
     }
     return last;
 }
@@ -1181,6 +1182,8 @@ export async function goToGoal(bot, goal) {
      * @param {pf.goals.Goal} goal, the goal to navigate to.
      **/
 
+    if (bot.interrupt_code) return false;
+
     // A trip the bot remembers a walked way for follows that way first, as far as it leads. The
     // planning below then carries on from wherever that left the bot. See travel_guide.js.
     await followKnownWay(bot, goal, log);
@@ -1198,15 +1201,19 @@ export async function goToGoal(bot, goal) {
     let final_movements = destructiveMovements;
 
     const pathfind_timeout = 1000;
-    if ((await searchPath(bot, nonDestructiveMovements, goal, pathfind_timeout)).status === 'success') {
+    const nonDestructivePath = await searchPath(bot, nonDestructiveMovements, goal, pathfind_timeout);
+    if (bot.interrupt_code) return false;
+    if (nonDestructivePath?.status === 'success') {
         final_movements = nonDestructiveMovements;
         log(bot, `Found non-destructive path.`);
-    }
-    else if ((await searchPath(bot, destructiveMovements, goal, pathfind_timeout)).status === 'success') {
-        log(bot, `Found destructive path.`);
-    }
-    else {
-        log(bot, `Path not found, but attempting to navigate anyway using destructive movements.`);
+    } else {
+        const destructivePath = await searchPath(bot, destructiveMovements, goal, pathfind_timeout);
+        if (bot.interrupt_code) return false;
+        if (destructivePath?.status === 'success') {
+            log(bot, `Found destructive path.`);
+        } else {
+            log(bot, `Path not found, but attempting to navigate anyway using destructive movements.`);
+        }
     }
 
     const doorCheckInterval = startDoorInterval(bot);

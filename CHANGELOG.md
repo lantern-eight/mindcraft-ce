@@ -20,6 +20,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - `useToolOn` with `hand` uses the bare hand again outside creative mode. The check for a missing tool
   from 0.1.0 looked for an item called "hand" in the inventory and refused. From Mindcraft-CE's
   maintainer, who added it to that fix when merging it.
+- A stop that comes while `goToGoal` is searching for a route ends the search and the walk. The search
+  stopped looking, but the walk then started anyway along whatever it had found. From Mindcraft-CE's
+  maintainer, who added it to this fork's fix for the path search's time limit when merging it.
 
 ## [1.7.0-bedrock.1.8.0] - 2026-11-19
 
