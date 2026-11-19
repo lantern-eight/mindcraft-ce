@@ -24,6 +24,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- While a creeper that isn't lit is within 8 blocks, the reflexes that run errands for an idle bot (picking
+  up items, hunting, placing torches, making room for a player) start nothing, and one already walking
+  stops. One walked the bot up to a creeper to pick up an item beside it.
 - With `threat_reflexes` on, the `self_defense` reflex fights only a lone mob coming at the bot (one that
   has picked a target), and only with the bot at half health or more and fed enough to sprint. It used to
   fight anything hostile within 8 blocks whatever the bot's state: two zombies at once, a passing enderman,

@@ -30,7 +30,7 @@ import settings from '../settings.js';
 import * as world from '../library/world.js';
 import { worldQueries } from '../library/world_queries.js';
 import { withinAttackReach } from '../library/attack_reach.js';
-import { holdActions } from '../action_hold.js';
+import { holdActions, holdKind } from '../action_hold.js';
 import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
@@ -45,6 +45,12 @@ const ROOF_CHECK = 8;         // blocks above the head that make the bot "underg
 const HIT_REACH = 3;          // a survival player's reach to a mob
 const LOOK_WITHIN = 32;       // creepers are followed this far, so leaving one knows when it is far enough
 const LOST_SIGHT_MS = 2000;   // out of view this long while leaving: it has lost the bot
+// While a creeper that isn't lit is this close, the reflexes that run errands for an idle bot (picking up
+// items, hunting, placing torches, making room) start nothing, and one already walking is stopped: their
+// walks don't look where they go, and one walked the bot up to a creeper for an item beside it.
+const KEEP_OUT = 8;
+const KEEP_OUT_MS = 1000;     // renewed each round while the creeper stays close
+const ERRANDS = new Set(['hunting', 'item_collecting', 'torch_placing', 'elbow_room'].map(name => `mode:${name}`));
 
 /**
  * @param {object} [options]
@@ -107,6 +113,18 @@ export function createCreeperReflex({ now = Date.now } = {}) {
         const decision = decideThreat(picture.creepers(self), self, { explosion: picture.explosion(self) });
         // Not awaited: the move runs as an action, and the round must not hold up the mode loop.
         if (MOVES.has(decision.stance)) act(agent, decision, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
+        else keepOut(agent, self);
+    }
+
+    // No errands near a creeper. A short hold of its own kind, renewed while the creeper stays close; it
+    // lets through commands and every reflex that isn't an errand, and never replaces another reflex's hold.
+    function keepOut(agent, self) {
+        const near = picture.creepers(self).some(c => c.seenNow && !c.lit && c.distance <= KEEP_OUT);
+        if (!near) return;
+        const kind = holdKind(agent);
+        if (kind && kind !== 'creeper nearby') return;
+        holdActions(agent, { kind: 'creeper nearby', lets: label => !ERRANDS.has(label), reason: 'a creeper is close by', maxMs: KEEP_OUT_MS });
+        if (ERRANDS.has(agent.actions.currentActionLabel)) agent.actions.stop().catch(() => {});
     }
 
     /** A sound hearing passed on. A hiss or an explosion runs a round at once. */
