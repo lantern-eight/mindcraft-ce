@@ -257,10 +257,16 @@ export function lineBlocked(blockAt, a, b) {
 }
 
 const BODY = [0.9, 1.6]; // where on a body a shot lands: the chest and the head
+const WIDTH = [[0, 0], [0.35, 0.35], [0.35, -0.35], [-0.35, 0.35], [-0.35, -0.35]]; // its middle and its edges
 
-/** Whether a body standing with its feet at `feet` is hidden from `eye` by known blocks. */
-export function hiddenFrom(blockAt, eye, feet) {
-    return BODY.every(dy => lineBlocked(blockAt, eye, { x: feet.x, y: feet.y + dy, z: feet.z }));
+/**
+ * Whether a body standing with its feet at `feet` is hidden from `eye` by known blocks: its chest and head.
+ * With `wide`, across its whole width too, so that a spot to go to is still cover when the bot stands a
+ * little off its middle, and not only along a line grazing the corner of the wall.
+ */
+export function hiddenFrom(blockAt, eye, feet, { wide = false } = {}) {
+    const across = wide ? WIDTH : WIDTH.slice(0, 1);
+    return BODY.every(dy => across.every(([dx, dz]) => lineBlocked(blockAt, eye, { x: feet.x + dx, y: feet.y + dy, z: feet.z + dz })));
 }
 
 /**
@@ -279,7 +285,7 @@ export function coverSpots(blockAt, position, eye, { radius = 6, limit = 5 } = {
         const cell = { x: here.x + dx, y: here.y + dy, z: here.z + dz };
         const centre = { x: cell.x + 0.5, y: cell.y, z: cell.z + 0.5 };
         if (Math.hypot(centre.x - eye.x, centre.z - eye.z) < Math.min(fromMob, 4)) continue;
-        if (!safeCell(blockAt, cell) || !hiddenFrom(blockAt, eye, centre)) continue;
+        if (!safeCell(blockAt, cell) || !hiddenFrom(blockAt, eye, centre, { wide: true })) continue;
         spots.push({ cell, cost: Math.hypot(dx, dz) + Math.abs(dy) * 2 });
     }
     return spots.sort((a, b) => a.cost - b.cost).slice(0, limit).map(spot => spot.cell);
@@ -309,15 +315,23 @@ export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, re
     };
     let ended = finished();
     if (ended) return { ended };
-    const spots = coverSpots(blockAt, bot.entity.position, from);
-    if (!spots.length) return { ended: 'no cover' };
-    try {
-        const movements = escapeMovements(bot);
-        bot.pathfinder.setMovements(movements);
+    // A spot is picked for where the mob is now. A skeleton strafes as it shoots, so a spot reached that
+    // doesn't hide the bot any more is picked again, from where the mob has got to.
+    const goTo = () => {
+        const spots = coverSpots(blockAt, bot.entity.position, from);
+        if (!spots.length) return false;
+        bot.pathfinder.setMovements(escapeMovements(bot));
         bot.pathfinder.setGoal(new pf.goals.GoalCompositeAny(spots.map(cell => new pf.goals.GoalBlock(cell.x, cell.y, cell.z))), false);
+        return true;
+    };
+    if (!goTo()) return { ended: 'no cover' };
+    try {
         report({ event: 'step', at: performance.now(), how: 'cover' });
+        let tries = 1;
         while (!(ended = finished())) {
-            if (!bot.pathfinder.isMoving?.() && !bot.pathfinder.goal) { ended = 'no way there'; break; }
+            if (!bot.pathfinder.isMoving?.() && !bot.pathfinder.goal) {
+                if (tries++ >= 4 || !goTo()) { ended = 'no way there'; break; }
+            }
             await wait(STEP_MS);
         }
     } finally {

@@ -110,6 +110,7 @@ export function createMobReflex({ claims, now = Date.now }) {
                         return mob ? { x: mob.position.x, y: mob.position.y + (mob.height ?? 1.8) * 0.9, z: mob.position.z } : null;
                     };
                     let outcome = await takeCover(bot, { eye, report, done: () => !aimingNow(bot, id) && lostSight() });
+                    report({ event: 'cover', at: performance.now(), ended: outcome.ended });
                     if (outcome.ended === 'no cover' || outcome.ended === 'no way there')
                         outcome = await retreatFrom(bot, { from, to: decision.distance, report, done: lostSight });
                     ended = outcome.ended;
