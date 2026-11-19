@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.7.1-bedrock.1.8.2] - 2026-11-19
+
+A release of the tests alone: `npm test` passes on the `bedrock` branch again. The bot's code is the same as
+in 1.7.1-bedrock.1.8.1. Built on the same Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
 ### Fixed
 
 - `npm test` passes on the `bedrock` branch again. The test for a stop during the route search, which came
@@ -863,7 +868,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...HEAD
+[1.7.1-bedrock.1.8.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.1...v1.7.1-bedrock.1.8.2
 [1.7.1-bedrock.1.8.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.0-bedrock.1.8.0...v1.7.1-bedrock.1.8.1
 [1.7.0-bedrock.1.8.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.6.0-bedrock.1.7.0...v1.7.0-bedrock.1.8.0
 [1.6.0-bedrock.1.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.5.0-bedrock.1.6.0...v1.6.0-bedrock.1.7.0
