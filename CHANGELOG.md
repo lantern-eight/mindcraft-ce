@@ -15,6 +15,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   instead of walking back to the same spot. Mindcraft-CE's maintainer added this to the fix for picking up
   items from beside them, and this fork takes it from Mindcraft-CE's `agent-system` branch.
 
+### Fixed
+
+- `useToolOn` with `hand` uses the bare hand again outside creative mode. The check for a missing tool
+  from 0.1.0 looked for an item called "hand" in the inventory and refused. From Mindcraft-CE's
+  maintainer, who added it to that fix when merging it.
+
 ## [1.7.0-bedrock.1.8.0] - 2026-11-19
 
 A release for both editions. The bot remembers for a while where it met danger (illagers, a mob aiming at
