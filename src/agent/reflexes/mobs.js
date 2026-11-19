@@ -25,6 +25,7 @@ const LOOK_WITHIN = 24;
 export function mobsAround(bot, dying = new Set()) {
     const edition = editionOf(bot.registry);
     const here = bot.entity.position;
+    const eye = { x: here.x, y: here.y + (bot.entity.eyeHeight ?? 1.62), z: here.z };
     return world.getNearbyEntities(bot, LOOK_WITHIN)
         .filter(entity => mc.isHostile(entity) && entity.name !== 'creeper' && !dying.has(entity.id))
         .map(entity => {
@@ -33,7 +34,7 @@ export function mobsAround(bot, dying = new Set()) {
                 id: entity.id, name: entity.name, height: entity.height ?? 1.8,
                 position: { x: entity.position.x, y: entity.position.y, z: entity.position.z },
                 distance: entity.position.distanceTo(here), seenNow,
-                aiming: seenNow && edition.isAiming(bot.registry, entity),
+                aiming: seenNow && edition.isAiming(bot.registry, entity, eye),
                 aggressive: seenNow && edition.isAggressive(bot.registry, entity),
             };
         });

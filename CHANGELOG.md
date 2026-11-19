@@ -20,8 +20,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   nobody asked for (a cave spider, a warden, an enderman that was provoked); and gets away when hit twice in
   a few seconds by something it can't see, from the side the hits came from. Other reflexes and the model's
   commands wait for it, and the model hears about the same threat once a minute at most. It has its own
-  switch in `!setMode`; `cowardice` keeps its own meaning and stays off by default.
-
+  switch in `!setMode`; `cowardice` keeps its own meaning and stays off by default. On Bedrock, whose server
+  shows no mob's target or aim, a mob that always attacks players counts as coming for the bot once in view,
+  an archer counts as aiming when it faces the bot, and a hit's side is read from the push it gives.
 - With `threat_reflexes` on, the bot never looks an enderman in the eye. Any look that would come close
   to an enderman's head (the idle look-around, a dash away from a creeper, a walk) is lowered to its feet.
 

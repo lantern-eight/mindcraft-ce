@@ -204,6 +204,10 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
 - **Bedrock Edition creepers** run on rules of their own, not measured yet (whether the fuse needs line of
   sight, at what distances). On Bedrock the creeper reflex backs off the same way, but finishes a following
   creeper only by leaving it, never by going back in to hit it.
+- **A Bedrock server shows no mob's target or aim.** So on Bedrock a mob that always attacks players (a
+  zombie, a skeleton) counts as having come for the bot as soon as it is in view, and an archer counts as
+  aiming when it faces the bot. The crowd rule and the fight start a little sooner there than on Java, where
+  the bot waits for the mob to show it.
 - **The fight scope is fixed:** one mob, half health, food to sprint, and the creeper's 4 hits. It can't yet
   be widened or narrowed by a player, and an armed bot is held to the same scope as an unarmed one.
 - **The fight is Mindcraft's combat plugin:** no timing of hits to the weapon's cooldown, no shield.

@@ -133,7 +133,8 @@ export function createMobReflex({ claims, now = Date.now }) {
 
     function aimingNow(bot, id) {
         const mob = mobInView(bot, id);
-        return Boolean(mob) && editionOf(bot.registry).isAiming(bot.registry, mob);
+        const here = bot.entity.position;
+        return Boolean(mob) && editionOf(bot.registry).isAiming(bot.registry, mob, { x: here.x, y: here.y + 1.62, z: here.z });
     }
 
     function tellModel(agent, decision, interrupted, result, line) {

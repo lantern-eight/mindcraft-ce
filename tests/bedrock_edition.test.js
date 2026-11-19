@@ -141,24 +141,33 @@ function bedrockBot(registry, columns, position) {
     return bot;
 }
 
-test('a Bedrock mob\'s aim and its target are among its entity flags', () => {
-    assert.equal(bedrockEdition.isAiming(null, { name: 'pillager', metadata: { flags: { charged: true } } }), true);
-    assert.equal(bedrockEdition.isAiming(null, { name: 'skeleton', metadata: { flags: {}, flags_extended: { facing_target_to_range_attack: true } } }), true);
-    assert.equal(bedrockEdition.isAiming(null, { name: 'skeleton', metadata: { flags: {} } }), false);
-    assert.equal(bedrockEdition.isAiming(null, { name: 'skeleton' }), false, 'no metadata yet');
-    assert.equal(bedrockEdition.isAggressive(null, { name: 'zombie', metadata: { flags: { angry: true } } }), true);
-    assert.equal(bedrockEdition.isAggressive(null, { name: 'zombie', metadata: { 16: 4 } }), false, 'Java\'s entry means nothing on Bedrock');
+test('a Bedrock shooter aims when it faces the bot, or shows a flag for it; a mob that always attacks has a target', () => {
+    // mineflayer's yaw: 0 faces north (-z). The bot is 10 blocks north of the skeleton.
+    const at = { x: 0, y: 65.6, z: -10 };
+    const skeleton = yaw => ({ name: 'skeleton', position: { x: 0, y: 64, z: 0 }, yaw, metadata: { flags: {} } });
+    assert.equal(bedrockEdition.isAiming(null, skeleton(0), at), true, 'facing the bot');
+    assert.equal(bedrockEdition.isAiming(null, skeleton(0.3), at), true, 'within 20 degrees');
+    assert.equal(bedrockEdition.isAiming(null, skeleton(Math.PI / 2), at), false, 'facing away');
+    assert.equal(bedrockEdition.isAiming(null, skeleton(0)), false, 'no one to aim at');
+    assert.equal(bedrockEdition.isAiming(null, { ...skeleton(Math.PI), name: 'zombie' }, at), false, 'a zombie shoots nothing');
+    assert.equal(bedrockEdition.isAiming(null, { name: 'pillager', position: { x: 0, y: 64, z: 0 }, metadata: { flags: { charged: true } } }, at), true, 'a crossbow charged');
+    assert.equal(bedrockEdition.isAggressive(null, { name: 'zombie', metadata: { flags: {} } }), true, 'a zombie always attacks');
+    assert.equal(bedrockEdition.isAggressive(null, { name: 'enderman', metadata: { flags: {} } }), false, 'neutral until angry');
+    assert.equal(bedrockEdition.isAggressive(null, { name: 'enderman', metadata: { flags: { angry: true } } }), true);
 });
 
-test('a Bedrock bot feels a hit on itself, from no side it is told', () => {
+test('a Bedrock bot feels a hit from the side opposite the push it gets', () => {
     const listeners = {};
     const bot = { entity: { id: 3 }, _client: { on: (name, fn) => { listeners[name] = fn; }, off() {} } };
     const felt = [];
-    bedrockEdition.onHurt(bot, hit => felt.push(hit));
+    bedrockEdition.onHurt(bot, hit => felt.push(hit.direction));
+    // Pushed north (-z): the hit came from the south.
+    listeners.set_entity_motion({ runtime_entity_id: 3n, velocity: { x: 0, y: 0.4, z: -0.4 } });
     listeners.entity_event({ event_id: 'hurt_animation', runtime_entity_id: 3n });
     listeners.entity_event({ event_id: 'hurt_animation', runtime_entity_id: 4n });
     listeners.entity_event({ event_id: 'death_animation', runtime_entity_id: 3n });
-    assert.deepEqual(felt, [{ direction: null }]);
+    assert.equal(felt.length, 1);
+    assert.ok(felt[0].z > 0.99, JSON.stringify(felt[0]));
 });
 
 test('Bedrock answers every question the edition seam asks', () => {

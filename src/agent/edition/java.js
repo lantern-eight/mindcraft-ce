@@ -302,9 +302,10 @@ export const javaEdition = Object.freeze({
      *
      * @param {object} registry - the bot's game data
      * @param {object} entity - a mob the bot can see
+     * @param {{x:number, y:number, z:number}} [at] - the eye of whoever asks; Java's answer doesn't need it
      * @returns {boolean}
      */
-    isAiming(registry, entity) {
+    isAiming(registry, entity, at) {
         const kind = entity?.name;
         if (BOW_SHOOTERS.has(kind))
             return flagOf(registry, entity, 'mob_flags', AGGRESSIVE) || flagOf(registry, entity, 'living_entity_flags', HAND_ACTIVE);
