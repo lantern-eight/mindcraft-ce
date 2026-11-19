@@ -57,6 +57,8 @@ const FLYING = new Set(['phantom', 'vex', 'bat', 'ghast']);
 
 export const isRanged = mob => RANGED.has(mob.name) || (mob.name === 'piglin' && mob.aiming);
 export const isMelee = mob => mob.name !== 'creeper' && !isRanged(mob) && !FLYING.has(mob.name);
+/** Whether a mob could have dealt a hit just felt: one within reach, one with a target, one that shoots. */
+export const couldHaveHit = mob => mob.distance <= 6 || mob.aggressive || isRanged(mob);
 
 const ignore = { stance: 'ignore' };
 const pointsOf = mobs => mobs.map(mob => ({ ...mob.position }));
@@ -74,7 +76,8 @@ function comesFor(mob) {
  *     aggressive}. Stand-ins (seenNow false) are places to keep away from, never a reason to act.
  * @param {object} self - {position, health, food, gameMode}
  * @param {object} [extra]
- * @param {{at: number, direction: {x:number, z:number}|null}[]} [extra.hits] - hits felt, newest last
+ * @param {{at: number, direction: {x:number, z:number}|null, explained?: boolean}[]} [extra.hits] - hits
+ *     felt, newest last; `explained` when a mob that could have dealt it was in view as it landed
  * @param {number} [extra.now]
  * @param {(key: string) => string|null} [extra.ownerOf] - which reflex has taken a mob (the claims)
  * @param {(mob: object) => {stance: string, distance?: number}|null} [extra.orderOf] - the standing order
@@ -128,10 +131,11 @@ export function decideMobThreat(mobs, self, { hits = [], now = Date.now(), owner
         if (why) return { stance: 'retreat', key: `id:${mob.id}`, from: [{ ...mob.position }], ids: [mob.id], reason: why, name: mob.name, distance: RETREAT_TO };
     }
 
-    // 7. Hits from something the bot can't see.
-    const withSide = recent.filter(hit => hit.direction);
-    const couldHaveDoneIt = mob => mob.distance <= 6 || mob.aggressive || isRanged(mob);
-    if (withSide.length >= 2 && !seen.some(couldHaveDoneIt)) {
+    // 7. Hits from something the bot can't see. A hit that landed with a mob in view that could have dealt
+    // it is not one of them, even if that mob has since died or slipped out of view: in a fight against two,
+    // the first one's last hits would otherwise send the bot away from the second.
+    const withSide = recent.filter(hit => hit.direction && !hit.explained);
+    if (withSide.length >= 2 && !seen.some(couldHaveHit)) {
         return { stance: 'retreat', key: 'unseen hits', from: hitPoints(withSide, self), ids: [], reason: 'unseen hits', distance: 12 };
     }
     return ignore;

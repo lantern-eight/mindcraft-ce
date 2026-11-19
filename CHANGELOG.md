@@ -25,6 +25,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   included, instead of backing away from two of them: the built-in orders when the profile has no
   `threat_rules`. Unarmed, it keeps to one mob at a time.
 
+### Fixed
+
+- Hits dealt by a mob in view no longer count as hits from something the bot can't see once that mob has
+  died or slipped out of view. In a fight against two zombies, the first one's last hits sent the bot away
+  from the second.
+
 ## [1.7.1-bedrock.1.8.2] - 2026-11-19
 
 A release of the tests alone: `npm test` passes on the `bedrock` branch again. The bot's code is the same as
