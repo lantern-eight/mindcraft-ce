@@ -3,7 +3,10 @@
 // since a bot backing off from a creeper can back into lava.
 //
 //   backOffFrom(bot, options)     sprint away from a point until far enough, out of time, or told to stop
+//   retreatFrom(bot, options)     the same, away from several threats at once
 //   hitAndStepBack(bot, options)  one sprint-hit at a creeper, which knocks it back, then back off
+//   takeCover(bot, options)       walk to the nearest spot a mob's line of sight doesn't reach
+//   fightOne(bot, options)        fight one mob until it is gone, or until told to stop
 //
 // A creeper's fuse is the clock: from lit to the blast is 1.5 s. So the first step away must not wait on
 // a path search. If the ground straight away from the threat is open and safe, the bot sprints that way
@@ -89,14 +92,48 @@ function escapeMovements(bot) {
  * @returns {Promise<{distance: number|null, ended: string}>}
  */
 export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () => false, report = () => {} }) {
+    return retreatFrom(bot, { from: () => { const point = from(); return point ? [point] : null; }, to, maxMs, done, report });
+}
+
+/**
+ * The way straight away from several threats at once, as a flat unit vector {x, z}: each pushes the bot
+ * away from itself, the nearer the harder. Null when they are all where the bot stands.
+ */
+export function awayFrom(position, points) {
+    let x = 0, z = 0;
+    for (const point of points) {
+        const dx = position.x - point.x, dz = position.z - point.z;
+        const squared = dx * dx + dz * dz;
+        if (squared < 1e-4) continue;
+        x += dx / squared; z += dz / squared;
+    }
+    const length = Math.hypot(x, z);
+    return length < 1e-6 ? null : { x: x / length, z: z / length };
+}
+
+/**
+ * Sprints away from several threats at once until the bot is `to` blocks from each, when `done()` says so,
+ * after `maxMs`, or when the action is stopped. It goes away from all of them together, not just the
+ * nearest: running from one zombie straight into the next is what a flee that follows the nearest does.
+ * @param {object} bot
+ * @param {object} options
+ * @param {() => object[]|null} options.from - where the threats are now (they may move); null when gone
+ * @param {number} [options.to]
+ * @param {number} [options.maxMs]
+ * @param {() => boolean} [options.done]
+ * @param {(event: object) => void} [options.report]
+ * @returns {Promise<{distance: number|null, ended: string}>} distance: to the nearest threat
+ */
+export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () => false, report = () => {} }) {
     const started = Date.now();
     const blockAt = pos => worldQueries().blockAt(bot, pos);
-    let threat = from();
-    const distance = () => (threat ? flat(bot.entity.position, threat) : null);
+    let threats = from();
+    const distance = () => (threats?.length ? Math.min(...threats.map(point => flat(bot.entity.position, point))) : null);
     const finished = () => {
         if (bot.interrupt_code) return 'stopped';
-        threat = from() ?? threat;
-        if (!threat) return 'gone';
+        const now = from();
+        if (now?.length) threats = now;
+        if (!threats?.length) return 'gone';
         if (distance() >= to) return 'far enough';
         if (done()) return 'done';
         if (Date.now() - started > maxMs) return 'out of time';
@@ -106,7 +143,10 @@ export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () =
     try {
         // The dash: straight away at once, if that way is safe, and on for as long as it stays safe. A
         // sprint in a straight line is the fastest way out; the pathfinder walks more than it sprints.
-        const step = ended ? null : firstStep(blockAt, bot.entity.position, threat);
+        const away = ended ? null : awayFrom(bot.entity.position, threats);
+        const position = bot.entity.position;
+        const step = away ? firstStep(blockAt, position, { x: position.x - away.x, z: position.z - away.z })
+            : ended ? null : firstStep(blockAt, position, threats[0]);
         if (step) {
             const ahead = () => bot.entity.position.offset(step.x * 3, 1.6, step.z * 3);
             await bot.lookAt(ahead(), true);
@@ -121,13 +161,13 @@ export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () =
             }
             bot.clearControlStates();
         }
-        // The rest, by the pathfinder, re-aimed when the threat moves.
+        // The rest, by the pathfinder, re-aimed when a threat moves.
         let aimedAt = null;
         while (!ended && !(ended = finished())) {
-            if (!aimedAt || flat(aimedAt, threat) > 2) {
-                aimedAt = { ...threat };
+            if (!aimedAt || aimedAt.length !== threats.length || threats.some((point, i) => flat(aimedAt[i], point) > 2)) {
+                aimedAt = threats.map(point => ({ ...point }));
                 bot.pathfinder.setMovements(escapeMovements(bot));
-                bot.pathfinder.setGoal(new pf.goals.GoalInvert(new pf.goals.GoalNear(threat.x, threat.y, threat.z, to)), true);
+                bot.pathfinder.setGoal(awayGoal(threats, to), true);
                 if (!step) report({ event: 'step', at: performance.now(), how: 'path' });
             }
             await wait(STEP_MS);
@@ -137,6 +177,12 @@ export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () =
         bot.clearControlStates();
     }
     return { distance: distance(), ended };
+}
+
+// Anywhere at least `to` from every threat: the opposite of "near any of them".
+function awayGoal(threats, to) {
+    const near = threats.map(point => new pf.goals.GoalNear(point.x, point.y, point.z, to));
+    return new pf.goals.GoalInvert(near.length === 1 ? near[0] : new pf.goals.GoalCompositeAny(near));
 }
 
 /**
@@ -179,4 +225,156 @@ export async function hitAndStepBack(bot, { creeper, inReach, to = 8, report = (
     const where = last ? last.position.clone() : null;
     const result = await backOffFrom(bot, { from: () => creeper()?.position ?? where, to, report });
     return { hit, ...result };
+}
+
+// ---- Cover ----
+
+/**
+ * Whether known solid blocks stand between two points. Walks the cells the line crosses (the voxel walk
+ * of sight.js, much simplified) and asks each one through `blockAt`. A cell the bot doesn't know is not
+ * counted as solid: cover is only cover where the bot has seen the wall.
+ * @param {(pos: object) => object|null} blockAt
+ */
+export function lineBlocked(blockAt, a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    const length = Math.hypot(dx, dy, dz);
+    if (length < 1e-6) return false;
+    let x = Math.floor(a.x), y = Math.floor(a.y), z = Math.floor(a.z);
+    const end = { x: Math.floor(b.x), y: Math.floor(b.y), z: Math.floor(b.z) };
+    const stepX = Math.sign(dx), stepY = Math.sign(dy), stepZ = Math.sign(dz);
+    const next = (p, d, cell, step) => (step === 0 ? Infinity : ((step > 0 ? cell + 1 : cell) - p) / d);
+    let tX = next(a.x, dx, x, stepX), tY = next(a.y, dy, y, stepY), tZ = next(a.z, dz, z, stepZ);
+    const deltaX = stepX === 0 ? Infinity : Math.abs(1 / dx), deltaY = stepY === 0 ? Infinity : Math.abs(1 / dy), deltaZ = stepZ === 0 ? Infinity : Math.abs(1 / dz);
+    for (let guard = 0; guard < 256; guard++) {
+        if (tX <= tY && tX <= tZ) { if (tX > 1) break; x += stepX; tX += deltaX; }
+        else if (tY <= tZ) { if (tY > 1) break; y += stepY; tY += deltaY; }
+        else { if (tZ > 1) break; z += stepZ; tZ += deltaZ; }
+        if (x === end.x && y === end.y && z === end.z) break;
+        const block = blockAt({ x, y, z });
+        if (block && block.boundingBox === 'block') return true;
+    }
+    return false;
+}
+
+const BODY = [0.9, 1.6]; // where on a body a shot lands: the chest and the head
+const WIDTH = [[0, 0], [0.35, 0.35], [0.35, -0.35], [-0.35, 0.35], [-0.35, -0.35]]; // its middle and its edges
+
+/**
+ * Whether a body standing with its feet at `feet` is hidden from `eye` by known blocks: its chest and head.
+ * With `wide`, across its whole width too, so that a spot to go to is still cover when the bot stands a
+ * little off its middle, and not only along a line grazing the corner of the wall.
+ */
+export function hiddenFrom(blockAt, eye, feet, { wide = false } = {}) {
+    const across = wide ? WIDTH : WIDTH.slice(0, 1);
+    return BODY.every(dy => across.every(([dx, dz]) => lineBlocked(blockAt, eye, { x: feet.x + dx, y: feet.y + dy, z: feet.z + dz })));
+}
+
+/**
+ * The nearest spots within `radius` where a body would be hidden from `eye`, nearest first: cells the bot
+ * knows, safe to stand in (as for the first step of a back-off), and not right next to the mob.
+ * @param {(pos: object) => object|null} blockAt
+ * @param {{x:number, y:number, z:number}} position - the bot's feet
+ * @param {{x:number, y:number, z:number}} eye - the mob's eye
+ */
+export function coverSpots(blockAt, position, eye, { radius = 6, limit = 5 } = {}) {
+    const here = floorOf(position);
+    const fromMob = Math.hypot(position.x - eye.x, position.z - eye.z);
+    const spots = [];
+    for (let dx = -radius; dx <= radius; dx++) for (let dz = -radius; dz <= radius; dz++) for (let dy = -1; dy <= 1; dy++) {
+        if (dx * dx + dz * dz > radius * radius) continue;
+        const cell = { x: here.x + dx, y: here.y + dy, z: here.z + dz };
+        const centre = { x: cell.x + 0.5, y: cell.y, z: cell.z + 0.5 };
+        if (Math.hypot(centre.x - eye.x, centre.z - eye.z) < Math.min(fromMob, 4)) continue;
+        if (!safeCell(blockAt, cell) || !hiddenFrom(blockAt, eye, centre, { wide: true })) continue;
+        spots.push({ cell, cost: Math.hypot(dx, dz) + Math.abs(dy) * 2 });
+    }
+    return spots.sort((a, b) => a.cost - b.cost).slice(0, limit).map(spot => spot.cell);
+}
+
+/**
+ * Gets out of a mob's line of sight: walks to the nearest spot behind a wall the bot has seen. Ends when the
+ * bot is hidden from the mob, when `done()` says so, after `maxMs`, or when the action is stopped. With no
+ * cover near, it ends at once with 'no cover', for the caller to back out of range instead.
+ * @param {object} bot
+ * @param {object} options
+ * @param {() => object|null} options.eye - the mob's eye now; null when it is gone
+ * @returns {Promise<{ended: string}>}
+ */
+export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, report = () => {} }) {
+    const started = Date.now();
+    const blockAt = pos => worldQueries().blockAt(bot, pos);
+    let from = eye();
+    const finished = () => {
+        if (bot.interrupt_code) return 'stopped';
+        from = eye() ?? from;
+        if (!from) return 'gone';
+        if (hiddenFrom(blockAt, from, bot.entity.position)) return 'covered';
+        if (done()) return 'done';
+        if (Date.now() - started > maxMs) return 'out of time';
+        return null;
+    };
+    let ended = finished();
+    if (ended) return { ended };
+    // A spot is picked for where the mob is now. A skeleton strafes as it shoots, so a spot reached that
+    // doesn't hide the bot any more is picked again, from where the mob has got to.
+    const goTo = () => {
+        const spots = coverSpots(blockAt, bot.entity.position, from);
+        if (!spots.length) return false;
+        bot.pathfinder.setMovements(escapeMovements(bot));
+        bot.pathfinder.setGoal(new pf.goals.GoalCompositeAny(spots.map(cell => new pf.goals.GoalBlock(cell.x, cell.y, cell.z))), false);
+        return true;
+    };
+    if (!goTo()) return { ended: 'no cover' };
+    try {
+        report({ event: 'step', at: performance.now(), how: 'cover' });
+        let tries = 1;
+        while (!(ended = finished())) {
+            if (!bot.pathfinder.isMoving?.() && !bot.pathfinder.goal) {
+                if (tries++ >= 4 || !goTo()) { ended = 'no way there'; break; }
+            }
+            await wait(STEP_MS);
+        }
+    } finally {
+        bot.pathfinder.setGoal(null);
+        bot.clearControlStates();
+    }
+    return { ended };
+}
+
+// ---- The fight ----
+
+/**
+ * Fights one mob, with the best weapon carried, until it is gone from view, until `stop()` says so, or
+ * until the action is stopped. The combat plugin does the hitting and the following; it never chases the
+ * mob out of the fight's range.
+ * @param {object} bot
+ * @param {object} options
+ * @param {() => object|null} options.target - the mob as the bot sees it now, or null
+ * @param {() => boolean} [options.stop]
+ * @param {number} [options.maxMs]
+ * @returns {Promise<{ended: string}>}
+ */
+export async function fightOne(bot, { target, stop = () => false, maxMs = 30000 }) {
+    const weapon = bestWeapon(bot.inventory.items().map(item => item.name));
+    if (weapon && bot.heldItem?.name !== weapon) {
+        const item = bot.inventory.items().find(i => i.name === weapon);
+        if (item) await bot.equip(item, 'hand');
+    }
+    const started = Date.now();
+    let mob = target(), ended = null;
+    if (!mob) return { ended: 'gone' };
+    try {
+        bot.pvp.attack(mob);
+        while (!ended) {
+            await wait(250);
+            mob = target();
+            if (bot.interrupt_code) ended = 'stopped';
+            else if (!mob) ended = 'gone';
+            else if (stop()) ended = 'stopped';
+            else if (Date.now() - started > maxMs) ended = 'out of time';
+        }
+    } finally {
+        bot.pvp.stop();
+    }
+    return { ended };
 }

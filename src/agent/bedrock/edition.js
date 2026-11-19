@@ -204,6 +204,26 @@ function javaNamesFor(registry) {
 // A survival player's reach on Bedrock (see survivalReach).
 const SURVIVAL_REACH = Object.freeze({ blocks: 5, entities: 3 });
 
+// Mobs that attack any player they see, whatever happens, and the ones among them that shoot (see
+// isAggressive and isAiming).
+const ALWAYS_HOSTILE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'zombie_villager_v2', 'skeleton', 'stray', 'bogged',
+    'wither_skeleton', 'creeper', 'witch', 'pillager', 'vindicator', 'evoker', 'ravager', 'slime', 'magma_cube', 'silverfish',
+    'endermite', 'blaze', 'ghast', 'phantom', 'guardian', 'elder_guardian', 'hoglin', 'piglin_brute', 'vex', 'zoglin', 'breeze', 'shulker']);
+const SHOOTERS = new Set(['skeleton', 'stray', 'bogged', 'pillager', 'blaze', 'ghast']);
+const AIM_DEGREES = 20;
+const PUSH_WITHIN_MS = 100;
+// Whether a mob's head faces a point, within `degrees`: the way it looks, as mineflayer turns its yaw (0
+// faces north, -z), against the way to the point.
+function faces(entity, at, degrees) {
+    const yaw = entity.headYaw ?? entity.yaw;
+    if (typeof yaw !== 'number') return false;
+    const dx = at.x - entity.position.x, dz = at.z - entity.position.z;
+    const length = Math.hypot(dx, dz);
+    if (length < 1e-6) return true;
+    const dot = (-Math.sin(yaw) * dx - Math.cos(yaw) * dz) / length;
+    return dot >= Math.cos(degrees * Math.PI / 180);
+}
+
 export const bedrockEdition = Object.freeze({
     name: 'bedrock',
 
@@ -363,6 +383,62 @@ export const bedrockEdition = Object.freeze({
      */
     isFusing(registry, entity) {
         return entity?.name === 'creeper' && Boolean(entity.metadata?.flags?.ignited);
+    },
+
+    /**
+     * Is this mob aiming a ranged attack? A Bedrock server sends no flag for it: a skeleton drawing its bow at
+     * the bot showed none (1.26.63), though the entity flags have names for a crossbow charged (`charged`)
+     * and a blaze or ghast winding up (`charge_attack`), read here in case a server sends them. What a player
+     * does see is the archer turning to face it: a shooter that always attacks players, within 20 degrees of
+     * facing `at` (the eye of whoever asks), is taken to be aiming at it.
+     * @param {{x:number, y:number, z:number}} [at]
+     */
+    isAiming(registry, entity, at) {
+        const flags = entity?.metadata?.flags ?? {}, more = entity?.metadata?.flags_extended ?? {};
+        if (flags.charged || flags.charge_attack || more.facing_target_to_range_attack) return true;
+        if (!SHOOTERS.has(entity?.name) || !at || !entity.position) return false;
+        return faces(entity, at, AIM_DEGREES);
+    },
+
+    /**
+     * Has this mob picked a target and come for it? A Bedrock server doesn't say: a zombie biting the bot
+     * showed no flag and no target (1.26.63). What a Bedrock player goes by is the kind of mob: one that
+     * always attacks players has come for whoever it can see. A neutral mob (an enderman, a spider by day,
+     * a zombified piglin) counts only when it is `angry`.
+     */
+    isAggressive(registry, entity) {
+        return Boolean(entity?.metadata?.flags?.angry) || ALWAYS_HOSTILE.has(entity?.name);
+    },
+
+    /**
+     * Calls `felt({ direction })` each time the bot is hurt. A Bedrock server tells the player it was hurt
+     * with an entity event, and pushes it back from the hit in the same moment (`set_entity_motion`); a
+     * player feels the push. The side the hit came from is the other way from the push. A hit that pushes
+     * nowhere (fire, a fall) gives a null direction.
+     * @returns {() => void} stops listening
+     */
+    onHurt(bot, felt) {
+        let push = null; // {at, x, z}: the last push the server gave the bot
+        const pushed = packet => {
+            if (Number(packet?.runtime_entity_id) !== bot.entity?.id || !packet.velocity) return;
+            push = { at: Date.now(), x: packet.velocity.x, z: packet.velocity.z };
+        };
+        const listener = packet => {
+            if (packet?.event_id !== 'hurt_animation' || Number(packet.runtime_entity_id) !== bot.entity?.id) return;
+            const tell = () => {
+                const recent = push && Date.now() - push.at <= PUSH_WITHIN_MS && Math.hypot(push.x, push.z) > 0.05;
+                const length = recent ? Math.hypot(push.x, push.z) : 0;
+                felt({ direction: recent ? { x: -push.x / length, z: -push.z / length } : null });
+            };
+            // The push comes just before the event, or just after it.
+            if (push && Date.now() - push.at <= PUSH_WITHIN_MS) tell(); else setTimeout(tell, PUSH_WITHIN_MS);
+        };
+        bot._client?.on?.('set_entity_motion', pushed);
+        bot._client?.on?.('entity_event', listener);
+        return () => {
+            bot._client?.off?.('set_entity_motion', pushed);
+            bot._client?.off?.('entity_event', listener);
+        };
     },
 
     /**

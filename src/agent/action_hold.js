@@ -31,11 +31,12 @@ const inForce = hold => Boolean(hold) && now() < Math.min(hold.endsAt, hold.dead
  *     holder's own, and anything more urgent than it)
  * @param {string} options.reason - said to whatever is held: "the bot is backing off from a creeper"
  * @param {number} [options.maxMs] - the longest it can last, whatever happens
+ * @param {string} [options.kind] - what the hold is for, so its holder can tell it from another's
  * @returns {{release: (afterMs?: number) => void, reason: (text: string) => void}}
  */
-export function holdActions(agent, { lets, reason, maxMs = 15000 }) {
+export function holdActions(agent, { lets, reason, maxMs = 15000, kind = 'move' }) {
     const previous = holds.get(agent);
-    const hold = { lets, reason, endsAt: Infinity, deadline: now() + maxMs, waiters: previous?.waiters ?? new Set(), timer: null };
+    const hold = { lets, reason, kind, endsAt: Infinity, deadline: now() + maxMs, waiters: previous?.waiters ?? new Set(), timer: null };
     clearTimeout(previous?.timer);
     holds.set(agent, hold);
     const wake = () => {
@@ -58,6 +59,12 @@ export function holdActions(agent, { lets, reason, maxMs = 15000 }) {
         /** Changes what is said to whatever is held. */
         reason(text) { hold.reason = text; },
     };
+}
+
+/** What the hold in force is for (its `kind`), or null when none is. */
+export function holdKind(agent) {
+    const hold = holds.get(agent);
+    return inForce(hold) ? hold.kind : null;
 }
 
 /** Why an action with this label may not start now, or null when it may. */

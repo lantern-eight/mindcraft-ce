@@ -2,6 +2,8 @@ import pf from 'mineflayer-pathfinder';
 import * as mc from '../../utils/mcdata.js';
 // Block and entity searches go through a swappable provider (raw by default); see world_queries.js.
 import { worldQueries } from './world_queries.js';
+// Path verdicts found a moment ago, when a module keeps them (fork hook, docs/core-hooks.md 26).
+import { keptVerdict, keepVerdict } from './path_verdicts.js';
 
 
 export function getNearestFreeSpace(bot, size=1, distance=8) {
@@ -387,12 +389,15 @@ export async function isClearPath(bot, target) {
      * @param {Entity} target - The target to path to.
      * @returns {boolean} - True if there is a clear path, false otherwise.
      */
+    const kept = keptVerdict(bot, target); // fork hook: an answer found a moment ago (path_verdicts.js)
+    if (kept !== undefined) return kept;
     let movements = new pf.Movements(bot)
     movements.canDig = false;
     movements.canPlaceOn = false;
     movements.canOpenDoors = false;
     let goal = new pf.goals.GoalNear(target.position.x, target.position.y, target.position.z, 1);
     let path = await bot.pathfinder.getPathTo(movements, goal, 100);
+    keepVerdict(bot, target, path.status === 'success'); // fork hook
     return path.status === 'success';
 }
 

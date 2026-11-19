@@ -71,7 +71,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Hearing | Not used | Sounds from sources the bot can't see are reported with a direction, never coordinates. A creeper's hiss sets off the creeper reflex at once |
 | Creepers | A creeper is one more hostile: nothing knows when it is lit, other actions pause the reflexes that would flee or fight it, and fighting follows it into melee range | A creeper reflex that no action pauses backs off from one about to explode, and finishes one that keeps following, by a hit and a step back or by leaving it behind. See [docs/threat-reflexes.md](docs/threat-reflexes.md) |
 | "Not found" | Means there is none nearby | Means the bot hasn't seen any, and the model is told so |
-| Tests | 100 offline tests | 748 offline tests, plus live scenarios on a real server that make no model calls |
+| Tests | 100 offline tests | 784 offline tests, plus live scenarios on a real server that make no model calls |
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
 | Fixes | | Fixes to inherited code, each listed in the [changelog](CHANGELOG.md) |
 
@@ -156,6 +156,7 @@ node tests/live/fairplay_scenarios.js
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
 | `threat_scenarios.js` | The creeper reflex: how fast it steps away from a creeper seen lit or only heard, how far off it is at the blast, a following creeper finished or left behind, and no false alarms among other mobs (`--runs=` sets the timing runs, 5 by default) |
+| `mob_scenarios.js` | The mob reflex, the fight and the enderman gaze guard: what the edition seam reads off a real server (a mob's target and aim, a hit's side), backing away from two zombies, cover from a skeleton, hits from something unseen, running at low health, a lone zombie fought, an enderman never stared at, how often a night full of mobs interrupts the bot, and how many path searches the reflexes ask for standing by (`--stock` runs the last two with Mindcraft's own reflexes, to compare) |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
