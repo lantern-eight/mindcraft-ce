@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.8.0-bedrock.1.9.0] - 2026-11-19
+
+A release for both editions. A player can give the bot standing orders about kinds of mobs (fight, flee or
+ignore), which its reflexes follow at once from then on, and a bot armed with a sword or an axe stands and
+fights zombies and spiders instead of backing away from two at once. No fixes to inherited code. Built on the
+same Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
 ### Added
 
 - Standing orders: a player can tell the bot how to deal with a kind of mob, and its reflexes do so at once
@@ -21,7 +28,7 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `!threatRules` lists them. Orders given by command are kept in the bot's folder, so they outlast a
   restart; a profile can give its own under `threat_rules`. See
   [docs/threat-reflexes.md](docs/threat-reflexes.md#standing-orders).
-- A bot armed with a sword or an axe stands and fights zombies and spiders as they come, two at once
+- A bot armed with a sword or an axe stands and fights zombies and spiders (not cave spiders) as they come, two at once
   included, instead of backing away from two of them: the built-in orders when the profile has no
   `threat_rules`. Unarmed, it keeps to one mob at a time.
 
@@ -890,7 +897,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...HEAD
+[1.8.0-bedrock.1.9.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...v1.8.0-bedrock.1.9.0
 [1.7.1-bedrock.1.8.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.1...v1.7.1-bedrock.1.8.2
 [1.7.1-bedrock.1.8.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.0-bedrock.1.8.0...v1.7.1-bedrock.1.8.1
 [1.7.0-bedrock.1.8.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.6.0-bedrock.1.7.0...v1.7.0-bedrock.1.8.0
