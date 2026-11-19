@@ -77,7 +77,8 @@ try {
     initModes(agent);
     const fair = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'threat-memory-')) });
     assert.ok(fair, 'fair play installed');
-    const reflexes = installThreatReflexes(agent);
+    // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
+    const reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'threat-orders-')) });
     assert.ok(reflexes, 'threat reflexes installed');
     bot.on('idle', () => { bot.clearControlStates(); bot.pathfinder.stop(); bot.modes.unPauseAll(); });
     // The agent's update loop: a round of reflexes every 300 ms.
@@ -365,6 +366,39 @@ try {
         assert.equal(messages.length, 1, messages.join('\n---\n'));
         assert.equal(lowestHealth, 20, 'no damage');
         return outcome;
+    });
+
+    // ---- Standing orders about creepers ----
+
+    await step('told to fight creepers, with a stone sword: one coming is met with a hit at the first meeting, killed, no blast, no damage', async () => {
+        assert.equal(reflexes.orders.give('creepers', 'fight').ok, true);
+        try {
+            const outcome = await chase({ sword: true });
+            assert.equal(outcome.exploded, 0, 'it never went off');
+            assert.equal(outcome.killed, true, JSON.stringify(outcome));
+            assert.equal(outcome.stances[0], 'hit_and_step_back', `met at once: ${JSON.stringify(outcome.stances)}`);
+            assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds: ${JSON.stringify(outcome.stances)}`);
+            assert.equal(lowestHealth, 20, 'no damage');
+            return outcome;
+        } finally {
+            reflexes.orders.give('creepers', 'default');
+        }
+    });
+
+    await step('told to flee creepers, though armed: one coming is left behind for good at the first meeting, no blast, no damage', async () => {
+        assert.equal(reflexes.orders.give('creepers', 'flee').ok, true);
+        try {
+            const outcome = await chase({ sword: true });
+            assert.equal(outcome.exploded, 0, 'it never went off');
+            assert.equal(outcome.stances[0], 'leave', `left at once: ${JSON.stringify(outcome.stances)}`);
+            assert.ok(!outcome.stances.includes('hit_and_step_back'), 'never went back in');
+            assert.ok(outcome.rounds <= 2, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
+            assert.match(messages[0] ?? '', /leaving it behind, as I was told to\./);
+            assert.equal(lowestHealth, 20, 'no damage');
+            return outcome;
+        } finally {
+            reflexes.orders.give('creepers', 'default');
+        }
     });
 
     await step('nuisance: zombies, a skeleton and a spider at night, no creeper: the creeper reflex never interrupts', async () => {
