@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.5.0-bedrock.1.6.0] - 2026-11-18
+
+A release for both editions. A creeper reflex: the bot backs off from a creeper about to explode, whatever it
+is doing, and under fair play it does so the moment it hears the hiss; a creeper that keeps following is hit
+and stepped back from, or left behind. Three fixes to inherited code, all offered to Mindcraft-CE. Built on
+the same Mindcraft-CE commit as 0.1.0.
+
 ### Added
 
 - A creeper reflex, `creeper_safety`, behind a new setting, `threat_reflexes` (on by default). When a creeper
@@ -753,7 +760,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.5.0-bedrock.1.6.0...HEAD
+[1.5.0-bedrock.1.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...v1.5.0-bedrock.1.6.0
 [1.4.0-bedrock.1.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...v1.4.0-bedrock.1.5.0
 [1.3.0-bedrock.1.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...v1.3.0-bedrock.1.4.0
 [1.2.2-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...v1.2.2-bedrock.1.3.1
