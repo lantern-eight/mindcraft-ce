@@ -3,7 +3,7 @@
 // taken only one mob at a time and only when fit for it, and one owner per threat.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideMobThreat, chooseFight, LOW_HEALTH } from '../src/agent/reflexes/mob_decide.js';
+import { decideMobThreat, chooseFight, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
 import { createClaims } from '../src/agent/reflexes/claims.js';
 
 const self = (fields = {}) => ({ position: { x: 0, y: 64, z: 0 }, health: 20, food: 20, gameMode: 'survival', ...fields });
@@ -112,4 +112,10 @@ test('one owner per threat: the fight doesn\'t hold back a crowd, and waits for 
     assert.equal(chooseFight([a], self(), { ownerOf: claims.ownerOf }), null, 'the fight waits for the mob reflex\'s claim');
     t = 5000;
     assert.equal(chooseFight([a], self(), { ownerOf: claims.ownerOf }), a, 'then takes it');
+});
+
+test("an evoker counts as a mob that fights from afar by Bedrock's name for it too", () => {
+    assert.equal(isRanged({ name: 'evoker' }), true);
+    assert.equal(isRanged({ name: 'evocation_illager' }), true);
+    assert.equal(isMelee({ name: 'evocation_illager' }), false);
 });

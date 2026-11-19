@@ -304,3 +304,22 @@ test('targetOf reads a fixed spot out of a pathfinder goal, and nothing out of a
     assert.equal(targetOf({ x: 5, z: -3 }), null, 'no height given');
     assert.equal(targetOf(null), null);
 });
+
+test('N16: a way that leads deeper into a priced place (a danger zone) is left to ordinary travel; one leading out is followed', async () => {
+    // A place priced 20 at its middle, at x 50, falling to nothing 15 blocks out.
+    const priceAt = p => Math.max(0, 20 * (1 - Math.hypot(p.x - 50, p.z) / 15));
+    const memory = laid([at(0, 0), at(100, 0)]);
+
+    const through = legs(stand(memory, at(0.5, 2)));
+    const result = await createNavigator({ memory, legs: through, priceAt }).follow({ x: 100, y: 64, z: 0, range: 2 });
+    assert.equal(result.followed, false, 'the way runs through the middle of it');
+    assert.equal(through.walked.length, 0);
+
+    const unpriced = legs(stand(memory, at(0.5, 2)));
+    assert.equal((await createNavigator({ memory, legs: unpriced, priceAt: () => 0 }).follow({ x: 100, y: 64, z: 0, range: 2 })).followed, true);
+
+    const inside = legs(stand(memory, at(50.5, 1)));
+    const out = await createNavigator({ memory, legs: inside, priceAt }).follow({ x: 100, y: 64, z: 0, range: 2 });
+    assert.equal(out.followed, true, 'from inside, the way out is followed');
+    assert.equal(out.reached, 'end');
+});

@@ -40,8 +40,8 @@ const SEEN_WITHIN = 16;
 const CLOSE = 5;                    // a melee mob this close counts as coming, target or not
 
 // Mobs that fight from afar. A witch throws potions with no tell to see, so it counts as ranged but is
-// never seen aiming.
-const RANGED = new Set(['skeleton', 'stray', 'bogged', 'pillager', 'illusioner', 'evoker', 'witch', 'blaze', 'ghast', 'breeze', 'shulker']);
+// never seen aiming. An evoker is `evocation_illager` on Bedrock.
+const RANGED = new Set(['skeleton', 'stray', 'bogged', 'pillager', 'illusioner', 'evoker', 'evocation_illager', 'witch', 'blaze', 'ghast', 'breeze', 'shulker']);
 // Melee mobs the bot doesn't pick a fight with on its own: poison, or far stronger than an unarmed
 // player. The fight's scope (rule 6) leaves them out, and rule 5b retreats from them.
 const TOO_STRONG = new Set(['cave_spider', 'warden', 'ravager', 'vindicator', 'piglin_brute', 'hoglin', 'zoglin', 'enderman', 'wither_skeleton', 'wither']);
