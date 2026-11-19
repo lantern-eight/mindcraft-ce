@@ -412,7 +412,9 @@ export async function defendSelf(bot, range=9) {
     bot.modes.pause('self_defense');
     bot.modes.pause('cowardice');
     let attacked = false;
-    let enemy = world.getNearestEntityWhere(bot, entity => mc.isHostile(entity), range);
+    // Not a creeper: the combat plugin would follow it to melee range and stay there while it explodes.
+    const isFoe = entity => mc.isHostile(entity) && entity.name !== 'creeper';
+    let enemy = world.getNearestEntityWhere(bot, isFoe, range);
     while (enemy) {
         await equipHighestAttack(bot);
         if (bot.entity.position.distanceTo(enemy.position) >= 4 && enemy.name !== 'creeper' && enemy.name !== 'phantom') {
@@ -431,7 +433,7 @@ export async function defendSelf(bot, range=9) {
         bot.pvp.attack(enemy);
         attacked = true;
         await new Promise(resolve => setTimeout(resolve, 500));
-        enemy = world.getNearestEntityWhere(bot, entity => mc.isHostile(entity), range);
+        enemy = world.getNearestEntityWhere(bot, isFoe, range);
         if (bot.interrupt_code) {
             bot.pvp.stop();
             return false;
@@ -1567,7 +1569,7 @@ export async function avoidEnemies(bot, distance=16) {
      * @example
      * await skills.avoidEnemies(bot, 8);
      **/
-    bot.modes.pause('self_preservation'); // prevents damage-on-low-health from interrupting the bot
+    // self_preservation stays on: a bot fleeing into lava, fire or deep water still needs it to get out.
     let enemy = world.getNearestEntityWhere(bot, entity => mc.isHostile(entity), distance);
     while (enemy) {
         const follow = new pf.goals.GoalFollow(enemy, distance+1); // move a little further away
@@ -1579,7 +1581,8 @@ export async function avoidEnemies(bot, distance=16) {
         if (bot.interrupt_code) {
             break;
         }
-        if (enemy && bot.entity.position.distanceTo(enemy.position) < 3) {
+        // A creeper this close is about to explode: keep walking away from it rather than stop to hit it.
+        if (enemy && enemy.name !== 'creeper' && bot.entity.position.distanceTo(enemy.position) < 3) {
             await attackEntity(bot, enemy, false);
         }
     }

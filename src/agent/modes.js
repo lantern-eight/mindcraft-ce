@@ -3,6 +3,8 @@ import * as world from './library/world.js';
 import * as mc from '../utils/mcdata.js';
 import settings from './settings.js'
 import convoManager from './conversation.js';
+import { heldFrom } from './action_hold.js'; // fork hook (docs/core-hooks.md)
+import { editionOf } from './edition/index.js'; // fork hook (docs/core-hooks.md)
 
 async function say(agent, message) {
     agent.bot.modes.behavior_log += message + '\n';
@@ -131,7 +133,8 @@ const modes_list = [
         on: true,
         active: false,
         update: async function (agent) {
-            const enemy = world.getNearestEntityWhere(agent.bot, entity => mc.isHostile(entity), 8);
+            // defendSelf won't fight a creeper (it explodes next to whoever stands there), so starting it for one would do nothing
+            const enemy = world.getNearestEntityWhere(agent.bot, entity => mc.isHostile(entity) && entity.name !== 'creeper', 8);
             if (enemy && await world.isClearPath(agent.bot, enemy)) {
                 say(agent, `Fighting ${enemy.name}!`);
                 execute(this, agent, async () => {
@@ -246,7 +249,8 @@ const modes_list = [
                 this.next_change = Date.now() + Math.random() * 1000 + 4000;
             }
             if (entity_in_view && this.staring) {
-                let isbaby = entity.type !== 'player' && entity.metadata[16];
+                // Fork hook: a baby's age as the edition keeps it, not Java's metadata entry 16 (docs/core-hooks.md, 13)
+                let isbaby = entity.type !== 'player' && editionOf(agent.bot.registry).isBaby(entity);
                 let height = isbaby ? entity.height/2 : entity.height;
                 agent.bot.lookAt(entity.position.offset(0, height, 0));
             }
@@ -303,6 +307,30 @@ async function execute(mode, agent, func, timeout=-1) {
 let _agent = null;
 const modes_map = {};
 for (let mode of modes_list) {
+    modes_map[mode.name] = mode;
+}
+
+// Fork hook (docs/core-hooks.md): what the profile said about each mode, as last loaded, so a mode that a
+// module registers after the profile was read still starts the way the profile asks.
+let loaded_modes = {};
+
+/**
+ * Fork hook (docs/core-hooks.md): adds a mode from a module of its own, at a chosen place in the list.
+ * The place is its priority, as for the modes above: `before` or `after` names the mode it goes next to;
+ * with neither, or a name that isn't there, it goes last. A mode of the same name is replaced. A profile
+ * that already named it decides whether it is on; otherwise it keeps the `on` it was given.
+ * @param {object} mode - shaped like the modes in modes_list
+ * @param {{before?: string, after?: string}} [where]
+ */
+export function registerMode(mode, { before = null, after = null } = {}) {
+    const old = modes_list.findIndex(m => m.name === mode.name);
+    if (old >= 0) modes_list.splice(old, 1);
+    const next_to = modes_list.findIndex(m => m.name === (before ?? after));
+    const at = next_to < 0 ? modes_list.length : before ? next_to : next_to + 1;
+    mode.active = false;
+    mode.paused = false;
+    if (loaded_modes[mode.name] !== undefined) mode.on = loaded_modes[mode.name];
+    modes_list.splice(at, 0, mode);
     modes_map[mode.name] = mode;
 }
 
@@ -372,6 +400,7 @@ class ModeController {
             this.unPauseAll();
         }
         for (let mode of modes_list) {
+            if (heldFrom(_agent, `mode:${mode.name}`)) continue; // fork hook: a reflex is holding starts (action_hold.js)
             let interruptible = mode.interrupts.some(i => i === 'all') || mode.interrupts.some(i => i === _agent.actions.currentActionLabel);
             if (mode.on && !mode.paused && !mode.active && (_agent.isIdle() || interruptible)) {
                 await mode.update(_agent);
@@ -395,6 +424,7 @@ class ModeController {
     }
 
     loadJson(json) {
+        loaded_modes = { ...loaded_modes, ...json }; // fork hook: kept for modes registered later
         for (let mode of modes_list) {
             if (json[mode.name] != undefined) {
                 mode.on = json[mode.name];

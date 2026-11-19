@@ -315,6 +315,11 @@
         "default": true,
         "description": "Chest sorting: adds !sortChests, which tidies the chests and barrels around the bot (part stacks merged, each kind of item together, related kinds in the same chest). Works with fair play on or off. See docs/chest-sorting.md."
     },
+    "threat_reflexes": {
+        "type": "boolean",
+        "default": true,
+        "description": "Threat reflexes: the bot backs off from a creeper about to explode, even in the middle of another action, and deals with one that keeps following it. Works with fair play on or off. See docs/threat-reflexes.md."
+    },
     "good_neighbor": {
         "type": "object",
         "default": {

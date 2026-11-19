@@ -18,14 +18,14 @@ import { bedrockTestServer } from './bedrock_fixture.js';
 // The quickest first: if the bot can't join or the console doesn't answer, the smoke test says so in half a
 // minute, before the skills walk spends seven minutes on it.
 const SCRIPTS = ['bedrock_smoke', 'bedrock_perception', 'bedrock_memory', 'bedrock_memory_scenarios',
-    'bedrock_fair_play', 'bedrock_storage', 'bedrock_skills'];
+    'bedrock_fair_play', 'bedrock_storage', 'bedrock_threats', 'bedrock_skills'];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const logsArg = process.argv.find(arg => arg.startsWith('--logs='))?.slice('--logs='.length);
 const logs = logsArg ? path.resolve(logsArg) : mkdtempSync(path.join(tmpdir(), 'bedrock-live-'));
 mkdirSync(logs, { recursive: true });
 
-// Fails here, with what to set, rather than seven times over.
+// Fails here, with what to set, rather than once for every script.
 const server = bedrockTestServer();
 if (!server.hasConsole) throw new Error('The scenes are built from the server console: set BEDROCK_TEST_CONSOLE');
 console.log(`Bedrock server ${server.host}:${server.port}; logs in ${logs}`);

@@ -77,6 +77,18 @@ const PROFESSIONS = ['unemployed', 'armorer', 'butcher', 'cartographer', 'cleric
 // A mob's age, at the index the game gives an animal's (see isBaby below).
 const isBaby = entity => Boolean(entity?.metadata?.[16]);
 
+// Where a creeper's fuse is kept in its metadata, found by name once per game data (see isFusing).
+const fuseEntries = new WeakMap(); // registry -> { swell, ignited } metadata indexes, or null
+function fuseEntriesOf(registry) {
+    if (!registry || typeof registry !== 'object') return null;
+    if (!fuseEntries.has(registry)) {
+        const keys = registry.entitiesByName?.creeper?.metadataKeys ?? [];
+        const swell = keys.indexOf('swell_dir'), ignited = keys.indexOf('is_ignited');
+        fuseEntries.set(registry, swell < 0 ? null : { swell, ignited });
+    }
+    return fuseEntries.get(registry);
+}
+
 export const javaEdition = Object.freeze({
     name: 'java',
 
@@ -230,6 +242,25 @@ export const javaEdition = Object.freeze({
      */
     isBaby(entity) {
         return isBaby(entity);
+    },
+
+    /**
+     * Is this creeper's fuse lit? A player sees it: a lit creeper swells and flashes white. Java keeps it in
+     * two entries of the creeper's metadata: `swell_dir`, 1 while the fuse burns and -1 while it runs back
+     * down, and `is_ignited`, set when a player lights it with flint and steel. Both are found by name in the
+     * game data, not by a fixed place, because the place moves when the game adds an entry before them (16
+     * and 18 from 1.21 to 26.3).
+     *
+     * @param {object} registry - the bot's game data
+     * @param {object} entity - a mob the bot can see
+     * @returns {boolean} false for anything that isn't a creeper
+     */
+    isFusing(registry, entity) {
+        if (entity?.name !== 'creeper') return false;
+        const at = fuseEntriesOf(registry);
+        if (!at) return false;
+        const metadata = entity.metadata ?? {};
+        return metadata[at.swell] > 0 || (at.ignited >= 0 && metadata[at.ignited] === true);
     },
 
     /**
