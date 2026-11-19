@@ -9,6 +9,16 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Danger zones, on with `threat_reflexes`: the bot remembers for a while where it met danger, and its walks
+  go round those places. Illagers seen (a pillager, vindicator, evoker or ravager) mark a wide place for 20
+  minutes; a mob seen aiming at the bot, an explosion heard, and hits from something it couldn't see mark a
+  smaller one for 5. Every route the bot plans pays to go deeper into one, more toward its middle, so a
+  walk bends round it when that is cheap enough; going back out is free, so a bot inside one always walks
+  straight out, and a goal inside one is still reached. Only what the bot saw or heard makes a zone. The
+  behavior log says once when illagers were seen; the model gets no message.
+
 ### Fixed
 
 - On Java Edition 1.21.2 and later, fair play's hearing never heard an explosion: those servers send an

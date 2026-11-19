@@ -13,6 +13,10 @@
 //   - the fight (fight_reflex.js), which takes over Mindcraft's `self_defense` in its own place.
 // The mob reflex and the fight share one set of claims (claims.js), one owner per threat. And every look
 // the bot makes keeps clear of an enderman's eyes (gaze.js).
+//
+// Beside the reflexes, danger zones: the danger watch (danger_watch.js) remembers where the bot met
+// danger for a while (danger_zones.js), and every route the bot plans pays to go deeper into one
+// (src/agent/library/place_costs.js), so its walks bend round them.
 import settings from '../settings.js';
 import { registerMode } from '../modes.js';
 import { keepPathVerdicts } from '../library/path_verdicts.js';
@@ -21,12 +25,15 @@ import { createMobReflex } from './mob_reflex.js';
 import { createFightReflex } from './fight_reflex.js';
 import { createClaims } from './claims.js';
 import { guardGaze } from './gaze.js';
+import { createDangerZones } from './danger_zones.js';
+import { createDangerWatch } from './danger_watch.js';
+import { addPlaceCosts } from '../library/place_costs.js';
 
 /**
  * @param {object} agent - the agent, once its modes are set up
  * @param {object} [options]
  * @param {object} [options.config] - the settings to go by
- * @returns {{creeper: object, mob: object, fight: object}|null} what was installed, or null when the setting is off
+ * @returns {{creeper: object, mob: object, fight: object, zones: object}|null} what was installed, or null when the setting is off
  */
 export function installThreatReflexes(agent, { config = settings } = {}) {
     // Only an outright `true` turns it on, so a config that leaves the key out gets stock behavior.
@@ -40,7 +47,9 @@ export function installThreatReflexes(agent, { config = settings } = {}) {
     creeper.watch(agent.bot);
     // Under fair play the bot hears, and a hiss reaches the reflex the moment it arrives. Without fair play
     // there is no hearing, and the reflex goes by sight alone.
-    agent.fairPlay?.onHeard?.(sound => creeper.hear(agent, sound));
+    const zones = createDangerZones();
+    const watch = createDangerWatch({ zones });
+    agent.fairPlay?.onHeard?.(sound => { creeper.hear(agent, sound); watch.hear(agent, sound); });
     const claims = createClaims();
     const mob = createMobReflex({ claims });
     registerMode(mob.mode, { after: creeper.mode.name });
@@ -53,7 +62,11 @@ export function installThreatReflexes(agent, { config = settings } = {}) {
     agent.bot.on?.('respawn', () => { mob.clear(); fight.clear(); claims.clear(); });
     // No look the bot makes, whoever asks for it, meets an enderman's eyes.
     guardGaze(agent.bot);
-    const handle = { creeper, mob, fight, claims };
+    // Where the bot met danger, its routes go round for a while. The zones outlive a respawn: the places
+    // are as dangerous as they were. The watch forgets them when the dimension changes.
+    watch.watch(agent);
+    addPlaceCosts(agent.bot, zones);
+    const handle = { creeper, mob, fight, claims, zones, watch };
     agent.threatReflexes = handle;
     return handle;
 }
