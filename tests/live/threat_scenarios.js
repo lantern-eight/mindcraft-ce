@@ -173,7 +173,8 @@ try {
             const spawned = creeperSpawns[0].at;
             const first = firstStepAfter(spawned, 'sight');
             assert.ok(first, 'it stepped away');
-            assert.ok(!events.some(e => e.event === 'heard'), 'a silent creeper is not heard');
+            // Its hiss isn't heard. The blast is the world's sound, not the creeper's, and is heard.
+            assert.ok(!events.some(e => e.event === 'heard' && e.subject !== 'explosion'), 'a silent creeper is not heard');
             const off = flat(explosions[0].bot, explosions[0].creeper ?? { x: -1.5, z: 0.5 });
             assert.ok(off >= 7, `it was ${off.toFixed(1)} blocks off when it went off`);
             assert.equal(lowestHealth, 20, 'no damage');

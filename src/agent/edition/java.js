@@ -199,8 +199,9 @@ export const javaEdition = Object.freeze({
         // Since 1.21.2 an explosion's sound comes inside the explosion packet, with no sound packet of its
         // own, and its position is the blast's middle in whole blocks. An older server's explosion packet
         // has no sound in it, and sends one in a sound packet as well, so that one is heard there instead.
+        // A packet that says not to play its sound makes none a player could hear.
         const ofExplosion = packet => {
-            if (packet?.sound && packet.center) hear(soundNameOf(bot.registry, packet), { x: packet.center.x, y: packet.center.y, z: packet.center.z });
+            if (packet?.sound && packet.center && packet.playSound !== false) hear(soundNameOf(bot.registry, packet), { x: packet.center.x, y: packet.center.y, z: packet.center.z });
         };
         for (const name of SOUND_AT_SPOT) bot._client?.on?.(name, atSpot);
         bot._client?.on?.(SOUND_OF_ENTITY, ofEntity);

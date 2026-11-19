@@ -129,6 +129,8 @@ test("an explosion is heard where it went off, from the sound inside the explosi
     bot._client.emit('explosion', { center: { x: 4.5, y: 70, z: -2.5 }, radius: 3, sound: { soundId: boom.id - registry.soundsArray[0].id } });
     // An older server's explosion packet carries no sound: it sends one in a sound packet of its own.
     bot._client.emit('explosion', { x: 4.5, y: 70, z: -2.5, radius: 3 });
+    // And one that says not to play it makes none.
+    bot._client.emit('explosion', { center: { x: 9, y: 70, z: 9 }, radius: 3, sound: { soundId: boom.id - registry.soundsArray[0].id }, playSound: false });
     assert.deepEqual(heard, [['entity.generic.explode', { x: 4.5, y: 70, z: -2.5 }]]);
 });
 
