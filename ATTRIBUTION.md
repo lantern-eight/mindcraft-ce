@@ -93,6 +93,19 @@ No code was copied for these. They are credited because the work builds on them.
   the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by world memory's
   things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw.
 
+- **Backing off from a creeper by sprinting, how far, and hitting a following creeper once and stepping
+  back** come from the creeper procedure in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk)
+  fork (`packs/home/creeper_logic.js`). Used by the creeper reflex in `src/agent/reflexes/`.
+- **Taking a creeper's hiss as the sign that its fuse is lit** comes from the defense mode of
+  [`finettt/OpenPlayer`](https://github.com/finettt/OpenPlayer). Used by `src/agent/reflexes/picture.js`, which
+  remembers a hiss until something settles it, by direction and distance band rather than by the mob.
+- **A creeper about to explode outranks every other threat** comes from the threat ranking in the
+  [`winnerspiros/mindcraft`](https://github.com/winnerspiros/mindcraft) fork. Used by `src/agent/reflexes/decide.js`.
+- **A window that holds other work while a reflex acts** comes from the emergency window in the
+  [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce) fork, which also stopped its flee from
+  pausing the protection from lava, fire and drowning. Used by `src/agent/action_hold.js`; the flee is fixed
+  the same way in `src/agent/library/skills.js` (`avoidEnemies`).
+
 ## What This Fork Added
 
 These files are this fork's own work, under CC0 1.0. Source files among them say so in their first line
@@ -103,30 +116,33 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/storage/` (all files)
 - `src/agent/edition/` (all files)
 - `src/agent/bedrock/` (all files)
+- `src/agent/reflexes/` (all files)
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
-  `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/edition.test.js`,
+  `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`,
+  `src/agent/action_hold.js`
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/goto_path_search.test.js`,
   `tests/goto_square_corners.test.js`, `tests/pathfinder_diagonal_corners.test.js`,
   `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/action_stop_race.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
-  `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/door_search.test.js`, `tests/hunting_babies.test.js`, `tests/baby_villagers.test.js`,
+  `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/door_search.test.js`, `tests/hunting_babies.test.js`, `tests/idle_staring_babies.test.js`, `tests/baby_villagers.test.js`,
   `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/item_goal_hunt.test.js`,
   `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`, `tests/place_block_failure.test.js`,
   `tests/place_block_cheat.test.js`, `tests/till_and_sow_cheat.test.js`,
   `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
-  `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`
+  `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,
+  `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
   `tests/helpers/named_cells.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/bedrock_*.js`,
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
-- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
+- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file, and on the `bedrock` branch `CHANGELOG-bedrock.md`
 

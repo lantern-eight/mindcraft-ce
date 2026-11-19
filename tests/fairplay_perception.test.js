@@ -257,6 +257,36 @@ test('E2: hearing gives what and roughly where, never coordinates, and only with
     assert.equal(perception.heard().length, 0, 'old sounds fade');
 });
 
+test('a listener is told of each sound as it arrives, with direction and band only, never a position', () => {
+    const now = clock();
+    const { perception } = setup(() => {}, { now });
+    const told = [];
+    const stop = perception.onHeard(sound => told.push(sound));
+    perception.hearSound('minecraft:entity.creeper.primed', at(-3, 1, 0));
+    perception.hearSound('minecraft:entity.skeleton.ambient', at(40, 1, 0)); // beyond 16 blocks: not heard
+    assert.equal(told.length, 1);
+    const [hiss] = told;
+    assert.deepEqual(Object.keys(hiss).sort(), ['direction', 'distance', 'news', 'seen', 'subject', 'text']);
+    assert.equal(hiss.subject, 'creeper (hissing)');
+    assert.equal(hiss.direction, 'west');
+    assert.equal(hiss.distance, 'very close');
+    assert.equal(hiss.news, true);
+    assert.equal(hiss.seen, false, 'no creeper in view');
+    assert.doesNotMatch(JSON.stringify(hiss), /-?\d+\.\d|"x"|"position"/, 'no coordinates anywhere in it');
+    const { secondsAgo, ...listed } = perception.heard()[0];
+    assert.deepEqual({ ...hiss }, listed, 'the same as heard() lists');
+    stop();
+    perception.hearSound('minecraft:entity.creeper.primed', at(-3, 1, 0));
+    assert.equal(told.length, 1, 'stopped listening');
+});
+
+test('a listener that throws doesn\'t stop the sound being heard', () => {
+    const { perception } = setup(() => {}, {});
+    perception.onHeard(() => { throw new Error('boom'); });
+    perception.hearSound('minecraft:entity.zombie.ambient', at(6, 1, -6));
+    assert.equal(perception.heard().length, 1);
+});
+
 test('hearing reads the server\'s sound packets and names each sound from the right place in the list', () => {
     const { world } = setup(() => {});
     const cow = { id: 21, type: 'animal', name: 'cow', position: at(-4.5, 1, 0.5), height: 1.4 };

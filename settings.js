@@ -143,6 +143,10 @@ const settings = {
     // merged, each kind of item together, related kinds in the same chest). Works with fair play on or
     // off; false leaves the command out. See docs/chest-sorting.md.
     "chest_sorting": true,
+    // Threat reflexes: the bot backs off from a creeper about to explode, even in the middle of another
+    // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
+    // the reflex out. See docs/threat-reflexes.md.
+    "threat_reflexes": true,
     "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
 
     // Allows generated executable code (newAction/executeCode/augments) with host access.

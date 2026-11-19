@@ -1,0 +1,224 @@
+// SPDX-License-Identifier: CC0-1.0
+// The creeper reflex on a real Bedrock Dedicated Server (no model calls, free to run).
+//   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_threats.js
+// bedrock_fixture.js explains the variables; docs/bedrock.md shows a throwaway server to point them at.
+// NEVER a world you care about: creepers explode here, and the scenes are built and torn down from the console.
+//
+// The Bedrock twin of threat_scenarios.js. A Bedrock console can't summon a creeper without its wits or with
+// a fuse of its own length, so a creeper is lit with the event Bedrock's own creepers use to start exploding,
+// `minecraft:start_exploding_forced`, and penned in glass where it must stay put (glass hides nothing from
+// the bot). Mob griefing is turned off, so a blast leaves the scene standing; it still hurts whoever is
+// close, and the bot must take no damage.
+//
+// It also answers what the reflex needs to know about Bedrock: which flag shows the fuse is lit, and that the
+// hiss reaches hearing. A following creeper is only ever left behind on Bedrock (docs/threat-reflexes.md).
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import rootSettings from '../../settings.js';
+import { setSettings } from '../../src/agent/settings.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+
+const NAME = 'BedrockWary';
+const { step, summary } = createReport();
+const server = bedrockTestServer();
+if (!server.hasConsole) throw new Error('The scenes are built from the server console: set BEDROCK_TEST_CONSOLE');
+const cmd = server.command;
+const defaultModes = JSON.parse(readFileSync('profiles/defaults/_default.json', 'utf8')).modes;
+
+let bot, origin, running = true;
+const at = (dx, dy, dz) => origin.offset(dx, dy, dz);
+const xyz = position => `${position.x} ${position.y} ${position.z}`;
+const fill = (a, b, block) => cmd(`fill ${xyz(at(...a))} ${xyz(at(...b))} ${block}`);
+const tpTo = (cell, yaw = 0, settle = 1200) => cmd(`tp ${NAME} ${at(...cell).x + 0.5} ${at(...cell).y} ${at(...cell).z + 0.5} ${yaw} 0`, settle);
+const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+async function waitFor(check, ms, why) {
+    const deadline = Date.now() + ms;
+    while (Date.now() < deadline) {
+        if (await check()) return;
+        await delay(100);
+    }
+    throw new Error(why());
+}
+
+try {
+    setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'strict', world_memory: true, threat_reflexes: true, narrate_behavior: false });
+    const { initBot } = await import('../../src/utils/mcdata.js');
+    const { ActionManager } = await import('../../src/agent/action_manager.js');
+    const { initModes } = await import('../../src/agent/modes.js');
+    const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
+    const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
+    const { editionOf } = await import('../../src/agent/edition/index.js');
+    const skills = await import('../../src/agent/library/skills.js');
+
+    let agent, reflexes;
+    const messages = [], events = [];
+    let lowestHealth = 20;
+    const rawCreeper = () => Object.values(bot.entities).find(e => e.name === 'creeper') ?? null;
+    const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 2 });
+
+    // A stone floor 40 blocks above the bot's spawn, 61 wide, with nothing above it.
+    // A console line can't name a mob to remove (it would need a selector a shell could change), so peaceful
+    // difficulty, which removes every hostile mob, clears the creepers, and normal difficulty comes back.
+    async function reset() {
+        await cmd('difficulty peaceful', 1000);
+        await cmd('difficulty normal');
+        await waitFor(() => !agent?.actions.executing, 15000, () => 'the reflex is still moving');
+        for (let x = -30; x < 30; x += 15) await fill([x, 1, -30], [x + 14, 6, 30], 'air');
+        await fill([-30, 0, -30], [30, 0, 30], 'stone');
+        await cmd(`effect ${NAME} clear`);
+        await cmd(`effect ${NAME} instant_health 1 5`);
+        await tpTo([0, 1, 0], -90, 2500);
+        events.length = 0; messages.length = 0;
+        reflexes?.creeper.picture.clear();
+        lowestHealth = bot.health;
+    }
+    // A creeper lit where it stands, penned in glass so it can't walk.
+    async function litCreeper(cell) {
+        await fill([cell[0] - 1, 1, cell[2] - 1], [cell[0] + 1, 3, cell[2] + 1], 'glass');
+        await fill([cell[0], 1, cell[2]], [cell[0], 2, cell[2]], 'air');
+        const spot = at(...cell);
+        await cmd(`summon creeper ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:start_exploding_forced`, 0);
+        return { x: spot.x + 0.5, z: spot.z + 0.5 };
+    }
+    async function settle(ms = 12000) {
+        await waitFor(() => events.some(e => e.event === 'done'), ms, () => JSON.stringify(events));
+        let quietSince = Date.now(), seen = events.length;
+        await waitFor(() => {
+            if (events.length !== seen || agent.actions.currentActionLabel === 'mode:creeper_safety') { seen = events.length; quietSince = Date.now(); }
+            return Date.now() - quietSince > 2000;
+        }, ms + 10000, () => JSON.stringify(events));
+    }
+
+    await step('the bot joins, the floor is built, and fair play and the creeper reflex are installed', async () => {
+        bot = initBot(NAME);
+        bot.on('error', error => console.error('Bot error:', error.message));
+        await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
+        await delay(2500);
+        origin = bot.entity.position.floored().offset(0, 40, 0);
+        await cmd('gamerule domobspawning false');
+        await cmd('gamerule mobgriefing false');
+        await cmd('time set noon');
+        agent = {
+            name: NAME, bot, task: null, shut_up: true, last_sender: null, blocked_actions: [],
+            prompter: { profile: {}, getInitModes: () => defaultModes },
+            self_prompter: { isActive: () => false, stopLoop: () => {} },
+            openChat: () => {}, handleMessage: (role, text) => messages.push(text),
+            clearBotLogs: () => { bot.output = ''; bot.interrupt_code = false; },
+            requestInterrupt: () => {
+                bot.interrupt_code = true; bot.stopDigging(); bot.pathfinder.setGoal(null); bot.clearControlStates(); bot.pvp?.stop();
+            },
+            isIdle: () => !agent.actions.executing,
+        };
+        agent.actions = new ActionManager(agent);
+        initModes(agent);
+        const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-memory-')) });
+        assert.ok(handle, 'fair play installed');
+        reflexes = installThreatReflexes(agent);
+        assert.ok(reflexes, 'the creeper reflex installed');
+        bot.on('threat_reflex', event => events.push(event));
+        bot.on('health', () => { lowestHealth = Math.min(lowestHealth, bot.health); });
+        bot.on('idle', () => { bot.clearControlStates(); bot.pathfinder.stop(); bot.modes.unPauseAll(); });
+        (async () => {
+            while (running) {
+                const started = Date.now();
+                try { await bot.modes.update(); } catch (error) { console.error('mode update failed:', error); }
+                await delay(Math.max(0, 300 - (Date.now() - started)));
+            }
+        })().catch(error => console.error('the update loop stopped:', error));
+        await reset();
+        assert.equal(bot.blockAt(at(0, 0, 0))?.name, 'stone', 'the bot stands on the floor');
+    });
+
+    await step('a creeper lit 5 blocks away is seen lit: its ignited flag is what the edition seam reads', async () => {
+        await reset();
+        const spot = await litCreeper([5, 1, 0]);
+        await waitFor(() => rawCreeper(), 5000, () => 'no creeper arrived');
+        let lit = false;
+        await waitFor(() => (lit = editionOf(bot.registry).isFusing(bot.registry, rawCreeper() ?? {})), 2000,
+            () => `flags: ${JSON.stringify(rawCreeper()?.metadata?.flags)}`);
+        await settle();
+        return { isFusing: lit, decidedOn: events.find(e => e.event === 'decided')?.key, heard: events.some(e => e.event === 'heard'), spot };
+    });
+
+    const blastDistances = [], hissTimes = [];
+    for (let run = 1; run <= 3; run++) {
+        await step(`a creeper lit 2 blocks away, run ${run}: the bot steps away within 300 ms of the hiss, is 7 or more blocks off when it goes off, and takes no damage`, async () => {
+            await reset();
+            let gone = null;
+            const onGone = entity => { if (entity.name === 'creeper') gone = { bot: bot.entity.position.clone(), creeper: entity.position.clone() }; };
+            bot.on('entityGone', onGone);
+            await litCreeper([-2, 1, 0]);
+            await waitFor(() => gone, 8000, () => JSON.stringify(events));
+            bot.off('entityGone', onGone);
+            const heard = events.find(e => e.event === 'heard');
+            const first = events.find(e => e.event === 'step');
+            assert.ok(first, 'it stepped away');
+            const off = flat(gone.bot, gone.creeper);
+            assert.ok(off >= 7, `it was ${off.toFixed(1)} blocks off when it went off`);
+            await delay(1000);
+            assert.equal(lowestHealth, 20, 'no damage');
+            const ms = heard ? Math.round(first.at - heard.at) : null;
+            if (heard) { assert.ok(ms <= 300, `${ms} ms from the hiss`); hissTimes.push(ms); }
+            blastDistances.push(Number(off.toFixed(1)));
+            return { blocksOffAtBlast: Number(off.toFixed(1)), msFromHiss: ms, how: first.how };
+        });
+    }
+
+    await step('a creeper lit around a corner, never seen: the bot backs off on the hiss alone', async () => {
+        await reset();
+        await fill([2, 1, -6], [2, 4, 6], 'stone');
+        await delay(1500);
+        await litCreeper([4, 1, 0]);
+        await settle();
+        const decided = events.find(e => e.event === 'decided');
+        assert.match(decided.key, /^heard:/, 'from the sound: it never saw the creeper');
+        const away = flat(bot.entity.position, at(4.5, 0, 0.5));
+        assert.ok(away >= 7, `it ended ${away.toFixed(1)} blocks away`);
+        assert.equal(lowestHealth, 20, 'no damage');
+        return { endedBlocksAway: Number(away.toFixed(1)) };
+    });
+
+    await step('a creeper following the bot, which has a stone sword: on Bedrock it is left behind, within 3 rounds, the model told once, no damage', async () => {
+        await reset();
+        await cmd(`give ${NAME} stone_sword 1`, 700);
+        let keepBusy = true;
+        const busy = () => { if (keepBusy && !agent.actions.executing) act('action:stay', () => skills.stay(bot, -1)); };
+        const restart = event => { if (event.event === 'done') setTimeout(busy, 1700); };
+        bot.on('threat_reflex', restart);
+        busy();
+        const start = at(10, 1, 0);
+        await cmd(`summon creeper ${start.x + 0.5} ${start.y} ${start.z + 0.5}`);
+        let quietSince = Date.now();
+        await waitFor(() => {
+            const creeper = rawCreeper();
+            if (!creeper) return true;
+            if (agent.actions.currentActionLabel === 'mode:creeper_safety') quietSince = Date.now();
+            return Date.now() - quietSince > 10000 && flat(bot.entity.position, creeper.position) > 10;
+        }, 90000, () => JSON.stringify(events.filter(e => e.event !== 'step')).slice(-1500));
+        keepBusy = false;
+        bot.off('threat_reflex', restart);
+        await agent.actions.stop();
+        const rounds = events.filter(e => e.event === 'done').length;
+        const stances = events.filter(e => e.event === 'decided').map(e => e.stance);
+        assert.ok(!stances.includes('hit_and_step_back'), 'never goes back in on Bedrock');
+        const endings = events.filter(e => e.event === 'done').map(e => e.ended);
+        assert.ok(rounds <= 3, `${rounds} rounds: ${JSON.stringify(stances)}, ended ${JSON.stringify(endings)}, times ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => Math.round(e.at / 100) / 10))}`);
+        assert.ok(messages.length <= 1, messages.join('\n---\n'));
+        assert.equal(lowestHealth, 20, 'no damage');
+        return { rounds, stances, creeperLeft: Boolean(rawCreeper()) };
+    });
+
+    await step('reaction times and distances over the runs', () => ({ hissMs: hissTimes, blastDistances }));
+} catch (error) {
+    console.error(error);
+} finally {
+    running = false;
+    try { await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true'); } catch { /* the console is gone */ }
+    console.log(JSON.stringify(summary()));
+    bot?.quit();
+    process.exit(summary().status === 'passed' ? 0 : 1);
+}

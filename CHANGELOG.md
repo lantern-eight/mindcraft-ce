@@ -9,6 +9,49 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.5.0-bedrock.1.6.0] - 2026-11-18
+
+A release for both editions. A creeper reflex: the bot backs off from a creeper about to explode, whatever it
+is doing, and under fair play it does so the moment it hears the hiss; a creeper that keeps following is hit
+and stepped back from, or left behind. Three fixes to inherited code, all offered to Mindcraft-CE. Built on
+the same Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- A creeper reflex, `creeper_safety`, behind a new setting, `threat_reflexes` (on by default). When a creeper
+  is about to explode within 7 blocks, or comes within 3, the bot sprints straight away from it, past the
+  range its fuse burns within, whatever it was doing: walking to a player, fighting, or told to `!stay`. A
+  creeper that keeps following is finished: hit once and stepped back from, when the bot has a weapon that
+  kills it in 4 hits or fewer and half its health or more, or else left behind for good. The first step never
+  goes into lava or fire or off a drop of more than 2 blocks. While it backs off, other reflexes and the
+  model's commands wait for it instead of stopping it, and the model is told once per creeper, in one line.
+  It has its own switch in `!setMode`; `cowardice` has no say over it. On Bedrock it works the same, except
+  that a creeper that keeps following is always left behind: a Bedrock creeper's own rules aren't measured
+  yet.
+- Under fair play the creeper reflex also hears: a creeper's hiss close by, or an explosion very close,
+  starts a back-off the moment the sound arrives, even with the creeper out of sight around a corner. The
+  hiss is remembered as a creeper that may still be lit until the bot has been away long enough for its fuse
+  to run down, or sees it with its fuse out.
+
+### Changed
+
+- The descriptions of `!digDown` and `!goToSurface` the model reads say what they do now: under fair play
+  `!digDown` digs a staircase, so the bot moves the way it faces as it digs, and `!goToSurface` climbs by
+  what the bot has seen above it.
+
+### Fixed
+
+- On Bedrock, the idle look-around looks a baby animal in the eye. It read a baby from Java's metadata, so
+  it took every calf for a cow and looked over its head.
+
+- The bot no longer fights a creeper hand to hand. `defendSelf` (and so the `self_defense` reflex) handed a
+  creeper to the combat plugin, which followed it to melee range and stood there while it exploded. Both
+  now leave creepers out.
+- Running from mobs (`cowardice`, `avoidEnemies`) no longer stops to hit a creeper that comes within 3
+  blocks; it keeps walking away from it.
+- Running from mobs no longer switches off `self_preservation` until it is done, so a bot that flees into
+  lava, fire or deep water still gets itself out.
+
 ## [1.4.0-bedrock.1.5.0] - 2026-11-18
 
 A release for both editions. Under fair play, skills handed a spot by its coordinates look at the block
@@ -717,7 +760,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.5.0-bedrock.1.6.0...HEAD
+[1.5.0-bedrock.1.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...v1.5.0-bedrock.1.6.0
 [1.4.0-bedrock.1.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...v1.4.0-bedrock.1.5.0
 [1.3.0-bedrock.1.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...v1.3.0-bedrock.1.4.0
 [1.2.2-bedrock.1.3.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.1-bedrock.1.3.1...v1.2.2-bedrock.1.3.1
