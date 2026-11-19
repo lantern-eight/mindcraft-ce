@@ -373,9 +373,10 @@ try {
             await cmd(`summon ${mob} ${x}.5 70 ${z}.5`);
         await delay(30000);
         await cmd('time set noon');
-        const interruptions = events.filter(e => e.event === 'decided').length;
+        const interruptions = events.filter(e => e.event === 'decided' && e.mode === 'creeper_safety').length;
         assert.equal(interruptions, 0);
-        return { interruptionsIn30s: interruptions };
+        // The other threat reflexes do deal with these mobs (mob_scenarios.js measures them).
+        return { interruptionsIn30s: interruptions, otherReflexMoves: events.filter(e => e.event === 'decided' && e.mode !== 'creeper_safety').length };
     });
 
     await step('after all of that, the server log shows no command issued by the bot', () => {

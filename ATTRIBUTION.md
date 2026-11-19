@@ -105,6 +105,22 @@ No code was copied for these. They are credited because the work builds on them.
   [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce) fork, which also stopped its flee from
   pausing the protection from lava, fire and drowning. Used by `src/agent/action_hold.js`; the flee is fixed
   the same way in `src/agent/library/skills.js` (`avoidEnemies`).
+- **Never looking at an enderman's head** comes from the enderman gaze mode in the
+  [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce) fork. Used by `src/agent/reflexes/gaze.js`.
+- **Keeping whether a mob can be walked to for a few seconds, and leaving alone a mob the bot gave up on**
+  come from the combat work in the [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork
+  (`work/combat.js`). Used by `src/agent/library/path_verdicts.js` and `src/agent/reflexes/fight_reflex.js`.
+- **A stance and a reason for each threat, one owner per threat, and watching a creeper above an
+  underground bot** come from the threat classifier and combat state in the
+  [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by
+  `src/agent/reflexes/mob_decide.js` and `src/agent/reflexes/claims.js`.
+- **A reaction for each kind of mob, and retreating when outnumbered** come from the threat table in the
+  [`JQDAW/mindcraft-RotN`](https://github.com/JQDAW/mindcraft-RotN) fork (`library/threats.js`). Used by
+  `src/agent/reflexes/mob_decide.js`.
+- **When to stand and fight, from measured trials, and moving away from all enemies at once** come from the
+  melee trials in the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork
+  (`docs/melee-combat-20261022.md`). Used by `src/agent/reflexes/mob_decide.js` and `retreatFrom` in
+  `src/agent/reflexes/moves.js`.
 
 ## What This Fork Added
 
@@ -119,7 +135,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/reflexes/` (all files)
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`,
-  `src/agent/action_hold.js`
+  `src/agent/library/path_verdicts.js`, `src/agent/action_hold.js`
 - `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
@@ -140,7 +156,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/helpers/named_cells.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/bedrock_*.js`,
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`

@@ -167,6 +167,77 @@ test('Java reads a creeper\'s lit fuse from its metadata, found by the entry\'s 
     assert.equal(javaEdition.isFusing({}, creeper([[swell, 1]])), false, 'game data with no creeper: never lit');
 });
 
+test('Java reads a ranged mob\'s aim from its metadata, found by name', () => {
+    const registry = minecraftData(GAME_VERSION);
+    const at = (kind, name) => registry.entitiesByName[kind].metadataKeys.indexOf(name);
+    const mob = (kind, entries, extra = {}) => ({ name: kind, metadata: Object.fromEntries(entries), ...extra });
+    // A skeleton raises its bow at a target (aggressive), and draws it (hand active).
+    assert.equal(javaEdition.isAiming(registry, mob('skeleton', [[at('skeleton', 'mob_flags'), 0x04]])), true, 'bow raised');
+    assert.equal(javaEdition.isAiming(registry, mob('skeleton', [[at('skeleton', 'living_entity_flags'), 0x01]])), true, 'bow drawn');
+    assert.equal(javaEdition.isAiming(registry, mob('skeleton', [[at('skeleton', 'mob_flags'), 0x02]])), false, 'only left-handed');
+    assert.equal(javaEdition.isAiming(registry, mob('stray', [])), false, 'nothing said: not aiming');
+    // A pillager loads its crossbow, then holds it up loaded.
+    assert.equal(javaEdition.isAiming(registry, mob('pillager', [[at('pillager', 'is_charging_crossbow'), true]])), true, 'loading');
+    assert.equal(javaEdition.isAiming(registry, mob('pillager', [[at('pillager', 'mob_flags'), 0x04]])), true, 'held up');
+    // A piglin aims only with a crossbow in its hand; with a sword it fights up close.
+    const piglinAngry = [[at('piglin', 'mob_flags'), 0x04]];
+    assert.equal(javaEdition.isAiming(registry, mob('piglin', piglinAngry, { heldItem: { name: 'crossbow' } })), true);
+    assert.equal(javaEdition.isAiming(registry, mob('piglin', piglinAngry, { heldItem: { name: 'golden_sword' } })), false);
+    assert.equal(javaEdition.isAiming(registry, mob('ghast', [[at('ghast', 'is_charging'), true]])), true, 'a ghast opens its mouth');
+    assert.equal(javaEdition.isAiming(registry, mob('blaze', [[at('blaze', 'flags'), 0x01]])), true, 'a blaze glows');
+    // A zombie coming for the bot is aggressive, but has nothing to aim.
+    assert.equal(javaEdition.isAiming(registry, mob('zombie', [[at('zombie', 'mob_flags'), 0x04]])), false);
+    assert.equal(javaEdition.isAiming(registry, null), false);
+});
+
+test('Java reads whether a mob has a target from the aggressive bit of its mob flags', () => {
+    const registry = minecraftData(GAME_VERSION);
+    const flags = registry.entitiesByName.zombie.metadataKeys.indexOf('mob_flags');
+    assert.ok(flags > 0, 'the game data names the entry');
+    assert.equal(javaEdition.isAggressive(registry, { name: 'zombie', metadata: { [flags]: 0x04 } }), true, 'arms out');
+    assert.equal(javaEdition.isAggressive(registry, { name: 'zombie', metadata: { [flags]: 0x06 } }), true, 'left-handed too');
+    assert.equal(javaEdition.isAggressive(registry, { name: 'zombie', metadata: { [flags]: 0x02 } }), false);
+    assert.equal(javaEdition.isAggressive(registry, { name: 'zombie', metadata: {} }), false, 'nothing said yet');
+    assert.equal(javaEdition.isAggressive(registry, { name: 'no_such_mob', metadata: { [flags]: 0x04 } }), false, 'a kind the game data lacks');
+});
+
+test('Java tells the bot which way a hit came from, turned from the angle to where it faces', () => {
+    const listeners = {};
+    // mineflayer's yaw 0 faces north (-z); the game's is 180 there.
+    const bot = { entity: { id: 5, yaw: 0 }, _client: { on: (name, fn) => { listeners[name] = fn; }, off() {} } };
+    const felt = [];
+    javaEdition.onHurt(bot, hit => felt.push(hit.direction));
+    const round = v => ({ x: Math.round(v.x * 100) / 100 + 0, z: Math.round(v.z * 100) / 100 + 0 });
+    // Facing north, a hit at the game's angle -90 from it came from the game's 90: south (+z), behind.
+    listeners.hurt_animation({ entityId: 5, yaw: -90 });
+    assert.deepEqual(round(felt[0]), { x: 0, z: 1 });
+    // Facing east (mineflayer -90 degrees, the game's 270), the same angle comes from the game's 180: west.
+    bot.entity.yaw = -Math.PI / 2;
+    listeners.hurt_animation({ entityId: 5, yaw: -90 });
+    assert.deepEqual(round(felt[1]), { x: -1, z: 0 });
+    listeners.hurt_animation({ entityId: 6, yaw: 0 });
+    assert.equal(felt.length, 2, 'another mob\'s hurt is not the bot\'s');
+});
+
+test('a hit is measured from the facing the bot last sent the server, not the one it shows', () => {
+    const listeners = {}, written = [];
+    const bot = {
+        entity: { id: 5, yaw: Math.PI }, // shown turned south already
+        _client: { on: (name, fn) => { listeners[name] = fn; }, off() {}, write: (name, params) => written.push(name) },
+    };
+    const felt = [];
+    javaEdition.onHurt(bot, hit => felt.push(hit.direction));
+    bot._client.write('look', { yaw: 180, pitch: 0, flags: {} }); // but the server last heard north
+    assert.deepEqual(written, ['look'], 'the packet still goes out');
+    listeners.hurt_animation({ entityId: 5, yaw: -90 });
+    assert.ok(felt[0].z > 0.99, `from the south, measured from north: ${JSON.stringify(felt[0])}`);
+    // A teleport sets the bot facing east (mineflayer -90 degrees, the game's 270) without the bot writing it.
+    bot.entity.yaw = -Math.PI / 2;
+    listeners.position({});
+    listeners.hurt_animation({ entityId: 5, yaw: -90 });
+    assert.ok(felt[1].x < -0.99, `from the west, measured from east: ${JSON.stringify(felt[1])}`);
+});
+
 test('Java keeps a villager\'s job and level together in one metadata entry, and its age at 16', () => {
     const librarian = { name: 'villager', metadata: { 16: false, 18: { villagerType: 2, villagerProfession: 9, level: 3 } } };
     assert.deepEqual(javaEdition.villagerOf(librarian), { baby: false, profession: 'librarian', level: 3 });
