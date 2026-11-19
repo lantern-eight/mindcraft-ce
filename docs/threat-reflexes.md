@@ -395,3 +395,6 @@ left at once.
 `tests/live/danger_scenarios.js` checks the zones: a walk across an arena with no zone and with one where
 illagers were seen, a walk out of the middle of one, and the zones a skeleton aiming and an explosion heard
 leave (see the [README](../README.md#tests)).
+`tests/live/fight_arena.js` measures how a fight goes once the bot has chosen one: rounds of zombies,
+skeletons and spiders against kits from bare hands to iron, each run several times, with wins, time, damage
+and swings per kill. It is a yardstick, run before and after a change to the fight.
