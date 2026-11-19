@@ -1,8 +1,8 @@
 # Core Hooks
 
 Every edit this fork makes to a file that came from Mindcraft-CE is listed here. New code lives in
-`src/agent/fairplay/`, `src/agent/memory/`, `src/agent/storage/` and `src/agent/edition/` and needs no
-entry.
+`src/agent/fairplay/`, `src/agent/memory/`, `src/agent/storage/`, `src/agent/reflexes/` and
+`src/agent/edition/` and needs no entry.
 
 **Why this list exists:** when CE updates, merge it, then re-check each hook below and run the tests. A short
 list keeps that a small job instead of a hunt.
@@ -16,7 +16,7 @@ file.
 | 1 | `src/agent/library/world.js` (plus the new `world_queries.js` beside it) | Every block and entity search in world.js (`findBlocks`, `blockAt`, `entities`, `nearestEntity`) goes through a swappable provider. The default is the raw bot, so stock behavior is unchanged. `getNearestBlocksWhere` also drops positions that come back without a block | All of CE's commands, skills, reflexes and prompts search through world.js, so one provider changes them all at once. The setter lives in `world_queries.js`, not world.js, because world.js is handed to generated code |
 | 2 | `src/agent/agent.js` | One import and one call: `installFairPlay(this)` right after `initModes(this)` | Fair play needs the agent's bot, modes and action runner at startup. The install does nothing when `fair_play` is off |
 | 3 | `src/agent/commands/actions.js` (`!setMode`) | Reports a refusal when `modes.setOn` returns `false`, instead of claiming the mode changed | The cheat-mode lock wraps `setOn`. Without this the model would be told cheat mode is on when it isn't |
-| 4 | `settings.js`, `src/mindcraft/public/settings_spec.json` | New keys `fair_play`, `fair_play_custom`, `good_neighbor` (this fork's default is strict), `world_memory` and `chest_sorting` (both on by default), in both files | Settings live there. They must also be in `settings_spec.json`: MindServer removes any setting that isn't listed there from agents created through its page or API, which would switch fair play off without a word |
+| 4 | `settings.js`, `src/mindcraft/public/settings_spec.json` | New keys `fair_play`, `fair_play_custom`, `good_neighbor` (this fork's default is strict), `world_memory`, `chest_sorting` and `threat_reflexes` (all three on by default), in both files | Settings live there. They must also be in `settings_spec.json`: MindServer removes any setting that isn't listed there from agents created through its page or API, which would switch fair play off without a word |
 | 5 | `src/agent/coder.js` (`generateCode`, `_stageCode`) | Asks `agent.fairPlay.codeRunner()` first: refuses early when code writing is off, otherwise evaluates `!newAction` code through the fair runner instead of a compartment holding the raw bot | The compartment is created inside `_stageCode`; there is no other place to swap what the code receives |
 | 6 | `src/agent/agents/executor.js` (`executeTask`, `_executeCode`) | Same early refusal; runs `executeCode` bodies through the runner instead of host `new Function` with the agent | As above |
 | 7 | `src/agent/agents/code.js` (`generateAugment`, new `_registerFair`) | Under fair play, augments are compiled by the runner and kept in memory, instead of written into `src/` and imported | As above |
@@ -36,6 +36,7 @@ file.
 | 21 | `src/agent/library/skills.js` (`digDown`; plus the new `dig_down_way.js` beside it) | One import and two lines at the top of `digDown`: when a way of digging down is installed for the bot, it does the digging. With none installed the stock body runs. Fair play installs a staircase (`stairs_down.js`) | The stock digDown reads the two blocks under the one it digs, which a player standing there can't see. The setter is kept out of `skills.js` because that file is handed to generated code |
 | 22 | `src/agent/modes.js` (new `registerMode`, `loadJson`) | `registerMode(mode, { before, after })` adds a mode from a module at a chosen place in the list, which is its priority. `loadJson` keeps what the profile said, so a mode registered after the profile was read still starts on or off as the profile asks. Nothing registers a mode unless a module does, so stock behavior is unchanged | The mode list is a fixed array inside `modes.js`, and its order is the priority. The creeper reflex has to run right after `self_preservation`, before any reflex an action can pause, and be switchable with `!setMode` like the others |
 | 23 | `src/agent/action_runtime.js` (`runAction`), `src/agent/modes.js` (`ModeController.update`); plus the new `action_hold.js` beside them | `runAction` asks `action_hold.js` before a start gets in line, and again when it reaches the front: while a reflex holds starts, another reflex is turned down and anything else (a command, the self-prompter, a resumed action) waits for the hold to end. The mode loop skips a reflex the hold doesn't let through. With no hold set nothing waits and nothing is skipped, so stock behavior is unchanged | Every start stops the action running, whoever asks. A reflex backing off from a lit creeper must not be stopped by a lower reflex or a command to walk back, and only `runAction` sees every start. The hold is kept out of `skills.js` and `world.js`, which generated code is handed |
+| 24 | `src/agent/agent.js` | One import and one call: `installThreatReflexes(this)` right after `installStorage(this)` | The creeper reflex registers its mode when the agent starts, and only when `threat_reflexes` is on. It is its own call because it works with fair play off |
 
 ## Replaced Pieces
 

@@ -9,6 +9,17 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- A creeper reflex, `creeper_safety`, behind a new setting, `threat_reflexes` (on by default). When a creeper
+  is about to explode within 7 blocks, or comes within 3, the bot sprints straight away from it, past the
+  range its fuse burns within, whatever it was doing: walking to a player, fighting, or told to `!stay`. A
+  creeper that keeps following is finished: hit once and stepped back from, when the bot has a weapon that
+  kills it in 4 hits or fewer and half its health or more, or else left behind for good. The first step never
+  goes into lava or fire or off a drop of more than 2 blocks. While it backs off, other reflexes and the
+  model's commands wait for it instead of stopping it, and the model is told once per creeper, in one line.
+  It has its own switch in `!setMode`; `cowardice` has no say over it.
+
 ### Fixed
 
 - The bot no longer fights a creeper hand to hand. `defendSelf` (and so the `self_defense` reflex) handed a
