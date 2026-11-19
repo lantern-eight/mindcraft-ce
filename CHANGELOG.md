@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.7.0-bedrock.1.8.0] - 2026-11-19
+
+A release for both editions. The bot remembers for a while where it met danger (illagers, a mob aiming at
+it, an explosion, hits from something it couldn't see), and its walks go round those places, never
+stopping it from walking out of one. On Java Edition 1.21.2 and later the bot hears explosions again, and on
+Bedrock Edition it knows an evoker by Bedrock's name for it. No fixes to inherited code. Built on the same
+Mindcraft-CE commit as 0.1.0.
+
 ### Added
 
 - Danger zones, on with `threat_reflexes`: the bot remembers for a while where it met danger, and its walks
@@ -820,7 +828,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.6.0-bedrock.1.7.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.0-bedrock.1.8.0...HEAD
+[1.7.0-bedrock.1.8.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.6.0-bedrock.1.7.0...v1.7.0-bedrock.1.8.0
 [1.6.0-bedrock.1.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.5.0-bedrock.1.6.0...v1.6.0-bedrock.1.7.0
 [1.5.0-bedrock.1.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...v1.5.0-bedrock.1.6.0
 [1.4.0-bedrock.1.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...v1.4.0-bedrock.1.5.0
