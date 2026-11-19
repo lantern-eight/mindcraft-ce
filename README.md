@@ -156,6 +156,7 @@ node tests/live/fairplay_scenarios.js
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
 | `threat_scenarios.js` | The creeper reflex: how fast it steps away from a creeper seen lit or only heard, how far off it is at the blast, a following creeper finished or left behind, and no false alarms among other mobs (`--runs=` sets the timing runs, 5 by default) |
+| `mob_scenarios.js` | The mob reflex, the fight and the enderman gaze guard: what the edition seam reads off a real server (a mob's target and aim, a hit's side), backing away from two zombies, cover from a skeleton, hits from something unseen, running at low health, a lone zombie fought, an enderman never stared at, how often a night full of mobs interrupts the bot, and how many path searches the reflexes ask for standing by (`--stock` runs the last two with Mindcraft's own reflexes, to compare) |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
