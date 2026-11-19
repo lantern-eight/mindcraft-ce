@@ -49,7 +49,10 @@ test('rule 5: two zombies coming within 8: retreat from both; one is a fair figh
     assert.equal(decision.key, 'crowd');
     assert.deepEqual(decision.from, [a.position, b.position]);
     assert.equal(decideMobThreat([mob('zombie', 5)], self()).stance, 'ignore');
-    assert.equal(decideMobThreat([mob('zombie', 5), mob('zombie', 6, { aggressive: false })], self()).stance, 'ignore', 'one has no target');
+    assert.equal(decideMobThreat([mob('zombie', 5), mob('zombie', 7, { aggressive: false })], self()).stance, 'ignore', 'one has no target, and is 7 off');
+    const close = decideMobThreat([mob('zombie', 3, { aggressive: false }), mob('zombie', 4, { aggressive: false })], self());
+    assert.equal(close.stance, 'retreat', 'two this close are about to');
+    assert.equal(close.from.length, 2, 'and both are run from');
     assert.equal(decideMobThreat([mob('zombie', 5), mob('phantom', 3)], self()).stance, 'ignore', 'a phantom flies: no reason to run');
 });
 
@@ -87,6 +90,8 @@ test('the fight: one melee mob, when fit; never a creeper, a crowd, a ranged mob
     assert.equal(chooseFight([zombie], self({ health: 9 })), null, 'under half health');
     assert.equal(chooseFight([zombie], self({ food: 6 })), null, 'too hungry to sprint');
     assert.equal(chooseFight([zombie, mob('zombie', 6)], self()), null, 'two: the mob reflex retreats');
+    assert.equal(chooseFight([zombie, mob('zombie', 7, { aggressive: false })], self()), null, 'a second one about to come');
+    assert.equal(chooseFight([zombie, mob('zombie', 12, { aggressive: false })], self()), zombie, 'one far off is no matter');
     assert.equal(chooseFight([mob('creeper', 3)], self()), null);
     assert.equal(chooseFight([mob('skeleton', 3)], self()), null);
     assert.equal(chooseFight([mob('zombie', 5, { aggressive: false })], self()), null, 'it has not come for the bot');
@@ -94,16 +99,17 @@ test('the fight: one melee mob, when fit; never a creeper, a crowd, a ranged mob
     assert.equal(chooseFight([zombie], self(), { reachable: () => false }), null, 'no way to it');
 });
 
-test('one owner per threat: the fight holds a mob against a crowd retreat for a moment, not against low health', () => {
+test('one owner per threat: the fight doesn\'t hold back a crowd, and waits for the mob reflex\'s claim', () => {
     let t = 0;
     const claims = createClaims({ now: () => t });
     const a = mob('zombie', 4), b = mob('zombie', 6);
     claims.claim(`id:${a.id}`, 'self_defense');
     const extra = () => ({ ownerOf: claims.ownerOf, now: t });
-    assert.equal(decideMobThreat([a, b], self(), extra()).stance, 'ignore', 'the fight keeps it');
-    assert.equal(decideMobThreat([a, b], self({ health: 4 }), extra()).stance, 'flee', 'urgent: no asking');
-    t = 5000;
-    assert.equal(decideMobThreat([a, b], self(), extra()).stance, 'retreat', 'the claim ran out');
+    assert.equal(decideMobThreat([a, b], self(), extra()).stance, 'retreat', 'a second zombie ends the fight');
+    assert.equal(decideMobThreat([a], self({ health: 8 }), extra()).stance, 'ignore', 'one being fought is not backed away from');
+    assert.equal(decideMobThreat([a], self({ health: 4 }), extra()).stance, 'flee', 'urgent: no asking');
     claims.claim(`id:${a.id}`, 'mob_safety');
     assert.equal(chooseFight([a], self(), { ownerOf: claims.ownerOf }), null, 'the fight waits for the mob reflex\'s claim');
+    t = 5000;
+    assert.equal(chooseFight([a], self(), { ownerOf: claims.ownerOf }), a, 'then takes it');
 });

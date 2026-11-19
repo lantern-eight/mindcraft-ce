@@ -13,8 +13,9 @@
 //   - Whether the mob can be walked to is the kept path verdict (path_verdicts.js), not a new search.
 //   - A mob the bot fought for 30 s without finishing is given up on for a minute, so the bot doesn't keep
 //     going back to one it can't reach or can't kill.
-//   - It claims the mob while it fights (claims.js), so the mob reflex doesn't take it for a crowd retreat
-//     the moment a second mob turns up; an urgent move (low health, a mob aiming) doesn't ask.
+//   - It claims the mob as it starts (claims.js), for 5 s, so the mob reflex doesn't take it for a crowd
+//     retreat the moment a second mob turns up; an urgent move (low health, a mob aiming) doesn't ask. A
+//     crowd that is still there after that is the mob reflex's.
 //   - It stops when the bot's health falls under 6, for the mob reflex to run.
 import convoManager from '../conversation.js';
 import * as world from '../library/world.js';
@@ -23,6 +24,7 @@ import { describeDirection } from '../fairplay/perception.js';
 import { chooseFight, LOW_HEALTH } from './mob_decide.js';
 import { fightOne } from './moves.js';
 import { mobsAround, mobInView, say, selfOf } from './mobs.js';
+import { CLAIM_MS } from './claims.js';
 
 export const MODE_NAME = 'self_defense';
 const GIVE_UP_MS = 60000;
@@ -67,7 +69,7 @@ export function createFightReflex({ claims, now = Date.now }) {
     async function act(agent, pick, self) {
         const bot = agent.bot;
         mode.active = true;
-        claims.claim(`id:${pick.id}`, MODE_NAME, FIGHT_MS);
+        claims.claim(`id:${pick.id}`, MODE_NAME, CLAIM_MS); // long enough not to take turns, not the whole fight
         const interrupted = agent.actions.currentActionLabel;
         const where = describeDirection(self.position, pick.position).text;
         const line = `Fighting the ${pick.name.replace(/_/g, ' ')} (${where}).`;

@@ -13,13 +13,14 @@
 //   4. A ranged mob in view aiming at the bot (a bow raised or drawn, a crossbow held up), within 16:
 //      take cover. Not whenever one is in view: at night that is the difference between a bot that
 //      works and one that keeps running.
-//   5. Two or more melee mobs in view within 8 that have picked a target: retreat from all of them. A
-//      single zombie is a fair fight; two at once killed an unarmed player in measured trials.
+//   5. Two or more melee mobs in view within 8 that have picked a target (or are within 5, about to): retreat
+//      from all of them. A single zombie is a fair fight; two at once killed an unarmed player in measured
+//      trials. A fight already started on one of them doesn't hold this back.
 //   5b. One such mob the bot is in no shape to fight, or that is too strong for a fight nobody asked
 //      for: retreat from it. Health under 10, food 6 or less (no sprinting, no healing), a cave spider's
 //      poison, a warden.
-//   7. Hit twice within a few seconds with no mob in view that could have done it: retreat away from
-//      where the hits came from.
+//   7. Hit twice within a few seconds with no mob in view that could have done it (none within reach, none
+//      that has picked a target, none that shoots): retreat away from where the hits came from.
 //   Anything else: ignore. Rule 6, a lone melee mob in a fair fight, is the fight's (chooseFight below,
 //   run by `self_defense`).
 //
@@ -36,6 +37,7 @@ export const FLEE_TO = 20;
 export const RETREAT_TO = 16;
 export const HITS_WITHIN_MS = 4000; // rule 7: two hits this close together
 const SEEN_WITHIN = 16;
+const CLOSE = 5;                    // a melee mob this close counts as coming, target or not
 
 // Mobs that fight from afar. A witch throws potions with no tell to see, so it counts as ranged but is
 // never seen aiming.
@@ -80,15 +82,17 @@ export function decideMobThreat(mobs, self, { hits = [], now = Date.now(), owner
     const aiming = seen.find(mob => isRanged(mob) && mob.aiming && mob.distance <= AIM_WITHIN);
     if (aiming) return { stance: 'take_cover', key: `id:${aiming.id}`, from: [{ ...aiming.position }], ids: [aiming.id], reason: 'aiming', name: aiming.name, distance: AIM_WITHIN + 2 };
 
-    // 5. Outnumbered. A fight the bot has taken holds for a moment before a crowd ends it (the claims).
-    const coming = seen.filter(mob => isMelee(mob) && mob.aggressive && mob.distance <= CROWD_WITHIN);
-    if (coming.length >= 2 && !coming.some(fought)) {
-        const crowd = mobs.filter(mob => isMelee(mob) && (mob.aggressive || !mob.seenNow) && mob.distance <= SEEN_WITHIN);
+    // 5. Outnumbered: a fight the bot took on one mob doesn't hold this back, a second one changes it. A mob
+    // that close counts whether or not it has picked a target yet: it is about to, and a second or two
+    // waiting for it to show is a second or two of hits.
+    const coming = seen.filter(mob => isMelee(mob) && (mob.aggressive || mob.distance <= CLOSE) && mob.distance <= CROWD_WITHIN);
+    if (coming.length >= 2) {
+        const crowd = mobs.filter(mob => isMelee(mob) && mob.distance <= SEEN_WITHIN && (mob.aggressive || !mob.seenNow || mob.distance <= CLOSE));
         return { stance: 'retreat', key: 'crowd', from: pointsOf(crowd), ids: crowd.map(mob => mob.id), reason: 'outnumbered', names: coming.map(mob => mob.name), distance: RETREAT_TO };
     }
 
     // 5b. One the bot shouldn't fight.
-    if (coming.length === 1 && !fought(coming[0])) {
+    if (coming.length === 1 && !fought(coming[0]) && coming[0].aggressive) {
         const mob = coming[0];
         const why = TOO_STRONG.has(mob.name) ? 'too strong' : self.health < FIGHT_HEALTH ? 'hurt'
             : (self.food ?? 20) <= FIGHT_FOOD ? 'hungry' : null;
@@ -97,7 +101,8 @@ export function decideMobThreat(mobs, self, { hits = [], now = Date.now(), owner
 
     // 7. Hits from something the bot can't see.
     const withSide = recent.filter(hit => hit.direction);
-    if (withSide.length >= 2 && !seen.some(mob => mob.aggressive || mob.aiming)) {
+    const couldHaveDoneIt = mob => mob.distance <= 6 || mob.aggressive || isRanged(mob);
+    if (withSide.length >= 2 && !seen.some(couldHaveDoneIt)) {
         return { stance: 'retreat', key: 'unseen hits', from: hitPoints(withSide, self), ids: [], reason: 'unseen hits', distance: 12 };
     }
     return ignore;
@@ -128,6 +133,8 @@ export function chooseFight(mobs, self, { reachable = () => true, ownerOf = () =
     const coming = mobs.filter(mob => mob.seenNow && isMelee(mob) && mob.aggressive && mob.distance <= CROWD_WITHIN);
     if (coming.length !== 1) return null;
     const mob = coming[0];
+    // Another one close by that hasn't picked a target yet soon will: not a fight to start.
+    if (mobs.some(other => other !== mob && other.seenNow && isMelee(other) && other.distance <= CROWD_WITHIN)) return null;
     if (TOO_STRONG.has(mob.name) || givenUp(mob.id)) return null;
     const owner = ownerOf(`id:${mob.id}`);
     if (owner && owner !== 'self_defense') return null;
