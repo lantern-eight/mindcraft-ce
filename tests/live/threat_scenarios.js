@@ -134,6 +134,7 @@ try {
         await delay(2000); // the hold from the last scene has ended, and the bot has looked around
         events.length = 0; explosions.length = 0; creeperSpawns.length = 0; messages.length = 0;
         reflexes.creeper.picture.clear();
+        reflexes.zones?.clear(); // each scene starts with no danger remembered from the last one's blast
         lowestHealth = bot.health;
     }
     // Waits for the reflex to finish, and then for 2 s more in which it starts nothing new.
