@@ -17,8 +17,15 @@
 // Beside the reflexes, danger zones: the danger watch (danger_watch.js) remembers where the bot met
 // danger for a while (danger_zones.js), and every route the bot plans pays to go deeper into one
 // (src/agent/library/place_costs.js), so its walks bend round them.
+//
+// And standing orders (orders.js): what a player told the bot to do about a kind of mob, fight, flee or
+// ignore, which all three reflexes apply. They start from the profile's `threat_rules`, and the model adds
+// to them by command (order_commands.js), kept in the bot's own folder.
 import settings from '../settings.js';
 import { registerMode } from '../modes.js';
+import { registerCommand } from '../commands/index.js';
+import { createStandingOrders } from './orders.js';
+import { loadSavedOrders, orderCommands, saveOrders } from './order_commands.js';
 import { keepPathVerdicts } from '../library/path_verdicts.js';
 import { createCreeperReflex } from './creeper_reflex.js';
 import { createMobReflex } from './mob_reflex.js';
@@ -33,14 +40,17 @@ import { addPlaceCosts } from '../library/place_costs.js';
  * @param {object} agent - the agent, once its modes are set up
  * @param {object} [options]
  * @param {object} [options.config] - the settings to go by
- * @returns {{creeper: object, mob: object, fight: object, zones: object}|null} what was installed, or null when the setting is off
+ * @param {string} [options.ordersDir] - the folder the standing orders set by command are kept in
+ * @returns {{creeper: object, mob: object, fight: object, zones: object, orders: object}|null} what was
+ *     installed, or null when the setting is off
  */
-export function installThreatReflexes(agent, { config = settings } = {}) {
+export function installThreatReflexes(agent, { config = settings, ordersDir = null } = {}) {
     // Only an outright `true` turns it on, so a config that leaves the key out gets stock behavior.
     if (config.threat_reflexes !== true) return null;
     // The reflexes ask whether they can walk to a mob every round; an answer found a moment ago is kept.
     keepPathVerdicts(agent.bot);
-    const creeper = createCreeperReflex();
+    const orders = installOrders(agent, ordersDir ?? `./bots/${agent.name}`);
+    const creeper = createCreeperReflex({ orders });
     registerMode(creeper.mode, { after: 'self_preservation' });
     // A new life, or a new world, starts with nothing known about creepers.
     agent.bot.on?.('respawn', () => creeper.picture.clear());
@@ -51,11 +61,11 @@ export function installThreatReflexes(agent, { config = settings } = {}) {
     const watch = createDangerWatch({ zones });
     agent.fairPlay?.onHeard?.(sound => { creeper.hear(agent, sound); watch.hear(agent, sound); });
     const claims = createClaims();
-    const mob = createMobReflex({ claims });
+    const mob = createMobReflex({ claims, orders });
     registerMode(mob.mode, { after: creeper.mode.name });
     mob.watch(agent.bot);
     // The fight keeps the stock switch's state: on unless the profile or a command said otherwise.
-    const fight = createFightReflex({ claims });
+    const fight = createFightReflex({ claims, orders });
     fight.mode.on = agent.bot.modes.exists('self_defense') ? agent.bot.modes.isOn('self_defense') : true;
     registerMode(fight.mode, { after: 'cowardice' });
     fight.watch(agent.bot);
@@ -66,7 +76,23 @@ export function installThreatReflexes(agent, { config = settings } = {}) {
     // are as dangerous as they were. The watch forgets them when the dimension changes.
     watch.watch(agent);
     addPlaceCosts(agent.bot, zones);
-    const handle = { creeper, mob, fight, claims, zones, watch };
+    const handle = { creeper, mob, fight, claims, zones, watch, orders };
     agent.threatReflexes = handle;
     return handle;
+}
+
+// The standing orders: the profile's `threat_rules` (the built-in ones when the profile has none), with
+// what the model set by command on top, and the two commands that read and give them.
+function installOrders(agent, dir) {
+    const warn = text => console.warn(`[threat reflexes] ${text}`);
+    // A name is checked against the game's list of mobs once the bot knows its game; before, any is taken.
+    const isMob = name => { const known = agent.bot?.registry?.entitiesByName; return known ? Boolean(known[name]) : true; };
+    const orders = createStandingOrders({
+        profile: agent.prompter?.profile?.threat_rules,
+        saved: loadSavedOrders(dir, { warn }),
+        save: saved => saveOrders(dir, saved, { warn }),
+        isMob, warn,
+    });
+    for (const { command, action } of orderCommands()) registerCommand(command, { action });
+    return orders;
 }

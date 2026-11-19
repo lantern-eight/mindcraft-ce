@@ -9,6 +9,22 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Standing orders: a player can tell the bot how to deal with a kind of mob, and its reflexes do so at once
+  from then on, without asking the model each time. `!setThreatRule("zombies", "fight", 0, 0)` fights
+  zombies however many come; `flee` backs away from them as soon as they come; `ignore` neither fights nor
+  moves away. A mob, a group (`zombies`, `skeletons`, `spiders`, `creepers` and more) or `all` can be named.
+  Each order lapses under its own minimum health (half health unless told), and under 6 health the bot
+  runs from every mob whatever the orders say. Creepers take `fight` (hit it and step back at the first
+  meeting, on Java Edition, armed well enough) and `flee` (leave it for good at once), never `ignore`.
+  `!threatRules` lists them. Orders given by command are kept in the bot's folder, so they outlast a
+  restart; a profile can give its own under `threat_rules`. See
+  [docs/threat-reflexes.md](docs/threat-reflexes.md#standing-orders).
+- A bot armed with a sword or an axe stands and fights zombies and spiders as they come, two at once
+  included, instead of backing away from two of them: the built-in orders when the profile has no
+  `threat_rules`. Unarmed, it keeps to one mob at a time.
+
 ## [1.7.1-bedrock.1.8.2] - 2026-11-19
 
 A release of the tests alone: `npm test` passes on the `bedrock` branch again. The bot's code is the same as

@@ -24,6 +24,13 @@
 //   Anything else: ignore. Rule 6, a lone melee mob in a fair fight, is the fight's (chooseFight below,
 //   run by `self_defense`).
 //
+// Standing orders (orders.js) change rules 4 to 6 for the mobs they name, and never rule 3. `orderOf(mob)`
+// gives the order that applies to a mob now, already lapsed when the bot is under its minimum health:
+//   fight   the fight takes it on, alone or not, strong or not; it counts toward no crowd and no 5b
+//   flee    backed away from as soon as it comes for the bot (after rule 4), instead of fought
+//   ignore  as if it weren't there, but for rule 3 and as a mob that could have dealt a hit (rule 7)
+// A mob with no order goes by the rules above.
+//
 // Seen means in view now. Under fair play that is what the bot sees; without it, every mob the server
 // tracks. Neither ever reads a mob out of view: a stand-in where one was last seen counts only as a place
 // to keep away from.
@@ -53,6 +60,14 @@ export const isMelee = mob => mob.name !== 'creeper' && !isRanged(mob) && !FLYIN
 
 const ignore = { stance: 'ignore' };
 const pointsOf = mobs => mobs.map(mob => ({ ...mob.position }));
+const noOrders = () => null;
+
+// Whether a mob has come for the bot: a melee one that has picked a target, or is close enough that it is
+// about to, within 8; one that shoots, aiming or with a target, within its range.
+function comesFor(mob) {
+    if (isRanged(mob)) return (mob.aiming || mob.aggressive) && mob.distance <= AIM_WITHIN;
+    return (mob.aggressive || mob.distance <= CLOSE) && mob.distance <= CROWD_WITHIN;
+}
 
 /**
  * @param {object[]} mobs - hostile mobs, nearest first: {id, name, position, distance, seenNow, aiming,
@@ -62,16 +77,21 @@ const pointsOf = mobs => mobs.map(mob => ({ ...mob.position }));
  * @param {{at: number, direction: {x:number, z:number}|null}[]} [extra.hits] - hits felt, newest last
  * @param {number} [extra.now]
  * @param {(key: string) => string|null} [extra.ownerOf] - which reflex has taken a mob (the claims)
+ * @param {(mob: object) => {stance: string, distance?: number}|null} [extra.orderOf] - the standing order
+ *     that applies to a mob now
  * @returns {{stance: string, key?: string, from?: object[], ids?: number[], reason?: string, distance?: number}}
  *     `ids`: the mobs it is about, whose places `from` holds as they were
  */
-export function decideMobThreat(mobs, self, { hits = [], now = Date.now(), ownerOf = () => null } = {}) {
+export function decideMobThreat(mobs, self, { hits = [], now = Date.now(), ownerOf = () => null, orderOf = noOrders } = {}) {
     if (self.gameMode === 'creative' || self.gameMode === 'spectator') return ignore;
     const seen = mobs.filter(mob => mob.seenNow && mob.distance <= SEEN_WITHIN);
     const recent = hits.filter(hit => now - hit.at <= HITS_WITHIN_MS);
     const fought = mob => ownerOf(`id:${mob.id}`) === 'self_defense';
+    const stanceOf = mob => orderOf(mob)?.stance ?? null;
+    const own = mob => stanceOf(mob) === null;             // goes by the bot's own judgment
+    const heeded = mob => stanceOf(mob) !== 'ignore';
 
-    // 3. Low health: away from everything, the mobs out of view included.
+    // 3. Low health: away from everything, the mobs out of view included. No order reaches this.
     if (self.health < LOW_HEALTH && (seen.length > 0 || recent.length > 0)) {
         const from = [...pointsOf(mobs.filter(mob => mob.distance <= SEEN_WITHIN)), ...hitPoints(recent, self)];
         const ids = mobs.filter(mob => mob.distance <= SEEN_WITHIN).map(mob => mob.id);
@@ -79,15 +99,24 @@ export function decideMobThreat(mobs, self, { hits = [], now = Date.now(), owner
     }
 
     // 4. A mob aiming at the bot: out of its line of sight.
-    const aiming = seen.find(mob => isRanged(mob) && mob.aiming && mob.distance <= AIM_WITHIN);
+    const aiming = seen.find(mob => own(mob) && isRanged(mob) && mob.aiming && mob.distance <= AIM_WITHIN);
     if (aiming) return { stance: 'take_cover', key: `id:${aiming.id}`, from: [{ ...aiming.position }], ids: [aiming.id], reason: 'aiming', name: aiming.name, distance: AIM_WITHIN + 2 };
+
+    // A standing order to back away: from every mob so ordered that has come for the bot, at once.
+    const toFlee = seen.filter(mob => stanceOf(mob) === 'flee' && comesFor(mob));
+    if (toFlee.length) {
+        const distance = Math.max(...toFlee.map(mob => orderOf(mob).distance ?? RETREAT_TO));
+        const key = toFlee.length === 1 ? `id:${toFlee[0].id}` : 'ordered';
+        return { stance: 'retreat', key, from: pointsOf(toFlee), ids: toFlee.map(mob => mob.id), reason: 'ordered', name: toFlee[0].name, names: toFlee.map(mob => mob.name), distance };
+    }
 
     // 5. Outnumbered: a fight the bot took on one mob doesn't hold this back, a second one changes it. A mob
     // that close counts whether or not it has picked a target yet: it is about to, and a second or two
-    // waiting for it to show is a second or two of hits.
-    const coming = seen.filter(mob => isMelee(mob) && (mob.aggressive || mob.distance <= CLOSE) && mob.distance <= CROWD_WITHIN);
+    // waiting for it to show is a second or two of hits. Only mobs with no order count toward a crowd (the
+    // ones it was told to fight are the fight's), but a crowd is backed away from all at once, those included.
+    const coming = seen.filter(mob => own(mob) && isMelee(mob) && (mob.aggressive || mob.distance <= CLOSE) && mob.distance <= CROWD_WITHIN);
     if (coming.length >= 2) {
-        const crowd = mobs.filter(mob => isMelee(mob) && mob.distance <= SEEN_WITHIN && (mob.aggressive || !mob.seenNow || mob.distance <= CLOSE));
+        const crowd = mobs.filter(mob => heeded(mob) && isMelee(mob) && mob.distance <= SEEN_WITHIN && (mob.aggressive || !mob.seenNow || mob.distance <= CLOSE));
         return { stance: 'retreat', key: 'crowd', from: pointsOf(crowd), ids: crowd.map(mob => mob.id), reason: 'outnumbered', names: coming.map(mob => mob.name), distance: RETREAT_TO };
     }
 
@@ -118,25 +147,42 @@ function hitPoints(hits, self) {
 /**
  * Rule 6, the fight: a lone melee mob coming at the bot, fought only when the bot is fit for it. Measured
  * trials (unarmed, unarmored) won one mob of most kinds and lost two zombies, so the scope is one mob,
- * half health or more, and food to sprint on. The mob reflex retreats from what is left out.
+ * half health or more, and food to sprint on. The mob reflex retreats from what is left out. A standing
+ * order to fight widens it: any mob so ordered that comes for the bot, nearest first, while the bot is at
+ * the order's minimum health or more; ranged ones too, within their range.
  * @param {object[]} mobs - as for decideMobThreat
  * @param {object} self - {health, food, gameMode}
  * @param {object} [extra]
  * @param {(mob: object) => boolean} [extra.reachable] - the cached path verdict
  * @param {(key: string) => string|null} [extra.ownerOf]
  * @param {(id: number) => boolean} [extra.givenUp] - a target the bot gave up on lately
+ * @param {(mob: object) => object|null} [extra.orderOf] - as for decideMobThreat
  * @returns {object|null} the mob to fight
  */
-export function chooseFight(mobs, self, { reachable = () => true, ownerOf = () => null, givenUp = () => false } = {}) {
+export function chooseFight(mobs, self, { reachable = () => true, ownerOf = () => null, givenUp = () => false, orderOf = noOrders } = {}) {
     if (self.gameMode === 'creative' || self.gameMode === 'spectator') return null;
+    if (self.health < LOW_HEALTH) return null;
+    const stanceOf = mob => orderOf(mob)?.stance ?? null;
+    const free = mob => {
+        if (givenUp(mob.id)) return false;
+        const owner = ownerOf(`id:${mob.id}`);
+        return !owner || owner === 'self_defense';
+    };
+
+    // A standing order to fight: the nearest such mob that has come for the bot, however many there are.
+    // Its minimum health was already checked (orderOf gives no order under it).
+    const ordered = mobs.find(mob => mob.seenNow && mob.name !== 'creeper' && stanceOf(mob) === 'fight' && comesFor(mob) && free(mob));
+    if (ordered) return reachable(ordered) ? ordered : null;
+
+    // The bot's own judgment: a lone mob, with the bot fit for it. Mobs it was told to ignore aren't there.
     if (self.health < FIGHT_HEALTH || (self.food ?? 20) <= FIGHT_FOOD) return null;
-    const coming = mobs.filter(mob => mob.seenNow && isMelee(mob) && mob.aggressive && mob.distance <= CROWD_WITHIN);
+    const there = mobs.filter(mob => mob.seenNow && stanceOf(mob) !== 'ignore');
+    const coming = there.filter(mob => isMelee(mob) && mob.aggressive && mob.distance <= CROWD_WITHIN);
     if (coming.length !== 1) return null;
     const mob = coming[0];
+    if (stanceOf(mob) !== null) return null; // flee, or a fight order it isn't free for
     // Another one close by that hasn't picked a target yet soon will: not a fight to start.
-    if (mobs.some(other => other !== mob && other.seenNow && isMelee(other) && other.distance <= CROWD_WITHIN)) return null;
-    if (TOO_STRONG.has(mob.name) || givenUp(mob.id)) return null;
-    const owner = ownerOf(`id:${mob.id}`);
-    if (owner && owner !== 'self_defense') return null;
+    if (there.some(other => other !== mob && isMelee(other) && other.distance <= CROWD_WITHIN)) return null;
+    if (TOO_STRONG.has(mob.name) || !free(mob)) return null;
     return reachable(mob) ? mob : null;
 }

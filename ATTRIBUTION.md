@@ -125,6 +125,13 @@ No code was copied for these. They are credited because the work builds on them.
   melee trials in the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork
   (`docs/melee-combat-20261022.md`). Used by `src/agent/reflexes/mob_decide.js` and `retreatFrom` in
   `src/agent/reflexes/moves.js`.
+- **Threat rules a player or the model sets (fight, flee or ignore for a group of mobs, a minimum health, a
+  distance to flee to), applied at once by the reflex** come from the threat planner in the
+  [`benpham3206/Agent37`](https://github.com/benpham3206/Agent37) project. Used by
+  `src/agent/reflexes/orders.js` and `src/agent/reflexes/order_commands.js`.
+- **Taking a bot's starting reactions to threats from its profile** comes from the instincts in the
+  [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by the profile's
+  `threat_rules` in `src/agent/reflexes/orders.js`.
 
 ## What This Fork Added
 

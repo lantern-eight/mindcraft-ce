@@ -12,13 +12,15 @@ doing, without waiting for the model. There are two reflexes and a fight:
   when the bot is fit for it.
 
 And the bot never looks an enderman in the eye, and remembers for a while where it met danger: its walks
-go round those places.
+go round those places. A player can give it standing orders about a kind of mob (fight zombies, run from
+spiders, ignore skeletons), which the reflexes follow at once from then on.
 
 - [Turning It On](#turning-it-on)
 - [Why Reflexes of Their Own](#why-reflexes-of-their-own)
 - [What the Creeper Reflex Does](#what-the-creeper-reflex-does)
 - [What the Mob Reflex Does](#what-the-mob-reflex-does)
 - [The Fight](#the-fight)
+- [Standing Orders](#standing-orders)
 - [Never Looking an Enderman in the Eye](#never-looking-an-enderman-in-the-eye)
 - [Danger Zones](#danger-zones)
 - [What They Know, and How](#what-they-know-and-how)
@@ -125,9 +127,89 @@ scope. Two or more, or one too strong, are the mob reflex's to back away from.
 It is registered under the same name and in the same place as Mindcraft's, so its switch, the profiles and the
 actions that pause it by name (`goToPlayer`, `defendSelf`, `stay`) keep their meaning.
 
+That is the bot's own judgment. A [standing order](#standing-orders) to fight a kind of mob widens it for
+that kind: and with no orders in the profile, a bot armed with a sword or an axe fights zombies and spiders
+however many come.
+
 **One owner per threat.** The mob reflex and the fight share claims: the one that takes a mob keeps it for
 5 s, so they don't take turns over it, each stopping the other. A fight doesn't hold back a crowd retreat or
 an urgent move (low health, a mob aiming); a retreat does hold back the fight from the mobs it ran from.
+
+## Standing Orders
+
+A player who says "don't run from zombies, fight them" means it until they say otherwise. The model turns
+that into one command, and from then on the reflexes do it the moment a zombie comes, without asking the
+model again.
+
+```
+!setThreatRule("zombies", "fight", 0, 0)       fight zombies, down to half health
+!setThreatRule("spiders", "flee", 0, 24)       back away from spiders, to 24 blocks
+!setThreatRule("skeleton", "ignore", 12, 0)    ignore skeletons while health is 12 or more
+!setThreatRule("zombies", "default", 0, 0)     clear the order: the bot's own judgment again
+!threatRules                                   the orders in force
+```
+
+An order names a mob (`zombie`), a group, or `all`, every hostile mob but creepers. The most exact order
+wins: a mob's own name, then its group, then `all`. The groups, with both editions' names for each mob:
+
+| Group | Mobs |
+|---|---|
+| `zombies` | zombie, husk, drowned, zombie villager |
+| `skeletons` | skeleton, stray, bogged |
+| `spiders` | spider, cave spider |
+| `creepers` | creeper |
+| `endermen` | enderman |
+| `illagers` | pillager, vindicator, evoker, illusioner, ravager |
+| `witches` | witch |
+| `slimes` | slime, magma cube |
+| `piglins` | piglin, piglin brute, zombified piglin |
+| `hoglins` | hoglin, zoglin |
+| `guardians` | guardian, elder guardian |
+| `nether` | blaze, ghast, wither skeleton |
+
+| Order | What the bot does |
+|---|---|
+| `fight` | Fights it when it comes for the bot (a melee mob within 8 blocks that has picked a target or is within 5; one that shoots, aiming or with a target, within 16), the nearest first, however many there are and however strong. It counts toward no crowd and is never backed away from for being too strong. An archer is gone after instead of hidden from |
+| `fight_when_armed` | The same while the bot carries a sword or an axe; unarmed, the bot's own judgment |
+| `flee` | Backs away from it as soon as it comes, to the order's distance (16 blocks unless told), and never fights it |
+| `ignore` | Neither fights it nor moves away from it: it is as if it weren't there. It still counts as what may have dealt a hit, so its hits don't send the bot away from "something it can't see" |
+
+**Each order has a minimum health,** 6 to 20, half health unless told. Under it the order lapses, and the bot
+goes by its own judgment again: a fight under orders stops, and two zombies are a crowd to back away from
+once more. **Under 6 health the bot runs from every mob whatever the orders say**: no order reaches that.
+
+**Creepers** take two orders, and the creeper reflex keeps backing off from a lit one either way:
+
+- `fight`: a creeper seen within 6 blocks is met at once with a sprint-hit and a step back, as a following
+  one is otherwise met only the second time. Only on Java Edition, with a weapon that kills it in 4 hits,
+  and only once its fuse has run down. Unarmed, or on Bedrock, the order changes nothing.
+- `flee`: a creeper seen within 8 blocks, or about to explode, or heard hissing, is left behind for good at
+  once, to 22 blocks unless told, instead of backed off from and met again.
+
+`ignore` is refused for creepers: a lit creeper is always backed off from. `!setMode("creeper_safety",
+false)` is the way to stop that.
+
+**Where orders come from.** A profile can give its own under `threat_rules`, as a stance or as the whole
+order:
+
+```json
+"threat_rules": {
+    "zombies": "fight",
+    "spiders": { "stance": "flee", "distance": 24 },
+    "skeletons": { "stance": "fight_when_armed", "min_health": 14 }
+}
+```
+
+A profile with no `threat_rules` gets the built-in ones, `fight_when_armed` for the `zombies` group and for
+the plain spider: unarmed trials showed a player beating one of them at a time, and a sword or an axe
+is what lets the bot take on more. `"threat_rules": {}` has none. Orders given by command go on top of the
+profile's and are kept in `bots/<name>/threat_rules.json`, so they outlast a restart; one cleared with
+`default` stays cleared even when the profile gives it. Deleting that file goes back to the profile's.
+
+When a move or a fight comes from an order, its line says so, so the model knows why the bot didn't run:
+
+> Your previous action 'action:collectBlocks' was interrupted by self_defense: Fighting the zombie (west,
+> very close), as I was told to.
 
 ## Never Looking an Enderman in the Eye
 
@@ -250,8 +332,13 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
   zombie, a skeleton) counts as having come for the bot as soon as it is in view, and an archer counts as
   aiming when it faces the bot. The crowd rule and the fight start a little sooner there than on Java, where
   the bot waits for the mob to show it.
-- **The fight scope is fixed:** one mob, half health, food to sprint, and the creeper's 4 hits. It can't yet
-  be widened or narrowed by a player, and an armed bot is held to the same scope as an unarmed one.
+- **The bot's own fight scope is one mob,** at half health, with food to sprint on, measured unarmed. Armor
+  doesn't widen it, and a weapon widens it only through orders (the built-in ones cover zombies and the
+  plain spider).
+- **An order is about a kind of mob, not a place or a mob.** "Fight the zombie by the door" or "leave the
+  pillagers at the outpost alone" can't be said as an order.
+- **A fight under orders is still paused by the actions that pause `self_defense`** (`goToPlayer`,
+  `defendSelf`, `stay`), as the bot's own fight is.
 - **The fight is Mindcraft's combat plugin:** no timing of hits to the weapon's cooldown, no shield.
 - **Cover is only behind walls.** The bot doesn't build cover, and a skeleton that walks around the wall finds
   it again; the bot then picks another spot or backs out of range. A skeleton that comes up close is taken
@@ -271,13 +358,15 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 
 | File | What it does |
 |---|---|
-| `install.js` | Registers the creeper reflex right after `self_preservation`, the mob reflex right after it, and the fight in `self_defense`'s place (core hook 22, `registerMode`); connects fair play's hearing; keeps path verdicts; puts the gaze guard on the bot |
+| `install.js` | Registers the creeper reflex right after `self_preservation`, the mob reflex right after it, and the fight in `self_defense`'s place (core hook 22, `registerMode`); connects fair play's hearing; keeps path verdicts; puts the gaze guard on the bot; sets up the standing orders and their commands |
 | `creeper_reflex.js` | The creeper mode: each round it updates the picture, asks for a decision, and acts: hold, move, tell the model; and holds errands near a creeper |
 | `picture.js` | The threat picture: creepers seen and heard, their fuse estimates, hisses remembered and settled. Pure |
 | `decide.js` | `decideThreat`: what to do about the creepers in the picture. Pure, tested with plain objects |
 | `mob_reflex.js` | The mob mode: each round it reads the mobs and the hits, asks for a decision, and acts as the creeper mode does |
 | `fight_reflex.js` | The fight, `self_defense` |
 | `mob_decide.js` | `decideMobThreat` and `chooseFight`: what to do about the other mobs, and which one to fight. Pure |
+| `orders.js` | The standing orders: the groups, which order applies to a mob, when it lapses, the profile's and the built-in ones. Pure |
+| `order_commands.js` | `!threatRules` and `!setThreatRule`, and the file the orders given by command are kept in |
 | `mobs.js` | The hostile mobs around, read the fair way, with the tells the seam reads |
 | `claims.js` | One owner per threat. Pure |
 | `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack`, `takeCover` and `fightOne`, the safe first step, and the line of sight over cells the bot knows |
@@ -294,7 +383,7 @@ perception's `onHeard` listener (`src/agent/fairplay/perception.js`), which pass
 ## Testing
 
 `tests/reflexes_*.test.js` are the unit tests; `reflexes_place_costs.test.js` runs the real pathfinder's
-search with zones. `tests/live/threat_scenarios.js` runs the creeper reflex
+search with zones, and `reflexes_orders.test.js` checks the standing orders and each decision under them. `tests/live/threat_scenarios.js` runs the creeper reflex
 against a real server with no model behind it, and measures the time to the first step away, the distance at
 the blast, damage, the rounds a following creeper takes, the messages to the model, and false alarms among
 other mobs at night. `tests/live/mob_scenarios.js` does the same for the mob reflex, the fight and the gaze

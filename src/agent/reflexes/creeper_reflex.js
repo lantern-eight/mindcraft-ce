@@ -35,7 +35,7 @@ import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
 import { createThreatPicture } from './picture.js';
-import { decideThreat, hitsNeeded } from './decide.js';
+import { bestWeapon, decideThreat, hitsNeeded } from './decide.js';
 import { backOffFrom, hitAndStepBack } from './moves.js';
 
 export const MODE_NAME = 'creeper_safety';
@@ -55,9 +55,10 @@ const ERRANDS = new Set(['hunting', 'item_collecting', 'torch_placing', 'elbow_r
 /**
  * @param {object} [options]
  * @param {() => number} [options.now]
+ * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
  * @returns {{mode: object, hear: Function, picture: object}}
  */
-export function createCreeperReflex({ now = Date.now } = {}) {
+export function createCreeperReflex({ now = Date.now, orders = null } = {}) {
     const picture = createThreatPicture({ now });
     // Mobs seen dying: a killed creeper lies there for a moment, still swollen, but it can't explode.
     const dying = new Set();
@@ -79,13 +80,15 @@ export function createCreeperReflex({ now = Date.now } = {}) {
             const block = worldQueries().blockAt(bot, position.offset(0, dy, 0));
             underground = Boolean(block) && block.boundingBox !== 'empty';
         }
+        const carried = bot.inventory?.items?.().map(item => item.name) ?? [];
         return {
             position: { x: position.x, y: position.y, z: position.z },
             health: bot.health ?? 20,
             gameMode: bot.game?.gameMode,
             edition: editionOf(bot.registry).name,
             underground,
-            hitsNeeded: hitsNeeded(bot.inventory?.items?.().map(item => item.name) ?? []),
+            hitsNeeded: hitsNeeded(carried),
+            armed: bestWeapon(carried) !== null,
         };
     }
 
@@ -110,7 +113,8 @@ export function createCreeperReflex({ now = Date.now } = {}) {
         const bot = agent.bot;
         if (!mode.on || mode.active || !bot?.entity) return;
         const self = look(bot);
-        const decision = decideThreat(picture.creepers(self), self, { explosion: picture.explosion(self) });
+        const order = orders?.orderFor('creeper', self) ?? null;
+        const decision = decideThreat(picture.creepers(self), self, { explosion: picture.explosion(self), order });
         // Not awaited: the move runs as an action, and the round must not hold up the mode loop.
         if (MOVES.has(decision.stance)) act(agent, decision, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
         else keepOut(agent, self);
@@ -225,10 +229,12 @@ export function createCreeperReflex({ now = Date.now } = {}) {
 function sayLine(decision, where) {
     if (decision.reason === 'explosion') return `Something exploded (${where}); backing off.`;
     const what = decision.reason === 'hissed' ? 'A creeper hissed' : decision.reason === 'lit' ? 'A creeper is about to explode'
-        : decision.reason === 'close' ? 'A creeper came close' : 'A creeper keeps following me';
+        : decision.reason === 'close' ? 'A creeper came close' : decision.reason === 'ordered' ? 'A creeper is near'
+            : 'A creeper keeps following me';
     const doing = decision.stance === 'hit_and_step_back' ? 'hitting it and stepping back'
         : decision.stance === 'leave' ? 'leaving it behind' : 'backing off';
-    return `${what} (${where}); ${doing}.`;
+    // A move made because a player said so says so, so the model knows where it came from.
+    return `${what} (${where}); ${doing}${decision.reason === 'ordered' ? ', as I was told to' : ''}.`;
 }
 
 function say(agent, message) {

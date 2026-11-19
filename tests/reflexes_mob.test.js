@@ -5,6 +5,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vec3 } from 'vec3';
+import { mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import path from 'path';
 import minecraftData from 'minecraft-data';
 import { ActionManager } from '../src/agent/action_manager.js';
 import { heldFrom } from '../src/agent/action_hold.js';
@@ -27,7 +30,8 @@ function makeBot() {
         username: 'Bot', output: '', interrupt_code: false, registry, health: 20, food: 20, game: { gameMode: 'survival' },
         entity: { position: new Vec3(0.5, 64, 0.5), id: 0 },
         entities: {}, controls, attacking: null,
-        inventory: { items: () => [] },
+        inventory: { items: () => [] }, heldItem: null,
+        async equip(item) { bot.heldItem = item; },
         on(name, fn) { (listeners[name] ??= []).push(fn); },
         emit(name, ...args) { for (const fn of listeners[name] ?? []) fn(...args); },
         blockAt: pos => (Math.floor(pos.y) <= 63 ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' }),
@@ -60,12 +64,12 @@ function makeBot() {
     return bot;
 }
 
-function makeAgent(profileModes = null) {
+function makeAgent(profileModes = null, { threatRules } = {}) {
     const bot = makeBot();
     const messages = [];
     const agent = {
         name: 'Bot', bot, task: null, shut_up: true, last_sender: null,
-        prompter: { getInitModes: () => profileModes },
+        prompter: { getInitModes: () => profileModes, profile: threatRules === undefined ? {} : { threat_rules: threatRules } },
         self_prompter: { isActive: () => false, stopLoop() {} },
         openChat() {}, handleMessage: (role, text) => messages.push(text),
         clearBotLogs() { bot.output = ''; bot.interrupt_code = false; },
@@ -74,7 +78,8 @@ function makeAgent(profileModes = null) {
     };
     agent.actions = new ActionManager(agent);
     initModes(agent);
-    const installed = installThreatReflexes(agent, { config: { threat_reflexes: true } });
+    const ordersDir = mkdtempSync(path.join(tmpdir(), 'threat-rules-'));
+    const installed = installThreatReflexes(agent, { config: { threat_reflexes: true }, ordersDir });
     return { agent, bot, messages, installed };
 }
 let nextId = 100;
@@ -168,6 +173,44 @@ test('hurt and with a zombie coming, the bot backs away instead of fighting', as
     assert.equal(agent.actions.currentActionLabel, 'mode:mob_safety');
     await waitUntil(() => !agent.actions.executing, 9000);
     assert.ok(bot.entity.position.x > 10, `went east, away: ${bot.entity.position}`);
+    bot.stopWalking();
+});
+
+test('armed, the built-in order fights two zombies one after the other instead of backing away', async () => {
+    const { agent, bot, installed, messages } = makeAgent();
+    bot.inventory.items = () => [{ name: 'iron_sword' }];
+    const [near, far] = put(bot, zombie(-3.5), zombie(-5.5, 2.5));
+    installed.mob.round(agent);
+    assert.equal(agent.actions.executing, false, 'no crowd retreat');
+    agent.actions.runAction('action:collectBlocks', () => new Promise(() => {}));
+    await delay(10);
+    await installed.fight.round(agent);
+    await delay(20);
+    assert.equal(agent.actions.currentActionLabel, 'mode:self_defense');
+    assert.equal(bot.attacking?.id, near.id, 'the nearer one first');
+    assert.equal(bot.heldItem?.name, 'iron_sword');
+    delete bot.entities[near.id];
+    await waitUntil(() => !agent.actions.executing, 3000);
+    assert.match(messages[0], /Fighting the zombie \(west, very close\), as I was told to\./);
+    await installed.fight.round(agent);
+    await delay(20);
+    assert.equal(bot.attacking?.id, far.id, 'then the other');
+    bot.health = 9; // under the order's minimum: the fight stops, and the crowd rules are back
+    await waitUntil(() => !agent.actions.executing, 3000);
+    bot.stopWalking();
+});
+
+test('a standing order given by command applies at the next round: flee from a lone zombie', async () => {
+    const { agent, bot, installed } = makeAgent(null, { threatRules: {} });
+    put(bot, zombie(-3.5));
+    installed.mob.round(agent);
+    assert.equal(agent.actions.executing, false, 'a lone zombie is a fair fight');
+    installed.orders.give('zombies', 'flee', { distance: 12 });
+    installed.mob.round(agent);
+    await delay(20);
+    assert.equal(agent.actions.currentActionLabel, 'mode:mob_safety');
+    await waitUntil(() => !agent.actions.executing, 9000);
+    assert.ok(bot.entity.position.x >= 8, `went east, away: ${bot.entity.position}`);
     bot.stopWalking();
 });
 
