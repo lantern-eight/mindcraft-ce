@@ -22,6 +22,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   commands wait for it, and the model hears about the same threat once a minute at most. It has its own
   switch in `!setMode`; `cowardice` keeps its own meaning and stays off by default.
 
+- With `threat_reflexes` on, the bot never looks an enderman in the eye. Any look that would come close
+  to an enderman's head (the idle look-around, a dash away from a creeper, a walk) is lowered to its feet.
+
 ### Changed
 
 - While a creeper that isn't lit is within 8 blocks, the reflexes that run errands for an idle bot (picking

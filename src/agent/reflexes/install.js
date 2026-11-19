@@ -11,7 +11,8 @@
 //   - the mob reflex, `mob_safety` (mob_reflex.js), right after it: low health, mobs aiming, crowds, hits
 //     from something unseen;
 //   - the fight (fight_reflex.js), which takes over Mindcraft's `self_defense` in its own place.
-// The mob reflex and the fight share one set of claims (claims.js), one owner per threat.
+// The mob reflex and the fight share one set of claims (claims.js), one owner per threat. And every look
+// the bot makes keeps clear of an enderman's eyes (gaze.js).
 import settings from '../settings.js';
 import { registerMode } from '../modes.js';
 import { keepPathVerdicts } from '../library/path_verdicts.js';
@@ -19,6 +20,7 @@ import { createCreeperReflex } from './creeper_reflex.js';
 import { createMobReflex } from './mob_reflex.js';
 import { createFightReflex } from './fight_reflex.js';
 import { createClaims } from './claims.js';
+import { guardGaze } from './gaze.js';
 
 /**
  * @param {object} agent - the agent, once its modes are set up
@@ -49,6 +51,8 @@ export function installThreatReflexes(agent, { config = settings } = {}) {
     registerMode(fight.mode, { after: 'cowardice' });
     fight.watch(agent.bot);
     agent.bot.on?.('respawn', () => { mob.clear(); fight.clear(); claims.clear(); });
+    // No look the bot makes, whoever asks for it, meets an enderman's eyes.
+    guardGaze(agent.bot);
     const handle = { creeper, mob, fight, claims };
     agent.threatReflexes = handle;
     return handle;

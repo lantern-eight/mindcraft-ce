@@ -105,6 +105,8 @@ No code was copied for these. They are credited because the work builds on them.
   [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce) fork, which also stopped its flee from
   pausing the protection from lava, fire and drowning. Used by `src/agent/action_hold.js`; the flee is fixed
   the same way in `src/agent/library/skills.js` (`avoidEnemies`).
+- **Never looking at an enderman's head** comes from the enderman gaze mode in the
+  [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce) fork. Used by `src/agent/reflexes/gaze.js`.
 - **Keeping whether a mob can be walked to for a few seconds, and leaving alone a mob the bot gave up on**
   come from the combat work in the [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork
   (`work/combat.js`). Used by `src/agent/library/path_verdicts.js` and `src/agent/reflexes/fight_reflex.js`.
