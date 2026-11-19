@@ -108,6 +108,17 @@ No code was copied for these. They are credited because the work builds on them.
 - **Keeping whether a mob can be walked to for a few seconds** comes from the combat work in the
   [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork (`work/combat.js`). Used by
   `src/agent/library/path_verdicts.js`.
+- **A stance and a reason for each threat, one owner per threat, and watching a creeper above an
+  underground bot** come from the threat classifier and combat state in the
+  [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by
+  `src/agent/reflexes/mob_decide.js` and `src/agent/reflexes/claims.js`.
+- **A reaction for each kind of mob, and retreating when outnumbered** come from the threat table in the
+  [`JQDAW/mindcraft-RotN`](https://github.com/JQDAW/mindcraft-RotN) fork (`library/threats.js`). Used by
+  `src/agent/reflexes/mob_decide.js`.
+- **When to stand and fight, from measured trials, and moving away from all enemies at once** come from the
+  melee trials in the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork
+  (`docs/melee-combat-20261022.md`). Used by `src/agent/reflexes/mob_decide.js` and `retreatFrom` in
+  `src/agent/reflexes/moves.js`.
 
 ## What This Fork Added
 

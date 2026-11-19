@@ -9,6 +9,19 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- A second threat reflex, `mob_safety`, for every hostile mob other than creepers, on with
+  `threat_reflexes`. Whatever the bot is doing, even told to `!stay`, it runs from the mobs around when its
+  health is under 6; gets behind a wall it has seen when a skeleton, a pillager or another ranged mob aims
+  at it (a bow raised or drawn, a crossbow held up), and backs out of range where there is none; backs away
+  from two or more mobs coming at it at once, away from all of them together; backs away from a single mob
+  when it is too hurt (under half health) or too hungry to fight, or the mob is too strong for a fight
+  nobody asked for (a cave spider, a warden, an enderman that was provoked); and gets away when hit twice in
+  a few seconds by something it can't see, from the side the hits came from. Other reflexes and the model's
+  commands wait for it, and the model hears about the same threat once a minute at most. It has its own
+  switch in `!setMode`; `cowardice` keeps its own meaning and stays off by default.
+
 ### Changed
 
 - With `threat_reflexes` on, whether the bot can walk to a mob or an item is worked out once and kept for 3 s
