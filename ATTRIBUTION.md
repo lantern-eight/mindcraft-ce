@@ -105,6 +105,9 @@ No code was copied for these. They are credited because the work builds on them.
   [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce) fork, which also stopped its flee from
   pausing the protection from lava, fire and drowning. Used by `src/agent/action_hold.js`; the flee is fixed
   the same way in `src/agent/library/skills.js` (`avoidEnemies`).
+- **Keeping whether a mob can be walked to for a few seconds** comes from the combat work in the
+  [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork (`work/combat.js`). Used by
+  `src/agent/library/path_verdicts.js`.
 
 ## What This Fork Added
 
@@ -119,7 +122,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/reflexes/` (all files)
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`,
-  `src/agent/action_hold.js`
+  `src/agent/library/path_verdicts.js`, `src/agent/action_hold.js`
 - `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,

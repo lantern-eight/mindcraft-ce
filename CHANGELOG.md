@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- With `threat_reflexes` on, whether the bot can walk to a mob or an item is worked out once and kept for 3 s
+  (less if either moves 4 blocks), instead of a new path search each reflex round. The reflexes that hunt,
+  pick up items, fight and run away each asked every round, which with mobs about took most of the round.
+
 ## [1.5.0-bedrock.1.6.0] - 2026-11-18
 
 A release for both editions. A creeper reflex: the bot backs off from a creeper about to explode, whatever it

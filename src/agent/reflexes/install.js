@@ -9,6 +9,7 @@
 // Today this is the creeper reflex (creeper_reflex.js), registered right after `self_preservation`.
 import settings from '../settings.js';
 import { registerMode } from '../modes.js';
+import { keepPathVerdicts } from '../library/path_verdicts.js';
 import { createCreeperReflex } from './creeper_reflex.js';
 
 /**
@@ -20,6 +21,8 @@ import { createCreeperReflex } from './creeper_reflex.js';
 export function installThreatReflexes(agent, { config = settings } = {}) {
     // Only an outright `true` turns it on, so a config that leaves the key out gets stock behavior.
     if (config.threat_reflexes !== true) return null;
+    // The reflexes ask whether they can walk to a mob every round; an answer found a moment ago is kept.
+    keepPathVerdicts(agent.bot);
     const creeper = createCreeperReflex();
     registerMode(creeper.mode, { after: 'self_preservation' });
     // A new life, or a new world, starts with nothing known about creepers.
