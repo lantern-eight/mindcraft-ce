@@ -141,6 +141,26 @@ function bedrockBot(registry, columns, position) {
     return bot;
 }
 
+test('a Bedrock mob\'s aim and its target are among its entity flags', () => {
+    assert.equal(bedrockEdition.isAiming(null, { name: 'pillager', metadata: { flags: { charged: true } } }), true);
+    assert.equal(bedrockEdition.isAiming(null, { name: 'skeleton', metadata: { flags: {}, flags_extended: { facing_target_to_range_attack: true } } }), true);
+    assert.equal(bedrockEdition.isAiming(null, { name: 'skeleton', metadata: { flags: {} } }), false);
+    assert.equal(bedrockEdition.isAiming(null, { name: 'skeleton' }), false, 'no metadata yet');
+    assert.equal(bedrockEdition.isAggressive(null, { name: 'zombie', metadata: { flags: { angry: true } } }), true);
+    assert.equal(bedrockEdition.isAggressive(null, { name: 'zombie', metadata: { 16: 4 } }), false, 'Java\'s entry means nothing on Bedrock');
+});
+
+test('a Bedrock bot feels a hit on itself, from no side it is told', () => {
+    const listeners = {};
+    const bot = { entity: { id: 3 }, _client: { on: (name, fn) => { listeners[name] = fn; }, off() {} } };
+    const felt = [];
+    bedrockEdition.onHurt(bot, hit => felt.push(hit));
+    listeners.entity_event({ event_id: 'hurt_animation', runtime_entity_id: 3n });
+    listeners.entity_event({ event_id: 'hurt_animation', runtime_entity_id: 4n });
+    listeners.entity_event({ event_id: 'death_animation', runtime_entity_id: 3n });
+    assert.deepEqual(felt, [{ direction: null }]);
+});
+
 test('Bedrock answers every question the edition seam asks', () => {
     // A question added to the seam for Java and not answered here stops whatever asks it on a Bedrock
     // bot, with an error, instead of failing a test.

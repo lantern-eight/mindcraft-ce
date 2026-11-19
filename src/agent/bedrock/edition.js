@@ -366,6 +366,38 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
+     * Is this mob aiming a ranged attack? A Bedrock mob's entity flags say so: `charged` for a crossbow
+     * held up loaded, `charge_attack` for a blaze or ghast winding up, and `facing_target_to_range_attack`
+     * among the extended flags for a mob turning to shoot.
+     */
+    isAiming(registry, entity) {
+        const flags = entity?.metadata?.flags ?? {}, more = entity?.metadata?.flags_extended ?? {};
+        return Boolean(flags.charged || flags.charge_attack || more.facing_target_to_range_attack);
+    },
+
+    /**
+     * Has this mob picked a target and come for it? A Bedrock mob that has one is `angry` among its
+     * entity flags.
+     */
+    isAggressive(registry, entity) {
+        return Boolean(entity?.metadata?.flags?.angry);
+    },
+
+    /**
+     * Calls `felt({ direction })` each time the bot is hurt. A Bedrock server tells the player it was hurt
+     * with an entity event, and doesn't say from which side, so `direction` is null.
+     * @returns {() => void} stops listening
+     */
+    onHurt(bot, felt) {
+        const listener = packet => {
+            if (packet?.event_id !== 'hurt_animation' || Number(packet.runtime_entity_id) !== bot.entity?.id) return;
+            felt({ direction: null });
+        };
+        bot._client?.on?.('entity_event', listener);
+        return () => bot._client?.off?.('entity_event', listener);
+    },
+
+    /**
      * Is this mob a villager, and is it a child, what is its job and its level? Bedrock's villager is
      * `villager_v2` (`villager` is the one from before villages were reworked, kept for old worlds). Its
      * job is its `variant`, numbered in Bedrock's own order, and its level is its `trade_tier`, which

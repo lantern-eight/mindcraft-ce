@@ -89,6 +89,35 @@ function fuseEntriesOf(registry) {
     return fuseEntries.get(registry);
 }
 
+// Where a mob's flags are kept in its metadata, found by name once per game data and kind of mob (see
+// isAiming and isAggressive). Every mob has `living_entity_flags` and `mob_flags`; a few have more.
+const flagEntries = new WeakMap(); // registry -> Map(kind -> { name -> metadata index })
+function entryOf(registry, kind, name) {
+    if (!registry || typeof registry !== 'object') return -1;
+    if (!flagEntries.has(registry)) flagEntries.set(registry, new Map());
+    const kinds = flagEntries.get(registry);
+    if (!kinds.has(kind)) {
+        const keys = registry.entitiesByName?.[kind]?.metadataKeys ?? [];
+        kinds.set(kind, Object.fromEntries(keys.map((key, index) => [key, index])));
+    }
+    return kinds.get(kind)[name] ?? -1;
+}
+const flagOf = (registry, entity, name, bit) => {
+    const at = entryOf(registry, entity?.name, name);
+    return at >= 0 && (Number(entity.metadata?.[at] ?? 0) & bit) !== 0;
+};
+const fieldOf = (registry, entity, name) => {
+    const at = entryOf(registry, entity?.name, name);
+    return at >= 0 ? entity.metadata?.[at] : undefined;
+};
+const HAND_ACTIVE = 0x01;   // living_entity_flags: the mob is using what it holds (drawing a bow)
+const AGGRESSIVE = 0x04;    // mob_flags: the mob has a target, and raises its arms or its weapon at it
+const BLAZE_CHARGED = 0x01; // a blaze's own flags: it glows and smokes before it fires
+// Mobs that shoot with a bow, and mobs that shoot with a crossbow (a piglin only when it holds one).
+const BOW_SHOOTERS = new Set(['skeleton', 'stray', 'bogged', 'illusioner']);
+const CROSSBOW_SHOOTERS = new Set(['pillager', 'piglin']);
+const holds = (entity, item) => [entity?.heldItem, entity?.equipment?.[0]].some(held => held?.name === item);
+
 export const javaEdition = Object.freeze({
     name: 'java',
 
@@ -261,6 +290,66 @@ export const javaEdition = Object.freeze({
         if (!at) return false;
         const metadata = entity.metadata ?? {};
         return metadata[at.swell] > 0 || (at.ignited >= 0 && metadata[at.ignited] === true);
+    },
+
+    /**
+     * Is this mob aiming a ranged attack? A player sees it: a skeleton raises its bow at its target and
+     * draws it, a pillager holds up its crossbow or loads it, a ghast opens its eyes and mouth, a blaze
+     * glows before it fires. Java keeps each in the mob's metadata, found by name: the aggressive bit of
+     * `mob_flags` (the game shows it as the bow or crossbow held up), the hand-active bit of
+     * `living_entity_flags` (the bow being drawn), `is_charging_crossbow`, the ghast's `is_charging`, and
+     * the first bit of a blaze's `flags`. A mob that only shoots up close (a witch's potions) isn't counted.
+     *
+     * @param {object} registry - the bot's game data
+     * @param {object} entity - a mob the bot can see
+     * @returns {boolean}
+     */
+    isAiming(registry, entity) {
+        const kind = entity?.name;
+        if (BOW_SHOOTERS.has(kind))
+            return flagOf(registry, entity, 'mob_flags', AGGRESSIVE) || flagOf(registry, entity, 'living_entity_flags', HAND_ACTIVE);
+        if (CROSSBOW_SHOOTERS.has(kind)) {
+            if (fieldOf(registry, entity, 'is_charging_crossbow') === true) return true;
+            return flagOf(registry, entity, 'mob_flags', AGGRESSIVE) && (kind === 'pillager' || holds(entity, 'crossbow'));
+        }
+        if (kind === 'ghast') return fieldOf(registry, entity, 'is_charging') === true;
+        if (kind === 'blaze') return flagOf(registry, entity, 'flags', BLAZE_CHARGED);
+        return false;
+    },
+
+    /**
+     * Has this mob picked a target and come for it? A player sees it: a zombie walks at you with its arms
+     * out, a skeleton raises its bow. Java keeps it as the aggressive bit of the mob's `mob_flags`, found by
+     * name, which the game sets while a mob's attack goal runs and clears when it stops (a spider by day,
+     * a mob that lost its target). A neutral mob that hasn't been provoked never has it.
+     *
+     * @param {object} registry - the bot's game data
+     * @param {object} entity - a mob the bot can see
+     * @returns {boolean}
+     */
+    isAggressive(registry, entity) {
+        return flagOf(registry, entity, 'mob_flags', AGGRESSIVE);
+    },
+
+    /**
+     * Calls `felt({ direction })` each time the bot is hit by something that came from a side, with
+     * `direction` the way the hit came from as a flat unit vector {x, z}. A player sees it: the screen tilts
+     * toward the hit. Java sends it to the player hurt alone, as the angle of the hit from where the player
+     * faces (`hurt_animation`, degrees). The game's angle 0 is east (+x) and 90 south (+z); the player's
+     * own facing is turned to the game's degrees from mineflayer's (radians, 0 north, turning the other
+     * way) to add to it. Who hit the bot is not told: the game sends that too (`damage_event`), and a
+     * player isn't shown it.
+     * @returns {() => void} stops listening
+     */
+    onHurt(bot, felt) {
+        const listener = packet => {
+            if (packet.entityId !== bot.entity?.id || typeof packet.yaw !== 'number') return;
+            const facing = 180 - (bot.entity.yaw ?? 0) * 180 / Math.PI;
+            const angle = (packet.yaw + facing) * Math.PI / 180;
+            felt({ direction: { x: Math.cos(angle), z: Math.sin(angle) } });
+        };
+        bot._client?.on?.('hurt_animation', listener);
+        return () => bot._client?.off?.('hurt_animation', listener);
     },
 
     /**
