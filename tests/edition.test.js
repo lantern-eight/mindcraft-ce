@@ -293,6 +293,18 @@ test('a survival player on Java reaches 4.5 blocks to a block and 3 to a mob', (
     assert.deepEqual(javaEdition.survivalReach(), { blocks: 4.5, entities: 3 });
 });
 
+test('a melee hit on Java: each weapon\'s damage, and a recharge of a second over its attack speed', () => {
+    assert.deepEqual(javaEdition.meleeOf('iron_sword'), { damage: 6, rechargeMs: 625 });
+    assert.deepEqual(javaEdition.meleeOf('copper_sword'), { damage: 5, rechargeMs: 625 }, 'copper, which mineflayer-pvp\'s table lacks');
+    assert.deepEqual(javaEdition.meleeOf('iron_axe'), { damage: 9, rechargeMs: 1111 });
+    assert.deepEqual(javaEdition.meleeOf('wooden_axe'), { damage: 7, rechargeMs: 1250 });
+    assert.deepEqual(javaEdition.meleeOf('netherite_axe'), { damage: 10, rechargeMs: 1000 });
+    assert.deepEqual(javaEdition.meleeOf('diamond_pickaxe'), { damage: 5, rechargeMs: 833 });
+    assert.deepEqual(javaEdition.meleeOf('mace'), { damage: 6, rechargeMs: 1667 });
+    for (const bare of [undefined, null, 'dirt', 'wooden_hoe'])
+        assert.deepEqual(javaEdition.meleeOf(bare), { damage: 1, rechargeMs: 250 }, `${bare} hits as a bare hand`);
+});
+
 test('a Java block\'s name in Java\'s terms is its own', () => {
     const registry = minecraftData(GAME_VERSION);
     for (const name of ['snow', 'water', 'powered_rail', 'not_a_block']) assert.equal(javaEdition.javaNameOf(registry, name), name);

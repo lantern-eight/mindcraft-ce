@@ -20,6 +20,7 @@
 // bot has seen (fair_legs.js), like every other walk.
 import pf from 'mineflayer-pathfinder';
 import { worldQueries } from '../library/world_queries.js';
+import { editionOf } from '../edition/index.js';
 import { bestWeapon } from './decide.js';
 
 const HAZARD = /lava|fire|magma|cactus|campfire|sweet_berry|powder_snow|wither_rose/; // flowing_lava too
@@ -196,7 +197,7 @@ function awayGoal(threats, to) {
  * @param {number} [options.to]
  */
 export async function hitAndStepBack(bot, { creeper, inReach, to = 8, report = () => {} }) {
-    const weapon = bestWeapon(bot.inventory.items().map(item => item.name));
+    const weapon = bestWeapon(bot.inventory.items().map(item => item.name), editionOf(bot.registry).meleeOf);
     if (weapon && bot.heldItem?.name !== weapon) {
         const item = bot.inventory.items().find(i => i.name === weapon);
         if (item) await bot.equip(item, 'hand');
@@ -355,7 +356,7 @@ export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, re
  * @returns {Promise<{ended: string}>}
  */
 export async function fightOne(bot, { target, stop = () => false, maxMs = 30000 }) {
-    const weapon = bestWeapon(bot.inventory.items().map(item => item.name));
+    const weapon = bestWeapon(bot.inventory.items().map(item => item.name), editionOf(bot.registry).meleeOf);
     if (weapon && bot.heldItem?.name !== weapon) {
         const item = bot.inventory.items().find(i => i.name === weapon);
         if (item) await bot.equip(item, 'hand');

@@ -118,7 +118,8 @@ within 8 blocks, with the bot at half health or more and fed enough to sprint**.
 scope. Two or more, or one too strong, are the mob reflex's to back away from.
 
 - It doesn't start on a mob with another one close by that hasn't picked a target yet: it soon will.
-- It fights with the best weapon carried, and stops when the mob is gone, when the bot's health falls under
+- It fights with the weapon carried that kills soonest on that edition (on Java a sword over an axe, which hits
+  harder but swings almost half as often), and stops when the mob is gone, when the bot's health falls under
   6 (the mob reflex runs then), or after 30 s; a mob fought that long without finishing is left alone for a
   minute.
 - Whether the mob can be walked to is the kept path verdict (below), not a new search each round.

@@ -55,6 +55,22 @@ function soundNameOf(registry, packet) {
 // A survival player's reach on Java (see survivalReach).
 const SURVIVAL_REACH = Object.freeze({ blocks: 4.5, entities: 3 });
 
+// What a melee hit does on Java (see meleeOf): each item's attack damage, and its attack speed, the swings a
+// second at full strength. These are the game's own values for the item kinds (game data doesn't carry
+// them, and the server doesn't send an item's default attributes). Anything not listed hits as a bare hand.
+const tier = (kind, speed, damages) => Object.entries(damages).map(([material, damage]) => [`${material}_${kind}`, { damage, speed }]);
+const JAVA_MELEE = new Map([
+    ...tier('sword', 1.6, { wooden: 4, golden: 4, stone: 5, copper: 5, iron: 6, diamond: 7, netherite: 8 }),
+    ...tier('pickaxe', 1.2, { wooden: 2, golden: 2, stone: 3, copper: 3, iron: 4, diamond: 5, netherite: 6 }),
+    ...tier('shovel', 1.0, { wooden: 2.5, golden: 2.5, stone: 3.5, copper: 3.5, iron: 4.5, diamond: 5.5, netherite: 6.5 }),
+    // An axe hits hardest and recharges slowest; how slowly depends on its material.
+    ['wooden_axe', { damage: 7, speed: 0.8 }], ['golden_axe', { damage: 7, speed: 1.0 }], ['stone_axe', { damage: 9, speed: 0.8 }],
+    ['copper_axe', { damage: 9, speed: 0.8 }], ['iron_axe', { damage: 9, speed: 0.9 }], ['diamond_axe', { damage: 9, speed: 1.0 }],
+    ['netherite_axe', { damage: 10, speed: 1.0 }],
+    ['trident', { damage: 9, speed: 1.1 }], ['mace', { damage: 6, speed: 0.6 }],
+]);
+const JAVA_HAND = { damage: 1, speed: 4 };
+
 // The values a block property can take, in the order Java counts them.
 const valuesOf = property => property.values
     ?? (property.type === 'bool' ? ['true', 'false'] : Array.from({ length: property.num_values }, (_, i) => String(i)));
@@ -430,6 +446,22 @@ export const javaEdition = Object.freeze({
      */
     survivalReach() {
         return SURVIVAL_REACH;
+    },
+
+    /**
+     * What a melee hit with an item does: its damage at full strength, and how long a swing takes to
+     * recharge to full strength. On Java every swing (and every change of the item in hand) empties the
+     * attack meter, which refills over 20 ticks divided by the item's attack speed; a swing before it is full
+     * does a fraction of the damage, as little as a fifth. So a sword (speed 1.6) is ready every 0.625 s and
+     * an iron axe (0.9) every 1.1 s. Hoes, spears and anything else not listed hit as a bare hand here,
+     * which is near enough for the fight, which never picks them.
+     *
+     * @param {string|null|undefined} itemName - what is in the hand; nothing means a bare hand
+     * @returns {{damage: number, rechargeMs: number}}
+     */
+    meleeOf(itemName) {
+        const { damage, speed } = JAVA_MELEE.get(itemName) ?? JAVA_HAND;
+        return { damage, rechargeMs: Math.round(1000 / speed) };
     },
 
     /**

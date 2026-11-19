@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- The threat reflexes pick the weapon that kills a mob soonest, not the one that hits hardest: on Java Edition a
+  sword over an axe of the same material (it swings almost twice as often), except in gold and wood; on Bedrock
+  Edition always a sword, which hits harder there. What each weapon does is an answer of the edition seam.
+
 ## [1.8.0-bedrock.1.9.0] - 2026-11-19
 
 A release for both editions. A player can give the bot standing orders about kinds of mobs (fight, flee or

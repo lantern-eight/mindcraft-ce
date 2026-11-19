@@ -70,6 +70,6 @@ export function selfOf(bot) {
     return {
         position: { x: position.x, y: position.y, z: position.z },
         health: bot.health ?? 20, food: bot.food ?? 20, gameMode: bot.game?.gameMode,
-        armed: bestWeapon(bot.inventory?.items?.().map(item => item.name) ?? []) !== null,
+        armed: bestWeapon(bot.inventory?.items?.().map(item => item.name) ?? [], editionOf(bot.registry).meleeOf) !== null,
     };
 }

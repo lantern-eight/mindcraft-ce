@@ -3,7 +3,9 @@
 // threat picture and the bot.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideThreat, hitsNeeded, BACK_OFF_TO, LEAVE_TO } from '../src/agent/reflexes/decide.js';
+import { decideThreat, hitsNeeded, bestWeapon, killTimeMs, BACK_OFF_TO, LEAVE_TO } from '../src/agent/reflexes/decide.js';
+import { javaEdition } from '../src/agent/edition/java.js';
+import { bedrockEdition } from '../src/agent/bedrock/edition.js';
 
 const origin = { x: 0, y: 64, z: 0 };
 const self = (extra = {}) => ({ position: origin, health: 20, gameMode: 'survival', edition: 'java', underground: false, hitsNeeded: 4, ...extra });
@@ -92,8 +94,38 @@ test('in creative or spectator mode, nothing', () => {
 });
 
 test('hits needed: 20 health over the best weapon carried, rounded up', () => {
-    assert.equal(hitsNeeded(['stone_sword', 'dirt']), 4);
-    assert.equal(hitsNeeded(['wooden_sword']), 5);
-    assert.equal(hitsNeeded(['iron_axe', 'wooden_sword']), 3);
-    assert.equal(hitsNeeded([]), 20, 'a fist');
+    const java = javaEdition.meleeOf;
+    assert.equal(hitsNeeded(['stone_sword', 'dirt'], java), 4);
+    assert.equal(hitsNeeded(['wooden_sword'], java), 5);
+    assert.equal(hitsNeeded(['iron_axe', 'wooden_sword'], java), 3);
+    assert.equal(hitsNeeded(['iron_pickaxe'], java), 20, 'a pickaxe is not counted as a weapon');
+    assert.equal(hitsNeeded([], java), 20, 'a fist');
+});
+
+test('the best weapon is the one that kills soonest, not the one that hits hardest', () => {
+    const java = javaEdition.meleeOf;
+    // An iron sword needs 4 hits a zombie at 0.625 s each, an iron axe 3 at 1.1 s each.
+    assert.equal(bestWeapon(['iron_axe', 'iron_sword'], java), 'iron_sword');
+    assert.equal(bestWeapon(['stone_axe', 'stone_sword'], java), 'stone_sword');
+    assert.equal(bestWeapon(['diamond_axe', 'diamond_sword'], java), 'diamond_sword');
+    // A golden axe recharges as fast as a diamond one, and kills in 3 hits to a golden sword's 5.
+    assert.equal(bestWeapon(['golden_sword', 'golden_axe'], java), 'golden_axe');
+    // A wooden axe and a wooden sword both take 2.5 s; the harder hit wins the tie.
+    assert.equal(bestWeapon(['wooden_sword', 'wooden_axe'], java), 'wooden_axe');
+    assert.equal(bestWeapon(['copper_sword', 'stone_sword'], java), 'copper_sword', 'a tie in time and damage keeps the first');
+    assert.equal(bestWeapon(['iron_pickaxe', 'dirt'], java), null, 'no sword or axe: no weapon');
+    assert.equal(bestWeapon([], java), null);
+});
+
+test('on Bedrock a sword beats an axe of every material, since there is nothing to wait for between swings', () => {
+    const bedrock = bedrockEdition.meleeOf;
+    for (const material of ['wooden', 'stone', 'copper', 'iron', 'diamond', 'netherite'])
+        assert.equal(bestWeapon([`${material}_axe`, `${material}_sword`], bedrock), `${material}_sword`, material);
+    assert.equal(hitsNeeded(['iron_sword'], bedrock), 3, 'an iron sword hits for 7 there');
+});
+
+test('kill time: hits needed less one, times the recharge', () => {
+    assert.equal(killTimeMs({ damage: 6, rechargeMs: 625 }), 3 * 625);
+    assert.equal(killTimeMs({ damage: 20, rechargeMs: 625 }), 0, 'one hit kills at once');
+    assert.equal(killTimeMs({ damage: 7, rechargeMs: 500 }, 26), 3 * 500);
 });
