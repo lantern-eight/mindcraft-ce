@@ -42,10 +42,11 @@ test('a creeper within 3 blocks that is not lit yet: back off before it lights',
 });
 
 test('a hiss remembered close: back off from where it was placed', () => {
-    const heard = creeper(7, { key: 'heard:east', source: 'heard', seenNow: false, lit: true });
+    const heard = creeper(7, { key: 'heard:east', source: 'heard', seenNow: false, lit: true, slack: 3 });
     const decision = decideThreat([heard], self());
     assert.equal(decision.stance, 'back_off');
     assert.equal(decision.reason, 'hissed');
+    assert.equal(decision.distance, BACK_OFF_TO + 3, 'farther, since the creeper may be nearer than the middle of the band');
 });
 
 test('an explosion heard very close: back off from it', () => {

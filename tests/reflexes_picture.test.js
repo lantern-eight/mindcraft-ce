@@ -21,6 +21,7 @@ test('a hiss heard close with no creeper in view counts as lit, at a point rebui
     assert.equal(heard.lit, true);
     assert.equal(heard.seenNow, false);
     assert.deepEqual(heard.position, { x: 7, y: 64, z: 0 }, 'east, in the middle of the close band');
+    assert.equal(heard.slack, 3, 'it may have been as near as 4');
 });
 
 test('a sighting of the same creeper with its fuse out settles the hiss', () => {
@@ -45,6 +46,15 @@ test('the hiss stays remembered past 1.5 s while the bot stays close', () => {
     const [heard] = picture.creepers(at(0));
     assert.equal(heard.lit, true);
     assert.equal(heard.fuse, FUSE_TICKS);
+});
+
+test('a hiss from the close band, rebuilt right at the edge of the fuse\'s range, is still taken as a threat', () => {
+    const { picture } = setup();
+    // Rebuilt 7 blocks off, a hair past 7 after rounding: the creeper may really be as near as 4.
+    picture.hear(hiss('north-east', 'close'), at(0.37, 0.41));
+    const [heard] = picture.creepers(at(0.37, 0.41));
+    assert.ok(heard, 'not settled the moment it is heard');
+    assert.equal(heard.lit, true);
 });
 
 test('it is forgotten after about 10 s with nothing new', () => {
@@ -117,6 +127,10 @@ test('back-offs from a creeper are counted, and carried over when a hiss turns i
     assert.equal(seen.key, 'id:9');
     assert.equal(seen.encounters, 1);
     assert.equal(seen.told, true);
+    // A back-off that started on the hiss now follows the creeper seen.
+    assert.equal(picture.resolve('heard:east'), 'id:9');
+    picture.noteBackOff('heard:east');
+    assert.equal(picture.creepers(at(0))[0].encounters, 2);
 });
 
 test('an explosion heard is remembered for a moment', () => {

@@ -31,6 +31,7 @@ import * as world from '../library/world.js';
 import { worldQueries } from '../library/world_queries.js';
 import { withinAttackReach } from '../library/attack_reach.js';
 import { holdActions } from '../action_hold.js';
+import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
 import { createThreatPicture } from './picture.js';
@@ -42,6 +43,8 @@ const MOVES = new Set(['back_off', 'hit_and_step_back', 'leave']);
 const HOLD_AFTER_MS = 1500;   // after a move, how long other starts still wait
 const ROOF_CHECK = 8;         // blocks above the head that make the bot "underground" for the decision
 const HIT_REACH = 3;          // a survival player's reach to a mob
+const LOOK_WITHIN = 32;       // creepers are followed this far, so leaving one knows when it is far enough
+const LOST_SIGHT_MS = 2000;   // out of view this long while leaving: it has lost the bot
 
 /**
  * @param {object} [options]
@@ -50,6 +53,8 @@ const HIT_REACH = 3;          // a survival player's reach to a mob
  */
 export function createCreeperReflex({ now = Date.now } = {}) {
     const picture = createThreatPicture({ now });
+    // Mobs seen dying: a killed creeper lies there for a moment, still swollen, but it can't explode.
+    const dying = new Set();
 
     const mode = {
         name: MODE_NAME,
@@ -81,8 +86,8 @@ export function createCreeperReflex({ now = Date.now } = {}) {
     // Tells the picture which creepers are in view right now, and whether each one's fuse is lit.
     function look(bot) {
         const edition = editionOf(bot.registry);
-        const inView = world.getNearbyEntities(bot, 16)
-            .filter(entity => entity.name === 'creeper' && entity.lastSeenAt === undefined) // not a stand-in
+        const inView = world.getNearbyEntities(bot, LOOK_WITHIN)
+            .filter(entity => entity.name === 'creeper' && entity.lastSeenAt === undefined && !dying.has(entity.id)) // not a stand-in
             .map(entity => ({ id: entity.id, position: entity.position, lit: edition.isFusing(bot.registry, entity) }));
         const self = selfOf(bot);
         picture.see(inView, self);
@@ -92,7 +97,7 @@ export function createCreeperReflex({ now = Date.now } = {}) {
     // The creeper itself, if it is in view now, for hitting it.
     function creeperInView(bot, id) {
         if (id === null || id === undefined) return null;
-        return world.getNearbyEntities(bot, 16).find(entity => entity.id === id && entity.lastSeenAt === undefined) ?? null;
+        return world.getNearbyEntities(bot, LOOK_WITHIN).find(entity => entity.id === id && entity.lastSeenAt === undefined) ?? null;
     }
 
     function round(agent) {
@@ -131,47 +136,51 @@ export function createCreeperReflex({ now = Date.now } = {}) {
         let last = decision.from;
         const from = () => {
             look(bot);
-            const track = picture.creepers(selfOf(bot)).find(c => c.key === decision.key);
+            const key = picture.resolve(decision.key);
+            const track = picture.creepers(selfOf(bot)).find(c => c.key === key);
             if (track) last = track.position;
             return last;
         };
-        let result;
+        let result, ended = null;
         try {
             result = await agent.actions.runAction(`mode:${MODE_NAME}`, async () => {
                 if (decision.stance === 'hit_and_step_back') {
-                    const id = picture.creepers(selfOf(bot)).find(c => c.key === decision.key)?.id;
+                    const id = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(decision.key))?.id;
                     const outcome = await hitAndStepBack(bot, {
                         creeper: () => creeperInView(bot, id),
                         inReach: entity => withinAttackReach(bot, entity) && bot.entity.position.distanceTo(entity.position) <= HIT_REACH,
                         to: decision.distance, report,
                     });
-                    return outcome.hit ? `Hit the creeper and stepped back.` : `Backed off from the creeper.`;
+                    ended = outcome.hit ? 'hit and stepped back' : outcome.ended;
+                    log(bot, outcome.hit ? 'Hit the creeper and stepped back.' : `Backed off from the creeper (${outcome.ended}).`);
+                    return;
                 }
                 const leaving = decision.stance === 'leave';
                 const outcome = await backOffFrom(bot, {
-                    from, to: decision.distance, report, maxMs: leaving ? 8000 : 3000,
+                    from, to: decision.distance, report, maxMs: leaving ? 10000 : 3000,
                     // Leaving also ends when the creeper has lost sight of the bot for good.
                     done: () => leaving && outOfSight(bot, decision.key),
                 });
-                return `Backed off (${outcome.ended}).`;
+                ended = outcome.ended;
+                log(bot, `${leaving ? 'Left the creeper behind' : 'Backed off from the creeper'} (${outcome.ended}).`);
             }, { timeout: 1 });
         } finally {
             mode.active = false;
             if (decision.key !== 'explosion') picture.noteBackOff(decision.key);
             hold.release(HOLD_AFTER_MS);
         }
-        report({ event: 'done', at: performance.now(), result: result?.message });
+        report({ event: 'done', at: performance.now(), ended, interrupted: Boolean(result?.interrupted) });
         tellModel(agent, decision, interrupted, result, line);
     }
 
-    // Out of sight for a moment: the creeper no longer sees the bot either.
+    // Out of view for a while: the creeper no longer sees the bot either, and loses it.
     function outOfSight(bot, key) {
-        const track = picture.creepers(selfOf(bot)).find(c => c.key === key);
-        return !track || (!track.seenNow && track.source === 'seen');
+        const track = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(key));
+        return !track || (track.source === 'seen' && !track.seenNow && track.unseenMs >= LOST_SIGHT_MS);
     }
 
     function tellModel(agent, decision, interrupted, result, line) {
-        const track = picture.creepers(selfOf(agent.bot)).find(c => c.key === decision.key);
+        const track = picture.creepers(selfOf(agent.bot)).find(c => c.key === picture.resolve(decision.key));
         const already = track?.told;
         if (!interrupted || agent.actions.resume_func || agent.self_prompter?.isActive?.() || result?.interrupted || already) {
             agent.bot.modes.flushBehaviorLog?.();
@@ -184,7 +193,13 @@ export function createCreeperReflex({ now = Date.now } = {}) {
             + `\nYour behavior log: ${logs}\nRespond accordingly.`);
     }
 
-    return { mode, hear, picture, round };
+    /** Listens for mobs dying and going, on the bot it acts for. */
+    function watch(bot) {
+        bot.on?.('entityDead', entity => dying.add(entity.id));
+        bot.on?.('entityGone', entity => dying.delete(entity.id));
+    }
+
+    return { mode, hear, picture, round, watch };
 }
 
 // One fair line about what happened: where the creeper was as a direction and rough distance, the way a

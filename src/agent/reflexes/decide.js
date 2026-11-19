@@ -5,7 +5,7 @@
 //   back_off           sprint straight away until `distance` blocks from `from` (8: past the 7 blocks its
 //                      fuse burns within)
 //   hit_and_step_back  one sprint-hit, which knocks it back, then step back past its range
-//   leave              go well away (16 blocks, past how far a creeper follows) or out of its sight
+//   leave              go well away (22 blocks, well past the 16 a creeper follows) or out of its sight
 //   watch              it is there but can't reach the bot; do nothing yet
 //   ignore             nothing to do
 //
@@ -13,7 +13,7 @@
 //   1. A lit creeper (seen lit, or a hiss remembered) within 7 blocks: back off.
 //   1b. A creeper the bot already backed off from, coming again (it is following): finish the encounter.
 //       Armed well enough (at most 4 hits needed) and with health 10 or more: hit it and step back, going
-//       back in only once its fuse has run down. Otherwise leave for good. On Bedrock always leave: its
+//       back in only once its fuse has run down. Otherwise leave it behind for good. On Bedrock always leave: its
 //       creepers follow rules of their own that are not measured yet.
 //   2. A creeper within 3 blocks whose fuse isn't lit yet: back off before it lights. An explosion heard
 //      very close: back off from it (another may follow).
@@ -24,7 +24,9 @@
 import { FUSE_RANGE } from './picture.js';
 
 export const BACK_OFF_TO = 8;       // past FUSE_RANGE, with a block to spare
-export const LEAVE_TO = 16;         // past how far a creeper follows a target it can see
+// A creeper keeps its target while it is within 16 blocks (its follow range), and closes in on a bot that
+// stops right at 16. Leaving goes well past that, so it loses the bot for good.
+export const LEAVE_TO = 22;
 export const MAX_HITS = 4;          // the most hits the bot will take on a creeper to finish it
 export const MIN_HEALTH = 10;       // half health
 const LIGHTS_WITHIN = 3;            // a creeper lights its fuse when its target is this close
@@ -51,7 +53,8 @@ export function decideThreat(creepers, self, { explosion = null } = {}) {
     let watching = null;
 
     for (const creeper of creepers) {
-        const lit = creeper.lit && creeper.distance <= FUSE_RANGE;
+        // A heard creeper may be nearer than its rebuilt spot, by its band's slack.
+        const lit = creeper.lit && creeper.distance - (creeper.slack ?? 0) <= FUSE_RANGE;
         const close = creeper.seenNow && creeper.distance <= LIGHTS_WITHIN;
         const following = creeper.encounters > 0 && creeper.seenNow && creeper.distance <= FINISH_WITHIN;
         if (!lit && !close && !following) continue;
@@ -60,13 +63,15 @@ export function decideThreat(creepers, self, { explosion = null } = {}) {
         return backOff(creeper, lit ? 'lit' : 'close');
     }
     if (explosion && explosion.distance <= EXPLOSION_CLOSE)
-        return { stance: 'back_off', key: 'explosion', from: explosion.position, reason: 'explosion', sprint: true, distance: BACK_OFF_TO };
+        return { stance: 'back_off', key: 'explosion', from: explosion.position, reason: 'explosion', sprint: true, distance: BACK_OFF_TO + (explosion.slack ?? 0) };
     return watching ?? ignore;
 }
 
+// A heard creeper's spot is only rebuilt from a distance band, and it may be nearer than that by the band's
+// slack: the back-off goes that much farther.
 function backOff(creeper, why) {
     const reason = creeper.source === 'heard' ? 'hissed' : why === 'lit' ? 'lit' : 'close';
-    return { stance: 'back_off', key: creeper.key, from: creeper.position, reason, sprint: true, distance: BACK_OFF_TO };
+    return { stance: 'back_off', key: creeper.key, from: creeper.position, reason, sprint: true, distance: BACK_OFF_TO + (creeper.slack ?? 0) };
 }
 
 // Rule 1b: the same creeper again. Finish it, by hitting it or by leaving for good.

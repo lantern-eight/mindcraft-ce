@@ -161,6 +161,15 @@ test('a creeper that slipped out of view is not read for its fuse', async () => 
     bot.stopWalking();
 });
 
+test('a creeper seen dying is not backed off from, though it is still swollen', () => {
+    const { agent, bot, installed } = makeAgent();
+    bot.entities[7] = creeper(-1.5, true);
+    bot.emit('entityDead', bot.entities[7]);
+    installed.creeper.round(agent);
+    assert.equal(agent.actions.executing, false);
+    bot.stopWalking();
+});
+
 test('a profile that turns it off keeps it off', () => {
     const { agent, bot } = makeAgent({ creeper_safety: false });
     assert.equal(agent.bot.modes.isOn('creeper_safety'), false);

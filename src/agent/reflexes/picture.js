@@ -15,7 +15,8 @@
 //
 // A sound gives a direction and a rough distance, never coordinates (perception's hearing). Where an entry
 // needs a position, to back away from, it is rebuilt from the direction and the middle of the distance
-// band, measured from where the bot stood when it heard it.
+// band, measured from where the bot stood when it heard it. The sound may have been nearer than that, by
+// up to the band's `slack`, so a back-off from it goes that much farther.
 //
 // Pure: no bot, no game. Time comes from `now`, positions are plain {x, y, z}.
 
@@ -27,8 +28,10 @@ const SIGHT_GRACE_MS = 500;            // a sighting this soon after a hiss may 
 const EXPLOSION_MEMORY_MS = 1500;
 const SAME_CREEPER = 6;                // a creeper seen this close to where a hiss was placed is the one that hissed
 
-// The middle of each of hearing's distance bands (perception.js describeDirection).
+// The middle of each of hearing's distance bands (perception.js describeDirection), and how much nearer
+// than that the sound may really have been: a back-off from a heard creeper goes that much farther.
 const BAND_MIDDLE = { 'very close': 2, close: 7, near: 15, far: 25 };
+const BAND_SLACK = { 'very close': 2, close: 3, near: 5, far: 5 };
 // Hearing's eight directions, in the order of their angle (0 is south, going through west).
 const COMPASS = ['south', 'south-west', 'west', 'north-west', 'north', 'north-east', 'east', 'south-east'];
 
@@ -58,10 +61,12 @@ export function pointFromSound({ direction, distance }, from) {
  */
 export function createThreatPicture({ now = Date.now } = {}) {
     const tracks = new Map(); // key -> entry, see makeTrack
+    const mergedInto = new Map(); // a heard entry's key -> the key of the creeper seen that it turned out to be
+    const resolve = key => { while (mergedInto.has(key)) key = mergedInto.get(key); return key; };
     let explosion = null;     // { position, at }: the last explosion heard
 
     const makeTrack = (key, fields) => ({
-        key, id: null, position: null, source: 'seen', seenNow: false, lit: false, litByHiss: false,
+        key, id: null, position: null, slack: 0, source: 'seen', seenNow: false, lit: false, litByHiss: false,
         fuse: 0, updatedAt: now(), lastSeenAt: null, heardAt: null, encounters: 0, told: false, ...fields,
     });
 
@@ -71,7 +76,7 @@ export function createThreatPicture({ now = Date.now } = {}) {
         const ticks = (t - track.updatedAt) / TICK_MS;
         track.updatedAt = t;
         if (ticks <= 0) return;
-        const close = track.position && dist(track.position, self.position) <= FUSE_RANGE;
+        const close = track.position && dist(track.position, self.position) - track.slack <= FUSE_RANGE;
         const burning = track.seenNow ? track.lit : (track.lit || track.fuse > 0) && close;
         track.fuse = clampFuse(track.fuse + (burning ? ticks : -ticks));
     }
@@ -103,6 +108,7 @@ export function createThreatPicture({ now = Date.now } = {}) {
                     track.encounters = Math.max(track.encounters, heard.encounters);
                     track.told ||= heard.told;
                     tracks.delete(heard.key);
+                    mergedInto.set(heard.key, key);
                 }
             }
             for (const track of tracks.values()) {
@@ -122,12 +128,13 @@ export function createThreatPicture({ now = Date.now } = {}) {
             const t = now();
             const position = pointFromSound(sound, self.position);
             if (!position) return;
-            if (sound.subject === 'explosion') { explosion = { position, at: t }; return; }
+            if (sound.subject === 'explosion') { explosion = { position, slack: BAND_SLACK[sound.distance] ?? 0, at: t }; return; }
             if (!/^creeper \(hissing\)$/.test(sound.subject)) return;
             // One heard creeper per direction: a second hiss from there is the same one lighting again.
             const key = `heard:${sound.direction}`;
+            mergedInto.delete(key); // a new hiss from there is a creeper of its own until seen
             const track = tracks.get(key) ?? makeTrack(key, { source: 'heard' });
-            Object.assign(track, { position, lit: true, litByHiss: true, fuse: 0, updatedAt: t, heardAt: t });
+            Object.assign(track, { position, slack: BAND_SLACK[sound.distance] ?? BAND_SLACK.close, lit: true, litByHiss: true, fuse: 0, updatedAt: t, heardAt: t });
             tracks.set(key, track);
         },
 
@@ -145,7 +152,8 @@ export function createThreatPicture({ now = Date.now } = {}) {
                     advance(track, self, t);
                     // Settled: it would have gone out by now (the bot got away and its fuse ran down), or
                     // nothing new for a long while.
-                    const ranDown = track.fuse === 0 && dist(track.position, self.position) > FUSE_RANGE;
+                    // (Its spot may be nearer than rebuilt, by the band's slack.)
+                    const ranDown = track.fuse === 0 && dist(track.position, self.position) - track.slack > FUSE_RANGE;
                     if (ranDown || t - track.heardAt > HEARD_MEMORY_MS) { tracks.delete(track.key); continue; }
                 } else if (!track.seenNow) {
                     advance(track, self, t);
@@ -153,8 +161,9 @@ export function createThreatPicture({ now = Date.now } = {}) {
                     if (track.fuse === 0 && t - track.lastSeenAt > HEARD_MEMORY_MS) { tracks.delete(track.key); continue; }
                 }
                 out.push({
-                    key: track.key, id: track.id, source: track.source, position: { ...track.position },
-                    seenNow: track.seenNow, lit: track.lit, fuse: track.fuse, encounters: track.encounters,
+                    key: track.key, id: track.id, source: track.source, position: { ...track.position }, slack: track.slack,
+                    seenNow: track.seenNow, unseenMs: track.lastSeenAt === null ? null : t - track.lastSeenAt,
+                    lit: track.lit, fuse: track.fuse, encounters: track.encounters,
                     told: track.told, distance: dist(track.position, self.position),
                 });
             }
@@ -164,22 +173,28 @@ export function createThreatPicture({ now = Date.now } = {}) {
         /** An explosion heard within the last moment, as {position, distance}, or null. */
         explosion(self) {
             if (!explosion || now() - explosion.at > EXPLOSION_MEMORY_MS) return null;
-            return { position: { ...explosion.position }, distance: dist(explosion.position, self.position) };
+            return { position: { ...explosion.position }, slack: explosion.slack, distance: dist(explosion.position, self.position) };
         },
+
+        /**
+         * The key an entry goes by now. A heard creeper that has since been seen goes by the seen one's key,
+         * so a back-off that started on the hiss follows the creeper as it is seen.
+         */
+        resolve,
 
         /** Counts a back-off from this creeper: the next time it comes, it is following the bot. */
         noteBackOff(key) {
-            const track = tracks.get(key);
+            const track = tracks.get(resolve(key));
             if (track) track.encounters++;
         },
 
         /** Marks the model as told about this creeper, so a chase sends one message, not one per round. */
         noteTold(key) {
-            const track = tracks.get(key);
+            const track = tracks.get(resolve(key));
             if (track) track.told = true;
         },
 
         /** Forgets everything, as after a respawn. */
-        clear() { tracks.clear(); explosion = null; },
+        clear() { tracks.clear(); mergedInto.clear(); explosion = null; },
     };
 }

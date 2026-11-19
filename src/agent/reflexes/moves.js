@@ -7,7 +7,7 @@
 //
 // A creeper's fuse is the clock: from lit to the blast is 1.5 s. So the first step away must not wait on
 // a path search. If the ground straight away from the threat is open and safe, the bot sprints that way
-// at once, and the pathfinder takes over a moment later for the rest. Choosing that direction is a
+// at once, and keeps going while the way stays safe; the pathfinder takes over where it doesn't. Choosing that direction is a
 // decision, so it reads blocks through world.js's provider: what the bot has seen under fair play, the
 // raw world without it. It never steps into lava or fire, or off a drop of more than 2 blocks; with no
 // safe straight line it waits for the pathfinder instead. Otherwise self_preservation would step in, and
@@ -22,8 +22,6 @@ import { bestWeapon } from './decide.js';
 const HAZARD = /lava|fire|magma|cactus|campfire|sweet_berry|powder_snow|wither_rose/; // flowing_lava too
 const MAX_DROP = 2;
 const TURNS = [0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2]; // straight away first, then aside
-const DASH_MS = 700;      // how long the straight first sprint lasts before the pathfinder takes over
-const DASH_BLOCKS = 3;
 const STEP_MS = 50;
 
 const floorOf = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
@@ -74,6 +72,7 @@ function escapeMovements(bot) {
     movements.allow1by1towers = false;
     movements.scafoldingBlocks = [];
     movements.allowSprinting = true;
+    movements.maxDropDown = MAX_DROP;    // as for the first step: a fall hurts, and the creeper is still coming
     return movements;
 }
 
@@ -105,18 +104,19 @@ export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () =
     };
     let ended = finished();
     try {
-        // The dash: straight away at once, if that way is safe.
+        // The dash: straight away at once, if that way is safe, and on for as long as it stays safe. A
+        // sprint in a straight line is the fastest way out; the pathfinder walks more than it sprints.
         const step = ended ? null : firstStep(blockAt, bot.entity.position, threat);
         if (step) {
-            const origin = bot.entity.position.clone();
             const ahead = () => bot.entity.position.offset(step.x * 3, 1.6, step.z * 3);
             await bot.lookAt(ahead(), true);
             bot.setControlState('sprint', true);
             bot.setControlState('forward', true);
             report({ event: 'step', at: performance.now(), how: 'dash' });
-            while (!(ended = finished()) && Date.now() - started < DASH_MS && flat(bot.entity.position, origin) < DASH_BLOCKS) {
-                const next = floorOf({ x: bot.entity.position.x + step.x, y: bot.entity.position.y, z: bot.entity.position.z + step.z });
-                if (!safeCell(blockAt, next)) break; // something ahead it didn't see before: let the pathfinder pick
+            while (!(ended = finished())) {
+                // Two cells ahead, as for the first step: one more block is all a sprint covers between checks.
+                const next = [1, 2].map(k => floorOf({ x: bot.entity.position.x + step.x * k, y: bot.entity.position.y, z: bot.entity.position.z + step.z * k }));
+                if (!next.every(cell => safeCell(blockAt, cell))) break; // something in the way: the pathfinder picks
                 await wait(STEP_MS);
             }
             bot.clearControlStates();
