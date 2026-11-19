@@ -38,6 +38,9 @@ const COMPASS = ['south', 'south-west', 'west', 'north-west', 'north', 'north-ea
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 const clampFuse = ticks => Math.max(0, Math.min(FUSE_TICKS, ticks));
 
+/** How much nearer than the middle of its distance band a sound may really have been. */
+export const slackOfBand = band => BAND_SLACK[band] ?? 0;
+
 /**
  * A point a sound came from, rebuilt from what hearing gives: its direction and distance band, from where
  * the bot stood. Never more exact than that.

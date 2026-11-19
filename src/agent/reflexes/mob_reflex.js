@@ -76,7 +76,7 @@ export function createMobReflex({ claims, now = Date.now }) {
         const interrupted = agent.actions.currentActionLabel;
         const line = sayLine(decision, describeDirection(self.position, decision.from[0]).text);
         say(agent, line);
-        const report = event => bot.emit?.('threat_reflex', { ...event, stance: decision.stance, key: decision.key, mode: MODE_NAME });
+        const report = event => bot.emit?.('threat_reflex', { ...event, stance: decision.stance, key: decision.key, reason: decision.reason, mode: MODE_NAME });
         report({ event: 'decided', at: performance.now() });
 
         // Where the mobs are now, as the bot knows them: in view, or where last seen. The sides hits came

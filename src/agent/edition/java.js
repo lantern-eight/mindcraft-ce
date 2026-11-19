@@ -31,9 +31,10 @@ class StateTable {
 }
 
 // The sound packets a Java server sends. Sounds played at a spot carry their position in eighths of a block;
-// sounds attached to an entity come from wherever that entity is.
+// sounds attached to an entity come from wherever that entity is; an explosion's comes with the explosion.
 const SOUND_AT_SPOT = ['sound_effect', 'named_sound_effect'];
 const SOUND_OF_ENTITY = 'entity_sound_effect';
+const SOUND_OF_EXPLOSION = 'explosion';
 
 /**
  * The name of the sound a packet carries, or null.
@@ -195,11 +196,20 @@ export const javaEdition = Object.freeze({
     onSound(bot, hear) {
         const atSpot = packet => hear(soundNameOf(bot.registry, packet), { x: packet.x / 8, y: packet.y / 8, z: packet.z / 8 });
         const ofEntity = packet => hear(soundNameOf(bot.registry, packet), bot.entities?.[packet.entityId]?.position);
+        // Since 1.21.2 an explosion's sound comes inside the explosion packet, with no sound packet of its
+        // own, and its position is the blast's middle in whole blocks. An older server's explosion packet
+        // has no sound in it, and sends one in a sound packet as well, so that one is heard there instead.
+        // A packet that says not to play its sound makes none a player could hear.
+        const ofExplosion = packet => {
+            if (packet?.sound && packet.center && packet.playSound !== false) hear(soundNameOf(bot.registry, packet), { x: packet.center.x, y: packet.center.y, z: packet.center.z });
+        };
         for (const name of SOUND_AT_SPOT) bot._client?.on?.(name, atSpot);
         bot._client?.on?.(SOUND_OF_ENTITY, ofEntity);
+        bot._client?.on?.(SOUND_OF_EXPLOSION, ofExplosion);
         return () => {
             for (const name of SOUND_AT_SPOT) bot._client?.off?.(name, atSpot);
             bot._client?.off?.(SOUND_OF_ENTITY, ofEntity);
+            bot._client?.off?.(SOUND_OF_EXPLOSION, ofExplosion);
         };
     },
 

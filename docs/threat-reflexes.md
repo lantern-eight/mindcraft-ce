@@ -11,7 +11,8 @@ doing, without waiting for the model. There are two reflexes and a fight:
 - **The fight**, Mindcraft's own `self_defense` under the same name, fights a lone mob that comes at the bot
   when the bot is fit for it.
 
-And the bot never looks an enderman in the eye.
+And the bot never looks an enderman in the eye, and remembers for a while where it met danger: its walks
+go round those places.
 
 - [Turning It On](#turning-it-on)
 - [Why Reflexes of Their Own](#why-reflexes-of-their-own)
@@ -19,6 +20,7 @@ And the bot never looks an enderman in the eye.
 - [What the Mob Reflex Does](#what-the-mob-reflex-does)
 - [The Fight](#the-fight)
 - [Never Looking an Enderman in the Eye](#never-looking-an-enderman-in-the-eye)
+- [Danger Zones](#danger-zones)
 - [What They Know, and How](#what-they-know-and-how)
 - [Holding Other Work](#holding-other-work)
 - [Telling the Model](#telling-the-model)
@@ -37,7 +39,7 @@ In `settings.js`:
 
 Each reflex is a mode like Mindcraft's own, so it can also be switched for one bot: `!setMode("creeper_safety",
 false)`, `!setMode("mob_safety", false)`, `!setMode("self_defense", false)`, or the same names in a profile's
-`modes`. They work with fair play on or off.
+`modes`. They work with fair play on or off. Danger zones come with them and have no switch of their own.
 
 ## Why Reflexes of Their Own
 
@@ -137,6 +139,45 @@ look is left alone. The endermen are the ones world.js hands out: under fair pla
 those can see the bot stare. On a real server an unguarded look at an enderman's head angered it in about a
 third of a second; with the guard it never did.
 
+## Danger Zones
+
+A player who saw pillagers by a tower walks round it the next time, and doesn't walk back into the spot a
+skeleton kept shooting from. The reflexes deal with a danger while it is in front of the bot; danger zones
+are the memory of where it was. Each is a place, round seen from above, that the bot's routes pay to go
+into, and that it forgets after a while:
+
+| What the bot met | Where the zone is | How wide | Kept for |
+|---|---|---|---|
+| A pillager, vindicator, evoker, illusioner or ravager in view | Where it stood | 32 blocks | 20 minutes |
+| A mob in view aiming at the bot, within 16 blocks | Where the mob stood | 12 blocks | 5 minutes |
+| An explosion heard | Where hearing places it: its direction and the middle of its distance band | 8 blocks, and as much more as the sound may have been off | 5 minutes |
+| Hits from something it couldn't see (the mob reflex's rule 5) | Where the bot stood | 6 blocks | 5 minutes |
+
+The same danger again keeps its zone longer instead of adding a second one, so illagers that stay in view
+keep theirs as long as they do. Only what the bot saw, heard or felt makes a zone: a stand-in where a mob was
+last seen is not a sighting. They are looked for once a second, apart from the reflexes, so turning a reflex
+off with `!setMode` stops the bot reacting, not remembering. Another dimension forgets them all; a respawn
+doesn't.
+
+**What a zone does to a walk.** Every route the bot plans, by any skill, command or piece of generated code,
+pays for each step that goes deeper into a zone: a zone of illagers costs as much as 64 blocks of walking at
+its middle, falling evenly to nothing at its edge. Steps that keep level or lead out pay nothing. So:
+
+- a walk bends round a zone when going round costs less than going in, and cuts across its edge when that
+  is cheaper;
+- a bot inside a zone always walks straight out, at the price of plain ground;
+- a goal inside a zone is still reached, from its cheapest side. Zones bend routes, they never forbid one;
+- a way the bot walked before that leads into a zone is left for a route that goes round (world memory's
+  trail would otherwise walk it straight back in).
+
+On a real server, a walk of 72 blocks across a flat arena went straight through where two illagers had
+stood when there was no zone; with their zone it went round, never nearer than 31.8 blocks, and took 1.6
+times as long. From the middle of the zone the bot walked straight out.
+
+**The model** isn't interrupted for a zone. The behavior log says once when illagers were seen ("Saw a
+pillager (east, far); keeping away from there for a while."), so the model knows why the bot's walks go
+round that way; the other zones come with a reflex's own line already.
+
 ## What They Know, and How
 
 The reflexes see through world.js like every other reflex: what is in view under fair play, everything the
@@ -160,6 +201,7 @@ server tracks without it.
   any fuse to run down, or after 10 s with nothing new. When the creeper that hissed comes into view, its
   entry carries over, and a back-off that started on the sound follows the creeper seen.
 - **Cover** is only cover where the bot has seen the wall: a cell it never saw counts as open.
+- **Danger zones** are noted from the same sight, hearing and touch, never from a stand-in out of view.
 
 ## Holding Other Work
 
@@ -215,6 +257,13 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
   it again; the bot then picks another spot or backs out of range. A skeleton that comes up close is taken
   cover from, not fought.
 - **Leaving needs room.** On a narrow ledge or in a tunnel the bot backs off as far as the way allows.
+- **Danger zones are kept only while the bot runs.** They aren't saved with world memory, so a restart
+  forgets them; illagers that are still there make a new one the moment they are seen.
+- **A zone is a circle with a fixed size per kind.** It doesn't know the shape of an outpost or of the
+  ravine a skeleton stood in, and a zone with its middle in a cave also prices the ground above it, as far
+  up as its height (16 blocks for illagers, 8 or less for the others).
+- **Explosions are heard only within fair play's hearing, 16 blocks**, though a player hears one from much
+  farther. Without fair play there is no hearing, and no zone for an explosion.
 
 ## Code Layout
 
@@ -233,18 +282,24 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 | `claims.js` | One owner per threat. Pure |
 | `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack`, `takeCover` and `fightOne`, the safe first step, and the line of sight over cells the bot knows |
 | `gaze.js` | The guard on every look, for endermen |
+| `danger_zones.js` | The zones: where, how wide, for how long, and what a cell costs to be in. Pure |
+| `danger_watch.js` | Notes zones from what the bot sees, hears and feels, once a second and as each sound arrives |
 
 Outside the folder: `src/agent/action_hold.js` (the hold), `src/agent/library/path_verdicts.js` (the kept
-path verdicts), the `isFusing`, `isAiming`, `isAggressive` and `onHurt` questions in the edition seam, and
+path verdicts), `src/agent/library/place_costs.js` (the prices on places that every route search pays, which
+other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive` and `onHurt` questions in the edition seam, and
 perception's `onHeard` listener (`src/agent/fairplay/perception.js`), which passes a sound on with what
 `heard()` gives and never its position.
 
 ## Testing
 
-`tests/reflexes_*.test.js` are the unit tests. `tests/live/threat_scenarios.js` runs the creeper reflex
+`tests/reflexes_*.test.js` are the unit tests; `reflexes_place_costs.test.js` runs the real pathfinder's
+search with zones. `tests/live/threat_scenarios.js` runs the creeper reflex
 against a real server with no model behind it, and measures the time to the first step away, the distance at
 the blast, damage, the rounds a following creeper takes, the messages to the model, and false alarms among
 other mobs at night. `tests/live/mob_scenarios.js` does the same for the mob reflex, the fight and the gaze
 guard, checks what the edition seam reads off the server, and counts the interruptions in a night full of
-mobs and the path searches while standing by, against Mindcraft's own reflexes with `--stock` (see the
-[README](../README.md#tests)).
+mobs and the path searches while standing by, against Mindcraft's own reflexes with `--stock`.
+`tests/live/danger_scenarios.js` checks the zones: a walk across an arena with no zone and with one where
+illagers were seen, a walk out of the middle of one, and the zones a skeleton aiming and an explosion heard
+leave (see the [README](../README.md#tests)).
