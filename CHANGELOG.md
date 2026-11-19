@@ -23,6 +23,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - A stop that comes while `goToGoal` is searching for a route ends the search and the walk. The search
   stopped looking, but the walk then started anyway along whatever it had found. From Mindcraft-CE's
   maintainer, who added it to this fork's fix for the path search's time limit when merging it.
+- With fair play off and cheat mode on, `tillAndSow` says it failed when the farmland or the crop couldn't
+  be placed, and plants nothing on farmland that wasn't placed. It said it was done either way. From
+  Mindcraft-CE's maintainer, who added it to this fork's fix for tilling without a seed when merging it.
 
 ## [1.7.0-bedrock.1.8.0] - 2026-11-19
 
