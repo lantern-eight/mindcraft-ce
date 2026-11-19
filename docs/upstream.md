@@ -53,6 +53,9 @@ unless noted. Each comes from a `fix/...` branch of this repository, cut from th
 | [#135](https://github.com/mindcraft-ce/mindcraft-ce/pull/135) | `placeBlock` says why a placement failed |
 | [#136](https://github.com/mindcraft-ce/mindcraft-ce/pull/136) | In cheat mode `placeBlock` sends a door's top half and a bed's head only for doors and beds |
 | [#137](https://github.com/mindcraft-ce/mindcraft-ce/pull/137) | In cheat mode `tillAndSow` tills without a seed, and waits for its blocks |
+| [#138](https://github.com/mindcraft-ce/mindcraft-ce/pull/138) | `defendSelf` and the `self_defense` reflex don't fight a creeper hand to hand (asks CE how it wants creepers handled, having no creeper reflex) |
+| [#139](https://github.com/mindcraft-ce/mindcraft-ce/pull/139) | `avoidEnemies` keeps walking away from a creeper instead of stopping to hit it |
+| [#140](https://github.com/mindcraft-ce/mindcraft-ce/pull/140) | `avoidEnemies` no longer pauses `self_preservation` while it runs |
 
 
 ## Libraries
