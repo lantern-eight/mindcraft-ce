@@ -24,6 +24,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   hiss is remembered as a creeper that may still be lit until the bot has been away long enough for its fuse
   to run down, or sees it with its fuse out.
 
+### Changed
+
+- The descriptions of `!digDown` and `!goToSurface` the model reads say what they do now: under fair play
+  `!digDown` digs a staircase, so the bot moves the way it faces as it digs, and `!goToSurface` climbs by
+  what the bot has seen above it.
+
 ### Fixed
 
 - The bot no longer fights a creeper hand to hand. `defendSelf` (and so the `self_defense` reflex) handed a

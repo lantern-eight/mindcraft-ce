@@ -476,7 +476,7 @@ export const actionsList = [
     },
     {
         name: '!digDown',
-        description: 'Digs down a specified distance. Will stop if it reaches lava, water, or a fall of >=4 blocks below the bot.',
+        description: 'Digs down a specified distance. Under fair play it digs a staircase, one block forward for each block down, so the bot moves the way it faces as it digs; otherwise it digs straight down. Stops at lava, water, a big drop, or a block it cannot dig.',
         params: {'distance': { type: 'int', description: 'Distance to dig down', domain: [1, Number.MAX_SAFE_INTEGER] }},
         perform: runAsAction(async (agent, distance) => {
             return await skills.digDown(agent.bot, distance);
@@ -484,7 +484,7 @@ export const actionsList = [
     },
     {
         name: '!goToSurface',
-        description: 'Moves the bot to the highest block above it (usually the surface).',
+        description: 'Climbs to the surface: to the highest ground the bot knows of above it, looking again on the way, until it stands under open sky.',
         params: {},
         perform: runAsAction(async (agent) => {
             return await skills.goToSurface(agent.bot);
