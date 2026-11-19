@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- `npm test` passes on the `bedrock` branch again. The test for a stop during the route search, which came
+  with Mindcraft-CE's change in 1.7.1-bedrock.1.8.1, took the edition from `settings.js`, which is Bedrock
+  there, and then asked for a Java Edition version.
+
 ## [1.7.1-bedrock.1.8.1] - 2026-11-19
 
 A release for both editions that brings this fork level with Mindcraft-CE, which has now merged most of the
