@@ -104,6 +104,8 @@ walk there, and look when I get to it."
 - **A wall is believed to be as thick as what the bot has seen of it.** Digging in can look cheaper than
   it turns out to be, and lava behind a rock face is no reason not to dig until the bot has seen it.
 - **Only mobs the bot knows of** make a route cost more.
+- **Places where the bot met danger cost more to go into,** with the threat reflexes on: where it saw
+  illagers, an archer aim at it, or heard an explosion ([danger zones](threat-reflexes.md#danger-zones)).
 
 Skills, commands, mining, combat and the trail all plan through the same pathfinder, so this covers them
 all. The walking itself, the step-by-step physics, still feels the real ground under the bot, as a

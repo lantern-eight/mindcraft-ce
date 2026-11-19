@@ -111,6 +111,7 @@ When the trail is used:
 | Somewhere beyond what it has walked | Only when the trail is a fairly direct way to get much closer |
 | A spot with a wall the bot remembers between it and the trail | No. Being near through a wall is not a way there |
 | A player or animal being followed, or moving away from something | No. Those are left to ordinary travel |
+| A way that leads into a [danger zone](threat-reflexes.md#danger-zones) | No. Ordinary travel goes round it; a way out of one is still followed |
 
 ## Noticing Changes
 
