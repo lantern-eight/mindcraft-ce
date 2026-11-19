@@ -26,6 +26,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - With fair play off and cheat mode on, `tillAndSow` says it failed when the farmland or the crop couldn't
   be placed, and plants nothing on farmland that wasn't placed. It said it was done either way. From
   Mindcraft-CE's maintainer, who added it to this fork's fix for tilling without a seed when merging it.
+- With fair play off and cheat mode on, `placeBlock` no longer sends a second `/setblock` for a trapdoor or
+  bedrock. Telling a door or a bed by a name that contains "door" or "bed" also caught them. From
+  Mindcraft-CE's maintainer, who added it to this fork's fix for those second blocks when merging it.
 
 ## [1.7.0-bedrock.1.8.0] - 2026-11-19
 
