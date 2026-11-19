@@ -125,6 +125,18 @@ No code was copied for these. They are credited because the work builds on them.
   melee trials in the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork
   (`docs/melee-combat-20261022.md`). Used by `src/agent/reflexes/mob_decide.js` and `retreatFrom` in
   `src/agent/reflexes/moves.js`.
+- **Stepping back while the weapon recharges, sprinting straight at a mob on the bot's own level, and
+  letting go of a mob it gets no closer to** come from the melee routine and arena tests in the
+  [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce) fork (`npc-26.3` branch,
+  `src/agent/library/combat.js`). **Turning to whichever mob is in reach** comes from the melee trials in the
+  [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. **Fighting in place, without
+  following a mob out of where the fight began,** comes from the shelter defense in the
+  [`JQDAW/mindcraft-RotN`](https://github.com/JQDAW/mindcraft-RotN) fork and the fight leash in the
+  [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork. **Putting the weapon back in hand every
+  beat, and letting go of a fight whose hits don't land** come from the shield fight in the
+  [`wehos/mc-agent-neko`](https://github.com/wehos/mc-agent-neko) fork (`bots/_supervisor/skills/shieldFight.js`).
+  The arena in `tests/live/fight_arena.js` follows LarsHamb's arena and hashtagakiaki's trials. Used by
+  `src/agent/reflexes/melee.js` and `src/agent/reflexes/fight_reflex.js`.
 - **Threat rules a player or the model sets (fight, flee or ignore for a group of mobs, a minimum health, a
   distance to flee to), applied at once by the reflex** come from the threat planner in the
   [`benpham3206/Agent37`](https://github.com/benpham3206/Agent37) project. Used by

@@ -3,7 +3,7 @@
 // taken only one mob at a time and only when fit for it, and one owner per threat.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideMobThreat, chooseFight, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
+import { decideMobThreat, chooseFight, joinsFight, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
 import { createClaims } from '../src/agent/reflexes/claims.js';
 
 const self = (fields = {}) => ({ position: { x: 0, y: 64, z: 0 }, health: 20, food: 20, gameMode: 'survival', ...fields });
@@ -120,4 +120,23 @@ test("an evoker counts as a mob that fights from afar by Bedrock's name for it t
     assert.equal(isRanged({ name: 'evoker' }), true);
     assert.equal(isRanged({ name: 'evocation_illager' }), true);
     assert.equal(isMelee({ name: 'evocation_illager' }), false);
+});
+
+test('joining a fight under way: the mobs it would take on, coming for it, and none it was told to leave or ran from', () => {
+    const coming = (name, fields = {}) => mob(name, 3, { aggressive: true, ...fields });
+    assert.equal(joinsFight(coming('zombie')), true, 'a second zombie biting');
+    assert.equal(joinsFight(coming('spider')), true);
+    assert.equal(joinsFight(mob('zombie', 3, { aggressive: false })), true, 'close enough that it is about to');
+    assert.equal(joinsFight(mob('zombie', 7, { aggressive: false })), false, 'not coming yet');
+    assert.equal(joinsFight(coming('zombie', { seenNow: false })), false, 'out of view');
+    assert.equal(joinsFight(coming('creeper')), false, 'creepers are the creeper reflex\'s');
+    assert.equal(joinsFight(coming('skeleton', { aiming: true })), false, 'an archer is the mob reflex\'s, unless told');
+    assert.equal(joinsFight(coming('cave_spider')), false, 'too strong to take on unasked');
+    const told = stance => () => ({ stance });
+    assert.equal(joinsFight(coming('skeleton', { aiming: true }), { orderOf: told('fight') }), true, 'told to fight skeletons');
+    assert.equal(joinsFight(coming('zombie'), { orderOf: told('ignore') }), false);
+    assert.equal(joinsFight(coming('zombie'), { orderOf: told('flee') }), false);
+    assert.equal(joinsFight(coming('zombie'), { givenUp: () => true }), false);
+    assert.equal(joinsFight(coming('zombie'), { ownerOf: () => 'mob_safety' }), false, 'taken by the mob reflex');
+    assert.equal(joinsFight(coming('zombie'), { ownerOf: () => 'self_defense' }), true);
 });

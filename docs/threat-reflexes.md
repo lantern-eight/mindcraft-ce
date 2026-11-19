@@ -125,6 +125,23 @@ scope. Two or more, or one too strong, are the mob reflex's to back away from.
 - Whether the mob can be walked to is the kept path verdict (below), not a new search each round.
 - A creeper is never fought: the creeper reflex owns creepers.
 
+**How it fights** (`melee.js`), as a player would:
+
+- It swings when the weapon has recharged and the mob is in reach. On Java a swing before the attack meter
+  is full does as little as a fifth of the damage; on Bedrock there is no meter, but a mob just hurt can't be
+  hurt again for half a second. Reach is the game's: 3 blocks from the eye to the nearest point of the mob.
+- It turns to whichever mob is in reach when the one it was fighting isn't, and goes straight on to the next
+  mob that has come for it (one it would fight, as above) instead of stopping in between.
+- While the weapon recharges, with a second mob close or the target right on it, it steps back, so the mobs
+  reach it one at a time. Never backwards into lava, fire or off a drop.
+- It sprints straight at a mob on its own level when the ground between is open, safe and seen, and lets
+  the pathfinder find the way otherwise. It doesn't follow a mob more than 12 blocks from where the fight
+  began.
+- It lets go of a mob it hasn't got closer to in 6 s, and of one its swings in reach don't make flinch (the
+  red flash a player sees) for 4 s; either is left alone for a minute.
+- Everything it acts on is what the bot sees, through fair play's perception; with fair play off, what the
+  server sends.
+
 It is registered under the same name and in the same place as Mindcraft's, so its switch, the profiles and the
 actions that pause it by name (`goToPlayer`, `defendSelf`, `stay`) keep their meaning.
 
@@ -340,7 +357,8 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
   pillagers at the outpost alone" can't be said as an order.
 - **A fight under orders is still paused by the actions that pause `self_defense`** (`goToPlayer`,
   `defendSelf`, `stay`), as the bot's own fight is.
-- **The fight is Mindcraft's combat plugin:** no timing of hits to the weapon's cooldown, no shield.
+- **The fight has no shield yet,** and no bow. It doesn't jump for critical hits either: whether they pay off
+  in a fight against mobs is still to be measured.
 - **Cover is only behind walls.** The bot doesn't build cover, and a skeleton that walks around the wall finds
   it again; the bot then picks another spot or backs out of range. A skeleton that comes up close is taken
   cover from, not fought.
@@ -364,20 +382,21 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 | `picture.js` | The threat picture: creepers seen and heard, their fuse estimates, hisses remembered and settled. Pure |
 | `decide.js` | `decideThreat`: what to do about the creepers in the picture. Pure, tested with plain objects |
 | `mob_reflex.js` | The mob mode: each round it reads the mobs and the hits, asks for a decision, and acts as the creeper mode does |
-| `fight_reflex.js` | The fight, `self_defense` |
+| `fight_reflex.js` | The fight, `self_defense`: whom to fight, and when to stop |
+| `melee.js` | How the fight fights: swings timed to the weapon, reach from the eye, turning to the mob in reach, stepping back between swings, letting go of a fight that isn't working |
 | `mob_decide.js` | `decideMobThreat` and `chooseFight`: what to do about the other mobs, and which one to fight. Pure |
 | `orders.js` | The standing orders: the groups, which order applies to a mob, when it lapses, the profile's and the built-in ones. Pure |
 | `order_commands.js` | `!threatRules` and `!setThreatRule`, and the file the orders given by command are kept in |
 | `mobs.js` | The hostile mobs around, read the fair way, with the tells the seam reads |
 | `claims.js` | One owner per threat. Pure |
-| `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack`, `takeCover` and `fightOne`, the safe first step, and the line of sight over cells the bot knows |
+| `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack` and `takeCover`, the safe first step, and the line of sight over cells the bot knows |
 | `gaze.js` | The guard on every look, for endermen |
 | `danger_zones.js` | The zones: where, how wide, for how long, and what a cell costs to be in. Pure |
 | `danger_watch.js` | Notes zones from what the bot sees, hears and feels, once a second and as each sound arrives |
 
 Outside the folder: `src/agent/action_hold.js` (the hold), `src/agent/library/path_verdicts.js` (the kept
 path verdicts), `src/agent/library/place_costs.js` (the prices on places that every route search pays, which
-other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive` and `onHurt` questions in the edition seam, and
+other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive`, `onHurt`, `meleeOf` and `survivalReach` questions in the edition seam, and
 perception's `onHeard` listener (`src/agent/fairplay/perception.js`), which passes a sound on with what
 `heard()` gives and never its position.
 

@@ -11,6 +11,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- The fight (`self_defense` with the threat reflexes on) fights the way a player does instead of through
+  Mindcraft's combat plugin: it swings when the weapon has recharged (the plugin's table didn't know copper,
+  so a copper sword swung at a third of its damage), measures reach from the eye, turns to whichever mob is
+  in reach, steps back between swings when two crowd it, sprints straight at a mob on open ground, and goes
+  straight on to the next mob that comes for it. It lets go of a mob it can't get closer to, or whose hits
+  don't land. In the new arena (`tests/live/fight_arena.js`) a stone sword landed every swing and beat two
+  zombies without a scratch.
 - The threat reflexes pick the weapon that kills a mob soonest, not the one that hits hardest: on Java Edition a
   sword over an axe of the same material (it swings almost twice as often), except in gold and wood; on Bedrock
   Edition always a sword, which hits harder there. What each weapon does is an answer of the edition seam.

@@ -190,3 +190,21 @@ export function chooseFight(mobs, self, { reachable = () => true, ownerOf = () =
     if (TOO_STRONG.has(mob.name) || !free(mob)) return null;
     return reachable(mob) ? mob : null;
 }
+
+/**
+ * Whether a mob may be fought once a fight is under way, as the fight turns from one mob to the next (it
+ * fights in place, hitting whichever is in reach). The same mobs chooseFight would take on: one that has
+ * come for the bot and is in view, and that an order tells it to fight, or that it would fight on its own
+ * (a melee mob, not one too strong). Never one it was told to leave alone or back away from, one it gave
+ * up on, or one another reflex has taken.
+ * @param {object} mob - as for decideMobThreat
+ * @param {object} [extra] - ownerOf, givenUp and orderOf, as for chooseFight
+ */
+export function joinsFight(mob, { ownerOf = () => null, givenUp = () => false, orderOf = noOrders } = {}) {
+    if (!mob.seenNow || mob.name === 'creeper' || !comesFor(mob) || givenUp(mob.id)) return false;
+    const owner = ownerOf(`id:${mob.id}`);
+    if (owner && owner !== 'self_defense') return false;
+    const stance = orderOf(mob)?.stance ?? null;
+    if (stance === 'fight') return true;
+    return stance === null && isMelee(mob) && !TOO_STRONG.has(mob.name);
+}

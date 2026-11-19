@@ -17,12 +17,15 @@
 //     retreat the moment a second mob turns up; an urgent move (low health, a mob aiming) doesn't ask. A
 //     crowd that is still there after that is the mob reflex's.
 //   - It stops when the bot's health falls under 6, for the mob reflex to run.
+//   - How it fights is melee.js's: swings timed to the weapon, turning to whichever mob is in reach, stepping
+//     back between swings when crowded. Once started, it goes on to the next mob that has come for it (and
+//     that it would take on: joinsFight in mob_decide.js) without stopping in between, claiming each.
 import convoManager from '../conversation.js';
 import * as world from '../library/world.js';
 import { log } from '../library/skills.js';
 import { describeDirection } from '../fairplay/perception.js';
-import { chooseFight, LOW_HEALTH } from './mob_decide.js';
-import { fightOne } from './moves.js';
+import { chooseFight, joinsFight, LOW_HEALTH } from './mob_decide.js';
+import { fightMelee } from './melee.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
 
@@ -42,6 +45,8 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
     const told = new Map();
     const dying = new Set();
 
+    const isGivenUp = id => (givenUp.get(id) ?? 0) > now();
+
     const mode = {
         name: MODE_NAME,
         description: 'Fight a lone mob that comes at you, when healthy and fed enough. Interrupts all actions.',
@@ -56,7 +61,6 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
         if (!mode.on || mode.active || !bot?.entity) return;
         const self = selfOf(bot);
         const ownerOf = claims.ownerOf;
-        const isGivenUp = id => (givenUp.get(id) ?? 0) > now();
         const mobs = mobsAround(bot, dying);
         // The choice is made without the path first; only the one mob it picks is asked about.
         const orderOf = ordersFor(orders, self);
@@ -77,24 +81,33 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
         const line = `Fighting the ${pick.name.replace(/_/g, ' ')} (${where})${pick.ordered ? ', as I was told to' : ''}.`;
         say(agent, line);
         bot.emit?.('threat_reflex', { event: 'decided', at: performance.now(), stance: 'fight', key: `id:${pick.id}`, mode: MODE_NAME });
-        let result, ended = null;
+        let result, ended = null, last = pick.id;
         try {
             result = await agent.actions.runAction(`mode:${MODE_NAME}`, async () => {
                 // A fight under orders ends when the order lapses (under its minimum health), as the bot's
                 // own ends under 6: then the mob reflex decides.
                 const lapsed = () => pick.ordered && orders?.orderFor(pick.name, selfOf(bot))?.stance !== 'fight';
-                const outcome = await fightOne(bot, {
-                    target: () => mobInView(bot, pick.id),
+                const see = id => (dying.has(id) ? null : mobInView(bot, id));
+                // The mobs it may turn to as the fight goes on, decided afresh each beat as the first was.
+                const foes = () => {
+                    const extra = { ownerOf: claims.ownerOf, givenUp: isGivenUp, orderOf: ordersFor(orders, selfOf(bot)) };
+                    return mobsAround(bot, dying).filter(mob => joinsFight(mob, extra)).map(mob => see(mob.id)).filter(Boolean);
+                };
+                const outcome = await fightMelee(bot, {
+                    first: pick.id, see, foes,
+                    onTarget: entity => claims.claim(`id:${entity.id}`, MODE_NAME, CLAIM_MS),
                     stop: () => (bot.health ?? 20) < LOW_HEALTH || lapsed(),
                     maxMs: FIGHT_MS,
                 });
+                last = outcome.target ?? pick.id;
                 ended = outcome.ended === 'stopped' && lapsed() ? 'order lapsed' : outcome.ended;
-                if (ended === 'out of time') givenUp.set(pick.id, now() + GIVE_UP_MS);
+                // A mob fought without an end in sight is left alone for a minute.
+                if (['out of time', 'not getting closer', 'not landing'].includes(ended)) givenUp.set(last, now() + GIVE_UP_MS);
                 log(bot, ended === 'gone' ? `Fought off the ${pick.name}.` : `Stopped fighting the ${pick.name} (${ended}).`);
             }, { timeout: -1 });
         } finally {
             mode.active = false;
-            claims.claim(`id:${pick.id}`, MODE_NAME, 1000); // a moment more, so nothing snatches it as it falls
+            claims.claim(`id:${last}`, MODE_NAME, 1000); // a moment more, so nothing snatches it as it falls
         }
         bot.emit?.('threat_reflex', { event: 'done', at: performance.now(), stance: 'fight', ended, mode: MODE_NAME });
         tellModel(agent, pick, interrupted, result, line);
