@@ -75,7 +75,8 @@ try {
     initModes(agent);
     const fair = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'danger-memory-')) });
     assert.ok(fair, 'fair play installed');
-    const reflexes = installThreatReflexes(agent);
+    // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
+    const reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'danger-orders-')) });
     assert.ok(reflexes?.zones, 'threat reflexes installed, with danger zones');
     const zones = reflexes.zones;
     bot.on('idle', () => { bot.clearControlStates(); bot.pathfinder.stop(); bot.modes.unPauseAll(); });

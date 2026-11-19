@@ -12,6 +12,7 @@ import * as world from '../library/world.js';
 import * as mc from '../../utils/mcdata.js';
 import settings from '../settings.js';
 import { editionOf } from '../edition/index.js';
+import { bestWeapon } from './decide.js';
 
 const LOOK_WITHIN = 24;
 
@@ -45,6 +46,16 @@ export function mobInView(bot, id) {
     return world.getNearbyEntities(bot, LOOK_WITHIN).find(entity => entity.id === id && entity.lastSeenAt === undefined) ?? null;
 }
 
+/**
+ * The standing order that applies to each mob now, as the decisions ask for it.
+ * @param {object|null} orders - the standing orders (orders.js), or none
+ * @param {object} self - from selfOf
+ */
+export function ordersFor(orders, self) {
+    if (!orders) return () => null;
+    return mob => orders.orderFor(mob.name, self);
+}
+
 /** Notes a line in the behavior log, and says it in chat when the bot narrates what it does. */
 export function say(agent, message) {
     agent.bot.modes.behavior_log += message + '\n';
@@ -52,11 +63,13 @@ export function say(agent, message) {
     agent.openChat(message);
 }
 
-/** What the bot knows about itself, for the decisions. */
+/** What the bot knows about itself, for the decisions: where it is, its health and food, and whether it
+ *  carries a sword or an axe (for an order to fight when armed). */
 export function selfOf(bot) {
     const position = bot.entity.position;
     return {
         position: { x: position.x, y: position.y, z: position.z },
         health: bot.health ?? 20, food: bot.food ?? 20, gameMode: bot.game?.gameMode,
+        armed: bestWeapon(bot.inventory?.items?.().map(item => item.name) ?? []) !== null,
     };
 }

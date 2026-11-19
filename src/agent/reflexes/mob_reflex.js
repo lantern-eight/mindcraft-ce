@@ -23,9 +23,9 @@ import { holdActions } from '../action_hold.js';
 import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
-import { decideMobThreat } from './mob_decide.js';
+import { couldHaveHit, decideMobThreat } from './mob_decide.js';
 import { retreatFrom, takeCover } from './moves.js';
-import { mobsAround, mobInView, say, selfOf } from './mobs.js';
+import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
 
 export const MODE_NAME = 'mob_safety';
@@ -38,10 +38,11 @@ const LOST_SIGHT_MS = 2000;   // all of them out of view this long while retreat
 /**
  * @param {object} options
  * @param {object} options.claims - shared with the fight (claims.js)
+ * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
  * @param {() => number} [options.now]
  * @returns {{mode: object, round: Function, watch: Function, hits: object[]}}
  */
-export function createMobReflex({ claims, now = Date.now }) {
+export function createMobReflex({ claims, orders = null, now = Date.now }) {
     const hits = [];          // {at, direction}: hits felt lately, oldest first
     const told = new Map();   // threat key -> when the model was last told about it
     const dying = new Set();  // mobs seen dying
@@ -60,7 +61,7 @@ export function createMobReflex({ claims, now = Date.now }) {
         if (!mode.on || mode.active || !bot?.entity) return;
         while (hits.length && now() - hits[0].at > HITS_KEPT_MS) hits.shift();
         const self = selfOf(bot);
-        const decision = decideMobThreat(mobsAround(bot, dying), self, { hits, now: now(), ownerOf: claims.ownerOf });
+        const decision = decideMobThreat(mobsAround(bot, dying), self, { hits, now: now(), ownerOf: claims.ownerOf, orderOf: ordersFor(orders, self) });
         // Not awaited: the move runs as an action, and the round must not hold up the mode loop.
         if (MOVES.has(decision.stance)) act(agent, decision, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
     }
@@ -153,7 +154,10 @@ export function createMobReflex({ claims, now = Date.now }) {
     /** Listens for hits on the bot and mobs dying, on the bot it acts for. */
     function watch(bot) {
         editionOf(bot.registry).onHurt(bot, ({ direction }) => {
-            hits.push({ at: now(), direction });
+            // Whether something in view could have dealt it, as it lands: a player knows who hit them when
+            // a zombie is right there, and remembers it after the zombie falls.
+            const explained = Boolean(bot.entity) && mobsAround(bot, dying).some(mob => mob.seenNow && couldHaveHit(mob));
+            hits.push({ at: now(), direction, explained });
             bot.emit?.('threat_reflex', { event: 'felt', at: performance.now(), direction, mode: MODE_NAME });
         });
         bot.on?.('entityDead', entity => dying.add(entity.id));
@@ -170,7 +174,7 @@ const spoken = name => name.replace(/_/g, ' ');
 function whatOf(decision) {
     if (decision.reason === 'low health') return 'the mobs around';
     if (decision.reason === 'unseen hits') return 'whatever is hitting it';
-    if (decision.reason === 'outnumbered') {
+    if (decision.reason === 'outnumbered' || (decision.reason === 'ordered' && decision.names.length > 1)) {
         const kinds = new Set(decision.names);
         const count = NUMBERS[decision.names.length] ?? 'several';
         return kinds.size === 1 ? `${count} ${spoken(decision.names[0])}s` : `${count} mobs`;
@@ -188,6 +192,7 @@ function sayLine(decision, where) {
         case 'too strong': return `A ${spoken(decision.name)} is coming at me (${where}); backing away, it's too strong to fight.`;
         case 'hurt': return `A ${spoken(decision.name)} is coming at me (${where}); backing away, I'm too hurt to fight.`;
         case 'hungry': return `A ${spoken(decision.name)} is coming at me (${where}); backing away, I'm too hungry to fight.`;
+        case 'ordered': return `${whatOf(decision).replace(/^./, c => c.toUpperCase())} ${decision.names.length > 1 ? 'are' : 'is'} coming at me (${where}); backing away, as I was told to.`;
         default: return `Getting away from ${whatOf(decision)} (${where}).`;
     }
 }

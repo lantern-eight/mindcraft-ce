@@ -23,7 +23,7 @@ import { log } from '../library/skills.js';
 import { describeDirection } from '../fairplay/perception.js';
 import { chooseFight, LOW_HEALTH } from './mob_decide.js';
 import { fightOne } from './moves.js';
-import { mobsAround, mobInView, say, selfOf } from './mobs.js';
+import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
 
 export const MODE_NAME = 'self_defense';
@@ -34,9 +34,10 @@ const TELL_AGAIN_MS = 60000;
 /**
  * @param {object} options
  * @param {object} options.claims - shared with the mob reflex (claims.js)
+ * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
  * @param {() => number} [options.now]
  */
-export function createFightReflex({ claims, now = Date.now }) {
+export function createFightReflex({ claims, orders = null, now = Date.now }) {
     const givenUp = new Map(); // mob id -> until when
     const told = new Map();
     const dying = new Set();
@@ -58,12 +59,13 @@ export function createFightReflex({ claims, now = Date.now }) {
         const isGivenUp = id => (givenUp.get(id) ?? 0) > now();
         const mobs = mobsAround(bot, dying);
         // The choice is made without the path first; only the one mob it picks is asked about.
-        const pick = chooseFight(mobs, self, { ownerOf, givenUp: isGivenUp });
+        const orderOf = ordersFor(orders, self);
+        const pick = chooseFight(mobs, self, { ownerOf, givenUp: isGivenUp, orderOf });
         if (!pick) return;
         const entity = mobInView(bot, pick.id);
         if (!entity || !(await world.isClearPath(bot, entity))) return;
         if (mode.active || !mode.on) return; // something else started while the path was asked
-        act(agent, pick, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
+        act(agent, { ...pick, ordered: orderOf(pick)?.stance === 'fight' }, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
     }
 
     async function act(agent, pick, self) {
@@ -72,18 +74,21 @@ export function createFightReflex({ claims, now = Date.now }) {
         claims.claim(`id:${pick.id}`, MODE_NAME, CLAIM_MS); // long enough not to take turns, not the whole fight
         const interrupted = agent.actions.currentActionLabel;
         const where = describeDirection(self.position, pick.position).text;
-        const line = `Fighting the ${pick.name.replace(/_/g, ' ')} (${where}).`;
+        const line = `Fighting the ${pick.name.replace(/_/g, ' ')} (${where})${pick.ordered ? ', as I was told to' : ''}.`;
         say(agent, line);
         bot.emit?.('threat_reflex', { event: 'decided', at: performance.now(), stance: 'fight', key: `id:${pick.id}`, mode: MODE_NAME });
         let result, ended = null;
         try {
             result = await agent.actions.runAction(`mode:${MODE_NAME}`, async () => {
+                // A fight under orders ends when the order lapses (under its minimum health), as the bot's
+                // own ends under 6: then the mob reflex decides.
+                const lapsed = () => pick.ordered && orders?.orderFor(pick.name, selfOf(bot))?.stance !== 'fight';
                 const outcome = await fightOne(bot, {
                     target: () => mobInView(bot, pick.id),
-                    stop: () => (bot.health ?? 20) < LOW_HEALTH,
+                    stop: () => (bot.health ?? 20) < LOW_HEALTH || lapsed(),
                     maxMs: FIGHT_MS,
                 });
-                ended = outcome.ended;
+                ended = outcome.ended === 'stopped' && lapsed() ? 'order lapsed' : outcome.ended;
                 if (ended === 'out of time') givenUp.set(pick.id, now() + GIVE_UP_MS);
                 log(bot, ended === 'gone' ? `Fought off the ${pick.name}.` : `Stopped fighting the ${pick.name} (${ended}).`);
             }, { timeout: -1 });
