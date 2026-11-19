@@ -9,6 +9,46 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.6.0-bedrock.1.7.0] - 2026-11-19
+
+A release for both editions. The threat reflexes grow past creepers: a second reflex keeps the bot alive
+among every other hostile mob, whatever it is doing, and the fight takes on only a lone mob, when the bot is
+fit for it. The bot never looks an enderman in the eye, keeps its errands away from a creeper, and its
+reflexes stop repeating the same path search every round. No fixes to inherited code. Built on the same
+Mindcraft-CE commit as 0.1.0.
+
+### Added
+
+- A second threat reflex, `mob_safety`, for every hostile mob other than creepers, on with
+  `threat_reflexes`. Whatever the bot is doing, even told to `!stay`, it runs from the mobs around when its
+  health is under 6; gets behind a wall it has seen when a skeleton, a pillager or another ranged mob aims
+  at it (a bow raised or drawn, a crossbow held up), and backs out of range where there is none; backs away
+  from two or more mobs coming at it at once, away from all of them together; backs away from a single mob
+  when it is too hurt (under half health) or too hungry to fight, or the mob is too strong for a fight
+  nobody asked for (a cave spider, a warden, an enderman that was provoked); and gets away when hit twice in
+  a few seconds by something it can't see, from the side the hits came from. Other reflexes and the model's
+  commands wait for it, and the model hears about the same threat once a minute at most. It has its own
+  switch in `!setMode`; `cowardice` keeps its own meaning and stays off by default. On Bedrock, whose server
+  shows no mob's target or aim, a mob that always attacks players counts as coming for the bot once in view,
+  an archer counts as aiming when it faces the bot, and a hit's side is read from the push it gives.
+- With `threat_reflexes` on, the bot never looks an enderman in the eye. Any look that would come close
+  to an enderman's head (the idle look-around, a dash away from a creeper, a walk) is lowered to its feet.
+
+### Changed
+
+- While a creeper that isn't lit is within 8 blocks, the reflexes that run errands for an idle bot (picking
+  up items, hunting, placing torches, making room for a player) start nothing, and one already walking
+  stops. One walked the bot up to a creeper to pick up an item beside it.
+- With `threat_reflexes` on, the `self_defense` reflex fights only a lone mob coming at the bot (one that
+  has picked a target), and only with the bot at half health or more and fed enough to sprint. It used to
+  fight anything hostile within 8 blocks whatever the bot's state: two zombies at once, a passing enderman,
+  a skeleton it then chased. A crowd, or a mob too strong to fight, is `mob_safety`'s to back away from.
+  A mob the bot fought for 30 s without finishing is left alone for a minute. Its switch and the actions
+  that pause it are as before.
+- With `threat_reflexes` on, whether the bot can walk to a mob or an item is worked out once and kept for 3 s
+  (less if either moves 4 blocks), instead of a new path search each reflex round. The reflexes that hunt,
+  pick up items, fight and run away each asked every round, which with mobs about took most of the round.
+
 ## [1.5.0-bedrock.1.6.0] - 2026-11-18
 
 A release for both editions. A creeper reflex: the bot backs off from a creeper about to explode, whatever it
@@ -760,7 +800,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.5.0-bedrock.1.6.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.6.0-bedrock.1.7.0...HEAD
+[1.6.0-bedrock.1.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.5.0-bedrock.1.6.0...v1.6.0-bedrock.1.7.0
 [1.5.0-bedrock.1.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...v1.5.0-bedrock.1.6.0
 [1.4.0-bedrock.1.5.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.3.0-bedrock.1.4.0...v1.4.0-bedrock.1.5.0
 [1.3.0-bedrock.1.4.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.2.2-bedrock.1.3.1...v1.3.0-bedrock.1.4.0

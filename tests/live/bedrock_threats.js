@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
-// The creeper reflex on a real Bedrock Dedicated Server (no model calls, free to run).
+// The threat reflexes on a real Bedrock Dedicated Server (no model calls, free to run).
 //   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_threats.js
 // bedrock_fixture.js explains the variables; docs/bedrock.md shows a throwaway server to point them at.
 // NEVER a world you care about: creepers explode here, and the scenes are built and torn down from the console.
@@ -10,8 +10,11 @@
 // the bot). Mob griefing is turned off, so a blast leaves the scene standing; it still hurts whoever is
 // close, and the bot must take no damage.
 //
-// It also answers what the reflex needs to know about Bedrock: which flag shows the fuse is lit, and that the
-// hiss reaches hearing. A following creeper is only ever left behind on Bedrock (docs/threat-reflexes.md).
+// It also answers what the reflexes need to know about Bedrock: which flag shows the fuse is lit, that the
+// hiss reaches hearing, what the server shows of a mob's target and aim (nothing, so the edition seam goes by
+// the mob's kind and where it faces), and the side a hit came from (the push the server gives the bot). A
+// following creeper is only ever left behind on Bedrock (docs/threat-reflexes.md). Then the mob reflex and
+// the fight, briefly: the Java scenes in mob_scenarios.js are the full set.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync, readFileSync } from 'node:fs';
@@ -52,6 +55,7 @@ try {
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
     const { editionOf } = await import('../../src/agent/edition/index.js');
+    const { heldFrom } = await import('../../src/agent/action_hold.js');
     const skills = await import('../../src/agent/library/skills.js');
 
     let agent, reflexes;
@@ -118,7 +122,7 @@ try {
         const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-memory-')) });
         assert.ok(handle, 'fair play installed');
         reflexes = installThreatReflexes(agent);
-        assert.ok(reflexes, 'the creeper reflex installed');
+        assert.ok(reflexes, 'the threat reflexes installed');
         bot.on('threat_reflex', event => events.push(event));
         bot.on('health', () => { lowestHealth = Math.min(lowestHealth, bot.health); });
         bot.on('idle', () => { bot.clearControlStates(); bot.pathfinder.stop(); bot.modes.unPauseAll(); });
@@ -156,9 +160,9 @@ try {
             bot.off('entityGone', onGone);
             const heard = events.find(e => e.event === 'heard');
             const first = events.find(e => e.event === 'step');
-            assert.ok(first, 'it stepped away');
+            assert.ok(first, `it stepped away: ${JSON.stringify(events)}`);
             const off = flat(gone.bot, gone.creeper);
-            assert.ok(off >= 7, `it was ${off.toFixed(1)} blocks off when it went off`);
+            assert.ok(off >= 7, `it was ${off.toFixed(1)} blocks off when it went off: ${JSON.stringify(events)}, action ${agent.actions.currentActionLabel}, held ${heldFrom(agent, 'mode:creeper_safety')}`);
             await delay(1000);
             assert.equal(lowestHealth, 20, 'no damage');
             const ms = heard ? Math.round(first.at - heard.at) : null;
@@ -210,6 +214,111 @@ try {
         assert.ok(messages.length <= 1, messages.join('\n---\n'));
         assert.equal(lowestHealth, 20, 'no damage');
         return { rounds, stances, creeperLeft: Boolean(rawCreeper()) };
+    });
+
+    // ---- The mob reflex: what a Bedrock server shows of a mob's target, its aim, and a hit ----
+
+    // The flags a mob shows over a stretch of time: each one that was ever set, and when it first was.
+    function watchFlags(mob, ms) {
+        const started = Date.now(), first = {};
+        return new Promise(resolve => {
+            const timer = setInterval(() => {
+                const all = { ...(mob.metadata?.flags ?? {}), ...Object.fromEntries(Object.entries(mob.metadata?.flags_extended ?? {}).map(([k, v]) => [`+${k}`, v])) };
+                for (const [name, on] of Object.entries(all)) if (on && first[name] === undefined) first[name] = Date.now() - started;
+                if (Date.now() - started > ms) { clearInterval(timer); resolve(first); }
+            }, 100);
+        });
+    }
+    const rawMob = name => Object.values(bot.entities).find(e => e.name === name) ?? null;
+
+    await step('a zombie coming for the bot: the server shows no target, and isAggressive goes by its kind', async () => {
+        await reset();
+        reflexes.mob.mode.on = false; reflexes.fight.mode.on = false; // only watching here
+        await cmd(`effect ${NAME} resistance 30 4 true`);
+        const spot = at(8, 1, 0);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await waitFor(() => rawMob('zombie'), 5000, () => 'no zombie arrived');
+        const zombie = rawMob('zombie');
+        let aggressiveAt = null;
+        const started = Date.now();
+        const watching = watchFlags(zombie, 8000);
+        const check = setInterval(() => { if (aggressiveAt === null && editionOf(bot.registry).isAggressive(bot.registry, zombie)) aggressiveAt = Date.now() - started; }, 100);
+        const flags = await watching;
+        clearInterval(check);
+        reflexes.mob.mode.on = true; reflexes.fight.mode.on = true;
+        assert.notEqual(aggressiveAt, null, 'a zombie is taken to have come for the bot');
+        return { flagsFirstSetMs: flags, targetEid: Number(zombie.metadata?.target_eid ?? 0), closestBlocks: Number(flat(zombie.position, bot.entity.position).toFixed(1)) };
+    });
+
+    await step('a skeleton taking aim at the bot: no flag shows it, and isAiming goes by the skeleton facing the bot', async () => {
+        await reset();
+        reflexes.mob.mode.on = false; reflexes.fight.mode.on = false;
+        await cmd(`effect ${NAME} resistance 30 4 true`);
+        const spot = at(12, 1, 0);
+        await cmd(`summon skeleton ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await waitFor(() => rawMob('skeleton'), 5000, () => 'no skeleton arrived');
+        const skeleton = rawMob('skeleton');
+        let aimingAt = null;
+        const started = Date.now();
+        const watching = watchFlags(skeleton, 8000);
+        const eye = () => bot.entity.position.offset(0, 1.62, 0);
+        const check = setInterval(() => { if (aimingAt === null && editionOf(bot.registry).isAiming(bot.registry, skeleton, eye())) aimingAt = Date.now() - started; }, 100);
+        const flags = await watching;
+        clearInterval(check);
+        reflexes.mob.mode.on = true; reflexes.fight.mode.on = true;
+        assert.notEqual(aimingAt, null, `it was never seen facing the bot: yaw ${skeleton.yaw}, head ${skeleton.headYaw}`);
+        return { flagsFirstSetMs: flags, isAimingAfterMs: aimingAt };
+    });
+
+    await step('a hit from a zombie to the south: the server pushes the bot north, and the hit is felt from the south', async () => {
+        await reset();
+        reflexes.mob.mode.on = false; reflexes.fight.mode.on = false;
+        await cmd(`effect ${NAME} resistance 30 3 true`);
+        const packets = [];
+        const names = ['entity_event', 'set_entity_motion', 'animate', 'hurt_armor', 'motion_prediction_hints'];
+        const listeners = names.map(name => {
+            const fn = packet => {
+                const id = Number(packet.runtime_entity_id ?? packet.runtime_id ?? packet.entity_id ?? -1);
+                if (id === bot.entity.id) packets.push({ name, at: Date.now(), ...JSON.parse(JSON.stringify(packet, (k, v) => typeof v === 'bigint' ? Number(v) : v)) });
+            };
+            bot._client.on(name, fn);
+            return [name, fn];
+        });
+        const felt = [];
+        const onFelt = event => { if (event.event === 'felt') felt.push(event.direction); };
+        bot.on('threat_reflex', onFelt);
+        const spot = at(0, 1, 4); // to the south
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await waitFor(() => felt.length >= 1, 12000, () => `no hit felt: ${JSON.stringify(packets).slice(0, 600)}`);
+        await delay(600);
+        for (const [name, fn] of listeners) bot._client.off(name, fn);
+        bot.off('threat_reflex', onFelt);
+        reflexes.mob.mode.on = true; reflexes.fight.mode.on = true;
+        assert.ok(felt[0] && felt[0].z > 0.7, `felt from ${JSON.stringify(felt[0])}: ${JSON.stringify(packets).slice(0, 400)}`);
+        return { felt: felt.map(d => d && { x: Number(d.x.toFixed(2)), z: Number(d.z.toFixed(2)) }) };
+    });
+
+    await step('two zombies coming: the mob reflex backs away from both, even from a fight just taken on', async () => {
+        await reset();
+        await cmd(`effect ${NAME} resistance 30 2 true`);
+        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`); }
+        await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
+        const decided = events.filter(e => e.event === 'decided');
+        assert.equal(decided.find(e => e.mode === 'mob_safety')?.key, 'crowd', JSON.stringify(decided));
+        const zombies = Object.values(bot.entities).filter(e => e.name === 'zombie');
+        const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
+        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest`);
+        return { endedFromNearest: Number(nearest.toFixed(1)), stances: decided.map(e => `${e.mode}:${e.stance}`) };
+    });
+
+    await step('a lone zombie, the bot with a stone sword: the fight takes it on', async () => {
+        await reset();
+        await cmd(`give ${NAME} stone_sword 1`, 700);
+        const spot = at(-6, 1, 0);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await waitFor(() => events.some(e => e.event === 'decided' && e.mode === 'self_defense'), 15000, () => JSON.stringify(events));
+        await waitFor(() => !rawMob('zombie'), 30000, () => JSON.stringify(events));
+        return { fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length, lowestHealth };
     });
 
     await step('reaction times and distances over the runs', () => ({ hissMs: hissTimes, blastDistances }));

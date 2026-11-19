@@ -170,6 +170,26 @@ test('a creeper seen dying is not backed off from, though it is still swollen', 
     bot.stopWalking();
 });
 
+test('an unlit creeper close by: errands start nothing and one under way stops; commands and the fight go on', async () => {
+    const { agent, bot, installed } = makeAgent();
+    agent.actions.runAction('mode:item_collecting', () => new Promise(() => {}));
+    await delay(10);
+    bot.entities[7] = creeper(-5.5, false);
+    installed.creeper.round(agent);
+    await delay(20);
+    assert.equal(agent.actions.executing, false, 'the walk to an item stopped');
+    assert.ok(heldFrom(agent, 'mode:item_collecting'));
+    assert.ok(heldFrom(agent, 'mode:hunting'));
+    assert.equal(heldFrom(agent, 'mode:self_defense'), null);
+    assert.equal(heldFrom(agent, 'action:goToPlayer'), null, 'the model\'s commands go on');
+    // Gone away: the errands come back a moment later.
+    bot.entities[7].position = new Vec3(-20.5, 64, 0.5);
+    installed.creeper.round(agent);
+    await delay(1100);
+    assert.equal(heldFrom(agent, 'mode:item_collecting'), null);
+    bot.stopWalking();
+});
+
 test('a profile that turns it off keeps it off', () => {
     const { agent, bot } = makeAgent({ creeper_safety: false });
     assert.equal(agent.bot.modes.isOn('creeper_safety'), false);
