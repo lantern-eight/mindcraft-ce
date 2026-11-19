@@ -9,6 +9,46 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.7.1-bedrock.1.8.2] - 2026-11-19
+
+A release of the tests alone: `npm test` passes on the `bedrock` branch again. The bot's code is the same as
+in 1.7.1-bedrock.1.8.1. Built on the same Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
+### Fixed
+
+- `npm test` passes on the `bedrock` branch again. The test for a stop during the route search, which came
+  with Mindcraft-CE's change in 1.7.1-bedrock.1.8.1, took the edition from `settings.js`, which is Bedrock
+  there, and then asked for a Java Edition version.
+
+## [1.7.1-bedrock.1.8.1] - 2026-11-19
+
+A release for both editions that brings this fork level with Mindcraft-CE, which has now merged most of the
+fixes this fork offered it. Mindcraft-CE's maintainer improved several of them while merging: the bot picks up
+an item from another side when the first try doesn't reach it, uses its bare hand with `useToolOn` again, and
+stops a walk when told to while still searching for the route; cheat mode's `tillAndSow` and `placeBlock` are
+tightened. Built on Mindcraft-CE's `agent-system` branch at commit `ae4b06c`.
+
+### Changed
+
+- `pickupNearbyItems` tries an item from another side when the first spot it walked to didn't reach it,
+  instead of walking back to the same spot. Mindcraft-CE's maintainer added this to the fix for picking up
+  items from beside them, and this fork takes it from Mindcraft-CE's `agent-system` branch.
+
+### Fixed
+
+- `useToolOn` with `hand` uses the bare hand again outside creative mode. The check for a missing tool
+  from 0.1.0 looked for an item called "hand" in the inventory and refused. From Mindcraft-CE's
+  maintainer, who added it to that fix when merging it.
+- A stop that comes while `goToGoal` is searching for a route ends the search and the walk. The search
+  stopped looking, but the walk then started anyway along whatever it had found. From Mindcraft-CE's
+  maintainer, who added it to this fork's fix for the path search's time limit when merging it.
+- With fair play off and cheat mode on, `tillAndSow` says it failed when the farmland or the crop couldn't
+  be placed, and plants nothing on farmland that wasn't placed. It said it was done either way. From
+  Mindcraft-CE's maintainer, who added it to this fork's fix for tilling without a seed when merging it.
+- With fair play off and cheat mode on, `placeBlock` no longer sends a second `/setblock` for a trapdoor or
+  bedrock. Telling a door or a bed by a name that contains "door" or "bed" also caught them. From
+  Mindcraft-CE's maintainer, who added it to this fork's fix for those second blocks when merging it.
+
 ## [1.7.0-bedrock.1.8.0] - 2026-11-19
 
 A release for both editions. The bot remembers for a while where it met danger (illagers, a mob aiming at
@@ -828,7 +868,9 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.0-bedrock.1.8.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...HEAD
+[1.7.1-bedrock.1.8.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.1...v1.7.1-bedrock.1.8.2
+[1.7.1-bedrock.1.8.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.0-bedrock.1.8.0...v1.7.1-bedrock.1.8.1
 [1.7.0-bedrock.1.8.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.6.0-bedrock.1.7.0...v1.7.0-bedrock.1.8.0
 [1.6.0-bedrock.1.7.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.5.0-bedrock.1.6.0...v1.6.0-bedrock.1.7.0
 [1.5.0-bedrock.1.6.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.4.0-bedrock.1.5.0...v1.5.0-bedrock.1.6.0
