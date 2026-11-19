@@ -1,6 +1,7 @@
 import { withAction, withoutAction, releaseAction } from './action_context.js';
 import { ProgressTracker } from './progress.js';
 import { toolResult } from './tool_result.js';
+import { heldFrom, refusedByHold, waitOutHold } from './action_hold.js'; // fork hook (docs/core-hooks.md)
 
 export class ActionManager {
     constructor(agent) {
@@ -30,12 +31,16 @@ export class ActionManager {
     async runAction(label, fn, {timeout = 10, resume = false} = {}) {
         if (resume) { this.resume_func = fn; this.resume_name = label; this.resume_timeout = timeout; }
         const stopsWhenAsked = this.stopCount;
+        // Fork hook: while a reflex holds starts (action_hold.js), wait for it, or be turned down.
+        if (heldFrom(this.agent, label)) { const held = await waitOutHold(this.agent, label); if (held) return held; }
         let release;
         const previous = this.startQueue;
         this.startQueue = new Promise(resolve => { release = resolve; });
         await previous;
         let owner;
         try {
+            const heldNow = refusedByHold(this.agent, label); // fork hook: a hold that began while this waited its turn
+            if (heldNow) return heldNow;
             await this._stopCurrent();
             // A stop that came while this start waited its turn, or while the old action was being
             // stopped, was meant for this one as well.

@@ -179,6 +179,13 @@ test('a Bedrock mob is a baby by its flags, not by Java\'s numbered entry', () =
     assert.equal(bedrockEdition.isBaby({ name: 'cow' }), false, 'no metadata yet');
 });
 
+test('a Bedrock creeper\'s lit fuse is its ignited flag', () => {
+    assert.equal(bedrockEdition.isFusing(null, { name: 'creeper', metadata: { flags: { ignited: true } } }), true);
+    assert.equal(bedrockEdition.isFusing(null, { name: 'creeper', metadata: { flags: { ignited: false } } }), false);
+    assert.equal(bedrockEdition.isFusing(null, { name: 'creeper', metadata: { 16: 1 } }), false, 'Java\'s entry means nothing on Bedrock');
+    assert.equal(bedrockEdition.isFusing(null, { name: 'tnt_minecart', metadata: { flags: { ignited: true } } }), false, 'only a creeper');
+});
+
 test('a Bedrock villager is read from its own name and named metadata', () => {
     const villager = (metadata) => ({ name: 'villager_v2', metadata });
     assert.deepEqual(bedrockEdition.villagerOf(villager({ variant: 5, trade_tier: 0, flags: { baby: false } })),

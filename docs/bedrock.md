@@ -120,6 +120,7 @@ stay.
 |---|---|
 | **Fair play** | Works, with the two limits in the next rows. Checked on a server by `bedrock_perception.js`: sight (the bot knows the blocks and mobs in view, and not ore inside rock, a chest in a sealed room, a mob behind a wall or the ground under its feet), hearing a mob's cry from behind a wall, and noticing that the server made the bot an operator. And by `bedrock_fair_play.js`, as the agent runs it: what the model is told, skills that find and walk to only what the bot has seen, the reach guard, the reflex to flee a monster in view, model-written code, refusing to act as an operator or in creative mode, and no slash command sent. The reach guard holds the bot to a Bedrock player's reach, 5 blocks to a block and 3 to a mob, and a block 4.8 blocks away, past Java's reach, is dug |
 | **Mobs' everyday noises** | Not heard. A Bedrock client makes a mob's moos and groans up by itself, and the server never sends them, so the bot hears a mob only when it is hurt or dies, or does something the server plays a sound for |
+| **Creepers' own rules** | The creeper reflex backs off the same way as on Java, and a lit creeper is read from its `ignited` flag and heard by its hiss (`fuse`), both checked by `bedrock_threats.js`. What a Bedrock creeper does is not measured yet: at what distances its fuse lights and runs down, and whether it needs to see its target. So the reflex finishes with a creeper that keeps following only by leaving it behind, never by going back in to hit it |
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
 | **World memory** | Works. Checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. And by `bedrock_memory_scenarios.js`, as the agent runs it: a chest opened and walked away from is recalled with what was in it and the way back; the trail, saved places, what a sign says, and the changes found after a minute out of sight, told once; memory saved to disk. Each world has its own memory, named by a hash of the seed the server sends |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder moves the bot there in one go when it stops; a Bedrock server refuses that move, and has the last word on where a walk stopped up to a second later. Before the bot digs the block under its feet (as `digDown` does), it steps to the middle of its block, so it drops into the hole it digs. Nothing else is known to need the middle |
@@ -156,7 +157,7 @@ one line of JSON for each step:
 export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
 export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 
-node tests/live/bedrock_all.js                         # all seven below, one after another
+node tests/live/bedrock_all.js                         # all eight below, one after another
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
@@ -165,6 +166,7 @@ node tests/live/bedrock_memory.js                      # world memory's look-aro
 node tests/live/bedrock_memory_scenarios.js            # world memory as the agent runs it (about 3 minutes)
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
+node tests/live/bedrock_threats.js                     # the creeper reflex
 ```
 
 - **`bedrock_smoke.js`** joins through the repo's own start-up code and checks what every skill leans on:
@@ -193,6 +195,13 @@ node tests/live/bedrock_storage.js                     # chest sorting
   seen, can't open the chest through the wall, flees the zombie only once it sees it, runs model-written
   code that sees no more than it does, refuses to act while an operator or in creative mode, and never
   sends a command. The Bedrock twin of `fairplay_scenarios.js`.
+- **`bedrock_threats.js`** installs fair play and the creeper reflex, lights creepers with Bedrock's own
+  start-exploding event, penned in glass where the bot can see them, and checks that the bot reads the fuse
+  from the `ignited` flag, steps away the moment the hiss arrives, is 7 or more blocks off at each blast and
+  takes no damage; that it backs off on the hiss alone from a creeper around a corner; and that a creeper
+  following it is left behind, never gone back in to hit, even with a sword. Mob griefing is turned off for
+  the run, and hostile mobs are cleared by switching to peaceful, since a console line can't name them. The
+  Bedrock twin of `threat_scenarios.js`.
 - **`bedrock_storage.js`** installs chest sorting with fair play and world memory, fills containers from
   the console, has the bot sort them, and reads them back by opening them with the test's own hands: a
   chest of part stacks, a full chest of twenty kinds, and a chest, a double chest, a barrel and a trapped

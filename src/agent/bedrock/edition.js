@@ -357,6 +357,15 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
+     * Is this creeper's fuse lit? A Bedrock creeper about to blow has the `ignited` flag among its entity
+     * flags, the same set `isBaby` reads; the server sets it whether the creeper lit itself or was lit
+     * with flint and steel.
+     */
+    isFusing(registry, entity) {
+        return entity?.name === 'creeper' && Boolean(entity.metadata?.flags?.ignited);
+    },
+
+    /**
      * Is this mob a villager, and is it a child, what is its job and its level? Bedrock's villager is
      * `villager_v2` (`villager` is the one from before villages were reworked, kept for old worlds). Its
      * job is its `variant`, numbered in Bedrock's own order, and its level is its `trade_tier`, which

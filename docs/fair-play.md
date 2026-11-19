@@ -114,6 +114,8 @@ player's legs do.
 - `!nearbyBlocks` and `!entities` (and the state summary built from them) list only what the bot perceives.
 - `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view. A
   creeper's hiss and an explosion are listed even in plain view.
+- A creeper's hiss or an explosion close by also reaches the [creeper reflex](threat-reflexes.md) the
+  moment it is heard, with the same direction and distance band and nothing more.
 - With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model

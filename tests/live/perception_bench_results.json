@@ -195,6 +195,55 @@
         "fair_sand512": 1,
         "fairEntities": 2
       }
+    },
+    {
+      "release": "1.5.0-bedrock.1.6.0",
+      "date": "2026-11-18",
+      "game_version": "26.3",
+      "seed": "8091",
+      "view_distance": 8,
+      "rounds": 5,
+      "spawn": "(-512, 66, -240)",
+      "timings": {
+        "passWhole": 12.5,
+        "passSlicedLongestTick": 4.3,
+        "passSlicedTotal": 11.5,
+        "raw_nearby8": 15,
+        "fair_nearby8": 1.7,
+        "fair_nearby8_again": 1.4,
+        "raw_stone16_count1": 1.5,
+        "fair_stone16_count1": 1.4,
+        "fair_stone16_count1_again": 0.7,
+        "raw_stone64_count128": 1.6,
+        "fair_stone64_count128": 43.9,
+        "fair_stone64_count128_again": 13.2,
+        "raw_logs64_count128": 84.6,
+        "fair_logs64_count128": 0.6,
+        "fair_logs64_count128_again": 0.4,
+        "raw_diamond64": 79.9,
+        "fair_diamond64": 0.4,
+        "fair_diamond64_again": 0.3,
+        "raw_sand512": 5.3,
+        "fair_sand512": 11.1,
+        "fair_sand512_again": 11.1,
+        "fairEntities": 0
+      },
+      "found": {
+        "passSlicedTicks": 3,
+        "raw_nearby8": 634,
+        "fair_nearby8": 344,
+        "raw_stone16_count1": 1,
+        "fair_stone16_count1": 1,
+        "raw_stone64_count128": 128,
+        "fair_stone64_count128": 128,
+        "raw_logs64_count128": 20,
+        "fair_logs64_count128": 6,
+        "raw_diamond64": 2,
+        "fair_diamond64": 0,
+        "raw_sand512": 1,
+        "fair_sand512": 1,
+        "fairEntities": 2
+      }
     }
   ]
 }
