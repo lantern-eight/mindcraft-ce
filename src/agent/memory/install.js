@@ -7,6 +7,7 @@
 // memory: a spawn in a new dimension closes one and opens another.
 import { createPerception } from '../fairplay/perception.js';
 import { setTravelGuide } from '../library/travel_guide.js';
+import { placeCostAt } from '../library/place_costs.js';
 import { moveKindOf } from './kinds.js';
 import { createNavigator, pathfinderLegs, targetOf } from './navigator.js';
 import { createRecorder } from './recorder.js';
@@ -55,7 +56,10 @@ export function attachWorldMemory({ bot, policy, scope, baseDir, perceptionOptio
     // Travel follows the trail from here on. A bot without the pathfinder (a test stub) simply has none.
     // A remembered block stands in the way when it is solid and is not a door or gate, which opens.
     const blocksWay = name => bot.registry.blocksByName[name]?.boundingBox === 'block' && moveKindOf(name) !== 'door';
-    const navigator = bot.pathfinder ? createNavigator({ memory, legs: pathfinderLegs(bot), blocksWay }) : null;
+    // A way that leads deeper into a place the bot's routes pay to enter (a danger zone) is left to ordinary
+    // travel, which goes round it.
+    const priceAt = point => placeCostAt(bot, point.x, point.y, point.z);
+    const navigator = bot.pathfinder ? createNavigator({ memory, legs: pathfinderLegs(bot), blocksWay, priceAt }) : null;
     if (navigator) {
         navigators.set(bot, navigator);
         setTravelGuide(guide);

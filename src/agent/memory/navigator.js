@@ -44,6 +44,8 @@ export function targetOf(goal) {
  *   resolving to whether it got there
  * @param {(name: string) => boolean} [options.blocksWay] - is a remembered block of this name solid,
  *   so that it stands in the way? Without it, memory of walls is not consulted
+ * @param {(point: object) => number} [options.priceAt] - what a spot costs a route to be in (place_costs.js),
+ *   or none. A way that goes deeper into a priced place is left to ordinary travel, which goes round it
  * @param {number} [options.hopReach] - how far ahead one hop may end, in blocks. The pathfinder plans
  *   this far quickly and reliably
  * @param {number} [options.lookAhead] - how many spots ahead to look for a short cut
@@ -53,13 +55,24 @@ export function targetOf(goal) {
  * @param {number} [options.minGain] - a route that ends short must bring the bot this much closer,
  * @param {number} [options.detourLimit] - and may be at most this many times longer than what it gains
  */
-export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20, lookAhead = 32, planMs = 200,
+export function createNavigator({ memory, legs, blocksWay = null, priceAt = null, hopReach = 20, lookAhead = 32, planMs = 200,
     startReach = 8, arriveWithin = 3, minGain = 8, detourLimit = 1.5, maxDetours = 3 } = {}) {
     const { trail } = memory;
     let busy = false;
 
     /** How long a route is, in blocks. */
     const lengthOf = points => points.slice(1).reduce((sum, point, i) => sum + dist(points[i], point), 0);
+
+    // Does a route go deeper into a place the bot's routes pay to enter (a danger zone)? Then it isn't
+    // followed: every hop would have to come back to the trail inside the place. Ordinary travel prices
+    // those places and goes round them. Going down the price, out of one, is no reason to leave the trail.
+    const RISE_ALLOWED = 1; // about a block's walk
+    const climbs = points => {
+        let rise = 0;
+        for (let i = 1; i < points.length && rise <= RISE_ALLOWED; i++)
+            rise += Math.max(0, priceAt(points[i]) - priceAt(points[i - 1]));
+        return rise > RISE_ALLOWED;
+    };
 
     /**
      * Does the bot remember a wall on the straight line from a spot to the target?
@@ -147,6 +160,7 @@ export function createNavigator({ memory, legs, blocksWay = null, hopReach = 20,
                     const gain = dist(here, target) - dist(end, target);
                     if (gain < minGain || lengthOf(route.points) > detourLimit * gain) continue;
                 }
+                if (priceAt && climbs(route.points)) continue;
                 return { points: route.points, end, seconds: route.seconds };
             }
         }
