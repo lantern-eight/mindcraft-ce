@@ -492,11 +492,14 @@ export async function collectBlock(bot, blockType, num=1, exclude=null) {
 //
 // GoalFollow keeps track of the item if it slides, and plans again once it has moved more than a block.
 class GoalPickUp extends pf.goals.GoalFollow {
-    constructor(item) {
+    constructor(item, previousApproach) {
         super(item, 1);
+        this.previousApproach = previousApproach;
     }
 
     isEnd(node) {
+        // Once an approach stalls, try a different column around the drop.
+        if (node.x === this.previousApproach?.x && node.z === this.previousApproach?.z) return false;
         const below = this.y - node.y; // how far the bot's feet are under the item's cell
         return Math.abs(this.x - node.x) <= 1 && Math.abs(this.z - node.z) <= 1 && (below === 0 || below === 1);
     }
@@ -554,6 +557,7 @@ export async function pickupNearbyItems(bot, allowDig=false) {
         await new Promise(resolve => setTimeout(resolve, 350));
         const deadline = Date.now() + 7000;
         const attempts = new Map();
+        const approaches = new Map();
         while (Date.now() < deadline && !bot.interrupt_code) {
             assertActionOwner(bot);
             const nearest = world.getNearestEntityWhere(bot, entity => entity.name === 'item' &&
@@ -563,10 +567,11 @@ export async function pickupNearbyItems(bot, allowDig=false) {
             attempts.set(nearest.id, tries + 1);
             bot.pathfinder.setMovements(tries > 0 && allowDig ? digging : walking);
             try {
-                await cancellable(bot, () => bot.pathfinder.goto(new GoalPickUp(nearest)),
+                await cancellable(bot, () => bot.pathfinder.goto(new GoalPickUp(nearest, approaches.get(nearest.id))),
                     3000, () => bot.pathfinder.setGoal(null));
                 await new Promise(resolve => setTimeout(resolve, 400));
                 if (bot.entities[nearest.id]) {
+                    approaches.set(nearest.id, bot.entity.position.floored());
                     await stepToward(bot, nearest);
                     await new Promise(resolve => setTimeout(resolve, 250));
                 }
@@ -706,11 +711,11 @@ export async function placeBlock(bot, blockType, x, y, z, placeOn='bottom', dont
         if (useDelay) { await new Promise(resolve => setTimeout(resolve, blockPlaceDelay)); }
         let msg = '/setblock ' + Math.floor(x) + ' ' + Math.floor(y) + ' ' + Math.floor(z) + ' ' + blockType;
         bot.chat(msg);
-        if (blockType.includes('door')) {
+        if (blockType.endsWith('_door')) {
             if (useDelay) { await new Promise(resolve => setTimeout(resolve, blockPlaceDelay)); }
             bot.chat('/setblock ' + Math.floor(x) + ' ' + Math.floor(y+1) + ' ' + Math.floor(z) + ' ' + blockType + '[half=upper]');
         }
-        if (blockType.includes('bed')) {
+        if (blockType.endsWith('_bed')) {
             if (useDelay) { await new Promise(resolve => setTimeout(resolve, blockPlaceDelay)); }
             bot.chat('/setblock ' + Math.floor(x) + ' ' + Math.floor(y) + ' ' + Math.floor(z-1) + ' ' + blockType + '[part=head]');
         }
@@ -1141,6 +1146,7 @@ export async function searchPath(bot, movements, goal, timeoutMs) {
         last = result;
         if (result.status !== 'partial' || bot.interrupt_code) break;
         await new Promise(resolve => setImmediate(resolve));
+        if (bot.interrupt_code) break;
     }
     return last;
 }
@@ -1176,6 +1182,8 @@ export async function goToGoal(bot, goal) {
      * @param {pf.goals.Goal} goal, the goal to navigate to.
      **/
 
+    if (bot.interrupt_code) return false;
+
     // A trip the bot remembers a walked way for follows that way first, as far as it leads. The
     // planning below then carries on from wherever that left the bot. See travel_guide.js.
     await followKnownWay(bot, goal, log);
@@ -1193,15 +1201,19 @@ export async function goToGoal(bot, goal) {
     let final_movements = destructiveMovements;
 
     const pathfind_timeout = 1000;
-    if ((await searchPath(bot, nonDestructiveMovements, goal, pathfind_timeout)).status === 'success') {
+    const nonDestructivePath = await searchPath(bot, nonDestructiveMovements, goal, pathfind_timeout);
+    if (bot.interrupt_code) return false;
+    if (nonDestructivePath?.status === 'success') {
         final_movements = nonDestructiveMovements;
         log(bot, `Found non-destructive path.`);
-    }
-    else if ((await searchPath(bot, destructiveMovements, goal, pathfind_timeout)).status === 'success') {
-        log(bot, `Found destructive path.`);
-    }
-    else {
-        log(bot, `Path not found, but attempting to navigate anyway using destructive movements.`);
+    } else {
+        const destructivePath = await searchPath(bot, destructiveMovements, goal, pathfind_timeout);
+        if (bot.interrupt_code) return false;
+        if (destructivePath?.status === 'success') {
+            log(bot, `Found destructive path.`);
+        } else {
+            log(bot, `Path not found, but attempting to navigate anyway using destructive movements.`);
+        }
     }
 
     const doorCheckInterval = startDoorInterval(bot);
@@ -1724,9 +1736,8 @@ export async function tillAndSow(bot, x, y, z, seedType=null) {
                 seedType = seedType.replace(remove, '');
             }
         }
-        await placeBlock(bot, 'farmland', x, y, z);
-        if (seedType) await placeBlock(bot, seedType, x, y+1, z);
-        return true;
+        if (!await placeBlock(bot, 'farmland', x, y, z)) return false;
+        return seedType ? await placeBlock(bot, seedType, x, y+1, z) : true;
     }
 
     if (block.name !== 'grass_block' && block.name !== 'dirt' && block.name !== 'farmland') {
@@ -2122,7 +2133,8 @@ export async function useToolOn(bot, toolName, targetName) {
      * @param {string} targetName - entity type, block type, or "nothing" for no target
      * @returns {Promise<boolean>} true if action succeeded
      */
-    if (!bot.inventory.slots.find(slot => slot && slot.name === toolName) && bot.game.gameMode !== 'creative') {
+    if (toolName !== 'hand' && bot.game.gameMode !== 'creative' &&
+        !bot.inventory.slots.some(slot => slot?.name === toolName)) {
         log(bot, `You do not have any ${toolName} to use.`);
         return false;
     }

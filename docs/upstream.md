@@ -9,8 +9,8 @@ How a fix is made and offered is in [CLAUDE.md](../CLAUDE.md), "Fixes to Inherit
 unreleased work, and the release each waits for, are in
 [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch).
 
-*As of `1.5.0-bedrock.1.6.0`: all of these are open.* A line is removed once its fix is merged upstream and
-this fork is on a release that has it. A fix that is declined stays on `main`, and its line says so.
+*As of `1.7.1-bedrock.1.8.1`.* A line is removed once its fix is merged upstream and this fork is on a release
+that has it. A fix that is declined stays on `main`, and its line says so.
 
 ## Mindcraft-CE
 
@@ -18,27 +18,40 @@ Pull requests to [mindcraft-ce/mindcraft-ce](https://github.com/mindcraft-ce/min
 unless noted. Each comes from a `fix/...` branch of this repository, cut from the last commit `develop` and
 `agent-system` share, so it holds the fix and nothing else.
 
+### Open
+
+| Pull request | Fix |
+|---|---|
+| [#116](https://github.com/mindcraft-ce/mindcraft-ce/pull/116) | Position packets stay in their own tick once the client sends `tick_end` |
+| [#138](https://github.com/mindcraft-ce/mindcraft-ce/pull/138) | `defendSelf` and the `self_defense` reflex don't fight a creeper hand to hand (asks CE how it wants creepers handled, having no creeper reflex) |
+| [#140](https://github.com/mindcraft-ce/mindcraft-ce/pull/140) | `avoidEnemies` no longer pauses `self_preservation` while it runs |
+
+### Merged Into `develop`
+
+Merged, but only into `develop`. This fork is built on `agent-system`, so each line stays until
+`agent-system` takes in `develop` and this fork merges that.
+
+Mindcraft-CE's maintainer added a commit of their own to six of these when merging them, and this fork has
+taken each of those, except one: in #132, `getFirstBlockAboveHead` stops at the first spot it has no block for
+and says "unknown (incomplete scan)", where this fork says how far up that spot is ("unknown (2 blocks up)").
+Under fair play that spot is one the bot hasn't seen, not a scan that failed, and its height is what tells the
+model how much open space there is. A later merge of `develop` will meet that difference in those lines.
+
 | Pull request | Fix |
 |---|---|
 | [#104](https://github.com/mindcraft-ce/mindcraft-ce/pull/104) | `giveToPlayer`, `goToPlayer` and `followPlayer` don't crash on a player who isn't online |
 | [#105](https://github.com/mindcraft-ce/mindcraft-ce/pull/105) | `goToBed` no longer mistakes bedrock for a bed |
 | [#106](https://github.com/mindcraft-ce/mindcraft-ce/pull/106) | No `/skin clear` at login when the profile sets no skin |
 | [#107](https://github.com/mindcraft-ce/mindcraft-ce/pull/107) | `getNearestFreeSpace` rejects a spot with a block in it |
-| [#108](https://github.com/mindcraft-ce/mindcraft-ce/pull/108) | `useDoor` with no door nearby says so instead of crashing |
 | [#109](https://github.com/mindcraft-ce/mindcraft-ce/pull/109) | `useToolOn` notices a missing tool |
 | [#110](https://github.com/mindcraft-ce/mindcraft-ce/pull/110) | `!stats` puts the current action on its own line |
 | [#111](https://github.com/mindcraft-ce/mindcraft-ce/pull/111) | A leftover debug line no longer writes a number into `giveToPlayer`'s result |
 | [#112](https://github.com/mindcraft-ce/mindcraft-ce/pull/112) | `goToGoal`'s path search uses its whole second, not one 40 ms slice |
-| [#113](https://github.com/mindcraft-ce/mindcraft-ce/pull/113) | `goToGoal` doesn't plan diagonals it can't walk in 1-wide tunnels |
 | [#114](https://github.com/mindcraft-ce/mindcraft-ce/pull/114) | Failed actions no longer send "Stack trace: undefined" to the model |
-| [#115](https://github.com/mindcraft-ce/mindcraft-ce/pull/115) | `pickupNearbyItems` picks up from beside an item (on `agent-system`, the only branch with the bug) |
-| [#116](https://github.com/mindcraft-ce/mindcraft-ce/pull/116) | Position packets stay in their own tick once the client sends `tick_end` |
 | [#117](https://github.com/mindcraft-ce/mindcraft-ce/pull/117) | Builders use the wood they carry, dark and pale oak included |
-| [#118](https://github.com/mindcraft-ce/mindcraft-ce/pull/118) | `useDoor` finds copper, pale oak and poplar doors |
 | [#119](https://github.com/mindcraft-ce/mindcraft-ce/pull/119) | `getBiomeName` says "unknown" for a biome the game data lacks |
 | [#120](https://github.com/mindcraft-ce/mindcraft-ce/pull/120) | Baby villagers aren't taken for adults |
 | [#121](https://github.com/mindcraft-ce/mindcraft-ce/pull/121) | A villager's job is read right on 26.x |
-| [#122](https://github.com/mindcraft-ce/mindcraft-ce/pull/122) | `useDoor` faces the doorway, not the door's corner |
 | [#124](https://github.com/mindcraft-ce/mindcraft-ce/pull/124) | `craftRecipe` crafts nothing when its crafting table has no spot or can't be placed |
 | [#125](https://github.com/mindcraft-ce/mindcraft-ce/pull/125) | `craftRecipe` says an item has no recipe instead of crashing |
 | [#126](https://github.com/mindcraft-ce/mindcraft-ce/pull/126) | Worn armor isn't counted as carried, and NPC goals still count it as owned |
@@ -49,14 +62,19 @@ unless noted. Each comes from a `fix/...` branch of this repository, cut from th
 | [#131](https://github.com/mindcraft-ce/mindcraft-ce/pull/131) | The pathfinder patch plans no slantwise steps past solid corners, for every skill (backports PrismarineJS/mineflayer-pathfinder#393; makes #113 unneeded) |
 | [#132](https://github.com/mindcraft-ce/mindcraft-ce/pull/132) | The bot's surroundings say "unknown" for a block it doesn't have, not "air" |
 | [#133](https://github.com/mindcraft-ce/mindcraft-ce/pull/133) | `useDoor` finds the nearest door with one search, not one per kind (rewrites the loop #108 and #118 change) |
-| [#134](https://github.com/mindcraft-ce/mindcraft-ce/pull/134) | A stop cancels an action that is about to start (on `agent-system`, the only branch with the code) |
 | [#135](https://github.com/mindcraft-ce/mindcraft-ce/pull/135) | `placeBlock` says why a placement failed |
 | [#136](https://github.com/mindcraft-ce/mindcraft-ce/pull/136) | In cheat mode `placeBlock` sends a door's top half and a bed's head only for doors and beds |
 | [#137](https://github.com/mindcraft-ce/mindcraft-ce/pull/137) | In cheat mode `tillAndSow` tills without a seed, and waits for its blocks |
-| [#138](https://github.com/mindcraft-ce/mindcraft-ce/pull/138) | `defendSelf` and the `self_defense` reflex don't fight a creeper hand to hand (asks CE how it wants creepers handled, having no creeper reflex) |
 | [#139](https://github.com/mindcraft-ce/mindcraft-ce/pull/139) | `avoidEnemies` keeps walking away from a creeper instead of stopping to hit it |
-| [#140](https://github.com/mindcraft-ce/mindcraft-ce/pull/140) | `avoidEnemies` no longer pauses `self_preservation` while it runs |
 
+### Closed, Their Fix Merged Another Way
+
+| Pull request | Fix | How it reached `develop` |
+|---|---|---|
+| [#108](https://github.com/mindcraft-ce/mindcraft-ce/pull/108) | `useDoor` with no door nearby says so instead of crashing | In #133, which has the same check for no door |
+| [#113](https://github.com/mindcraft-ce/mindcraft-ce/pull/113) | `goToGoal` doesn't plan diagonals it can't walk in 1-wide tunnels | Not needed: #131 does it in the pathfinder for every skill |
+| [#118](https://github.com/mindcraft-ce/mindcraft-ce/pull/118) | `useDoor` finds copper, pale oak and poplar doors | In #133: the maintainer put its list of doors into the one search |
+| [#122](https://github.com/mindcraft-ce/mindcraft-ce/pull/122) | `useDoor` faces the doorway, not the door's corner | In #133: the maintainer put it in with the list of doors |
 
 ## Libraries
 
