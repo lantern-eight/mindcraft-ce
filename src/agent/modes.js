@@ -4,6 +4,7 @@ import * as mc from '../utils/mcdata.js';
 import settings from './settings.js'
 import convoManager from './conversation.js';
 import { heldFrom } from './action_hold.js'; // fork hook (docs/core-hooks.md)
+import { editionOf } from './edition/index.js'; // fork hook (docs/core-hooks.md)
 
 async function say(agent, message) {
     agent.bot.modes.behavior_log += message + '\n';
@@ -248,7 +249,8 @@ const modes_list = [
                 this.next_change = Date.now() + Math.random() * 1000 + 4000;
             }
             if (entity_in_view && this.staring) {
-                let isbaby = entity.type !== 'player' && entity.metadata[16];
+                // Fork hook: a baby's age as the edition keeps it, not Java's metadata entry 16 (docs/core-hooks.md, 13)
+                let isbaby = entity.type !== 'player' && editionOf(agent.bot.registry).isBaby(entity);
                 let height = isbaby ? entity.height/2 : entity.height;
                 agent.bot.lookAt(entity.position.offset(0, height, 0));
             }

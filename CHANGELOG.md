@@ -32,6 +32,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- On Bedrock, the idle look-around looks a baby animal in the eye. It read a baby from Java's metadata, so
+  it took every calf for a cow and looked over its head.
+
 - The bot no longer fights a creeper hand to hand. `defendSelf` (and so the `self_defense` reflex) handed a
   creeper to the combat plugin, which followed it to melee range and stood there while it exploded. Both
   now leave creepers out.
