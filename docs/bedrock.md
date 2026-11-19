@@ -167,6 +167,7 @@ node tests/live/bedrock_memory_scenarios.js            # world memory as the age
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
 node tests/live/bedrock_threats.js                     # the threat reflexes
+node tests/live/bedrock_fight_arena.js                 # how well the bot fights, measured (not in bedrock_all.js)
 ```
 
 - **`bedrock_smoke.js`** joins through the repo's own start-up code and checks what every skill leans on:
@@ -205,6 +206,11 @@ node tests/live/bedrock_threats.js                     # the threat reflexes
   zombies backed away from, and a lone one fought. Mob griefing is turned off for the run, and hostile mobs
   are cleared by switching to peaceful, since a console line can't name them. The Bedrock twin of
   `threat_scenarios.js` and, in brief, `mob_scenarios.js`.
+- **`bedrock_fight_arena.js`** measures the fight rather than checking it: the same rounds and kits as
+  `fight_arena.js` on Java (zombies, skeletons and spiders against bare hands up to an iron kit), each run
+  several times, with wins, time, damage and swings per kill (`--runs`, `--only`, `--kit`, `--out`). A
+  zombie is summoned with the event that makes it an adult. It is a yardstick for changes to how the bot
+  fights, so `bedrock_all.js` doesn't run it.
 - **`bedrock_storage.js`** installs chest sorting with fair play and world memory, fills containers from
   the console, has the bot sort them, and reads them back by opening them with the test's own hands: a
   chest of part stacks, a full chest of twenty kinds, and a chest, a double chest, a barrel and a trapped

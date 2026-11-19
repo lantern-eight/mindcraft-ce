@@ -24,6 +24,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { ROUNDS, createMeter, summarize, printSummary } from './arena_meter.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55934);
@@ -31,7 +32,6 @@ const RUNS = Number(arg('runs') || 3);
 const ONLY = arg('only'), KIT = arg('kit'), OUT = arg('out');
 const FAIR = arg('fair') !== 'off';
 const NAME = 'Fighter';
-const ROUND_MS = 45000;
 
 // A zombie or spider summoned with no data is dressed at random (a baby now and then, armor, a jockey). With
 // data it isn't, so every round meets the same mobs. A skeleton is given its bow, which it would otherwise
@@ -42,15 +42,7 @@ const MOB_DATA = {
     skeleton: `{${ADULT},equipment:{mainhand:{id:"minecraft:bow",count:1}}}`,
     spider: `{${ADULT}}`,
 };
-const ROUNDS = [
-    { name: '1 zombie', mobs: [['zombie', 7, 0]] },
-    { name: '2 zombies', mobs: [['zombie', 7, 0], ['zombie', -6, 3]] },
-    { name: '3 zombies', mobs: [['zombie', 7, 0], ['zombie', -6, 3], ['zombie', 0, -7]] },
-    { name: '1 spider', mobs: [['spider', 7, 0]] },
-    { name: '1 skeleton', mobs: [['skeleton', 7, 3]] },
-    { name: '2 skeletons', mobs: [['skeleton', 7, 3], ['skeleton', -7, -3]] },
-    { name: 'mixed', mobs: [['zombie', 7, 0], ['zombie', -6, 3], ['skeleton', 0, 7], ['spider', 5, -5]] },
-];
+// The kits, as Java's console gives them (the names are arena_meter.js's).
 const KITS = [
     { name: 'bare hands', commands: [] },
     { name: 'stone sword', commands: ['give @p stone_sword'] },
@@ -58,13 +50,6 @@ const KITS = [
     { name: 'iron kit', commands: ['give @p iron_sword',
         ...['head iron_helmet', 'chest iron_chestplate', 'legs iron_leggings', 'feet iron_boots'].map(part => `item replace entity @p armor.${part.replace(' ', ' with ')}`)] },
 ];
-
-const median = values => {
-    if (!values.length) return null;
-    const sorted = [...values].sort((a, b) => a - b);
-    return sorted[Math.floor(sorted.length / 2)];
-};
-const round1 = value => (value == null ? null : Math.round(value * 10) / 10);
 
 const defaultModes = JSON.parse(readFileSync('profiles/defaults/_default.json', 'utf8')).modes;
 const server = await vanillaFixture(port);
@@ -113,29 +98,9 @@ try {
         }
     })().catch(error => console.error('the update loop stopped:', error));
 
-    // What the round counts. Swings are the bot's attacks; a swing "landed" when its target shows the hurt
-    // flash within half a second, the way a player sees a hit land.
     const events = [];
     bot.on('threat_reflex', event => events.push(event));
-    let round = null;
-    const attack = bot.attack;
-    bot.attack = function (target, ...rest) {
-        if (round) round.swings.push({ id: target?.id, at: Date.now() });
-        return attack.call(this, target, ...rest);
-    };
-    bot.on('entityHurt', entity => {
-        if (!round?.ids.has(entity.id)) return;
-        const swing = round.swings.find(s => s.id === entity.id && !s.landed && Date.now() - s.at < 500);
-        if (swing) swing.landed = true;
-    });
-    bot.on('entityDead', entity => { if (round?.ids.has(entity.id)) round.dead.add(entity.id); });
-    bot.on('health', () => {
-        if (!round) return;
-        if (bot.health < round.health) round.damage += round.health - bot.health;
-        round.health = bot.health;
-        round.lowest = Math.min(round.lowest, bot.health);
-    });
-    bot.on('death', () => { if (round) round.died = true; });
+    const meter = createMeter(bot);
 
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
     for (const group of ['zombies', 'skeletons', 'spiders'])
@@ -185,26 +150,13 @@ try {
                 for (const [kind, x, z] of scene.mobs) await cmd(`summon ${kind} ${x + 0.5} 70 ${z + 0.5} ${MOB_DATA[kind]}`);
                 await waitFor(() => raw(kinds).length === scene.mobs.length, 5000, () => `${raw(kinds).length} of ${scene.mobs.length} mobs seen`);
                 const mobs = raw(kinds);
-                round = { ids: new Set(mobs.map(m => m.id)), dead: new Set(), swings: [], damage: 0, health: bot.health, lowest: bot.health, died: false };
-                // Whether the mobs came as summoned: no babies, no armor, a bow for each skeleton.
+                meter.start(mobs);
+                // Whether the mobs came as summoned: no armor, a bow for each skeleton.
                 const dressed = mobs.map(m => ({ kind: m.name, held: m.equipment?.[0]?.name ?? null,
                     armor: (m.equipment ?? []).slice(1).filter(Boolean).map(item => item.name) }));
-                const started = Date.now();
-                const alive = () => [...round.ids].filter(id => !round.dead.has(id) && bot.entities[id]).length;
-                await waitFor(() => round.died || alive() === 0 || Date.now() - started > ROUND_MS, ROUND_MS + 5000);
-                const seconds = (Date.now() - started) / 1000;
-                const killed = round.dead.size;
-                const ran = events.some(e => e.event === 'decided' && e.mode === 'mob_safety');
-                const outcome = round.died ? 'died' : alive() === 0 ? 'won' : ran ? 'ran' : 'timed out';
-                const landed = round.swings.filter(s => s.landed).length;
-                const result = { kit: kit.name, round: scene.name, run, fair: FAIR, outcome, seconds: round1(seconds), killed, of: scene.mobs.length,
-                    damage: round1(round.damage), lowestHealth: round1(round.lowest), swings: round.swings.length, landed,
-                    swingsPerKill: killed ? round1(round.swings.length / killed) : null,
-                    fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length,
-                    retreats: events.filter(e => e.event === 'decided' && e.mode === 'mob_safety').length,
-                    messagesToModel: messages.length,
+                await waitFor(() => meter.over(), 50000);
+                const result = { ...meter.finish({ kit: kit.name, round: scene.name, run, fair: FAIR }, events, messages),
                     odd: dressed.filter(d => d.armor.length || (d.kind === 'skeleton' && d.held !== 'bow')) };
-                round = null;
                 results.push(result);
                 console.log(JSON.stringify(result));
             }
@@ -212,24 +164,8 @@ try {
     }
 
     // The yardstick, one line per kit and round.
-    const groups = new Map();
-    for (const r of results) {
-        const key = `${r.kit} | ${r.round}`;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(r);
-    }
-    const summary = [...groups].map(([key, runs]) => {
-        const won = runs.filter(r => r.outcome === 'won');
-        const swings = runs.reduce((n, r) => n + r.swings, 0), kills = runs.reduce((n, r) => n + r.killed, 0);
-        const landed = runs.reduce((n, r) => n + r.landed, 0);
-        return { key, runs: runs.length, won: won.length, ran: runs.filter(r => r.outcome === 'ran').length,
-            died: runs.filter(r => r.outcome === 'died').length, medianSecondsWon: round1(median(won.map(r => r.seconds))),
-            medianDamage: round1(median(runs.map(r => r.damage))), swingsPerKill: kills ? round1(swings / kills) : null,
-            landedShare: swings ? round1(landed / swings) : null };
-    });
-    console.log('\nkit | round: won/runs (ran, died), median s to win, median damage, swings per kill, share landed');
-    for (const s of summary)
-        console.log(`${s.key}: ${s.won}/${s.runs} (${s.ran} ran, ${s.died} died), ${s.medianSecondsWon ?? '-'} s, ${s.medianDamage} dmg, ${s.swingsPerKill ?? '-'} swings/kill, ${s.landedShare ?? '-'} landed`);
+    const summary = summarize(results);
+    printSummary(summary);
     if (OUT) writeFileSync(OUT, JSON.stringify({ gameVersion: GAME_VERSION, fair: FAIR, runs: RUNS, results, summary }, null, 2));
 
     assert.ok(results.length > 0, 'at least one round ran');
