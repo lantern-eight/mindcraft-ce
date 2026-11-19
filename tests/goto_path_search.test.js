@@ -88,7 +88,8 @@ test('the helper is not described to the model as a skill', () => {
 
 test('cancelling either search prevents navigation from starting', async () => {
     const version = '1.21.11';
-    setSettings({ ...settings, minecraft_version: version, host: '127.0.0.1', port: 1, auth: 'offline' });
+    // A Java Edition version, so the edition is set too: settings.js picks Bedrock on the bedrock branch.
+    setSettings({ ...settings, minecraft_version: version, minecraft_edition: 'java', host: '127.0.0.1', port: 1, auth: 'offline' });
     const loader = initBot('GameData');
     loader.on('error', () => {});
     loader.emit('login');
