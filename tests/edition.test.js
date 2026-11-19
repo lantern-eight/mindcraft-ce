@@ -115,7 +115,21 @@ test('sounds are heard by name and place, from all three Java sound packets, unt
         ['entity.cow.ambient', { x: 1, y: 2, z: 3 }],
     ]);
     stop();
-    assert.deepEqual(['sound_effect', 'named_sound_effect', 'entity_sound_effect'].map(p => bot._client.listenerCount(p)), [0, 0, 0]);
+    assert.deepEqual(['sound_effect', 'named_sound_effect', 'entity_sound_effect', 'explosion'].map(p => bot._client.listenerCount(p)), [0, 0, 0, 0]);
+});
+
+test("an explosion is heard where it went off, from the sound inside the explosion packet (Java 1.21.2 and later)", () => {
+    const registry = minecraftData(GAME_VERSION);
+    const bot = new EventEmitter();
+    bot._client = new EventEmitter();
+    bot.registry = registry;
+    const heard = [];
+    javaEdition.onSound(bot, (name, position) => heard.push([name, position]));
+    const boom = registry.soundsByName['entity.generic.explode'];
+    bot._client.emit('explosion', { center: { x: 4.5, y: 70, z: -2.5 }, radius: 3, sound: { soundId: boom.id - registry.soundsArray[0].id } });
+    // An older server's explosion packet carries no sound: it sends one in a sound packet of its own.
+    bot._client.emit('explosion', { x: 4.5, y: 70, z: -2.5, radius: 3 });
+    assert.deepEqual(heard, [['entity.generic.explode', { x: 4.5, y: 70, z: -2.5 }]]);
 });
 
 test('the operator level comes from the status a Java server sets on the bot itself', () => {

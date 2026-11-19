@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- On Java Edition 1.21.2 and later, fair play's hearing never heard an explosion: those servers send an
+  explosion's sound inside the explosion itself, not as a sound of its own. So the creeper reflex never
+  backed off from an explosion heard very close, and `!entities` never listed one. It hears them now.
+
 ## [1.6.0-bedrock.1.7.0] - 2026-11-19
 
 A release for both editions. The threat reflexes grow past creepers: a second reflex keeps the bot alive
