@@ -24,6 +24,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- With `threat_reflexes` on, the `self_defense` reflex fights only a lone mob coming at the bot (one that
+  has picked a target), and only with the bot at half health or more and fed enough to sprint. It used to
+  fight anything hostile within 8 blocks whatever the bot's state: two zombies at once, a passing enderman,
+  a skeleton it then chased. A crowd, or a mob too strong to fight, is `mob_safety`'s to back away from.
+  A mob the bot fought for 30 s without finishing is left alone for a minute. Its switch and the actions
+  that pause it are as before.
 - With `threat_reflexes` on, whether the bot can walk to a mob or an item is worked out once and kept for 3 s
   (less if either moves 4 blocks), instead of a new path search each reflex round. The reflexes that hunt,
   pick up items, fight and run away each asked every round, which with mobs about took most of the round.

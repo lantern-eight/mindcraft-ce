@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
-// The mob reflex on a stand-in bot: where it sits in the mode list, backing away from two zombies with the
-// hold set first, one message per threat, backing away from one zombie when hurt, and `!stay` not pausing it.
+// The mob reflex and the fight on a stand-in bot: where they sit in the mode list, backing away from two
+// zombies with the hold set first, one message per threat, a lone zombie fought and given up on, the fight
+// leaving a crowd to the mob reflex, and `!stay` pausing neither the mob reflex nor the creeper reflex.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vec3 } from 'vec3';
@@ -25,7 +26,7 @@ function makeBot() {
     const bot = {
         username: 'Bot', output: '', interrupt_code: false, registry, health: 20, food: 20, game: { gameMode: 'survival' },
         entity: { position: new Vec3(0.5, 64, 0.5), id: 0 },
-        entities: {}, controls,
+        entities: {}, controls, attacking: null,
         inventory: { items: () => [] },
         on(name, fn) { (listeners[name] ??= []).push(fn); },
         emit(name, ...args) { for (const fn of listeners[name] ?? []) fn(...args); },
@@ -37,6 +38,7 @@ function makeBot() {
         async lookAt(point) { const d = point.minus(bot.entity.position); facing = new Vec3(d.x, 0, d.z).normalize(); },
         setControlState(name, on) { controls[name] = on; },
         clearControlStates() { for (const key in controls) controls[key] = false; },
+        pvp: { attack(mob) { bot.attacking = mob; }, stop() { bot.attacking = null; } },
         pathfinder: {
             setMovements() {},
             setGoal(g) { goal = g; },
@@ -81,11 +83,13 @@ const zombie = (x, z = 0.5, aggressive = true) => ({
 });
 const put = (bot, ...mobs) => { for (const mob of mobs) bot.entities[mob.id] = mob; return mobs; };
 
-test('the mob reflex sits right after the creeper reflex', () => {
+test('the mob reflex sits right after the creeper reflex; the fight keeps self_defense\'s place and switch', () => {
     const { agent, bot } = makeAgent();
     const names = Object.keys(agent.bot.modes.getJson());
     assert.deepEqual(names.slice(0, 3), ['self_preservation', 'creeper_safety', 'mob_safety']);
+    assert.equal(names[names.indexOf('cowardice') + 1], 'self_defense');
     assert.equal(agent.bot.modes.isOn('mob_safety'), true);
+    assert.equal(agent.bot.modes.isOn('self_defense'), true);
     bot.stopWalking();
 });
 
@@ -123,10 +127,42 @@ test('the model is told once per threat, however often the crowd comes back', as
     bot.stopWalking();
 });
 
-test('hurt and with a zombie coming, the bot backs away', async () => {
+test('a lone zombie is fought; two are not; one that has not come for the bot is left alone', async () => {
+    const { agent, bot, installed } = makeAgent();
+    const [one] = put(bot, zombie(-3.5));
+    await installed.fight.round(agent);
+    await delay(20);
+    assert.equal(agent.actions.currentActionLabel, 'mode:self_defense');
+    assert.equal(bot.attacking?.id, one.id);
+    delete bot.entities[one.id]; // it dies
+    await waitUntil(() => !agent.actions.executing, 3000);
+    assert.equal(bot.attacking, null, 'the fight stops when the mob is gone');
+
+    put(bot, zombie(-3.5), zombie(-5.5));
+    await installed.fight.round(agent);
+    assert.equal(agent.actions.executing, false, 'two: no fight');
+    bot.entities = {};
+    put(bot, zombie(-3.5, 0.5, false));
+    await installed.fight.round(agent);
+    assert.equal(agent.actions.executing, false, 'no target: no fight');
+    bot.stopWalking();
+});
+
+test('a zombie the bot can\'t walk to is not fought', async () => {
+    const { agent, bot, installed } = makeAgent();
+    bot.pathfinder.getPathTo = async () => ({ status: 'noPath' });
+    put(bot, zombie(-3.5));
+    await installed.fight.round(agent);
+    assert.equal(agent.actions.executing, false);
+    bot.stopWalking();
+});
+
+test('hurt and with a zombie coming, the bot backs away instead of fighting', async () => {
     const { agent, bot, installed } = makeAgent();
     bot.health = 8;
     put(bot, zombie(-3.5));
+    await installed.fight.round(agent);
+    assert.equal(agent.actions.executing, false, 'no fight under half health');
     installed.mob.round(agent);
     await delay(20);
     assert.equal(agent.actions.currentActionLabel, 'mode:mob_safety');
@@ -135,7 +171,7 @@ test('hurt and with a zombie coming, the bot backs away', async () => {
     bot.stopWalking();
 });
 
-test('!stay doesn\'t pause the mob reflex', async () => {
+test('!stay pauses the fight, but not the mob reflex', async () => {
     const { agent, bot } = makeAgent();
     agent.actions.runAction('action:stay', () => new Promise(() => {}));
     await delay(10);
@@ -151,8 +187,9 @@ test('!stay doesn\'t pause the mob reflex', async () => {
 });
 
 // Last: what a profile says about the modes is kept for the rest of the process, as for a real agent.
-test('a profile that turns it off keeps it off', () => {
-    const { agent, bot } = makeAgent({ mob_safety: false });
+test('a profile that turns them off keeps them off', () => {
+    const { agent, bot } = makeAgent({ self_defense: false, mob_safety: false });
+    assert.equal(agent.bot.modes.isOn('self_defense'), false);
     assert.equal(agent.bot.modes.isOn('mob_safety'), false);
     bot.stopWalking();
 });
