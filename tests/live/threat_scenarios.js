@@ -115,6 +115,9 @@ try {
     // A flat stone floor with its top at y 69, open air above, nothing alive but the two players.
     async function reset({ x = 0.5, z = 0.5, facing = -90 } = {}) {
         await cmd('kill @e[type=!player]');
+        // Again, for the loot the mobs just killed dropped. Left lying, a creeper's gunpowder drew the bot over
+        // to pick it up in the next scene (item_collecting), toward that scene's creeper.
+        await cmd('kill @e[type=!player]');
         // A fill may change at most 32768 blocks, so the air goes in in slices.
         await cmd('fill -40 66 -40 40 69 40 stone');
         for (const y of [70, 74, 78]) await cmd(`fill -40 ${y} -40 40 ${y + 3} 40 air`);
