@@ -219,6 +219,25 @@ test('Java tells the bot which way a hit came from, turned from the angle to whe
     assert.equal(felt.length, 2, 'another mob\'s hurt is not the bot\'s');
 });
 
+test('a hit is measured from the facing the bot last sent the server, not the one it shows', () => {
+    const listeners = {}, written = [];
+    const bot = {
+        entity: { id: 5, yaw: Math.PI }, // shown turned south already
+        _client: { on: (name, fn) => { listeners[name] = fn; }, off() {}, write: (name, params) => written.push(name) },
+    };
+    const felt = [];
+    javaEdition.onHurt(bot, hit => felt.push(hit.direction));
+    bot._client.write('look', { yaw: 180, pitch: 0, flags: {} }); // but the server last heard north
+    assert.deepEqual(written, ['look'], 'the packet still goes out');
+    listeners.hurt_animation({ entityId: 5, yaw: -90 });
+    assert.ok(felt[0].z > 0.99, `from the south, measured from north: ${JSON.stringify(felt[0])}`);
+    // A teleport sets the bot facing east (mineflayer -90 degrees, the game's 270) without the bot writing it.
+    bot.entity.yaw = -Math.PI / 2;
+    listeners.position({});
+    listeners.hurt_animation({ entityId: 5, yaw: -90 });
+    assert.ok(felt[1].x < -0.99, `from the west, measured from east: ${JSON.stringify(felt[1])}`);
+});
+
 test('Java keeps a villager\'s job and level together in one metadata entry, and its age at 16', () => {
     const librarian = { name: 'villager', metadata: { 16: false, 18: { villagerType: 2, villagerProfession: 9, level: 3 } } };
     assert.deepEqual(javaEdition.villagerOf(librarian), { baby: false, profession: 'librarian', level: 3 });

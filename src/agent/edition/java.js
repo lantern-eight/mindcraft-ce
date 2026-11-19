@@ -339,17 +339,41 @@ export const javaEdition = Object.freeze({
      * own facing is turned to the game's degrees from mineflayer's (radians, 0 north, turning the other
      * way) to add to it. Who hit the bot is not told: the game sends that too (`damage_event`), and a
      * player isn't shown it.
+     *
+     * The server measures the angle from the facing the bot last sent it, which is not the facing mineflayer
+     * shows: mineflayer turns the bot at once but sends the turn a little at a time, over several ticks. So
+     * the facing added back is the last one the two agreed on: the one the bot last sent, read off the
+     * packets it writes (in the game's degrees already), or the one the server last set, by a teleport or
+     * a turn of its own, which mineflayer takes as sent.
      * @returns {() => void} stops listening
      */
     onHurt(bot, felt) {
+        const client = bot._client;
+        let sent = null; // the game's yaw the server has for the bot, in degrees
+        const shown = () => 180 - (bot.entity?.yaw ?? 0) * 180 / Math.PI;
+        const write = client?.write;
+        if (typeof write === 'function') {
+            client.write = function (name, params, ...rest) {
+                if ((name === 'look' || name === 'position_look') && typeof params?.yaw === 'number') sent = params.yaw;
+                return write.call(this, name, params, ...rest);
+            };
+        }
+        // mineflayer handles these first, and turns the bot to what the server says.
+        const setByServer = () => { sent = shown(); };
         const listener = packet => {
             if (packet.entityId !== bot.entity?.id || typeof packet.yaw !== 'number') return;
-            const facing = 180 - (bot.entity.yaw ?? 0) * 180 / Math.PI;
-            const angle = (packet.yaw + facing) * Math.PI / 180;
+            const angle = (packet.yaw + (sent ?? shown())) * Math.PI / 180;
             felt({ direction: { x: Math.cos(angle), z: Math.sin(angle) } });
         };
-        bot._client?.on?.('hurt_animation', listener);
-        return () => bot._client?.off?.('hurt_animation', listener);
+        client?.on?.('hurt_animation', listener);
+        client?.on?.('position', setByServer);
+        client?.on?.('player_rotation', setByServer);
+        return () => {
+            client?.off?.('hurt_animation', listener);
+            client?.off?.('position', setByServer);
+            client?.off?.('player_rotation', setByServer);
+            if (typeof write === 'function') client.write = write;
+        };
     },
 
     /**
