@@ -59,7 +59,11 @@ function makeBot() {
 function makeAgent(profileModes = null) {
     const bot = makeBot();
     const messages = [];
+    const hearing = new Set();
     const agent = {
+        // Fair play's hearing, as its handle offers it: a listener told of each sound as it arrives.
+        fairPlay: { onHeard: fn => { hearing.add(fn); return () => hearing.delete(fn); } },
+        hear: sound => { for (const fn of hearing) fn(sound); },
         name: 'Bot', bot, task: null, shut_up: true, last_sender: null,
         prompter: { getInitModes: () => profileModes },
         self_prompter: { isActive: () => false, stopLoop() {} },
@@ -122,6 +126,29 @@ test('the model is told once per creeper, however often it comes back', async ()
     installed.creeper.round(agent);
     await waitUntil(() => agent.actions.currentActionLabel !== 'mode:creeper_safety' && !agent.actions.executing, 4000);
     assert.equal(messages.length, 1, 'no second message for the same creeper');
+    bot.stopWalking();
+});
+
+test('a hiss heard close, with no creeper in view, starts a back-off at once, away from where it came from', async () => {
+    const { agent, bot } = makeAgent();
+    const events = [];
+    bot.on('threat_reflex', event => events.push(event));
+    agent.hear({ subject: 'creeper (hissing)', direction: 'east', distance: 'close', text: 'east, close', seen: false, news: true });
+    assert.ok(heldFrom(agent, 'mode:self_defense'), 'held at once, without waiting for a round');
+    await waitUntil(() => events.some(e => e.event === 'step'), 1000);
+    const heard = events.find(e => e.event === 'heard'), step = events.find(e => e.event === 'step');
+    assert.ok(step.at - heard.at < 300, `first step ${Math.round(step.at - heard.at)} ms after the hiss`);
+    await waitUntil(() => !agent.actions.executing, 4000);
+    assert.ok(bot.entity.position.x < -0.5, 'it went west, away from the hiss');
+    bot.stopWalking();
+});
+
+test('other sounds, and a hiss far off, start nothing', () => {
+    const { agent, bot } = makeAgent();
+    agent.hear({ subject: 'zombie', direction: 'east', distance: 'very close', text: 'east, very close', seen: false, news: false });
+    agent.hear({ subject: 'creeper (hissing)', direction: 'east', distance: 'near', text: 'east, near', seen: false, news: true });
+    assert.equal(agent.actions.executing, false);
+    assert.equal(heldFrom(agent, 'mode:self_defense'), null);
     bot.stopWalking();
 });
 

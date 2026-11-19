@@ -24,6 +24,9 @@ export function installThreatReflexes(agent, { config = settings } = {}) {
     registerMode(creeper.mode, { after: 'self_preservation' });
     // A new life, or a new world, starts with nothing known about creepers.
     agent.bot.on?.('respawn', () => creeper.picture.clear());
+    // Under fair play the bot hears, and a hiss reaches the reflex the moment it arrives. Without fair play
+    // there is no hearing, and the reflex goes by sight alone.
+    agent.fairPlay?.onHeard?.(sound => creeper.hear(agent, sound));
     const handle = { creeper };
     agent.threatReflexes = handle;
     return handle;

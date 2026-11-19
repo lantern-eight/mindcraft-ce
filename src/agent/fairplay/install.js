@@ -191,6 +191,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         onClear: () => { violation = null; say('Fair play conditions are back to normal.'); },
     });
 
+    const heardListeners = new Set(); // see handle.onHeard
     const handle = {
         policy, chatGuard,
         perception: null,
@@ -207,6 +208,16 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
          * close)" or "door (opened) (north, near)". Direction and rough distance only, never coordinates.
          * A hissing creeper or an explosion is listed even when it's in view, because the sound is the news.
          */
+        /**
+         * Calls `listener(sound)` for each sound the bot hears from now on, as perception's onHeard gives
+         * it (direction and distance band, never a position). It keeps working after a respawn swaps
+         * perception for a new one.
+         * @returns {() => void} stops listening
+         */
+        onHeard(listener) {
+            heardListeners.add(listener);
+            return () => heardListeners.delete(listener);
+        },
         heardLines() {
             return (handle.perception?.heard() ?? [])
                 .filter(sound => !sound.seen || sound.news)
@@ -270,6 +281,7 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         } else {
             handle.perception = createPerception({ bot, policy, ...perceptionOptions });
         }
+        handle.perception.onHeard(sound => { for (const listener of heardListeners) listener(sound); });
         handle.perception.start();
         registerFairPlay(bot, { perception: handle.perception, policy });
         setWorldQueries(fairQueries);

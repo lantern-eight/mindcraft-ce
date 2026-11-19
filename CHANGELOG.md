@@ -19,6 +19,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   goes into lava or fire or off a drop of more than 2 blocks. While it backs off, other reflexes and the
   model's commands wait for it instead of stopping it, and the model is told once per creeper, in one line.
   It has its own switch in `!setMode`; `cowardice` has no say over it.
+- Under fair play the creeper reflex also hears: a creeper's hiss close by, or an explosion very close,
+  starts a back-off the moment the sound arrives, even with the creeper out of sight around a corner. The
+  hiss is remembered as a creeper that may still be lit until the bot has been away long enough for its fuse
+  to run down, or sees it with its fuse out.
 
 ### Fixed
 

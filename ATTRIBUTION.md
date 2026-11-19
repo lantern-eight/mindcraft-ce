@@ -96,6 +96,9 @@ No code was copied for these. They are credited because the work builds on them.
 - **Backing off from a creeper by sprinting, how far, and hitting a following creeper once and stepping
   back** come from the creeper procedure in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk)
   fork (`packs/home/creeper_logic.js`). Used by the creeper reflex in `src/agent/reflexes/`.
+- **Taking a creeper's hiss as the sign that its fuse is lit** comes from the defense mode of
+  [`finettt/OpenPlayer`](https://github.com/finettt/OpenPlayer). Used by `src/agent/reflexes/picture.js`, which
+  remembers a hiss until something settles it, by direction and distance band rather than by the mob.
 - **A creeper about to explode outranks every other threat** comes from the threat ranking in the
   [`winnerspiros/mindcraft`](https://github.com/winnerspiros/mindcraft) fork. Used by `src/agent/reflexes/decide.js`.
 - **A window that holds other work while a reflex acts** comes from the emergency window in the

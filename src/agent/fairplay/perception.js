@@ -30,6 +30,7 @@
 //   liveOf(entity)          the live entity behind such a stand-in, for the reach guard
 //   seesCell / seesFace / seesEntity   what is in view this instant, for the reach guard
 //   heard(options)          recent sounds, summarised
+//   onHeard(listener)       told of each sound as it arrives, summarised the same way
 //   start() / stop()        start listening for sounds; end the service for good and remove its listeners
 // The looking around that fills memory is world memory's recorder (memory/recorder.js), not perception's.
 import Vec3 from 'vec3';
@@ -475,12 +476,54 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     // only sends a sound to players close enough to hear it, so this is what a player with subtitles on
     // would get.
 
+    const heardListeners = new Set();
+
     function hearSound(soundName, position) {
         const subject = soundSubject(soundName);
         if (!subject || !position || !bot.entity?.position) return;
         if (Math.hypot(position.x - bot.entity.position.x, position.y - bot.entity.position.y, position.z - bot.entity.position.z) > policy.hearing_radius) return;
-        heardLog.push({ subject, source: soundSource(subject), position: { x: position.x, y: position.y, z: position.z }, at: now() });
+        const sound = { subject, source: soundSource(subject), position: { x: position.x, y: position.y, z: position.z }, at: now() };
+        heardLog.push(sound);
         if (heardLog.length > 50) heardLog.shift();
+        if (!heardListeners.size) return;
+        // A listener gets what heard() gives for this one sound, and nothing more: no position. Whether the
+        // source is in view is worked out only if a listener asks, since that means looking around.
+        let inView = null;
+        const told = describeSound(sound, bot.entity.position, () => (inView ??= entities()));
+        for (const listener of heardListeners) {
+            try { listener(told); } catch (error) { warn(`[fair play] A listener for sounds failed: ${error.message}`); }
+        }
+    }
+
+    /**
+     * Calls `listener(sound)` the moment each sound is heard, with what heard() would list for it:
+     * subject, direction, distance band, `seen`, `news`, `text`. Never where it came from. A reflex that
+     * must react to a creeper's hiss faster than its next round uses this.
+     * @returns {() => void} stops listening
+     */
+    function onHeard(listener) {
+        heardListeners.add(listener);
+        return () => heardListeners.delete(listener);
+    }
+
+    // One sound as heard() reports it. `inView` gives the entities in view, asked for only when needed.
+    function describeSound(sound, here, inView) {
+        const where = describeDirection(here, sound.position);
+        const kind = sound.subject.replace(/ \(.*$/, '');
+        const near = (p, range) => Math.hypot(p.x - sound.position.x, p.y - sound.position.y, p.z - sound.position.z) <= range;
+        let seen = null;
+        const seenNow = () => {
+            if (seen !== null) return seen;
+            if (sound.source === SOUND_SOURCES.block) seen = seesCellNow(sound.position);
+            else if (sound.source === SOUND_SOURCES.footsteps) seen = inView().some(e => near(e.position, 2));
+            else if (sound.source === SOUND_SOURCES.explosion) seen = false;
+            else seen = inView().some(e => e.name === kind && near(e.position, 4));
+            return seen;
+        };
+        const news = sound.source === SOUND_SOURCES.explosion || / \(hissing\)$/.test(sound.subject);
+        const out = { subject: sound.subject, ...where, news };
+        Object.defineProperty(out, 'seen', { get: seenNow, enumerable: true });
+        return out;
     }
 
     /**
@@ -497,16 +540,8 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         const latest = new Map();
         for (const sound of heardLog) {
             if (t - sound.at > withinMs) continue;
-            const where = describeDirection(here, sound.position);
-            const kind = sound.subject.replace(/ \(.*$/, '');
-            const near = (p, range) => Math.hypot(p.x - sound.position.x, p.y - sound.position.y, p.z - sound.position.z) <= range;
-            let seen;
-            if (sound.source === SOUND_SOURCES.block) seen = seesCellNow(sound.position);
-            else if (sound.source === SOUND_SOURCES.footsteps) seen = inView.some(e => near(e.position, 2));
-            else if (sound.source === SOUND_SOURCES.explosion) seen = false;
-            else seen = inView.some(e => e.name === kind && near(e.position, 4));
-            const news = sound.source === SOUND_SOURCES.explosion || / \(hissing\)$/.test(sound.subject);
-            latest.set(`${sound.subject}|${where.direction}`, { subject: sound.subject, ...where, seen, news, at: sound.at });
+            const { seen, ...told } = describeSound(sound, here, () => inView);
+            latest.set(`${sound.subject}|${told.direction}`, { ...told, seen, at: sound.at });
         }
         return [...latest.values()].sort((a, b) => b.at - a.at)
             .map(({ at, ...sound }) => ({ ...sound, secondsAgo: Math.round((t - at) / 1000) }));
@@ -539,7 +574,7 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     }
 
     return {
-        eye, blockAt, believedAt, findBlocks, entities, liveOf, heard, start, stop, hearSound, invalidate,
+        eye, blockAt, believedAt, findBlocks, entities, liveOf, heard, onHeard, start, stop, hearSound, invalidate,
         canSeeBlock: pos => {
             beginLook();
             return sight.canSeeBlock(eyeNow, Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z), viewOpts);
