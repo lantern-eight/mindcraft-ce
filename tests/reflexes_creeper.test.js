@@ -4,6 +4,9 @@
 // model once per creeper.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
+import path from 'path';
 import { Vec3 } from 'vec3';
 import minecraftData from 'minecraft-data';
 import { ActionManager } from '../src/agent/action_manager.js';
@@ -74,7 +77,8 @@ function makeAgent(profileModes = null) {
     };
     agent.actions = new ActionManager(agent);
     initModes(agent);
-    const installed = installThreatReflexes(agent, { config: { threat_reflexes: true } });
+    const ordersDir = mkdtempSync(path.join(tmpdir(), 'threat-rules-'));
+    const installed = installThreatReflexes(agent, { config: { threat_reflexes: true }, ordersDir });
     return { agent, bot, messages, installed };
 }
 const creeper = (x, lit, extra = {}) => ({ id: 7, name: 'creeper', type: 'hostile', height: 1.7, position: new Vec3(x, 64, 0.5), metadata: { [SWELL]: lit ? 1 : -1 }, ...extra });
@@ -106,6 +110,21 @@ test('a lit creeper 2 blocks away: the hold goes up first, then the bot sprints 
     const step = events.find(e => e.event === 'step');
     assert.equal(step.how, 'dash', 'the first step needed no path search');
     assert.ok(heldFrom(agent, 'mode:self_defense'), 'held for a moment after');
+    bot.stopWalking();
+});
+
+test('told to flee creepers, the bot leaves one it sees at 6 blocks before it lights, and says why', async () => {
+    const { agent, bot, installed, messages } = makeAgent();
+    assert.match(installed.orders.give('creepers', 'flee').text, /back away from creepers to 22 blocks/);
+    agent.actions.runAction('action:collectBlocks', () => new Promise(() => {}));
+    await delay(10);
+    bot.entities[7] = creeper(-5.5, false);
+    installed.creeper.round(agent);
+    await delay(20);
+    assert.equal(agent.actions.currentActionLabel, 'mode:creeper_safety');
+    await waitUntil(() => !agent.actions.executing, 12000);
+    assert.ok(bot.entity.position.x + 5.5 >= 20, `ended ${bot.entity.position.x + 5.5} blocks away`);
+    assert.match(messages[0], /A creeper is near \(west, close\); leaving it behind, as I was told to\./);
     bot.stopWalking();
 });
 

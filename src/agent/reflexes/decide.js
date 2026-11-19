@@ -19,6 +19,14 @@
 //      very close: back off from it (another may follow).
 // A creeper well above a bot that is underground can't reach it, and is only watched.
 //
+// A standing order about creepers (orders.js) changes how an encounter goes, never whether a lit creeper is
+// moved away from:
+//   fight  a creeper seen within 6 blocks is met as rule 1b meets a following one, at the first meeting:
+//          hit it and step back when armed well enough (Java only), going in only once its fuse has run
+//          down. Not armed well enough, or on Bedrock, the order changes nothing.
+//   flee   every reason to move (rules 1, 1b and 2, and a creeper seen coming within 8) leaves it for good
+//          at once, to the order's distance, instead of backing off and waiting for it to follow.
+//
 // The bot's other reflexes and the `cowardice` switch have no say here: backing off from a creeper about
 // to explode is self-preservation, like stepping out of lava.
 import { FUSE_RANGE } from './picture.js';
@@ -34,6 +42,7 @@ const FINISH_WITHIN = 6;            // a following creeper this close is met, no
 const FUSE_NEAR_ZERO = 3;           // ticks: its fuse has as good as run down
 const ABOVE_REACH = 4;              // blocks above an underground bot past which a creeper can't reach it
 const EXPLOSION_CLOSE = 4;          // "very close" in hearing's bands
+const FLEE_SEEN = 8;                // a creeper ordered fled is left as soon as it is seen this close
 
 const ignore = { stance: 'ignore' };
 
@@ -41,10 +50,13 @@ const ignore = { stance: 'ignore' };
  * @param {object[]} creepers - from the threat picture, nearest first: {key, position, distance, lit,
  *     fuse, seenNow, source, encounters}
  * @param {object} self - {position, health, gameMode, edition: 'java'|'bedrock', underground, hitsNeeded}
- * @param {object} [extra] - {explosion: {position, distance}|null}
+ * @param {object} [extra]
+ * @param {{position: object, distance: number}|null} [extra.explosion]
+ * @param {{stance: string, distance?: number}|null} [extra.order] - the standing order about creepers that
+ *     applies now (lapsed already under its minimum health)
  * @returns {{stance: string, key?: string, from?: object, reason?: string, sprint?: boolean, distance?: number}}
  */
-export function decideThreat(creepers, self, { explosion = null } = {}) {
+export function decideThreat(creepers, self, { explosion = null, order = null } = {}) {
     // A player in creative or spectator mode takes no damage.
     if (self.gameMode === 'creative' || self.gameMode === 'spectator') return ignore;
 
@@ -57,9 +69,12 @@ export function decideThreat(creepers, self, { explosion = null } = {}) {
         const lit = creeper.lit && creeper.distance - (creeper.slack ?? 0) <= FUSE_RANGE;
         const close = creeper.seenNow && creeper.distance <= LIGHTS_WITHIN;
         const following = creeper.encounters > 0 && creeper.seenNow && creeper.distance <= FINISH_WITHIN;
-        if (!lit && !close && !following) continue;
+        const toMeet = order?.stance === 'fight' && creeper.seenNow && creeper.distance <= FINISH_WITHIN && fitToHit(self, order);
+        const toFlee = order?.stance === 'flee' && creeper.seenNow && creeper.distance <= FLEE_SEEN;
+        if (!lit && !close && !following && !toMeet && !toFlee) continue;
         if (outOfReach(creeper)) { watching ??= { stance: 'watch', key: creeper.key, from: creeper.position, reason: 'above, out of reach' }; continue; }
-        if (creeper.encounters > 0) return finish(creeper, self);
+        if (order?.stance === 'flee') return { stance: 'leave', key: creeper.key, from: creeper.position, reason: 'ordered', sprint: true, distance: (order.distance ?? LEAVE_TO) + (creeper.slack ?? 0) };
+        if (creeper.encounters > 0 || toMeet) return finish(creeper, self, order);
         return backOff(creeper, lit ? 'lit' : 'close');
     }
     if (explosion && explosion.distance <= EXPLOSION_CLOSE)
@@ -74,13 +89,22 @@ function backOff(creeper, why) {
     return { stance: 'back_off', key: creeper.key, from: creeper.position, reason, sprint: true, distance: BACK_OFF_TO + (creeper.slack ?? 0) };
 }
 
-// Rule 1b: the same creeper again. Finish it, by hitting it or by leaving for good.
-function finish(creeper, self) {
-    const canFight = self.edition !== 'bedrock' && self.hitsNeeded <= MAX_HITS && self.health >= MIN_HEALTH;
+// Whether the bot can hit a creeper and step back: Java's rules, a weapon that kills it in 4 hits, and half
+// health, or the order's own minimum (orders.js gives no order under it).
+function fitToHit(self, order) {
+    const health = order?.stance === 'fight' ? 0 : MIN_HEALTH;
+    return self.edition !== 'bedrock' && self.hitsNeeded <= MAX_HITS && self.health >= health;
+}
+
+// Rule 1b: the same creeper again, or a creeper the bot was told to fight. Finish it, by hitting it or by
+// leaving for good.
+function finish(creeper, self, order) {
+    const canFight = fitToHit(self, order);
     if (!canFight) return { stance: 'leave', key: creeper.key, from: creeper.position, reason: 'following', sprint: true, distance: LEAVE_TO };
     // Going back in only once its fuse has run down: a fuse half burned explodes with no new hiss.
     if (creeper.lit || creeper.fuse > FUSE_NEAR_ZERO) return backOff(creeper, 'lit');
-    return { stance: 'hit_and_step_back', key: creeper.key, from: creeper.position, reason: 'following', sprint: true, distance: BACK_OFF_TO };
+    const reason = creeper.encounters > 0 ? 'following' : 'ordered';
+    return { stance: 'hit_and_step_back', key: creeper.key, from: creeper.position, reason, sprint: true, distance: BACK_OFF_TO };
 }
 
 // The damage a hit does, by what is in the bot's hand (Java Edition; a fist does 1). Swords and axes are

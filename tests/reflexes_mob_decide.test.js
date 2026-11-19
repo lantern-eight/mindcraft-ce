@@ -71,6 +71,8 @@ test('rule 7: hit twice from one side with nothing in view: retreat the other wa
     assert.equal(decideMobThreat([], self(), { hits: hits.slice(1), now: 3000 }).stance, 'ignore', 'one hit');
     assert.equal(decideMobThreat([mob('zombie', 2)], self(), { hits, now: 3000 }).stance, 'ignore', 'the zombie in view did it: a fair fight');
     assert.equal(decideMobThreat([], self(), { hits: hits.map(h => ({ ...h, direction: null })), now: 3000 }).stance, 'ignore', 'no side to run from');
+    assert.equal(decideMobThreat([], self(), { hits: hits.map(h => ({ ...h, explained: true })), now: 3000 }).stance, 'ignore',
+        'a zombie in view dealt them as they landed, and has fallen since');
 });
 
 test('first match wins: low health over cover, cover over a crowd', () => {

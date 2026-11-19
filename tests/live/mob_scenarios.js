@@ -76,7 +76,8 @@ try {
     assert.ok(fair, 'fair play installed');
     // The bot's own look, before the gaze guard goes on it, for the enderman scene's comparison.
     const unguardedLook = bot.look;
-    const reflexes = installThreatReflexes(agent);
+    // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
+    const reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'mob-orders-')) });
     assert.ok(STOCK ? !reflexes : reflexes, 'threat reflexes installed, unless --stock');
     // Every path search the reflexes ask for (isClearPath gives the pathfinder 100 ms), counted.
     let pathSearches = 0;
@@ -294,6 +295,83 @@ try {
         assert.ok(decided('mob_safety').every(e => e.key.startsWith('id:')), `only that zombie was backed away from: ${JSON.stringify(decided())}`);
         assert.ok(lowestHealth >= 6, `lowest health ${lowestHealth}`);
         return { damage, fights: decided('self_defense').length, backedAway: decided('mob_safety').length };
+    });
+
+    // ---- Standing orders ----
+
+    // The health the bot had at each reflex's decision, to tell a crowd retreat the order allowed (under its
+    // minimum) from one it should have prevented.
+    const healthAtDecisions = [];
+    bot.on('threat_reflex', event => { if (event.event === 'decided') healthAtDecisions.push({ mode: event.mode, key: event.key, health: bot.health }); });
+    const { getCommand } = await import('../../src/agent/commands/index.js');
+    const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
+
+    await step('armed with a stone sword, two zombies coming: the built-in order fights them instead of backing away, while health holds', async () => {
+        await reset();
+        await cmd(`give ${NAME} stone_sword`);
+        healthAtDecisions.length = 0;
+        await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
+        await cmd('summon zombie 0.5 70 -6.5 {PersistenceRequired:1b}');
+        const started = Date.now();
+        // Over when both are dead, or when the bot has backed away (the order lapsed under half health).
+        await waitFor(() => raw('zombie').length === 0 || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
+        const crowdWhileFit = healthAtDecisions.filter(d => d.mode === 'mob_safety' && d.health >= 10);
+        assert.ok(decided('self_defense').length >= 1, `it fought: ${JSON.stringify(decided())}`);
+        assert.equal(crowdWhileFit.length, 0, `no retreat at half health or more: ${JSON.stringify(healthAtDecisions)}`);
+        assert.ok(lowestHealth >= 4, `lowest health ${lowestHealth}`);
+        return { killed: 2 - raw('zombie').length, seconds: Math.round((Date.now() - started) / 1000), fights: decided('self_defense').length,
+            retreatsAfterLapse: decided('mob_safety').length, damage, lowestHealth };
+    });
+
+    await step('told by command to back away from zombies: a lone zombie coming is backed away from, to the order\'s distance, and the line says why', async () => {
+        await reset();
+        assert.match(await order('zombies', 'flee', 0, 20), /back away from zombies to 20 blocks/);
+        try {
+            act('action:stay', () => skills.stay(bot, -1));
+            await delay(500);
+            await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
+            await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
+            const zombie = raw('zombie')[0];
+            const away = zombie ? flat(bot.entity.position, zombie.position) : null;
+            assert.equal(decided('mob_safety')[0].reason, 'ordered', JSON.stringify(decided()));
+            assert.equal(decided('self_defense').length, 0, 'not fought');
+            assert.ok(away >= 14, `ended ${away?.toFixed(1)} from it`);
+            assert.match(messages[0] ?? '', /backing away, as I was told to\./);
+            return { endedAway: Number(away.toFixed(1)), message: messages[0].split('\n')[0], damage };
+        } finally {
+            await agent.actions.stop();
+            await order('zombies', 'default', 0, 0);
+        }
+    });
+
+    await step('told to ignore skeletons: one aiming at the bot sends it nowhere', async () => {
+        await reset();
+        await order('skeletons', 'ignore', 0, 0);
+        try {
+            await cmd(`effect give ${NAME} resistance 60 4 true`);
+            await cmd('summon skeleton 12.5 70 0.5 {PersistenceRequired:1b}');
+            await delay(10000);
+            assert.equal(decided().length, 0, JSON.stringify(decided()));
+            return { arrowsTakenAsDamage: damage };
+        } finally {
+            await order('skeletons', 'default', 0, 0);
+        }
+    });
+
+    await step('told to fight skeletons, with a stone sword: the bot goes for an aiming skeleton instead of taking cover', async () => {
+        await reset();
+        await cmd(`give ${NAME} stone_sword`);
+        await order('skeletons', 'fight', 0, 0);
+        try {
+            await cmd(`effect give ${NAME} resistance 60 2 true`);
+            await cmd('summon skeleton 10.5 70 0.5 {PersistenceRequired:1b}');
+            await waitFor(() => raw('skeleton').length === 0, 45000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
+            assert.ok(decided('self_defense').length >= 1, JSON.stringify(decided()));
+            assert.equal(decided('mob_safety').filter(e => e.stance === 'take_cover').length, 0, 'no cover');
+            return { fights: decided('self_defense').length, damage, lowestHealth };
+        } finally {
+            await order('skeletons', 'default', 0, 0);
+        }
     });
 
     // ---- The gaze guard ----
