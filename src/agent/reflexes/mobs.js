@@ -13,6 +13,7 @@ import * as mc from '../../utils/mcdata.js';
 import settings from '../settings.js';
 import { editionOf } from '../edition/index.js';
 import { bestWeapon } from './decide.js';
+import { offHandOf } from './shield.js';
 
 const LOOK_WITHIN = 24;
 
@@ -86,7 +87,8 @@ export function armorOf(bot) {
 }
 
 /** What the bot knows about itself, for the decisions: where it is, its health and food, whether it carries
- *  a sword or an axe (for an order to fight when armed), and the armor it wears (for how much it takes on). */
+ *  a sword or an axe (for an order to fight when armed), and the armor it wears and whether it has a shield
+ *  (for how much it takes on). */
 export function selfOf(bot) {
     const position = bot.entity.position;
     return {
@@ -94,5 +96,7 @@ export function selfOf(bot) {
         health: bot.health ?? 20, food: bot.food ?? 20, gameMode: bot.game?.gameMode,
         armed: bestWeapon(bot.inventory?.items?.().map(item => item.name) ?? [], editionOf(bot.registry).meleeOf) !== null,
         armor: armorOf(bot),
+        // In the off-hand already, or carried: the fight puts a carried one there as it starts.
+        shielded: offHandOf(bot)?.name === 'shield' || Boolean(bot.inventory?.items?.().some(item => item.name === 'shield')),
     };
 }

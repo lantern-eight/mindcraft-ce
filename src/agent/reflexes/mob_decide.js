@@ -26,7 +26,7 @@
 //
 // Gear widens rules 4 to 6 (fightScope): armed with a sword or an axe, three melee mobs at once are a fight,
 // not a crowd, and an archer (a skeleton or its kin) is rushed instead of hidden from; in a full iron set or
-// better, two archers. Measured in the fight arenas on both editions (tests/live/fight_arena.js and its Bedrock
+// better, or with a shield as well, two archers. Measured in the fight arenas on both editions (tests/live/fight_arena.js and its Bedrock
 // twin). Under half health, or too hungry to sprint, gear counts for nothing.
 //
 // Standing orders (orders.js) change rules 4 to 6 for the mobs they name, and never rule 3. `orderOf(mob)`
@@ -74,18 +74,20 @@ const isArcher = mob => ARCHERS.has(mob.name);
 /**
  * How many mobs at once the bot takes on by its own judgment: a lone melee mob bare-handed (measured trials
  * lost two zombies), three melee mobs and an archer with a sword or an axe, and a second archer with a full
- * iron set or better. In the arenas (three runs each, every swing timed to the weapon) a stone or copper sword
+ * iron set or better, or with a shield. By its own judgment in the arenas, a stone sword and a shield beat two
+ * skeletons every time (8 damage on Java, 5 to 8 on Bedrock), where backing away from them in the walled pen
+ * lost two rounds of three on Java and every round on Bedrock. In the arenas (three runs each, every swing timed to the weapon) a stone or copper sword
  * beat three zombies with at most 3 damage taken on either edition, and one skeleton with 4 on Java and none
  * on Bedrock, while backing away from that skeleton cost 8 to 16 on Java and every time brought the bot near
  * death on Bedrock. Two skeletons cost a sword alone 8 on Java; an iron sword in iron armor won every round on
  * both editions, two skeletons with 4 damage at most. Under half health, or with food at 6 or less, it is the
  * lone mob again, whatever the gear.
- * @param {object} self - {health, food, armed, armor}
+ * @param {object} self - {health, food, armed, armor, shielded}
  * @returns {{melee: number, archers: number}}
  */
 export function fightScope(self) {
     if (self.health < FIGHT_HEALTH || (self.food ?? 20) <= FIGHT_FOOD || !self.armed) return { melee: 1, archers: 0 };
-    return { melee: 3, archers: (self.armor ?? 0) >= ARMORED ? 2 : 1 };
+    return { melee: 3, archers: (self.armor ?? 0) >= ARMORED || self.shielded ? 2 : 1 };
 }
 
 const ignore = { stance: 'ignore' };

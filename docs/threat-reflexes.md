@@ -122,6 +122,7 @@ blocks, as much as its gear takes on, with the bot at half health or more and fe
 |---|---|---|
 | Bare hands | One melee mob | Measured melee trials (unarmed, unarmored) won one mob of most kinds and lost two zombies at once |
 | A sword or an axe | Up to three melee mobs and one skeleton (or stray, or bogged), which it rushes instead of hiding from | In the arenas a stone or a copper sword beat three zombies with at most 3 damage taken. By its own judgment it now beat a lone skeleton every time, with 3 to 5 damage on Java and none on Bedrock; backing away from it, as it did before, cost 8 to 16 on Java, and on Bedrock brought the bot near death every time. Two zombies, a skeleton and a spider at once it now won 6 times in 6 on Java (1 before) and 4 in 6 on Bedrock (none before) |
+| A sword or an axe, and a shield | Up to three melee mobs and two skeletons | In the arenas, by its own judgment, a stone sword and a shield beat two skeletons every time, with 8 damage on Java and 5 to 8 on Bedrock. Backing away from them instead, as it did before, lost two rounds of three on Java (13 damage) and every round on Bedrock |
 | A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons | In the arenas an iron sword in iron armor won every round on both editions, two skeletons with 4 damage taken at most. Two skeletons are still backed away from with a sword alone, as a cautious player would; in the walled pen that cost 10 to 25 damage, but the pen is the worst place to back away in |
 
 More than that, or one too strong, are the mob reflex's to back away from. Under half health, or too hungry,
@@ -186,8 +187,8 @@ zombies and spiders didn't change. What it costs is time: the bot stands while i
 took 6 s to beat instead of 3. Held up between swings as well, at a mob in reach, it saved nothing and cost a
 little (a lone skeleton 4 damage, the mixed round 7 with a sword and 3.3 in iron), so it isn't. On Bedrock,
 where no skeleton shows its bow drawn, a sword and a shield fought as a sword alone did. By its own judgment
-a bot with a sword alone still backs away from two skeletons in the walled pen: a shield halved what that
-cost (13 damage instead of 23), though fighting them with one cost only 4.
+a bot with a sword alone still backs away from two skeletons in the walled pen; with a shield as well it now
+fights them (the gear table above).
 
 It is registered under the same name and in the same place as Mindcraft's, so its switch, the profiles and the
 actions that pause it by name (`goToPlayer`, `defendSelf`, `stay`) keep their meaning.

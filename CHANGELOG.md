@@ -28,6 +28,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- With a sword or an axe and a shield, the bot takes on two skeletons by its own judgment, as it did only in a
+  full iron set. In the fight arena it won every such round, with 8 damage taken on Java and 5 to 8 on
+  Bedrock; backing away from them, as before, lost two rounds of three on Java and every round on Bedrock.
 - In a fight the bot neither swings nor puts its weapon back in hand in the middle of a meal, which used to cut
   the meal short.
 - Eating when hungry waits while the bot holds its shield up, and the shield waits for a meal to end: a meal
