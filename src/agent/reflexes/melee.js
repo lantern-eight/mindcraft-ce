@@ -236,7 +236,9 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
 
             const toTarget = reachTo(eye, target);
             const inReach = toTarget <= reach;
-            if (toTarget < closest - 0.5) { closest = toTarget; closestAt = now(); }
+            // Getting nearer is progress, and so is having it in reach: a mob hit is knocked back, and catching up
+            // to hit it again brings the bot no nearer than the first time. Out of reach again, it counts from there.
+            if (inReach || toTarget < closest - 0.5) { closest = toTarget; closestAt = now(); }
             const letGo = fightLetGo({ now: now(), closestAt, inReach, swingsSinceLanded, lastLandedAt });
             if (letGo) { ended = letGo; break; }
 

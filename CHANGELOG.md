@@ -28,6 +28,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   stops and holds its shield up toward it, which stops the blast. Cornered in a dead end, it took no damage, on
   both editions; on Bedrock it holds the shield up by sneaking, as a Bedrock player does.
 
+### Fixed
+
+- The fight gave up on a mob it kept hitting, as "not getting closer": a mob hit is knocked back, and catching up
+  to hit it again brought the bot no nearer than the first time. Having the mob in reach now counts as getting
+  somewhere.
+
 ### Changed
 
 - Fair play's hearing tells a skeleton's shot from its other noises: "skeleton (shooting)", as it already told a

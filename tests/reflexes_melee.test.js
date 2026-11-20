@@ -89,6 +89,7 @@ test('the leash is on where the bot goes, not where the mob is: a mob against a 
     assert.equal(withinLeash({ x: 15.6, y: 64, z: 0.5 }, home, 3), false, 'it would have to go past 12');
 });
 
+
 // A bot on a flat stone floor (its top at y 63), holding a stone sword with a shield in the off-hand, that
 // writes down what it does: the use of the off-hand, its keys, its swings.
 function fighter() {
@@ -151,4 +152,21 @@ test('the fight swings with the shield down, and neither swings nor raises it in
     beats = 0;
     await fightMelee(bot, { first: 3, see: () => zombie, shield, use, shotComing: () => skeleton(10.5, true), stop: () => ++beats > 2 });
     assert.deepEqual(did, ['swing 3'], 'the zombie in reach comes first; the shield stays down to swing');
+});
+
+test('a mob the bot keeps reaching is no fight "not getting closer", though it gets knocked back after each hit', async () => {
+    // A skeleton hit is knocked back, then caught up with and hit again: in reach and out, never nearer than
+    // the first time. Being in reach is progress. A clock that runs half a second a beat stands in for time.
+    const { bot, did } = fighter();
+    const swing = bot.attack;
+    bot.attack = target => { swing(target); setImmediate(() => bot.emit('entityHurt', target)); }; // every swing lands: it flinches
+    let clock = 0;
+    const inReach = () => Math.floor(clock / 1000) % 3 === 0; // in reach one second in three
+    const mob = () => ({ id: 9, name: 'skeleton', position: new Vec3(inReach() ? 2.5 : 5.5, 64, 0.5), width: 0.6, height: 1.99 });
+    const outcome = await fightMelee(bot, {
+        first: 9, see: () => mob(), now: () => clock,
+        stop: () => { clock += 500; return clock > 14000; },
+    });
+    assert.equal(outcome.ended, 'stopped', `it let go: ${outcome.ended}`);
+    assert.ok(did.filter(d => d.startsWith('swing')).length >= 3, 'it kept swinging');
 });
