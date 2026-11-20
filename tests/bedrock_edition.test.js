@@ -157,6 +157,35 @@ test('a Bedrock shooter aims when it faces the bot, or shows a flag for it; a mo
     assert.equal(bedrockEdition.isAggressive(null, { name: 'evocation_illager', metadata: { flags: {} } }), true, "an evoker, by Bedrock's name for it");
 });
 
+test('a Bedrock shooter shows no bow drawn, only a crossbow charged or a blaze or ghast winding up', () => {
+    // Facing the bot is aiming on Bedrock (isAiming), but nothing tells when the shot comes.
+    const at = { x: 0, y: 65.6, z: -10 };
+    const shooter = (name, flags = {}) => ({ name, position: { x: 0, y: 64, z: 0 }, yaw: 0, metadata: { flags } });
+    assert.equal(bedrockEdition.isDrawing(null, shooter('skeleton'), at), false, 'facing the bot, but no draw to see');
+    assert.equal(bedrockEdition.isDrawing(null, shooter('pillager', { charged: true }), at), true, 'a crossbow charged');
+    assert.equal(bedrockEdition.isDrawing(null, shooter('blaze', { charge_attack: true }), at), true);
+    assert.equal(bedrockEdition.isDrawing(null, null, at), false);
+});
+
+test('a Bedrock archer shoots on a fixed beat, quicker on hard, as the game\'s own behavior files give it', () => {
+    assert.equal(bedrockEdition.shotBeatMs('skeleton', 'normal'), 3000);
+    assert.equal(bedrockEdition.shotBeatMs('skeleton', 'easy'), 3000);
+    assert.equal(bedrockEdition.shotBeatMs('skeleton', 'hard'), 2000);
+    assert.equal(bedrockEdition.shotBeatMs('stray', 'normal'), 3000);
+    assert.equal(bedrockEdition.shotBeatMs('bogged', 'normal'), 3500);
+    assert.equal(bedrockEdition.shotBeatMs('bogged', 'hard'), 2500);
+    assert.equal(bedrockEdition.shotBeatMs('pillager', 'normal'), null, 'a crossbow is loaded, not on a beat');
+    assert.equal(bedrockEdition.shotBeatMs('zombie', 'normal'), null);
+});
+
+test('a Bedrock player raises the shield in the off-hand by sneaking', () => {
+    const controls = [];
+    const bot = { setControlState: (control, state) => controls.push([control, state]) };
+    bedrockEdition.raiseShield(bot, true);
+    bedrockEdition.raiseShield(bot, false);
+    assert.deepEqual(controls, [['sneak', true], ['sneak', false]]);
+});
+
 test('a Bedrock bot feels a hit from the side opposite the push it gets', () => {
     const listeners = {};
     const bot = { entity: { id: 3 }, _client: { on: (name, fn) => { listeners[name] = fn; }, off() {} } };
@@ -283,15 +312,16 @@ test('a mob is heard from what a Bedrock server sends: its sounds, and its hurt 
     const at = { x: 3.5, y: -59, z: 1.5 };
     bot._client.emit('level_sound_event', { sound_id: 'spawn', position: at, entity_type: 'minecraft:cow' }); // makes no noise
     bot._client.emit('level_sound_event', { sound_id: 'fuse', position: at, entity_type: 'minecraft:creeper' });
+    bot._client.emit('level_sound_event', { sound_id: 'bow', position: at, entity_type: 'minecraft:skeleton' }); // a shot
     bot._client.emit('level_sound_event', { sound_id: 'place', position: at, entity_type: '' });             // a block, not a mob
     bot._client.emit('entity_event', { runtime_entity_id: '40', event_id: 'hurt_animation', data: 4 });      // sent as a big number
     bot._client.emit('entity_event', { runtime_entity_id: '40', event_id: 'death_animation', data: 0 });
     bot._client.emit('entity_event', { runtime_entity_id: '40', event_id: 'eat_grass_animation', data: 0 }); // silent
     bot._client.emit('entity_event', { runtime_entity_id: '1', event_id: 'hurt_animation', data: 4 });       // the bot itself
     bot._client.emit('entity_event', { runtime_entity_id: '77', event_id: 'hurt_animation', data: 4 });      // nothing it knows of
-    assert.deepEqual(heard.map(([name]) => name), ['entity.creeper.primed', 'entity.cow.hurt', 'entity.cow.death']);
+    assert.deepEqual(heard.map(([name]) => name), ['entity.creeper.primed', 'entity.skeleton.shoot', 'entity.cow.hurt', 'entity.cow.death']);
     assert.deepEqual(heard[0][1], at);
-    assert.deepEqual(heard[1][1], bot.entities[40].position);
+    assert.deepEqual(heard[2][1], bot.entities[40].position);
     // Doors, chests and blasts are played at a spot, and named as Java names them.
     heard.length = 0;
     bot._client.emit('level_sound_event', { sound_id: 'door_open', position: at, entity_type: '' });

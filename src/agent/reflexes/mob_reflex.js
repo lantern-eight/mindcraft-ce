@@ -14,6 +14,8 @@
 //      command from the model stops the move part way.
 //   2. Claim the mobs it is about (claims.js), so the fight doesn't take them straight back.
 //   3. Start the move as an action of this mode: retreat from all of them at once, or take cover (moves.js).
+//      With no cover near, it backs out of the archer's range, and with a shield it stops behind it while
+//      the archer draws (shield.js), as the fight does.
 //   4. Lift the hold a moment after the move ends, so whatever comes next doesn't walk straight back.
 //   5. Tell the model once, in one fair line, if the move interrupted what it was doing. The same threat
 //      coming back (a crowd that keeps following, a skeleton that keeps finding the bot) is still one
@@ -27,6 +29,7 @@ import { couldHaveHit, decideMobThreat, ordersAfterGivingUp } from './mob_decide
 import { retreatFrom, takeCover } from './moves.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
+import { shotComing, shotWindow } from './shield.js';
 
 export const MODE_NAME = 'mob_safety';
 const MOVES = new Set(['flee', 'retreat', 'take_cover']);
@@ -41,10 +44,12 @@ const LOST_SIGHT_MS = 2000;   // all of them out of view this long while retreat
  * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
  * @param {(id: number) => boolean} [options.gaveUp] - whether the fight gave up on a mob lately: an order to
  *     fight it then no longer holds here (ordersAfterGivingUp)
+ * @param {object} [options.shield] - the bot's shield (shield.js); none: no shield
+ * @param {object} [options.beat] - the beat of shots heard (shot_beat.js), for a game that shows no bow drawn
  * @param {() => number} [options.now]
  * @returns {{mode: object, round: Function, watch: Function, hits: object[]}}
  */
-export function createMobReflex({ claims, orders = null, gaveUp = () => false, now = Date.now }) {
+export function createMobReflex({ claims, orders = null, gaveUp = () => false, shield = null, beat = null, now = Date.now }) {
     const hits = [];          // {at, direction}: hits felt lately, oldest first
     const told = new Map();   // threat key -> when the model was last told about it
     const dying = new Set();  // mobs seen dying
@@ -107,6 +112,7 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, n
         try {
             result = await agent.actions.runAction(`mode:${MODE_NAME}`, async () => {
                 if (decision.stance === 'take_cover') {
+                    await shield?.ready(); // a carried shield in the off-hand, for a back-out with no cover near
                     const id = ids[0];
                     const eye = () => {
                         const mob = mobInView(bot, id);
@@ -115,7 +121,7 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, n
                     let outcome = await takeCover(bot, { eye, report, done: () => !aimingNow(bot, id) && lostSight() });
                     report({ event: 'cover', at: performance.now(), ended: outcome.ended });
                     if (outcome.ended === 'no cover' || outcome.ended === 'no way there')
-                        outcome = await retreatFrom(bot, { from, to: decision.distance, report, done: lostSight });
+                        outcome = await retreatFrom(bot, { from, to: decision.distance, report, done: lostSight, guard: archerGuard(bot) });
                     ended = outcome.ended;
                     log(bot, `Took cover from the ${decision.name} (${ended}).`);
                     return;
@@ -132,6 +138,21 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, n
         }
         report({ event: 'done', at: performance.now(), ended, interrupted: Boolean(result?.interrupted) });
         tellModel(agent, decision, interrupted, result, line);
+    }
+
+    // Backing out of range with no cover near: the shield up toward an archer while it draws, and until its
+    // arrow lands, when every archer aiming is on one side (shield.js).
+    function archerGuard(bot) {
+        if (!shield) return null;
+        const window = shotWindow(now);
+        return {
+            shield,
+            against: () => {
+                const id = window(shotComing(mobsAround(bot, dying, beat), bot.entity.position));
+                const mob = id === null ? null : mobInView(bot, id);
+                return mob ? { x: mob.position.x, y: mob.position.y + (mob.height ?? 1.8) * 0.8, z: mob.position.z } : null;
+            },
+        };
     }
 
     function aimingNow(bot, id) {

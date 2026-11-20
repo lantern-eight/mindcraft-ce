@@ -27,9 +27,12 @@
 //   flee   every reason to move (rules 1, 1b and 2, and a creeper seen coming within 8) leaves it for good
 //          at once, to the order's distance, instead of backing off and waiting for it to follow.
 //
+// While it backs off from a lit creeper, a bot with a shield in the off-hand stops and holds it up toward the
+// creeper when it can't get clear in time (blockTheBlast): a shield faced at a blast stops it.
+//
 // The bot's other reflexes and the `cowardice` switch have no say here: backing off from a creeper about
 // to explode is self-preservation, like stepping out of lava.
-import { FUSE_RANGE } from './picture.js';
+import { FUSE_RANGE, FUSE_TICKS } from './picture.js';
 
 export const BACK_OFF_TO = 8;       // past FUSE_RANGE, with a block to spare
 // A creeper keeps its target while it is within 16 blocks (its follow range), and closes in on a bot that
@@ -44,7 +47,26 @@ const ABOVE_REACH = 4;              // blocks above an underground bot past whic
 const EXPLOSION_CLOSE = 4;          // "very close" in hearing's bands
 const FLEE_SEEN = 8;                // a creeper ordered fled is left as soon as it is seen this close
 
+export const BLAST_REACH = 6;       // a creeper's blast hurts within about 6 blocks
+const SPRINT_PER_TICK = 0.28;       // blocks a sprint covers in a tick
+
 const ignore = { stance: 'ignore' };
+
+/**
+ * Whether to stop and hold a shield up at a lit creeper instead of running on. A player does when the blast
+ * will catch them anyway: the creeper is in view and lit within the blast's reach, and at a sprint the fuse
+ * runs out before the bot is past that reach; or the bot can't get away (it is stuck, or already behind its
+ * shield, standing). The fuse is the picture's estimate, which a player keeps the same way: it swells and
+ * flashes faster as it nears the end.
+ * @param {object|null} creeper - from the threat picture: {seenNow, lit, distance, fuse}
+ * @param {{stuck?: boolean}} [extra]
+ */
+export function blockTheBlast(creeper, { stuck = false } = {}) {
+    if (!creeper?.seenNow || !creeper.lit || creeper.distance >= BLAST_REACH) return false;
+    if (stuck) return true;
+    const ticksLeft = Math.max(0, FUSE_TICKS - (creeper.fuse ?? 0));
+    return creeper.distance + ticksLeft * SPRINT_PER_TICK < BLAST_REACH;
+}
 
 /**
  * @param {object[]} creepers - from the threat picture, nearest first: {key, position, distance, lit,

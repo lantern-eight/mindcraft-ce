@@ -13,6 +13,7 @@ import * as mc from '../../utils/mcdata.js';
 import settings from '../settings.js';
 import { editionOf } from '../edition/index.js';
 import { bestWeapon } from './decide.js';
+import { offHandOf, shieldTuning } from './shield.js';
 
 const LOOK_WITHIN = 24;
 
@@ -20,10 +21,13 @@ const LOOK_WITHIN = 24;
  * The hostile mobs within 24 blocks, nearest first, as plain objects for the decisions.
  * @param {object} bot
  * @param {Set<number>} [dying] - mobs seen dying, which can't fight any more
+ * @param {object} [beat] - the beat of shots heard (shot_beat.js): an archer whose next shot is due counts as
+ *     drawing, where the game shows no bow drawn
  * @returns {{id:number, name:string, position:object, distance:number, seenNow:boolean, aiming:boolean,
- *     aggressive:boolean, height:number}[]}
+ *     drawing:boolean, aggressive:boolean, height:number}[]} drawing: about to loose a shot (a bow drawn),
+ *     the moment to raise a shield
  */
-export function mobsAround(bot, dying = new Set()) {
+export function mobsAround(bot, dying = new Set(), beat = null) {
     const edition = editionOf(bot.registry);
     const here = bot.entity.position;
     const eye = { x: here.x, y: here.y + (bot.entity.eyeHeight ?? 1.62), z: here.z };
@@ -36,6 +40,8 @@ export function mobsAround(bot, dying = new Set()) {
                 position: { x: entity.position.x, y: entity.position.y, z: entity.position.z },
                 distance: entity.position.distanceTo(here), seenNow,
                 aiming: seenNow && edition.isAiming(bot.registry, entity, eye),
+                drawing: seenNow && (edition.isDrawing(bot.registry, entity, eye)
+                    || (shieldTuning.beat && Boolean(beat?.due(entity.id, edition.shotBeatMs(entity.name, bot.game?.difficulty))))),
                 aggressive: seenNow && edition.isAggressive(bot.registry, entity),
             };
         });
@@ -84,7 +90,8 @@ export function armorOf(bot) {
 }
 
 /** What the bot knows about itself, for the decisions: where it is, its health and food, whether it carries
- *  a sword or an axe (for an order to fight when armed), and the armor it wears (for how much it takes on). */
+ *  a sword or an axe (for an order to fight when armed), and the armor it wears and whether it has a shield
+ *  (for how much it takes on). */
 export function selfOf(bot) {
     const position = bot.entity.position;
     return {
@@ -92,5 +99,7 @@ export function selfOf(bot) {
         health: bot.health ?? 20, food: bot.food ?? 20, gameMode: bot.game?.gameMode,
         armed: bestWeapon(bot.inventory?.items?.().map(item => item.name) ?? [], editionOf(bot.registry).meleeOf) !== null,
         armor: armorOf(bot),
+        // In the off-hand already, or carried: the fight puts a carried one there as it starts.
+        shielded: offHandOf(bot)?.name === 'shield' || Boolean(bot.inventory?.items?.().some(item => item.name === 'shield')),
     };
 }

@@ -17,6 +17,10 @@
 //
 // The walking itself goes through the pathfinder, so under fair play its route is planned over what the
 // bot has seen (fair_legs.js), like every other walk.
+//
+// A back-off or a retreat can be given a guard: something to hold a shield up against while it lasts (an
+// archer drawing, a creeper about to blow that the bot can't get clear of). Then the bot stops, faces it
+// with the shield up, and goes on once it is past. Never moving with the shield up: shield.js says why.
 import pf from 'mineflayer-pathfinder';
 import { worldQueries } from '../library/world_queries.js';
 import { editionOf } from '../edition/index.js';
@@ -91,8 +95,33 @@ function escapeMovements(bot) {
  * @param {(event: object) => void} [options.report] - told when the first step is taken, for timing
  * @returns {Promise<{distance: number|null, ended: string}>}
  */
-export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () => false, report = () => {} }) {
-    return retreatFrom(bot, { from: () => { const point = from(); return point ? [point] : null; }, to, maxMs, done, report });
+export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () => false, report = () => {}, guard = null }) {
+    return retreatFrom(bot, { from: () => { const point = from(); return point ? [point] : null; }, to, maxMs, done, report, guard });
+}
+
+// The keys that walk. Stopping a move lets go of these and no others: on Bedrock the shield is held up by the
+// sneak key (raiseShield), and letting go of every key would lower it.
+const WALKING = ['forward', 'back', 'left', 'right', 'sprint', 'jump'];
+const stopWalking = bot => { for (const key of WALKING) bot.setControlState(key, false); };
+
+/**
+ * One step of a guard: when it names something to block, the bot stops where it is (`stop`), faces it and
+ * holds the shield up. True while it does; false, with the shield down, when there is nothing to block, no
+ * shield in the off-hand, or the channel is busy (a meal). Once the shield is up the bot is already
+ * standing, and isn't stopped again: stopping the pathfinder lets go of every key, the sneak that holds a
+ * Bedrock shield up among them.
+ * @param {object} bot
+ * @param {{against: () => {x:number, y:number, z:number}|null, shield: object}|null} guard - the point to
+ *     face, and the bot's shield (shield.js)
+ * @param {() => void} stop - stops whatever the move was doing
+ */
+export async function guardStep(bot, guard, stop) {
+    const at = guard?.shield?.has() ? guard.against() : null;
+    if (!at) { guard?.shield?.lower(); return false; }
+    if (!guard.shield.up) stop();
+    const here = bot.entity.position;
+    await bot.lookAt(here.offset(at.x - here.x, at.y - here.y, at.z - here.z), true);
+    return guard.shield.raise();
 }
 
 /**
@@ -122,9 +151,11 @@ export function awayFrom(position, points) {
  * @param {number} [options.maxMs]
  * @param {() => boolean} [options.done]
  * @param {(event: object) => void} [options.report]
- * @returns {Promise<{distance: number|null, ended: string}>} distance: to the nearest threat
+ * @param {object} [options.guard] - what to hold a shield up against meanwhile (guardStep)
+ * @returns {Promise<{distance: number|null, ended: string, blocks: number}>} distance: to the nearest threat;
+ *     blocks: how often the shield went up
  */
-export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () => false, report = () => {} }) {
+export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () => false, report = () => {}, guard = null }) {
     const started = Date.now();
     const blockAt = pos => worldQueries().blockAt(bot, pos);
     let threats = from();
@@ -139,7 +170,14 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         if (Date.now() - started > maxMs) return 'out of time';
         return null;
     };
-    let ended = finished();
+    let ended = finished(), blocks = 0;
+    const halt = () => { bot.pathfinder.setGoal(null); stopWalking(bot); };
+    const guarding = async () => {
+        const wasUp = guard?.shield?.up;
+        const up = await guardStep(bot, guard, halt);
+        if (up && !wasUp) { blocks++; report({ event: 'shield', at: performance.now() }); }
+        return up;
+    };
     try {
         // The dash: straight away at once, if that way is safe, and on for as long as it stays safe. A
         // sprint in a straight line is the fastest way out; the pathfinder walks more than it sprints.
@@ -147,7 +185,7 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         const position = bot.entity.position;
         const step = away ? firstStep(blockAt, position, { x: position.x - away.x, z: position.z - away.z })
             : ended ? null : firstStep(blockAt, position, threats[0]);
-        if (step) {
+        if (step && !(guard && await guarding())) {
             const ahead = () => bot.entity.position.offset(step.x * 3, 1.6, step.z * 3);
             await bot.lookAt(ahead(), true);
             bot.setControlState('sprint', true);
@@ -157,26 +195,29 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
                 // Two cells ahead, as for the first step: one more block is all a sprint covers between checks.
                 const next = [1, 2].map(k => floorOf({ x: bot.entity.position.x + step.x * k, y: bot.entity.position.y, z: bot.entity.position.z + step.z * k }));
                 if (!next.every(cell => safeCell(blockAt, cell))) break; // something in the way: the pathfinder picks
+                if (guard && await guarding()) break; // behind the shield; the pathfinder goes on after
                 await wait(STEP_MS);
             }
-            bot.clearControlStates();
+            stopWalking(bot);
         }
         // The rest, by the pathfinder, re-aimed when a threat moves.
-        let aimedAt = null;
+        let aimedAt = null, stepped = Boolean(step);
         while (!ended && !(ended = finished())) {
+            if (guard && await guarding()) { aimedAt = null; await wait(STEP_MS); continue; }
             if (!aimedAt || aimedAt.length !== threats.length || threats.some((point, i) => flat(aimedAt[i], point) > 2)) {
                 aimedAt = threats.map(point => ({ ...point }));
                 bot.pathfinder.setMovements(escapeMovements(bot));
                 bot.pathfinder.setGoal(awayGoal(threats, to), true);
-                if (!step) report({ event: 'step', at: performance.now(), how: 'path' });
+                if (!stepped) { stepped = true; report({ event: 'step', at: performance.now(), how: 'path' }); }
             }
             await wait(STEP_MS);
         }
     } finally {
+        guard?.shield?.lower();
         bot.pathfinder.setGoal(null);
         bot.clearControlStates();
     }
-    return { distance: distance(), ended };
+    return { distance: distance(), ended, blocks };
 }
 
 // Anywhere at least `to` from every threat: the opposite of "near any of them".

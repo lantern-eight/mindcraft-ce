@@ -141,6 +141,12 @@ No code was copied for these. They are credited because the work builds on them.
   distance to flee to), applied at once by the reflex** come from the threat planner in the
   [`benpham3206/Agent37`](https://github.com/benpham3206/Agent37) project. Used by
   `src/agent/reflexes/orders.js` and `src/agent/reflexes/order_commands.js`.
+- **One owner at a time of the use-item channel that a shield, eating and a bow share** comes from the shield
+  guard in the [`asanrivas/mindcraft`](https://github.com/asanrivas/mindcraft) fork (`shield_guard.js`). Used by
+  `src/agent/reflexes/item_use.js`.
+- **Closing on a skeleton behind a shield, and never raising one against a witch** come from the shield fight
+  in the [`wehos/mc-agent-neko`](https://github.com/wehos/mc-agent-neko) fork (`bots/_supervisor/skills/shieldFight.js`).
+  Used by `src/agent/reflexes/shield.js` and `src/agent/reflexes/melee.js`.
 - **Taking a bot's starting reactions to threats from its profile** comes from the instincts in the
   [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by the profile's
   `threat_rules` in `src/agent/reflexes/orders.js`.

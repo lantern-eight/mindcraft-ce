@@ -206,6 +206,36 @@ test('Java reads a ranged mob\'s aim from its metadata, found by name', () => {
     assert.equal(javaEdition.isAiming(registry, null), false);
 });
 
+test('Java reads a shot about to be loosed: a bow drawn, a crossbow loading or held up, a ghast or blaze winding up', () => {
+    const registry = minecraftData(GAME_VERSION);
+    const at = (kind, name) => registry.entitiesByName[kind].metadataKeys.indexOf(name);
+    const mob = (kind, entries, extra = {}) => ({ name: kind, metadata: Object.fromEntries(entries), ...extra });
+    // A skeleton holds its bow up all the while it has a target; it draws it for a second before each shot.
+    assert.equal(javaEdition.isDrawing(registry, mob('skeleton', [[at('skeleton', 'living_entity_flags'), 0x01]])), true, 'bow drawn');
+    assert.equal(javaEdition.isDrawing(registry, mob('skeleton', [[at('skeleton', 'mob_flags'), 0x04]])), false, 'only held up');
+    assert.equal(javaEdition.isDrawing(registry, mob('bogged', [[at('bogged', 'living_entity_flags'), 0x01]])), true);
+    // A crossbow shows nothing between loaded and loosed: held up loaded is about to fire.
+    assert.equal(javaEdition.isDrawing(registry, mob('pillager', [[at('pillager', 'is_charging_crossbow'), true]])), true, 'loading');
+    assert.equal(javaEdition.isDrawing(registry, mob('pillager', [[at('pillager', 'mob_flags'), 0x04]])), true, 'held up');
+    assert.equal(javaEdition.isDrawing(registry, mob('ghast', [[at('ghast', 'is_charging'), true]])), true);
+    assert.equal(javaEdition.isDrawing(registry, mob('blaze', [[at('blaze', 'flags'), 0x01]])), true);
+    // A zombie's arms out are no shot, and a drawn hand on a mob with no bow is something else.
+    assert.equal(javaEdition.isDrawing(registry, mob('zombie', [[at('zombie', 'living_entity_flags'), 0x01]])), false);
+    assert.equal(javaEdition.isDrawing(registry, null), false);
+});
+
+test('Java gives no beat to an archer\'s shots: its draw is there to see', () => {
+    assert.equal(javaEdition.shotBeatMs('skeleton', 'normal'), null);
+});
+
+test('Java raises the shield by using the off-hand, and lowers it by letting go', () => {
+    const calls = [];
+    const bot = { activateItem: offHand => calls.push(['use', offHand]), deactivateItem: () => calls.push(['let go']) };
+    javaEdition.raiseShield(bot, true);
+    javaEdition.raiseShield(bot, false);
+    assert.deepEqual(calls, [['use', true], ['let go']]);
+});
+
 test('Java reads whether a mob has a target from the aggressive bit of its mob flags', () => {
     const registry = minecraftData(GAME_VERSION);
     const flags = registry.entitiesByName.zombie.metadataKeys.indexOf('mob_flags');

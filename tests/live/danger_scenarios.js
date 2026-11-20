@@ -198,7 +198,7 @@ try {
 
     await step('a skeleton aiming at the bot leaves a zone where it stood', async () => {
         await reset({ x: -20.5 });
-        await cmd('summon skeleton -6.5 70 0.5 {PersistenceRequired:1b,equipment:{head:{id:"minecraft:leather_helmet",count:1}}}');
+        await cmd('summon skeleton -6.5 70 0.5 {PersistenceRequired:1b,equipment:{head:{id:"minecraft:leather_helmet",count:1},mainhand:{id:"minecraft:bow",count:1}}}');
         const started = Date.now();
         await waitFor(() => zones.list().some(z => z.kind === 'archer'), 15000, () => JSON.stringify(zones.list()));
         const zone = zones.list().find(z => z.kind === 'archer');

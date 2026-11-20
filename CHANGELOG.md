@@ -9,6 +9,57 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.10.0-bedrock.1.11.0] - 2026-11-20
+
+A release for both editions. The bot uses a shield the way a player does: it keeps one in its off-hand, holds
+it up while an archer it sees draws its bow and until the arrow lands, and faces a creeper's blast behind it
+when it can't get clear in time. It stands while the shield is up, and lowers it to move or to swing. In the
+fight arena on Java a sword and a shield took half or less of a sword's damage from skeletons, and a bot with
+both now takes on two skeletons by its own judgment, on both editions. A Bedrock skeleton shows no bow drawn,
+so there the bot goes by the beat of its shots, heard, as it backs out of range; a creeper's blast is stopped
+there as on Java. A meal and a raised shield no longer cut each other short, and the fight no longer gives up
+on a skeleton it is hitting or that backs away from it. No fixes to inherited code. Built on the same
+Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
+### Added
+
+- The fight uses a shield. A shield the bot carries goes in its off-hand when a fight starts, and while an
+  archer it sees is drawing its bow, with the mob it fights out of reach, the bot stops, faces the archer and
+  holds the shield up until the arrow lands, then lowers it and goes on. It does so only when every archer
+  aiming at it is on the side it faces: a shield covers one side. The shield is down to move and to swing, as a
+  player's must be. In the fight arena on Java, a stone sword and a shield beat a lone skeleton with no damage
+  taken (4 without the shield), two skeletons with 4 (8), and two zombies, a skeleton and a spider with 6 (16);
+  fights with archers take longer, since the bot stands while it blocks. On Java Edition only: a Bedrock
+  skeleton shows no bow drawn.
+- Backing out of an archer's range with no cover near, the bot stops behind its shield the same way while the
+  bow is drawn. In a walled pen it couldn't get out of, an unarmed bot took no damage from a skeleton with a
+  shield, and 8 without. On Bedrock, where no bow is seen drawn, it goes by the beat of the skeleton's shots
+  instead: a shot every 3 s, each heard, so the shield is up as the next is due. There the same pen cost 4
+  damage with a shield (the first arrow comes unwarned), and 11 without.
+- A bot backing off from a lit creeper it can't get clear of in time (it is cornered, or the fuse is nearly out)
+  stops and holds its shield up toward it, which stops the blast. Cornered in a dead end, it took no damage, on
+  both editions; on Bedrock it holds the shield up by sneaking, as a Bedrock player does.
+
+### Changed
+
+- Fair play's hearing tells a skeleton's shot from its other noises: "skeleton (shooting)", as it already told a
+  creeper's hiss. On Bedrock a shot is heard by Java's name for it.
+- With a sword or an axe and a shield, the bot takes on two skeletons by its own judgment, as it did only in a
+  full iron set. In the fight arena it won every such round, with 8 damage taken on Java and 5 to 8 on
+  Bedrock; backing away from them, as before, lost two rounds of three on Java and every round on Bedrock.
+- In a fight the bot neither swings nor puts its weapon back in hand in the middle of a meal, which used to cut
+  the meal short.
+- Eating when hungry waits while the bot holds its shield up, and the shield waits for a meal to end: a meal
+  no longer drops the shield in the middle of a block, nor a raised shield cut a meal short.
+
+### Fixed
+
+- The fight gave up on a mob it kept hitting, as "not getting closer": a mob hit is knocked back, and catching up
+  to hit it again brought the bot no nearer than the first time. Having the mob in reach now counts as getting
+  somewhere.
+- The fight stopped following a skeleton 12 blocks from where the fight began, and stood there being shot until
+  it gave up: a skeleton backs away as it shoots. It now follows an archer up to 24 blocks.
+
 ## [1.9.0-bedrock.1.10.1] - 2026-11-19
 
 A release for Bedrock Edition's records only: the fix that keeps a stopped action from letting go of the keys of
@@ -938,7 +989,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...HEAD
+[1.10.0-bedrock.1.11.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.10.0-bedrock.1.11.0
 [1.9.0-bedrock.1.10.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...v1.9.0-bedrock.1.10.1
 [1.9.0-bedrock.1.10.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...v1.9.0-bedrock.1.10.0
 [1.8.0-bedrock.1.9.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...v1.8.0-bedrock.1.9.0
