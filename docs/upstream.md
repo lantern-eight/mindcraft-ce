@@ -116,6 +116,7 @@ fork's `bedrock-combined` branch, which the `bedrock` branch pins.
 | [#14](https://github.com/Pix3lPirat3/mineflayer/pull/14) | A chunk's biomes are read when its blocks come by subchunk request |
 | [#15](https://github.com/Pix3lPirat3/mineflayer/pull/15) | A loom puts in only the one dye a pattern uses |
 | [#16](https://github.com/Pix3lPirat3/mineflayer/pull/16) | `consume()` eats the way the game's client does |
+| [#17](https://github.com/Pix3lPirat3/mineflayer/pull/17) | `clearControlStates()` lets go of each key through `setControlState()`, as on Java. Also put right on the bot in `java_shapes.js` |
 
 ### Found, Not Offered
 
