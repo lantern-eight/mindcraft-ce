@@ -25,6 +25,9 @@ const port = Number(arg('port') || 55932);
 const NAME = 'Wary';
 const results = [];
 const ONLY = arg('only');
+// A skeleton summoned on 26.3 gets no bow (summoning skips the random dressing a natural spawn gets), and
+// comes at the bot bare-handed. Every skeleton here is given one, so the scenes meet an archer.
+const BOW = 'equipment:{mainhand:{id:"minecraft:bow",count:1}}';
 // --stock: no threat reflexes, Mindcraft's own; only the night and standing-by scenes run, to compare.
 const STOCK = process.argv.includes('--stock');
 const step = async (name, fn) => {
@@ -160,7 +163,7 @@ try {
     await step('seam: a skeleton taking aim at the bot is seen aiming', async () => {
         await reset();
         reflexes.mob.mode.on = false; // only watching here
-        await cmd('summon skeleton 0.5 70 12.5 {PersistenceRequired:1b}');
+        await cmd('summon skeleton 0.5 70 12.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
         await cmd(`effect give ${NAME} resistance 30 4 true`);
         await waitFor(() => raw('skeleton').length === 1, 5000);
         const skeleton = raw('skeleton')[0];
@@ -246,7 +249,7 @@ try {
         await cmd('fill 3 70 3 3 72 5 cobblestone');
         await cmd(`effect give ${NAME} resistance 60 2 true`);
         await delay(1500); // the bot sees the wall
-        await cmd('summon skeleton 14.5 70 0.5 {PersistenceRequired:1b}');
+        await cmd('summon skeleton 14.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
         await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
         const done = events.find(e => e.event === 'done' && e.mode === 'mob_safety');
@@ -272,7 +275,6 @@ try {
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
             const blocksBefore = blocked;
-            // Its bow given: a skeleton summoned on 26.3 has none, and comes at the bot bare-handed.
             await cmd('summon skeleton 5.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
             await delay(12000);
@@ -380,7 +382,7 @@ try {
         await order('skeletons', 'ignore', 0, 0);
         try {
             await cmd(`effect give ${NAME} resistance 60 4 true`);
-            await cmd('summon skeleton 12.5 70 0.5 {PersistenceRequired:1b}');
+            await cmd('summon skeleton 12.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await delay(10000);
             assert.equal(decided().length, 0, JSON.stringify(decided()));
             return { arrowsTakenAsDamage: damage };
@@ -395,7 +397,7 @@ try {
         await order('skeletons', 'fight', 0, 0);
         try {
             await cmd(`effect give ${NAME} resistance 60 2 true`);
-            await cmd('summon skeleton 10.5 70 0.5 {PersistenceRequired:1b}');
+            await cmd('summon skeleton 10.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await waitFor(() => raw('skeleton').length === 0, 45000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
             assert.ok(decided('self_defense').length >= 1, JSON.stringify(decided()));
             assert.equal(decided('mob_safety').filter(e => e.stance === 'take_cover').length, 0, 'no cover');
@@ -443,7 +445,7 @@ try {
         roundMs.length = 0;
         pathSearches = 0;
         for (const [mob, x, z] of [['zombie', 14, 3], ['zombie', -13, 5], ['skeleton', 16, -12], ['spider', -15, -12], ['zombie', 3, 18], ['skeleton', -18, 14]])
-            await cmd(`summon ${mob} ${x}.5 70 ${z}.5 {PersistenceRequired:1b}`);
+            await cmd(`summon ${mob} ${x}.5 70 ${z}.5 {PersistenceRequired:1b${mob === 'skeleton' ? `,${BOW}` : ''}}`);
         await delay(60000);
         await cmd('time set noon');
         const moves = decided().length;

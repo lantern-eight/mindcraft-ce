@@ -431,7 +431,8 @@ try {
         await cmd('time set midnight');
         await cmd(`effect give ${NAME} resistance 60 4 true`);
         for (const [mob, x, z] of [['zombie', 8, 3], ['zombie', -7, 5], ['skeleton', 12, -6], ['spider', -9, -8], ['zombie', 3, 10]])
-            await cmd(`summon ${mob} ${x}.5 70 ${z}.5`);
+            // A skeleton summoned on 26.3 gets no bow; it is given one, so it is the archer a night brings.
+            await cmd(`summon ${mob} ${x}.5 70 ${z}.5${mob === 'skeleton' ? ' {equipment:{mainhand:{id:"minecraft:bow",count:1}}}' : ''}`);
         await delay(30000);
         await cmd('time set noon');
         const interruptions = events.filter(e => e.event === 'decided' && e.mode === 'creeper_safety').length;
