@@ -425,7 +425,16 @@ try {
     console.error(error);
 } finally {
     running = false;
-    try { await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true'); } catch { /* the console is gone */ }
+    try {
+        await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true');
+        // Take the floor away, the bot first back down where it began: a floor left here would lift the spawn of
+        // every later script (docs/bedrock.md, "When Several Scripts Fail at Once"), and a bot left on it builds
+        // its next scenes 40 blocks higher still.
+        if (origin) {
+            await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y - 39} ${origin.z + 0.5}`, 1500);
+            for (let x = -30; x < 30; x += 15) await fill([x, 0, -30], [x + 14, 6, 30], 'air');
+        }
+    } catch { /* the console is gone */ }
     console.log(JSON.stringify(summary()));
     bot?.quit();
     process.exit(summary().status === 'passed' ? 0 : 1);

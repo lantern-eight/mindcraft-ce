@@ -72,7 +72,7 @@ const DEFAULT_RULES = ['keepinventory false', 'doimmediaterespawn false', 'doday
 /**
  * Puts the shared test world and these bots back the way every script expects them, before it sets up its own
  * scene: the game's default rules, peaceful, noon, clear weather; each bot in survival with nothing in its
- * inventory and no effects; and each bot back on the flat world's grass if a run left it standing on
+ * inventory and no effects; and each bot back down on the world's own ground if a run left it standing on
  * something it built (the scripts build 40 blocks above the bot, so a bot left up there would build the next
  * scene 40 blocks higher still). What a killed run built stays; docs/bedrock.md says how to start a fresh
  * world. Without a console it does nothing: the steps that need one are skipped anyway.
@@ -95,14 +95,13 @@ export async function freshBot(server, bot) {
     if (!server.hasConsole) return;
     const name = bot.username;
     for (const line of [`gamemode survival ${name}`, `clear ${name}`, `effect ${name} clear`]) await server.command(line, 100);
-    // Down to the grass under the bot, if it isn't on it: the flat world's top layer, which no script builds with.
+    // Down to the world's own ground: the lowest grass under the bot, the flat world's top layer. Not the first
+    // grass met on the way down, which may be a scene's, built on a floor a run left behind.
     const feet = bot.entity.position.floored();
-    if (bot.blockAt(feet.offset(0, -1, 0))?.name === 'grass_block') return;
-    for (let y = feet.y - 2; y > feet.y - 200; y--) {
-        if (bot.blockAt(feet.offset(0, y - feet.y, 0))?.name !== 'grass_block') continue;
-        await server.command(`tp ${name} ${feet.x + 0.5} ${y + 1} ${feet.z + 0.5}`, 2500);
-        return;
-    }
+    const bottom = bot.game?.minY ?? -64;
+    let ground = null;
+    for (let y = feet.y - 1; y >= bottom; y--) if (bot.blockAt(feet.offset(0, y - feet.y, 0))?.name === 'grass_block') ground = y;
+    if (ground !== null && ground !== feet.y - 1) await server.command(`tp ${name} ${feet.x + 0.5} ${ground + 1} ${feet.z + 0.5}`, 2500);
 }
 
 /**

@@ -188,7 +188,10 @@ try {
         for (const line of ['gamerule keepinventory false', 'gamerule doimmediaterespawn false', 'gamerule dodaylightcycle true',
             'gamerule mobgriefing true', 'gamerule domobloot true', 'difficulty peaceful', `clear ${NAME}`, `effect ${NAME} clear`])
             await cmd(line);
-        if (origin) await fill([-16, 0, -16], [16, 6, 16], 'air');
+        if (origin) {
+            await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y - 39} ${origin.z + 0.5}`, 1500); // down first: a fall of 40 kills
+            await fill([-16, 0, -16], [16, 6, 16], 'air');
+        }
     } catch { /* the console is gone */ }
     bot?.quit?.();
     process.exit(process.exitCode ?? 0);
