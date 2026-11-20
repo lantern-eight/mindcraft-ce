@@ -416,9 +416,12 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
-     * Is this mob about to loose a shot? A Bedrock server shows no bow drawn (a skeleton shooting the bot
-     * showed no flag, 1.26.63), so a skeleton's shots come with no tell to raise a shield for. A crossbow
-     * `charged`, or a blaze or ghast winding up (`charge_attack`), is read if a server sends it.
+     * Is this mob about to loose a shot? A Bedrock server shows no bow drawn. Watched packet by packet
+     * (1.26.63), nothing it sends about a skeleton changes between its taking a target and each arrow: not the
+     * `action` flag (the one Geyser shows a Java skeleton's draw to Bedrock players with), not `charged` or
+     * `charge_amount`, no event. So a skeleton's shots come with no tell to raise a shield for; what a Bedrock
+     * player goes by is the beat, a shot every 3 s with its `bow` sound. A crossbow `charged`, or a blaze or
+     * ghast winding up (`charge_attack`), is read if a server sends it.
      */
     isDrawing(registry, entity, at) {
         const flags = entity?.metadata?.flags ?? {};
