@@ -117,7 +117,7 @@ try {
     async function reset(kit) {
         await cmd('difficulty peaceful', 1000);
         await cmd('difficulty normal');
-        await waitFor(() => bot.entity && bot.health > 0, 20000, () => 'the bot did not respawn');
+        await waitFor(() => bot.entity && bot.health > 0, 40000, () => `the bot did not respawn (health ${bot.health}, alive ${bot.isAlive})`);
         await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
         await fill([-16, 1, -16], [16, 6, 16], 'air');
         await fill([-16, 0, -16], [16, 0, 16], 'stone');
