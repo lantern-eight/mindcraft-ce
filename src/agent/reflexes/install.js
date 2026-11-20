@@ -60,7 +60,7 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     const use = createItemUse();
     if (!shareEating(agent.bot, use)) agent.bot.once?.('spawn', () => shareEating(agent.bot, use));
     const shield = createShield(agent.bot, { use });
-    const creeper = createCreeperReflex({ orders });
+    const creeper = createCreeperReflex({ orders, shield });
     registerMode(creeper.mode, { after: 'self_preservation' });
     // A new life, or a new world, starts with nothing known about creepers.
     agent.bot.on?.('respawn', () => creeper.picture.clear());
@@ -73,7 +73,7 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     const claims = createClaims();
     let fight = null;
     // A mob the fight gave up on is the mob reflex's again, whatever the orders said (ordersAfterGivingUp).
-    const mob = createMobReflex({ claims, orders, gaveUp: id => fight?.gaveUpOn(id) ?? false });
+    const mob = createMobReflex({ claims, orders, shield, gaveUp: id => fight?.gaveUpOn(id) ?? false });
     registerMode(mob.mode, { after: creeper.mode.name });
     mob.watch(agent.bot);
     // The fight keeps the stock switch's state: on unless the profile or a command said otherwise.

@@ -4,7 +4,10 @@
 // would from world.js's provider.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { firstStep, safeCell } from '../src/agent/reflexes/moves.js';
+import { Vec3 } from 'vec3';
+import { firstStep, safeCell, guardStep, retreatFrom } from '../src/agent/reflexes/moves.js';
+import { createShield } from '../src/agent/reflexes/shield.js';
+import { createItemUse } from '../src/agent/reflexes/item_use.js';
 
 // A flat stone floor with its top at y 63, air above, and whatever `cells` changes. "x,y,z" -> name;
 // null in `cells` means the bot doesn't know that cell.
@@ -52,4 +55,53 @@ test('walled in on every side away from the threat: no first step, the pathfinde
     const cells = {};
     for (const [x, z] of [[1, 0], [1, 1], [1, -1], [0, 1], [0, -1]]) cells[`${x},64,${z}`] = 'stone';
     assert.equal(firstStep(world(cells), feet, creeperWest), null);
+});
+
+// A bot standing on open ground with a shield in the off-hand, writing down what it does.
+function guardedBot() {
+    const did = [];
+    const slots = [];
+    slots[45] = { name: 'shield' };
+    const bot = {
+        entity: { position: new Vec3(0.5, 64, 0.5) },
+        inventory: { slots, items: () => [] },
+        blockAt: world(),
+        lookAt: async point => did.push(`look ${Math.round(point.x)},${Math.round(point.z)}`),
+        activateItem: () => did.push('shield up'),
+        deactivateItem: () => did.push('shield down'),
+        setControlState: () => {},
+        clearControlStates: () => did.push('stand'),
+        pathfinder: { setGoal: () => {}, setMovements: () => {} },
+    };
+    const shield = createShield(bot, { use: createItemUse() });
+    return { bot, did, shield };
+}
+
+test('a guard step stops the bot, faces what it names and raises the shield; with nothing to block it lowers it', async () => {
+    const { bot, did, shield } = guardedBot();
+    let against = { x: 8.5, y: 65.5, z: 0.5 };
+    let stopped = 0;
+    assert.equal(await guardStep(bot, { against: () => against, shield }, () => stopped++), true);
+    assert.equal(stopped, 1);
+    assert.deepEqual(did, ['look 9,1', 'shield up']);
+    against = null;
+    assert.equal(await guardStep(bot, { against: () => against, shield }, () => stopped++), false);
+    assert.deepEqual(did.slice(2), ['shield down']);
+    assert.equal(stopped, 1, 'nothing to block: the move goes on as it was');
+    assert.equal(await guardStep(bot, null, () => stopped++), false, 'no guard');
+});
+
+test('a retreat stands behind the shield while its guard names something, and lowers it when done', async () => {
+    const { bot, did, shield } = guardedBot();
+    let steps = 0;
+    const outcome = await retreatFrom(bot, {
+        from: () => [{ x: 8.5, y: 64, z: 0.5 }], to: 16,
+        guard: { against: () => ({ x: 8.5, y: 65.5, z: 0.5 }), shield },
+        done: () => ++steps > 3,
+    });
+    assert.equal(outcome.ended, 'done');
+    assert.equal(outcome.blocks, 1, 'raised once, kept up');
+    assert.equal(did.filter(d => d === 'shield up').length, 1);
+    assert.equal(did.at(-2), 'shield down', 'lowered at the end');
+    assert.equal(shield.up, false);
 });

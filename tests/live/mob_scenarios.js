@@ -105,6 +105,12 @@ try {
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 2 });
     const raw = name => Object.values(bot.entities).filter(e => e.name === name);
     const edition = editionOf(bot.registry);
+    // Hits the bot's shield stopped: the shield's block sound where the bot stands (an entity status, 29,
+    // before 1.21.5), counted once.
+    let blocked = 0, lastBlock = 0;
+    const onBlock = () => { if (Date.now() - lastBlock > 100) { lastBlock = Date.now(); blocked++; } };
+    edition.onSound(bot, (name, at) => { if (/shield\.block/.test(name ?? '') && at && bot.entity && bot.entity.position.distanceTo(at) < 2) onBlock(); });
+    bot._client.on('entity_status', packet => { if (packet.entityId === bot.entity?.id && packet.entityStatus === 29) onBlock(); });
 
     await cmd('difficulty normal');
     await cmd('gamerule spawn_mobs false');
@@ -253,6 +259,31 @@ try {
         return { ended: done.ended, at: at.floored().toString(), damageBeforeCover: damageAtCover, damageInTheNext5s: damage - damageAtCover,
             reflexMovesAfter: decided('mob_safety').length - 1 };
     });
+
+    // No cover near, and no getting out of range: a pen walled 8 blocks out on every side, as in the fight
+    // arena, where backing away from skeletons came near death. Unarmed, so the fight doesn't rush it. With
+    // a shield the bot stops behind it while the bow is drawn and until the arrow lands. (On open ground the
+    // bot outruns a skeleton's first shot, and there is nothing to block.)
+    for (const shield of [false, true]) {
+        await step(`a skeleton aiming in a walled pen with no cover, the bot unarmed${shield ? ' with a shield it is given: it blocks the shots' : ', no shield: the damage it takes'}`, async () => {
+            await reset();
+            for (const [a, b] of [['-8 70 -8', '8 73 -8'], ['-8 70 8', '8 73 8'], ['-8 70 -8', '-8 73 8'], ['8 70 -8', '8 73 8']])
+                await cmd(`fill ${a} ${b} stone`);
+            if (shield) await cmd(`give ${NAME} shield`);
+            await delay(1500);
+            const blocksBefore = blocked;
+            // Its bow given: a skeleton summoned on 26.3 has none, and comes at the bot bare-handed.
+            await cmd('summon skeleton 5.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
+            await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
+            await delay(12000);
+            const raised = events.filter(e => e.event === 'shield').length;
+            const fell = events.filter(e => e.event === 'cover').map(e => e.ended);
+            assert.ok(fell.every(ended => ended === 'no cover' || ended === 'no way there'), `no cover was found: ${fell}`);
+            if (shield) assert.ok(raised > 0 && blocked > blocksBefore, `the shield went up (${raised}) and stopped arrows (${blocked - blocksBefore})`);
+            else assert.equal(raised, 0);
+            return { damage: Number(damage.toFixed(1)), raised, blocked: blocked - blocksBefore, moves: decided('mob_safety').length };
+        });
+    }
 
     await step('hit twice from behind a wall by something unseen: the bot gets away from that side', async () => {
         await reset();

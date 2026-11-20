@@ -319,6 +319,31 @@ try {
         return { endedBlocksAway: Number(away.toFixed(1)), firstStep: events.find(e => e.event === 'step')?.how };
     });
 
+    // Cornered: a dead end one block wide, walls to the north, south and east of the bot, and a lit creeper
+    // in its mouth, a real blast. There is nowhere to run; with a shield the bot faces the blast behind it
+    // (a shield faced at an explosion stops it), without one the damage is what cornering costs.
+    for (const shield of [false, true]) {
+        await step(`cornered in a dead end by a lit creeper${shield ? ', with a shield it is given: it faces the blast behind the shield, no damage' : ', no shield: the damage it takes'}`, async () => {
+            await reset();
+            for (const wall of ['-2 70 -1 1 71 -1', '-2 70 1 1 71 1', '1 70 0 1 71 0']) await cmd(`fill ${wall} stone`);
+            if (shield) await cmd(`give ${NAME} shield`);
+            await delay(1500);
+            await cmd('summon creeper -1.5 70 0.5 {Fuse:30s,ignited:1b,NoAI:1b,Silent:1b}');
+            await waitFor(() => explosions.length > 0, 6000, () => JSON.stringify(events));
+            await delay(1000);
+            const raised = events.filter(e => e.event === 'shield').length;
+            const offHand = bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')]?.name ?? null;
+            if (shield) {
+                assert.equal(offHand, 'shield', 'the shield was put in the off-hand');
+                assert.ok(raised > 0, `the shield went up: ${JSON.stringify(events)}`);
+                assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth})`);
+            } else {
+                assert.equal(raised, 0);
+            }
+            return { damage: Number((20 - lowestHealth).toFixed(1)), raised };
+        });
+    }
+
     // A creeper with its own mind, following the bot. The bot is "busy" (staying), as if the model had
     // given it something to do; after each back-off the model is assumed to start it again.
     async function chase({ sword }) {

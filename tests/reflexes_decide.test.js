@@ -3,7 +3,7 @@
 // threat picture and the bot.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideThreat, hitsNeeded, bestWeapon, killTimeMs, BACK_OFF_TO, LEAVE_TO } from '../src/agent/reflexes/decide.js';
+import { decideThreat, hitsNeeded, bestWeapon, killTimeMs, blockTheBlast, BACK_OFF_TO, LEAVE_TO } from '../src/agent/reflexes/decide.js';
 import { javaEdition } from '../src/agent/edition/java.js';
 import { bedrockEdition } from '../src/agent/bedrock/edition.js';
 
@@ -128,4 +128,16 @@ test('kill time: hits needed less one, times the recharge', () => {
     assert.equal(killTimeMs({ damage: 6, rechargeMs: 625 }), 3 * 625);
     assert.equal(killTimeMs({ damage: 20, rechargeMs: 625 }), 0, 'one hit kills at once');
     assert.equal(killTimeMs({ damage: 7, rechargeMs: 500 }, 26), 3 * 500);
+});
+
+test('a shield goes up at a lit creeper only when the bot can\'t get past the blast\'s reach in time', () => {
+    const lit = (distance, fuse) => ({ seenNow: true, lit: true, distance, fuse });
+    assert.equal(blockTheBlast(lit(3, 0)), false, 'just lit: a sprint gets clear');
+    assert.equal(blockTheBlast(lit(3, 22)), true, 'a third of a second left: it won\'t');
+    assert.equal(blockTheBlast(lit(5, 22)), false, 'nearly past the reach already');
+    assert.equal(blockTheBlast(lit(2, 0), { stuck: true }), true, 'stuck, or already behind the shield');
+    assert.equal(blockTheBlast(lit(6.5, 29), { stuck: true }), false, 'past the blast\'s reach');
+    assert.equal(blockTheBlast({ ...lit(3, 25), lit: false }), false, 'gone out');
+    assert.equal(blockTheBlast({ ...lit(3, 25), seenNow: false }), false, 'out of view: nothing to face');
+    assert.equal(blockTheBlast(null), false);
 });
