@@ -35,7 +35,7 @@ import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
 import { createThreatPicture } from './picture.js';
-import { bestWeapon, decideThreat, hitsNeeded } from './decide.js';
+import { bestWeapon, blockTheBlast, decideThreat, hitsNeeded } from './decide.js';
 import { backOffFrom, hitAndStepBack } from './moves.js';
 
 export const MODE_NAME = 'creeper_safety';
@@ -45,6 +45,8 @@ const ROOF_CHECK = 8;         // blocks above the head that make the bot "underg
 const HIT_REACH = 3;          // a survival player's reach to a mob
 const LOOK_WITHIN = 32;       // creepers are followed this far, so leaving one knows when it is far enough
 const LOST_SIGHT_MS = 2000;   // out of view this long while leaving: it has lost the bot
+const STUCK_MS = 500;         // backing off, but this long without getting anywhere: stuck
+const STUCK_MOVE = 0.4;       // blocks: less than this in STUCK_MS
 // While a creeper that isn't lit is this close, the reflexes that run errands for an idle bot (picking up
 // items, hunting, placing torches, making room) start nothing, and one already walking is stopped: their
 // walks don't look where they go, and one walked the bot up to a creeper for an item beside it.
@@ -56,9 +58,10 @@ const ERRANDS = new Set(['hunting', 'item_collecting', 'torch_placing', 'elbow_r
  * @param {object} [options]
  * @param {() => number} [options.now]
  * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
+ * @param {object} [options.shield] - the bot's shield (shield.js); none: no shield
  * @returns {{mode: object, hear: Function, picture: object}}
  */
-export function createCreeperReflex({ now = Date.now, orders = null } = {}) {
+export function createCreeperReflex({ now = Date.now, orders = null, shield = null } = {}) {
     const picture = createThreatPicture({ now });
     // Mobs seen dying: a killed creeper lies there for a moment, still swollen, but it can't explode.
     const dying = new Set();
@@ -179,10 +182,13 @@ export function createCreeperReflex({ now = Date.now, orders = null } = {}) {
                     return;
                 }
                 const leaving = decision.stance === 'leave';
+                // A carried shield goes in the off-hand meanwhile, without waiting: the first step can't wait.
+                shield?.ready().catch(() => {});
                 const outcome = await backOffFrom(bot, {
                     from, to: decision.distance, report, maxMs: leaving ? 10000 : 3000,
                     // Leaving also ends when the creeper has lost sight of the bot for good.
                     done: () => leaving && outOfSight(bot, decision.key),
+                    guard: blastGuard(bot, decision.key),
                 });
                 ended = outcome.ended;
                 log(bot, `${leaving ? 'Left the creeper behind' : 'Backed off from the creeper'} (${outcome.ended}).`);
@@ -194,6 +200,29 @@ export function createCreeperReflex({ now = Date.now, orders = null } = {}) {
         }
         report({ event: 'done', at: performance.now(), ended, interrupted: Boolean(result?.interrupted) });
         tellModel(agent, decision, interrupted, result, line);
+    }
+
+    // Backing off from a lit creeper the bot can't get clear of in time (blockTheBlast): the shield up,
+    // faced at it, until it has blown or gone out. Stuck is going nowhere for half a second, or standing
+    // behind the shield already.
+    function blastGuard(bot, key) {
+        if (!shield) return null;
+        const started = now();
+        const trail = []; // {at, x, z}: where the bot was lately
+        return {
+            shield,
+            against: () => {
+                const here = bot.entity.position;
+                trail.push({ at: now(), x: here.x, z: here.z });
+                while (trail.length > 1 && now() - trail[1].at >= STUCK_MS) trail.shift();
+                const barelyMoved = now() - started >= STUCK_MS && now() - trail[0].at >= STUCK_MS
+                    && Math.hypot(here.x - trail[0].x, here.z - trail[0].z) < STUCK_MOVE;
+                const track = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(key));
+                if (!blockTheBlast(track, { stuck: shield.up || barelyMoved })) return null;
+                const creeper = creeperInView(bot, track.id);
+                return creeper ? { x: creeper.position.x, y: creeper.position.y + (creeper.height ?? 1.7) * 0.5, z: creeper.position.z } : null;
+            },
+        };
     }
 
     // Out of view for a while: the creeper no longer sees the bot either, and loses it.

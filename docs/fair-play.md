@@ -39,7 +39,7 @@ through walls.
 | **Touch** | The cells its body is in, the ones just above and below, and the four beside it |
 | **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way, at any point along its middle or the edges of its body |
 | **Memory** | With world memory on, blocks it saw before are remembered exactly as they were last seen. A furnace that someone removed while the bot was away is still "there" until the bot looks again |
-| **Hearing** | Sounds the server actually sent: mobs, doors, trapdoors and gates, chests and barrels opening and closing, a mob's footsteps, and explosions, reported as "zombie (north-east, close)" or "door (opened) (east, near)". A direction and a rough distance, never coordinates. Other players' footsteps aren't heard: the server never sends them |
+| **Hearing** | Sounds the server actually sent: mobs, doors, trapdoors and gates, chests and barrels opening and closing, a mob's footsteps, and explosions, reported as "zombie (north-east, close)" or "door (opened) (east, near)"; a creeper's hiss and a bow's twang are told apart from a mob's other noises, as "creeper (hissing)" and "skeleton (shooting)". A direction and a rough distance, never coordinates. Other players' footsteps aren't heard: the server never sends them |
 | **Name tags** | Players within 64 blocks are known even through walls, unless they are sneaking. Vanilla shows name tags the same way |
 
 Details that matter:

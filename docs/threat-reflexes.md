@@ -11,8 +11,9 @@ doing, without waiting for the model. There are two reflexes and a fight:
 - **The fight**, Mindcraft's own `self_defense` under the same name, fights a lone mob that comes at the bot
   when the bot is fit for it.
 
-And the bot never looks an enderman in the eye, and remembers for a while where it met danger: its walks
-go round those places. A player can give it standing orders about a kind of mob (fight zombies, run from
+A shield the bot carries goes in its off-hand, and goes up where a player would raise it: at an archer drawing
+its bow, at a creeper about to blow that the bot can't get clear of. And the bot never looks an enderman in
+the eye, and remembers for a while where it met danger: its walks go round those places. A player can give it standing orders about a kind of mob (fight zombies, run from
 spiders, ignore skeletons), which the reflexes follow at once from then on.
 
 - [Turning It On](#turning-it-on)
@@ -20,6 +21,7 @@ spiders, ignore skeletons), which the reflexes follow at once from then on.
 - [What the Creeper Reflex Does](#what-the-creeper-reflex-does)
 - [What the Mob Reflex Does](#what-the-mob-reflex-does)
 - [The Fight](#the-fight)
+- [The Shield](#the-shield)
 - [Standing Orders](#standing-orders)
 - [Never Looking an Enderman in the Eye](#never-looking-an-enderman-in-the-eye)
 - [Danger Zones](#danger-zones)
@@ -72,6 +74,7 @@ within 16 blocks and in its sight.
 |---|---|
 | A creeper seen lit within 7 blocks, or its hiss heard close | **Backs off:** sprints straight away until it is 8 blocks off (farther for one only heard, whose distance is rough) |
 | A creeper within 3 blocks, not lit yet | Backs off before it lights |
+| A creeper seen lit within 6 blocks that the bot won't get clear of in time: at a sprint its fuse runs out before the bot is past the blast's reach, or the bot is stuck | With a shield in the off-hand, **stops and holds it up toward the creeper**, which stops the blast ([The Shield](#the-shield)) |
 | An explosion heard very close | Backs off from it: another may follow |
 | The same creeper coming again after a back-off (it is following) | **Finishes it.** With a weapon that kills it in 4 hits or fewer and half its health or more, the bot sprint-hits it, which knocks it back, and steps back past its range; it goes back in only once the creeper's fuse has run down. Otherwise it **leaves**: 22 blocks off, well past the 16 a creeper follows, or until the creeper has been out of view for 2 s |
 | A creeper within 8 blocks, not lit | The **errands** an idle bot runs (picking up items, hunting, placing torches, making room for a player) start nothing, and one already walking stops: their walks don't look where they go, and one walked the bot up to a creeper for an item beside it. The model's commands, the fight and the other reflexes go on |
@@ -96,7 +99,7 @@ wins:
 | # | What | What the bot does |
 |---|---|---|
 | 1 | Health under 6, with a hostile in view or a hit felt just now | **Runs**, 20 blocks from every hostile about, newcomers included |
-| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (one when the bot is armed, two in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range |
+| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (one when the bot is armed, two in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range, stopping behind its shield while the bow is drawn |
 | 3 | More melee mobs in view within 8 blocks that have come for the bot (or within 5, about to) than its gear takes on: two or more bare-handed, four or more with a sword or an axe. Or two or more with one too strong among them | **Backs away from all of them at once**, 16 blocks from each, rather than from the nearest into the next. A fight already started on one of them doesn't hold this back |
 | 4 | One melee mob coming at it that the bot shouldn't fight: the bot under half health, or too hungry to sprint (food 6 or less), or the mob too strong for a fight nobody asked for (a cave spider's poison, a warden, a ravager, a vindicator, a piglin brute, a hoglin or zoglin, a provoked enderman, a wither skeleton) | Backs away from it |
 | 5 | Hit twice within 4 s with nothing in view that could have done it: no mob within reach, none that has picked a target, none that shoots | **Gets away from the side the hits came from** |
@@ -119,6 +122,7 @@ blocks, as much as its gear takes on, with the bot at half health or more and fe
 |---|---|---|
 | Bare hands | One melee mob | Measured melee trials (unarmed, unarmored) won one mob of most kinds and lost two zombies at once |
 | A sword or an axe | Up to three melee mobs and one skeleton (or stray, or bogged), which it rushes instead of hiding from | In the arenas a stone or a copper sword beat three zombies with at most 3 damage taken. By its own judgment it now beat a lone skeleton every time, with 3 to 5 damage on Java and none on Bedrock; backing away from it, as it did before, cost 8 to 16 on Java, and on Bedrock brought the bot near death every time. Two zombies, a skeleton and a spider at once it now won 6 times in 6 on Java (1 before) and 4 in 6 on Bedrock (none before) |
+| A sword or an axe, and a shield | Up to three melee mobs and two skeletons | In the arenas, by its own judgment, a stone sword and a shield beat two skeletons every time, with 8 damage on Java and 5 to 8 on Bedrock. Backing away from them instead, as it did before, lost two rounds of three on Java (13 damage) and every round on Bedrock |
 | A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons | In the arenas an iron sword in iron armor won every round on both editions, two skeletons with 4 damage taken at most. Two skeletons are still backed away from with a sword alone, as a cautious player would; in the walled pen that cost 10 to 25 damage, but the pen is the worst place to back away in |
 
 More than that, or one too strong, are the mob reflex's to back away from. Under half health, or too hungry,
@@ -147,6 +151,10 @@ ledge) is hidden from, as by an unarmed bot, and asked about again a few seconds
   began.
 - It lets go of a mob it hasn't got closer to in 6 s, and of one its swings in reach don't make flinch (the
   red flash a player sees) for 4 s; either is left alone for a minute.
+- With a shield, it stops behind it while an archer draws and the mob it fights is out of reach, and goes on
+  once the arrow has landed ([The Shield](#the-shield)).
+- It neither swings nor puts its weapon back in hand in the middle of a meal: a player can't, and it would cut
+  the meal short.
 - Everything it acts on is what the bot sees, through fair play's perception; with fair play off, what the
   server sends.
 
@@ -166,6 +174,22 @@ On Java almost every swing now lands (99 in 100, from about half). Bare hands lo
 which is why the bot's own judgment takes on one mob without a weapon. The Bedrock run of the old fight
 stopped after two kits: a bot that died there didn't always come back (see [Known Gaps](bedrock.md#known-gaps)).
 
+**With a shield** (the same arenas, three runs of each round, the bot told to fight every kind; median damage
+the bot took in a round, without a shield, then with one):
+
+| Kit | 1 skeleton | 2 skeletons | 2 zombies, a skeleton and a spider |
+|---|---|---|---|
+| Stone sword, Java | 4, then 0 | 8, then 4 | 16, then 6 |
+| Iron sword and armor, Java | 1.9, then 0 | 3.8, then 3.3 | 7.7, then 1.9 |
+
+Every round was won either way. The shield stopped 6 to 11 hits in a round wherever there were archers; rounds of
+zombies and spiders didn't change. What it costs is time: the bot stands while it blocks, so a lone skeleton
+took 6 s to beat instead of 3. Held up between swings as well, at a mob in reach, it saved nothing and cost a
+little (a lone skeleton 4 damage, the mixed round 7 with a sword and 3.3 in iron), so it isn't. On Bedrock,
+where no skeleton shows its bow drawn, a sword and a shield fought as a sword alone did. By its own judgment
+a bot with a sword alone still backs away from two skeletons in the walled pen; with a shield as well it now
+fights them (the gear table above).
+
 It is registered under the same name and in the same place as Mindcraft's, so its switch, the profiles and the
 actions that pause it by name (`goToPlayer`, `defendSelf`, `stay`) keep their meaning.
 
@@ -179,6 +203,47 @@ longer holds, and the mob reflex deals with it as with any mob (cover from an ar
 **One owner per threat.** The mob reflex and the fight share claims: the one that takes a mob keeps it for
 5 s, so they don't take turns over it, each stopping the other. A fight doesn't hold back a crowd retreat or
 an urgent move (low health, a mob aiming); a retreat does hold back the fight from the mobs it ran from.
+
+## The Shield
+
+A shield the bot carries goes in its off-hand as a fight or a move away from danger starts, when the
+off-hand is empty (whatever else is there was put there on purpose). Then it goes up:
+
+| Where | When | Why |
+|---|---|---|
+| In the fight | An archer in view is drawing its bow at the bot, and the mob the bot fights is out of reach | A player closing on a skeleton blocks while the bow is drawn and runs in between |
+| Backing out of an archer's range, with no cover near | The same | Out in the open the bot outruns a skeleton's first shot and nothing needs blocking; where it can't get out of range, the shield stops the shots |
+| Backing off from a lit creeper | The bot won't get past the blast's reach before the fuse runs out, or is stuck | A shield faced at a blast stops it |
+
+Measured on real servers: cornered in a dead end by a lit creeper (on easy), the bot took no damage behind its
+shield on either edition, against 3 without one; unarmed in a walled pen with a skeleton and no cover, it took
+none from the skeleton with a shield, against 8 without. In the fight, see [Measured](#the-fight).
+
+How it is held, as a player must:
+
+- **Up only while the bot stands still.** The game slows a player with a shield up to a fifth of a walk, with
+  no sprint and no swing. mineflayer's physics doesn't slow the bot, so it would walk behind its shield
+  faster than any player can; it stands instead, and lowers the shield to move or to swing.
+- **Up when the bow is drawn,** not while a skeleton holds its bow up, which it does all the while it has a
+  target; and up until the arrow has landed, half a second after the draw ends.
+- **Only when it covers every archer.** A shield covers the side it faces. With archers aiming from two
+  sides, facing one turns the bot's back to the other, and it fights on unshielded instead.
+- **Never against a witch:** its splash potions land round a shield.
+- **One use at a time.** A shield, a meal and a bow hold the same button. The shield doesn't go up in the
+  middle of a meal, and the eating reflex waits for it to come down.
+
+What the bot goes by is what a player sees: a bow drawn, a creeper swelling and flashing, through fair
+play's perception. On Bedrock the shield goes up by sneaking, as a Bedrock player raises it.
+
+**On Bedrock, by the beat.** A Bedrock skeleton shows no bow drawn: nothing a Bedrock server sends about it
+changes between its taking a target and each arrow. But it shoots on a fixed beat, every 3 s (2 s on hard),
+and each shot twangs. So the bot does what a Bedrock player does: it hears each shot (fair play's hearing, a
+direction and a rough distance), takes it as the skeleton it sees on that side, and holds the shield up from
+just before the next shot is due until the arrow lands (`shot_beat.js`). The first arrow comes unwarned. It
+does so backing out of a skeleton's range with no cover near: in a walled pen, an unarmed bot took 4 damage
+from a skeleton with a shield, against 11 without. The fight doesn't keep the beat: it mostly kills a skeleton
+before its beat counts, and in the Bedrock arena keeping it blocked about an arrow a round and cost more than
+that in time stood still (the mixed round, six runs each: 8.5 damage with it, 6.5 without, every round won).
 
 ## Standing Orders
 
@@ -310,9 +375,10 @@ round that way; the other zones come with a reflex's own line already.
 The reflexes see through world.js like every other reflex: what is in view under fair play, everything the
 server tracks without it.
 
-- **Sight:** the mobs world.js hands out. Whether a creeper is lit, whether a mob is aiming, and whether it
-  has picked a target are asked of the [edition seam](edition-seam.md) (`isFusing`, `isAiming`,
-  `isAggressive`): a player sees a creeper swell and flash, a bow raised, arms out. A mob that just slipped
+- **Sight:** the mobs world.js hands out. Whether a creeper is lit, whether a mob is aiming, whether it is
+  about to shoot, and whether it has picked a target are asked of the [edition seam](edition-seam.md)
+  (`isFusing`, `isAiming`, `isDrawing`, `isAggressive`): a player sees a creeper swell and flash, a bow
+  raised, a bow drawn, arms out. A mob that just slipped
   out of view is handed out as a stand-in where it was last seen; nothing is read from it, it is only a place
   to keep away from.
 - **Touch:** each hit on the bot, and the side it came from, from the edition seam (`onHurt`). A player's
@@ -385,8 +451,13 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
   pillagers at the outpost alone" can't be said as an order.
 - **A fight under orders is still paused by the actions that pause `self_defense`** (`goToPlayer`,
   `defendSelf`, `stay`), as the bot's own fight is.
-- **The fight has no shield yet,** and no bow. It doesn't jump for critical hits either: whether they pay off
-  in a fight against mobs is still to be measured.
+- **The fight has no bow.** It doesn't jump for critical hits either: whether they pay off in a fight against
+  mobs is still to be measured.
+- **A shield blocks only what the bot sees or hears coming.** On Bedrock no skeleton shows a bow drawn, so
+  its first arrow is never blocked, and the rest only by the beat of its shots heard, which needs fair play's
+  hearing: with fair play off, Bedrock arrows are not blocked. Nothing is blocked from a mob out of view, or between swings at a mob in reach (in the
+  arena that saved nothing and cost a little: see "Measured"). Arrows from archers on two sides at once are not
+  blocked at all.
 - **Cover is only behind walls.** The bot doesn't build cover, and a skeleton that walks around the wall finds
   it again; the bot then picks another spot or backs out of range. A skeleton that comes up close is taken
   cover from, not fought.
@@ -417,14 +488,17 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 | `order_commands.js` | `!threatRules` and `!setThreatRule`, and the file the orders given by command are kept in |
 | `mobs.js` | The hostile mobs around, read the fair way, with the tells the seam reads |
 | `claims.js` | One owner per threat. Pure |
-| `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack` and `takeCover`, the safe first step, and the line of sight over cells the bot knows |
+| `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack` and `takeCover`, the safe first step, the line of sight over cells the bot knows, and the guard that stops a move behind the shield |
+| `shield.js` | The shield: put in the off-hand, raised and lowered, and which mob a shot is coming from |
+| `shot_beat.js` | The beat of an archer's shots heard, for a game that shows no bow drawn: when the next is due |
+| `item_use.js` | One owner of the use-item channel the shield, eating and a bow share, and the eating plugin made to ask it |
 | `gaze.js` | The guard on every look, for endermen |
 | `danger_zones.js` | The zones: where, how wide, for how long, and what a cell costs to be in. Pure |
 | `danger_watch.js` | Notes zones from what the bot sees, hears and feels, once a second and as each sound arrives |
 
 Outside the folder: `src/agent/action_hold.js` (the hold), `src/agent/library/path_verdicts.js` (the kept
 path verdicts), `src/agent/library/place_costs.js` (the prices on places that every route search pays, which
-other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive`, `onHurt`, `meleeOf` and `survivalReach` questions in the edition seam, and
+other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive`, `onHurt`, `meleeOf` and `survivalReach` questions in the edition seam, `isDrawing`, `shotBeatMs` and `raiseShield` for the shield, and
 perception's `onHeard` listener (`src/agent/fairplay/perception.js`), which passes a sound on with what
 `heard()` gives and never its position.
 

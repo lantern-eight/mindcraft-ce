@@ -14,6 +14,12 @@
 // The mob reflex and the fight share one set of claims (claims.js), one owner per threat. And every look
 // the bot makes keeps clear of an enderman's eyes (gaze.js).
 //
+// A carried shield goes in the off-hand, and the moves raise it where a player would (shield.js): when an
+// archer draws its bow, or, backing out of its range where the game shows no bow drawn (Bedrock), when the beat
+// of its shots heard says the next is due (shot_beat.js). The
+// shield, eating and the swing share the use-item channel (item_use.js), one owner at a time, so a meal
+// doesn't drop the shield mid-block and the shield doesn't cut a meal short.
+//
 // Beside the reflexes, danger zones: the danger watch (danger_watch.js) remembers where the bot met
 // danger for a while (danger_zones.js), and every route the bot plans pays to go deeper into one
 // (src/agent/library/place_costs.js), so its walks bend round them.
@@ -31,6 +37,10 @@ import { createCreeperReflex } from './creeper_reflex.js';
 import { createMobReflex } from './mob_reflex.js';
 import { createFightReflex } from './fight_reflex.js';
 import { createClaims } from './claims.js';
+import { createItemUse, shareEating } from './item_use.js';
+import { createShield } from './shield.js';
+import { createShotBeat } from './shot_beat.js';
+import { mobsAround } from './mobs.js';
 import { guardGaze } from './gaze.js';
 import { createDangerZones } from './danger_zones.js';
 import { createDangerWatch } from './danger_watch.js';
@@ -50,7 +60,11 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     // The reflexes ask whether they can walk to a mob every round; an answer found a moment ago is kept.
     keepPathVerdicts(agent.bot);
     const orders = installOrders(agent, ordersDir ?? `./bots/${agent.name}`);
-    const creeper = createCreeperReflex({ orders });
+    // The use-item channel, shared with the eating plugin, which may come only as the bot joins.
+    const use = createItemUse();
+    if (!shareEating(agent.bot, use)) agent.bot.once?.('spawn', () => shareEating(agent.bot, use));
+    const shield = createShield(agent.bot, { use });
+    const creeper = createCreeperReflex({ orders, shield });
     registerMode(creeper.mode, { after: 'self_preservation' });
     // A new life, or a new world, starts with nothing known about creepers.
     agent.bot.on?.('respawn', () => creeper.picture.clear());
@@ -59,26 +73,32 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     // there is no hearing, and the reflex goes by sight alone.
     const zones = createDangerZones();
     const watch = createDangerWatch({ zones });
-    agent.fairPlay?.onHeard?.(sound => { creeper.hear(agent, sound); watch.hear(agent, sound); });
+    const beat = createShotBeat();
+    agent.fairPlay?.onHeard?.(sound => {
+        creeper.hear(agent, sound);
+        watch.hear(agent, sound);
+        // A shot heard, matched to the archer seen on that side (only shots: the rest pass at once).
+        if (/ \(shooting\)$/.test(sound.subject) && agent.bot?.entity) beat.hear(sound, mobsAround(agent.bot), agent.bot.entity.position);
+    });
     const claims = createClaims();
     let fight = null;
     // A mob the fight gave up on is the mob reflex's again, whatever the orders said (ordersAfterGivingUp).
-    const mob = createMobReflex({ claims, orders, gaveUp: id => fight?.gaveUpOn(id) ?? false });
+    const mob = createMobReflex({ claims, orders, shield, beat, gaveUp: id => fight?.gaveUpOn(id) ?? false });
     registerMode(mob.mode, { after: creeper.mode.name });
     mob.watch(agent.bot);
     // The fight keeps the stock switch's state: on unless the profile or a command said otherwise.
-    fight = createFightReflex({ claims, orders });
+    fight = createFightReflex({ claims, orders, shield, use });
     fight.mode.on = agent.bot.modes.exists('self_defense') ? agent.bot.modes.isOn('self_defense') : true;
     registerMode(fight.mode, { after: 'cowardice' });
     fight.watch(agent.bot);
-    agent.bot.on?.('respawn', () => { mob.clear(); fight.clear(); claims.clear(); });
+    agent.bot.on?.('respawn', () => { mob.clear(); fight.clear(); claims.clear(); beat.clear(); });
     // No look the bot makes, whoever asks for it, meets an enderman's eyes.
     guardGaze(agent.bot);
     // Where the bot met danger, its routes go round for a while. The zones outlive a respawn: the places
     // are as dangerous as they were. The watch forgets them when the dimension changes.
     watch.watch(agent);
     addPlaceCosts(agent.bot, zones);
-    const handle = { creeper, mob, fight, claims, zones, watch, orders };
+    const handle = { creeper, mob, fight, claims, zones, watch, orders, shield, use, beat };
     agent.threatReflexes = handle;
     return handle;
 }

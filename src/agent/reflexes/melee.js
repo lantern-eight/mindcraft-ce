@@ -20,12 +20,17 @@
 //   - Sprints straight at a mob on its own level when the ground between is open, safe and seen; the
 //     pathfinder (fair legs, under fair play) finds the way otherwise (LarsHamb: a skeleton backs off faster
 //     than the pathfinder re-plans). It doesn't chase out of a leash round where the fight began
-//     (JQDAW's fight in place, nengoxx's leash).
+//     (JQDAW's fight in place, nengoxx's leash): 12 blocks, or 24 after an archer, which backs away as it shoots.
 //   - Puts the weapon back in hand whenever it isn't there (wehos/mc-agent-neko: an equip lost to another
 //     action left it fighting bare-handed).
 //   - Lets go of a fight that isn't working: a mob it can't get closer to for 6 s (LarsHamb), or swings in
 //     reach that never make the mob flinch (neko's breaker, made fair: the red flash a player sees, never
 //     the mob's health).
+//   - With a shield in the off-hand, it stops and holds it up toward an archer it sees drawing its bow
+//     while its target is out of reach, and goes on once the arrow has landed (neko's matchup: close on a
+//     skeleton behind a shield). The shield is down to move and to swing (shield.js says why).
+//   - It neither swings nor changes what it holds in the middle of a meal: a player can't, and a sword put
+//     back in hand would cut the meal short (the use-item channel, item_use.js).
 //
 // Fair play: everything it acts on is what the bot sees. The mobs come from the caller, which reads them
 // through world.js (in view under fair play; everything the server tracks with fair play off). Blocks come
@@ -34,7 +39,10 @@ import pf from 'mineflayer-pathfinder';
 import { worldQueries } from '../library/world_queries.js';
 import { editionOf } from '../edition/index.js';
 import { bestWeapon } from './decide.js';
+import { isRanged } from './mob_decide.js';
 import { safeCell } from './moves.js';
+import { EATING } from './item_use.js';
+import { shieldTuning } from './shield.js';
 
 const BEAT_MS = 50;                 // a game tick: how often the fight looks again
 const TICK_MS = 50;                 // the margin a swing waits beyond the recharge, for the server's clock
@@ -42,6 +50,7 @@ const STEP_BACK_OTHERS = 4;         // another mob this close (feet to feet) mak
 const STEP_BACK_TARGET = 0.5;       // or the target this close (eye to body)
 const RUSH_WITHIN = 16;             // farthest it sprints straight at a mob
 const LEASH = 12;                   // farthest from where the fight began that it follows a mob
+const ARCHER_LEASH = 24;            // and an archer, which backs away as it shoots and shoots wherever the bot stops
 const NOT_CLOSER_MS = 6000;         // out of reach and no closer for this long: let go
 const NOT_LANDING_SWINGS = 4;       // swings in reach with no flinch...
 const NOT_LANDING_MS = 4000;        // ...and none seen for this long: let go
@@ -112,10 +121,13 @@ export function openWayTo(blockAt, feet, to) {
 
 /**
  * Whether the bot may go after a mob here: the leash holds the bot within 12 blocks of where the fight began,
- * so a mob counts as within it when the bot could hit it from inside (a reach short of it).
+ * so a mob counts as within it when the bot could hit it from inside (a reach short of it). An archer gets 24:
+ * a skeleton backs away as it shoots, and stopping at 12 only stands the bot where it is shot, until the fight
+ * gives up on it (a live scene in the open did that once a skeleton there had its bow).
+ * @param {object} [mob] - the mob, for its kind
  */
-export function withinLeash(target, home, reach) {
-    return flat(target, home) - reach <= LEASH;
+export function withinLeash(target, home, reach, mob = null) {
+    return flat(target, home) - reach <= (mob && isRanged({ name: mob.name }) ? ARCHER_LEASH : LEASH);
 }
 
 /**
@@ -150,20 +162,24 @@ function fightMovements(bot) {
  * @param {(entity: object) => void} [options.onTarget] - told each time it turns to a new mob
  * @param {() => boolean} [options.stop]
  * @param {number} [options.maxMs]
+ * @param {object|null} [options.shield] - the bot's shield (shield.js), or none
+ * @param {() => object|null} [options.shotComing] - the mob about to loose a shot at the bot, as seen now
+ * @param {object|null} [options.use] - the use-item channel (item_use.js)
  * @param {() => number} [options.now]
- * @returns {Promise<{ended: string, target: number|null, swings: number, landed: number}>} target: the
- *     mob it was fighting when it ended
+ * @returns {Promise<{ended: string, target: number|null, swings: number, landed: number, blocks: number}>}
+ *     target: the mob it was fighting when it ended; blocks: how often the shield went up
  */
-export async function fightMelee(bot, { first, see, foes = () => [], onTarget = () => {}, stop = () => false, maxMs = 30000, now = Date.now }) {
+export async function fightMelee(bot, { first, see, foes = () => [], onTarget = () => {}, stop = () => false, maxMs = 30000,
+    shield = null, shotComing = () => null, use = null, now = Date.now }) {
     const edition = editionOf(bot.registry);
     const { entities: reach } = edition.survivalReach(); // to a mob, from the eye
     const blockAt = pos => worldQueries().blockAt(bot, pos);
     const startedAt = now();
     const home = bot.entity.position.clone();
     let target = see(first), ended = null;
-    if (!target) return { ended: 'gone', target: first, swings: 0, landed: 0 };
+    if (!target) return { ended: 'gone', target: first, swings: 0, landed: 0, blocks: 0 };
 
-    let lastSwingAt = -Infinity, swings = 0, landed = 0;
+    let lastSwingAt = -Infinity, swings = 0, landed = 0, blocks = 0;
     let closest = Infinity, closestAt = startedAt, swingsSinceLanded = 0, lastLandedAt = startedAt;
     let equipping = false, moving = 'still', followed = null;
     const sinceSwing = [];
@@ -195,6 +211,7 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
         if (!weapon || bot.heldItem?.name === weapon || equipping) return;
         const item = bot.inventory.items().find(i => i.name === weapon);
         if (!item) return;
+        shield?.lower(); // on Java a change of the item in hand lowers it anyway
         equipping = true;
         bot.equip(item, 'hand')
             .catch(() => {})
@@ -206,7 +223,8 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
         while (!ended) {
             if (bot.interrupt_code || stop()) { ended = 'stopped'; break; }
             if (now() - startedAt > maxMs) { ended = 'out of time'; break; }
-            holdWeapon();
+            const eating = use?.owner() === EATING;
+            if (!eating) holdWeapon();
 
             const position = bot.entity.position;
             const eye = { x: position.x, y: position.y + (bot.entity.eyeHeight ?? 1.62), z: position.z };
@@ -223,17 +241,37 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
 
             const toTarget = reachTo(eye, target);
             const inReach = toTarget <= reach;
-            if (toTarget < closest - 0.5) { closest = toTarget; closestAt = now(); }
+            // Getting nearer is progress, and so is having it in reach: a mob hit is knocked back, and catching up
+            // to hit it again brings the bot no nearer than the first time. Out of reach again, it counts from there.
+            if (inReach || toTarget < closest - 0.5) { closest = toTarget; closestAt = now(); }
             const letGo = fightLetGo({ now: now(), closestAt, inReach, swingsSinceLanded, lastLandedAt });
             if (letGo) { ended = letGo; break; }
+
+            // An arrow coming while the target is out of reach: stand, face the archer, shield up, and go on
+            // once it has landed (shotComing says when). Time behind the shield doesn't count as not getting closer.
+            const shooter = shield?.has() && !inReach && !eating ? shotComing() : null;
+            if (shooter) {
+                halt();
+                await bot.lookAt(shooter.position.offset(0, (shooter.height ?? 1.8) * 0.8, 0), true);
+                const wasUp = shield.up;
+                if (shield.raise()) {
+                    if (!wasUp) blocks++;
+                    closestAt = now();
+                    await wait(BEAT_MS);
+                    continue;
+                }
+            }
 
             const aimAt = target.position.offset(0, (target.height ?? 1.8) * 0.6, 0);
             await bot.lookAt(aimAt, true);
             const ready = !equipping && charged({ now: now(), lastSwingAt, rechargeMs: edition.meleeOf(bot.heldItem?.name).rechargeMs });
 
+            if (!inReach) shield?.lower(); // to walk, or to stand facing a mob past the leash
             if (inReach) {
-                if (ready) {
-                    // Swing first, then stop: a hit landed while sprinting knocks the mob back farther.
+                if (ready && !eating) {
+                    // Swing first, then stop: a hit landed while sprinting knocks the mob back farther. Never
+                    // with the shield up: a player lets go of it to swing.
+                    shield?.lower();
                     bot.attack(target);
                     lastSwingAt = now();
                     swings++;
@@ -248,14 +286,17 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
                     const length = Math.hypot(away.x, away.z) || 1;
                     const behind = floorOf({ x: position.x + away.x / length, y: position.y, z: position.z + away.z / length });
                     if (shouldStepBack({ charged: ready, targetReach: toTarget, othersWithin, behindSafe: safeCell(blockAt, behind) })) {
+                        shield?.lower();
                         if (moving === 'path') bot.pathfinder.setGoal(null);
                         keys(false, true, false);
                         moving = 'back';
-                    } else if (moving !== 'still') {
-                        halt();
+                    } else {
+                        if (moving !== 'still') halt();
+                        // Standing, waiting on the weapon: the shield up meanwhile, if the arena says it pays.
+                        if (shieldTuning.betweenSwings && shield && !eating && !shield.up && shield.raise()) blocks++;
                     }
                 }
-            } else if (!withinLeash(target.position, home, reach)) {
+            } else if (!withinLeash(target.position, home, reach, target)) {
                 // It has gone past the leash: face it, but don't follow. It comes back, or the fight lets go.
                 if (moving !== 'still') halt();
             } else if (openWayTo(blockAt, position, target.position)) {
@@ -273,8 +314,9 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
         }
     } finally {
         bot.off('entityHurt', onHurt);
+        shield?.lower();
         bot.pathfinder.setGoal(null);
         bot.clearControlStates();
     }
-    return { ended, target: target?.id ?? null, swings, landed };
+    return { ended, target: target?.id ?? null, swings, landed, blocks };
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 // The fight arena: how well the bot fights, measured (no model calls, free to run).
 //   node tests/live/fight_arena.js [--port=55934] [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>]
-//                                  [--fair=off] [--orders=none] [--out=<file for the results as JSON>]
+//                                  [--fair=off] [--orders=none] [--shield=between] [--out=<file for the results as JSON>]
 // Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The other live scenes check what the reflexes decide. This one measures how a fight goes once the bot has
@@ -34,6 +34,8 @@ const ONLY = arg('only'), KIT = arg('kit'), OUT = arg('out');
 // arena shows what its gear lets it take on rather than how a fight it was told to take goes.
 const ORDERS = arg('orders') !== 'none';
 const FAIR = arg('fair') !== 'off';
+// --shield=between: the shield up between swings too, to measure whether that pays (shieldTuning in shield.js).
+const SHIELD_BETWEEN = arg('shield') === 'between';
 const NAME = 'Fighter';
 
 // A zombie or spider summoned with no data is dressed at random (a baby now and then, armor, a jockey). With
@@ -52,6 +54,10 @@ const KITS = [
     { name: 'copper sword', commands: ['give @p copper_sword'] },
     { name: 'iron kit', commands: ['give @p iron_sword',
         ...['head iron_helmet', 'chest iron_chestplate', 'legs iron_leggings', 'feet iron_boots'].map(part => `item replace entity @p armor.${part.replace(' ', ' with ')}`)] },
+    // The shield is given, not put in the off-hand: putting it there is the bot's to do.
+    { name: 'stone sword and shield', commands: ['give @p stone_sword', 'give @p shield'] },
+    { name: 'iron kit and shield', commands: ['give @p iron_sword', 'give @p shield',
+        ...['head iron_helmet', 'chest iron_chestplate', 'legs iron_leggings', 'feet iron_boots'].map(part => `item replace entity @p armor.${part.replace(' ', ' with ')}`)] },
 ];
 
 const defaultModes = JSON.parse(readFileSync('profiles/defaults/_default.json', 'utf8')).modes;
@@ -67,6 +73,8 @@ try {
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
     const { getCommand } = await import('../../src/agent/commands/index.js');
+    const { shieldTuning } = await import('../../src/agent/reflexes/shield.js');
+    shieldTuning.betweenSwings = SHIELD_BETWEEN;
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -104,6 +112,15 @@ try {
     const events = [];
     bot.on('threat_reflex', event => events.push(event));
     const meter = createMeter(bot);
+    // A shield that stops a hit plays its block sound where the bot stands (since 1.21.5 the sound is the
+    // shield's own, given by its item; before, an entity status of 29 said so). Either is counted, once.
+    const { editionOf } = await import('../../src/agent/edition/index.js');
+    let lastBlock = 0;
+    const blocked = () => { if (Date.now() - lastBlock > 100) { lastBlock = Date.now(); meter.blocked(); } };
+    editionOf(bot.registry).onSound(bot, (name, at) => {
+        if (/shield\.block/.test(name ?? '') && at && bot.entity && bot.entity.position.distanceTo(at) < 2) blocked();
+    });
+    bot._client.on('entity_status', packet => { if (packet.entityId === bot.entity?.id && packet.entityStatus === 29) blocked(); });
 
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
     if (ORDERS) for (const group of ['zombies', 'skeletons', 'spiders'])
@@ -158,7 +175,7 @@ try {
                 const dressed = mobs.map(m => ({ kind: m.name, held: m.equipment?.[0]?.name ?? null,
                     armor: (m.equipment ?? []).slice(1).filter(Boolean).map(item => item.name) }));
                 await waitFor(() => meter.over(), 50000);
-                const result = { ...meter.finish({ kit: kit.name, round: scene.name, run, fair: FAIR, orders: ORDERS }, events, messages),
+                const result = { ...meter.finish({ kit: kit.name, round: scene.name, run, fair: FAIR, orders: ORDERS, shieldBetween: SHIELD_BETWEEN }, events, messages),
                     odd: dressed.filter(d => d.armor.length || (d.kind === 'skeleton' && d.held !== 'bow')) };
                 results.push(result);
                 console.log(JSON.stringify(result));
