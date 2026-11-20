@@ -6,8 +6,8 @@
 // there is one copy of them for both editions. So the difference is evened out here, once, on the bot
 // itself, instead of in every caller.
 //
-// Only differences in shape belong in this file: what a call hands back, how often an event fires, and
-// where the bot stands when it digs straight down.
+// Only differences in shape belong in this file: what a call hands back, how often an event fires, where
+// the bot stands when it digs straight down, and which call letting go of the keys goes through.
 // Something that is plainly a mistake in the adapter belongs fixed in the adapter; when it comes with a
 // call this file already reshapes, it is put right here too until the adapter has it, and said so where it
 // is done. Something Bedrock can't do at all is listed in docs/bedrock.md.
@@ -387,6 +387,25 @@ function digsUnderItselfFromTheMiddle(bot) {
 }
 
 /** The plugin. Each shape is its own function above, so the list of what is evened out stays readable. */
+// ---- Keys -------------------------------------------------------------------------------------------
+//
+// On Java, `bot.clearControlStates()` lets go of each key through `bot.setControlState`. The adapter's lets
+// go of them all by writing its own table directly. The difference matters to anything that wraps
+// `setControlState`: the agent does (action_context.js), so that an action it has stopped can't press or let
+// go of a key once a newer one owns the bot. With the adapter's own, a stopped action tidying up as it ended
+// let go of the keys of the action that came after it: a retreat begun as a fight ended stood still, its
+// sprint undone a moment after it started. After this, letting go of every key goes through
+// `setControlState`, looked up when it is called, as on Java.
+const KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'sneak'];
+
+function keysLikeJava(bot) {
+    if (typeof bot.clearControlStates !== 'function') return; // an adapter without keys: nothing to shape
+    bot.clearControlStates = () => {
+        const keys = Object.keys(bot.controlState ?? {});
+        for (const key of keys.length ? keys : KEYS) bot.setControlState(key, false);
+    };
+}
+
 export function javaShapes(bot) {
     biomesLikeJava(bot);
     chestsLikeJava(bot);
@@ -394,4 +413,5 @@ export function javaShapes(bot) {
     clicksThatSettle(bot);
     tradesLikeJava(bot);
     digsUnderItselfFromTheMiddle(bot);
+    keysLikeJava(bot);
 }
