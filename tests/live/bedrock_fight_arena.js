@@ -116,6 +116,8 @@ try {
     await cmd('gamerule domobspawning false');
     await cmd('gamerule mobgriefing false');
     await cmd('gamerule keepinventory true');
+    // No loot: the rotten flesh and bones of a run's kills would lie about the spawn for the next script's bot to pick up.
+    await cmd('gamerule domobloot false');
     await cmd('gamerule dodaylightcycle false');
     // A bot that dies here sometimes stays dead: the pinned libraries don't always finish the respawn the server
     // starts (docs/bedrock.md, Known Gaps). Respawning at once, with no death screen, always comes back.
@@ -184,7 +186,7 @@ try {
     // Peaceful takes the last mobs away; the arena itself is cleared, so no later floor lands on it.
     try {
         for (const line of ['gamerule keepinventory false', 'gamerule doimmediaterespawn false', 'gamerule dodaylightcycle true',
-            'gamerule mobgriefing true', 'difficulty peaceful', `clear ${NAME}`, `effect ${NAME} clear`])
+            'gamerule mobgriefing true', 'gamerule domobloot true', 'difficulty peaceful', `clear ${NAME}`, `effect ${NAME} clear`])
             await cmd(line);
         if (origin) await fill([-16, 0, -16], [16, 6, 16], 'air');
     } catch { /* the console is gone */ }
