@@ -13,8 +13,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 - The fight uses a shield. A shield the bot carries goes in its off-hand when a fight starts, and while an archer
   it sees is drawing its bow, with the mob it fights out of reach, the bot stops, faces the archer and holds the
-  shield up; once the arrow is loosed it lowers it and goes on. The shield is down to move and to swing, as a
-  player's must be. On Java Edition only: a Bedrock skeleton shows no bow drawn.
+  shield up until the arrow lands, then lowers it and goes on. It does so only when every archer aiming at it is
+  on the side it faces: a shield covers one side. The shield is down to move and to swing, as a player's must
+  be. On Java Edition only: a Bedrock skeleton shows no bow drawn.
 
 ### Changed
 

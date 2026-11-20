@@ -18,6 +18,12 @@
 //     has a target, and draws it for about a second before each arrow; a player raises the shield while it
 //     draws and runs in between. That is the tell asked of the edition seam (isDrawing). Bedrock shows no
 //     draw, so there a skeleton's shots come with no tell, and the bot meets archers as before.
+//   - **Up until the arrow lands.** The draw ends as the arrow is loosed, and the arrow is still on its way:
+//     half a second at most across an archer's range. The shield stays up that long after the draw ends.
+//   - **Only when it covers every archer.** A shield covers the side it faces. With archers aiming from two
+//     sides, facing one turns the bot's back to the other, and it never closes on either: in the arena two
+//     skeletons on either side of the bot cost it 16 damage round its shield. Then it fights on unshielded,
+//     as it did before it had one.
 //   - **Never against a witch** (wehos/mc-agent-neko): its splash potions land round a shield.
 //   - **One owner of the use-item channel** (item_use.js): the shield doesn't go up in the middle of a meal,
 //     and a meal waits for it to come down.
@@ -27,6 +33,9 @@ import { withoutAction } from '../action_context.js';
 
 export const SHIELD = 'shield';
 export const BLOCK_WITHIN = 16;     // an archer's range: a skeleton shoots from about 15 blocks
+export const AFTER_SHOT_MS = 600;   // an arrow crosses an archer's range in half a second
+const COVER_DEGREES = 60;           // archers within this of the one faced are behind the same shield (the
+                                    // game covers 90 degrees either side; archers strafe as they shoot)
 const OFF_HAND_SLOT = 45;           // mineflayer's slot for the off-hand, on both editions
 // Mobs whose attacks a shield doesn't stop.
 const UNBLOCKED = new Set(['witch']);
@@ -47,13 +56,39 @@ export function offHandOf(bot) {
 
 /**
  * The mob to hold the shield up against now: the nearest one in view about to loose a shot, within an
- * archer's range. Null when none is.
- * @param {object[]} mobs - from mobsAround (mobs.js): {seenNow, drawing, distance, name, ...}
+ * archer's range, when every other mob in view aiming at the bot is on the same side. Null when none is, or
+ * when the archers are on more than one side.
+ * @param {object[]} mobs - from mobsAround (mobs.js): {seenNow, drawing, aiming, distance, position, name, ...}
+ * @param {{x:number, z:number}} at - where the bot stands
  */
-export function shotComing(mobs) {
-    return mobs
+export function shotComing(mobs, at) {
+    const shooter = mobs
         .filter(mob => mob.seenNow && mob.drawing && mob.distance <= BLOCK_WITHIN && !UNBLOCKED.has(mob.name))
-        .sort((a, b) => a.distance - b.distance)[0] ?? null;
+        .sort((a, b) => a.distance - b.distance)[0];
+    if (!shooter) return null;
+    const facing = Math.atan2(shooter.position.z - at.z, shooter.position.x - at.x);
+    const covered = mob => {
+        let turn = Math.abs(Math.atan2(mob.position.z - at.z, mob.position.x - at.x) - facing);
+        if (turn > Math.PI) turn = 2 * Math.PI - turn;
+        return turn <= COVER_DEGREES * Math.PI / 180;
+    };
+    const others = mobs.filter(mob => mob !== shooter && mob.seenNow && (mob.aiming || mob.drawing) && mob.distance <= BLOCK_WITHIN);
+    return others.every(covered) ? shooter : null;
+}
+
+/**
+ * What to hold the shield up against, step by step: the mob about to shoot, and for a moment after its
+ * draw ends, the same mob, whose arrow is on its way.
+ * @param {() => number} [now]
+ * @returns {(coming: object|null) => number|null} given the mob shotComing found now (or null), the id of the
+ *     mob to block now, or null
+ */
+export function shotWindow(now = Date.now) {
+    let last = null, until = -Infinity;
+    return coming => {
+        if (coming) { last = coming.id; until = now() + AFTER_SHOT_MS; return last; }
+        return now() < until ? last : null;
+    };
 }
 
 /**

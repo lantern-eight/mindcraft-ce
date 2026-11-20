@@ -15,7 +15,7 @@ export const ROUNDS = [
     { name: '2 skeletons', mobs: [['skeleton', 7, 3], ['skeleton', -7, -3]] },
     { name: 'mixed', mobs: [['zombie', 7, 0], ['zombie', -6, 3], ['skeleton', 0, 7], ['spider', 5, -5]] },
 ];
-export const KIT_NAMES = ['bare hands', 'stone sword', 'copper sword', 'iron kit'];
+export const KIT_NAMES = ['bare hands', 'stone sword', 'copper sword', 'iron kit', 'stone sword and shield', 'iron kit and shield'];
 export const ROUND_MS = 45000;
 const LANDED_WITHIN_MS = 500; // a flinch this soon after a swing at a mob is that swing landing
 
@@ -59,9 +59,11 @@ export function createMeter(bot, { brink = 0, onBrink = () => {} } = {}) {
     bot.on('death', () => { if (round) round.died = true; });
 
     return {
+        /** Counts a hit the bot's shield stopped (each arena knows how its edition says so). */
+        blocked() { if (round) round.blocked++; },
         /** Starts a round against these mobs (as the bot's tracking has them). */
         start(mobs) {
-            round = { ids: new Set(mobs.map(m => m.id)), dead: new Set(), swings: [], damage: 0, health: bot.health,
+            round = { ids: new Set(mobs.map(m => m.id)), dead: new Set(), swings: [], damage: 0, health: bot.health, blocked: 0,
                 lowest: bot.health, died: false, startedAt: Date.now() };
         },
         alive: () => [...round.ids].filter(id => !round.dead.has(id) && bot.entities[id]).length,
@@ -83,6 +85,7 @@ export function createMeter(bot, { brink = 0, onBrink = () => {} } = {}) {
                 swingsPerKill: killed ? round1(r.swings.length / killed) : null,
                 fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length,
                 retreats: events.filter(e => e.event === 'decided' && e.mode === 'mob_safety').length,
+                shieldRaised: events.reduce((n, e) => n + (e.event === 'done' ? e.blocks ?? 0 : 0), 0), blocked: r.blocked,
                 messagesToModel: messages.length };
         },
     };
@@ -103,13 +106,14 @@ export function summarize(results) {
         return { key, runs: runs.length, won: won.length, ran: runs.filter(r => r.outcome === 'ran').length,
             died: runs.filter(r => r.outcome === 'died').length, medianSecondsWon: round1(median(won.map(r => r.seconds))),
             medianDamage: round1(median(runs.map(r => r.damage))), swingsPerKill: kills ? round1(swings / kills) : null,
+            blocked: runs.reduce((n, r) => n + (r.blocked ?? 0), 0),
             landedShare: swings ? round1(landed / swings) : null };
     });
 }
 
 /** Prints the summary, a line each. */
 export function printSummary(summary) {
-    console.log('\nkit | round: won/runs (ran, died), median s to win, median damage, swings per kill, share landed');
+    console.log('\nkit | round: won/runs (ran, died), median s to win, median damage, swings per kill, share landed, hits blocked');
     for (const s of summary)
-        console.log(`${s.key}: ${s.won}/${s.runs} (${s.ran} ran, ${s.died} died), ${s.medianSecondsWon ?? '-'} s, ${s.medianDamage} dmg, ${s.swingsPerKill ?? '-'} swings/kill, ${s.landedShare ?? '-'} landed`);
+        console.log(`${s.key}: ${s.won}/${s.runs} (${s.ran} ran, ${s.died} died), ${s.medianSecondsWon ?? '-'} s, ${s.medianDamage} dmg, ${s.swingsPerKill ?? '-'} swings/kill, ${s.landedShare ?? '-'} landed, ${s.blocked} blocked`);
 }

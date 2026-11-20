@@ -2,18 +2,31 @@
 // The shield: in the off-hand when carried, up when a shot is coming, and through the one use-item channel.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createShield, shotComing, offHandOf, SHIELD } from '../src/agent/reflexes/shield.js';
+import { createShield, shotComing, shotWindow, offHandOf, SHIELD, AFTER_SHOT_MS } from '../src/agent/reflexes/shield.js';
 import { createItemUse, EATING } from '../src/agent/reflexes/item_use.js';
 
-const mob = (name, distance, fields = {}) => ({ id: distance, name, distance, seenNow: true, drawing: true, ...fields });
+// Mobs east of the bot, which stands at the origin, unless placed elsewhere.
+const mob = (name, distance, fields = {}) => ({ id: distance, name, distance, seenNow: true, drawing: true, aiming: true, position: { x: distance, y: 64, z: 0 }, ...fields });
+const here = { x: 0, z: 0 };
 
 test('a shot is coming from the nearest mob in view drawing within an archer\'s range', () => {
-    assert.equal(shotComing([mob('skeleton', 12), mob('stray', 6)]).name, 'stray');
-    assert.equal(shotComing([mob('skeleton', 6, { drawing: false })]), null, 'a bow held up, not drawn');
-    assert.equal(shotComing([mob('skeleton', 17)]), null, 'out of range');
-    assert.equal(shotComing([mob('skeleton', 6, { seenNow: false })]), null, 'a stand-in where one was last seen');
-    assert.equal(shotComing([mob('witch', 5)]), null, 'a witch\'s potions go round a shield');
-    assert.equal(shotComing([]), null);
+    assert.equal(shotComing([mob('skeleton', 12), mob('stray', 6)], here).name, 'stray');
+    assert.equal(shotComing([mob('skeleton', 6, { drawing: false })], here), null, 'a bow held up, not drawn');
+    assert.equal(shotComing([mob('skeleton', 17)], here), null, 'out of range');
+    assert.equal(shotComing([mob('skeleton', 6, { seenNow: false })], here), null, 'a stand-in where one was last seen');
+    assert.equal(shotComing([mob('witch', 5)], here), null, 'a witch\'s potions go round a shield');
+    assert.equal(shotComing([], here), null);
+});
+
+test('a shield covers one side: archers aiming from two sides are not blocked', () => {
+    const behind = mob('skeleton', 9, { drawing: false, position: { x: -9, y: 64, z: 0 } });
+    assert.equal(shotComing([mob('skeleton', 6), behind], here), null, 'one on either side');
+    const beside = mob('skeleton', 9, { drawing: false, position: { x: 7, y: 64, z: 5.6 } }); // about 39 degrees off
+    assert.equal(shotComing([mob('skeleton', 6), beside], here).id, 6, 'both in front');
+    const idle = { ...behind, aiming: false };
+    assert.equal(shotComing([mob('skeleton', 6), idle], here).id, 6, 'one behind that isn\'t aiming');
+    const zombie = mob('zombie', 3, { drawing: false, aiming: false, position: { x: -3, y: 64, z: 0 } });
+    assert.equal(shotComing([mob('skeleton', 6), zombie], here).id, 6, 'a zombie is the fight\'s, not the shield\'s');
 });
 
 // A bot with a hand-built inventory: 45 is the off-hand, as mineflayer numbers it.
@@ -80,4 +93,17 @@ test('no shield in the off-hand: nothing goes up', () => {
     assert.equal(createShield(bot, { use }).raise(), false);
     assert.deepEqual(calls, []);
     assert.equal(use.owner(), null, 'the channel is left free');
+});
+
+test('the shield stays up a moment after the draw ends: the arrow is on its way', () => {
+    let clock = 0;
+    const window = shotWindow(() => clock);
+    assert.equal(window(null), null, 'nothing drawn yet');
+    assert.equal(window({ id: 4 }), 4, 'drawing');
+    clock = 900;
+    assert.equal(window({ id: 4 }), 4, 'still drawing');
+    clock += AFTER_SHOT_MS - 1;
+    assert.equal(window(null), 4, 'loosed: the arrow is on its way');
+    clock += 2;
+    assert.equal(window(null), null, 'landed');
 });

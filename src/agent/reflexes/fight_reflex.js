@@ -28,7 +28,7 @@ import { chooseFight, joinsFight, fightScope, LOW_HEALTH } from './mob_decide.js
 import { fightMelee } from './melee.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
-import { shotComing } from './shield.js';
+import { shotComing, shotWindow } from './shield.js';
 
 export const MODE_NAME = 'self_defense';
 const GIVE_UP_MS = 60000;
@@ -103,8 +103,9 @@ export function createFightReflex({ claims, orders = null, shield = null, use = 
                     return mobsAround(bot, dying).filter(mob => joinsFight(mob, extra)).map(mob => see(mob.id)).filter(Boolean);
                 };
                 await shield?.ready(); // a carried shield in the off-hand, where a player keeps it
-                // The mob about to loose a shot at the bot, as it is seen now: the one to block.
-                const coming = () => { const mob = shotComing(mobsAround(bot, dying)); return mob ? see(mob.id) : null; };
+                // The mob about to loose a shot at the bot, or that just loosed it, as it is seen now: the one to block.
+                const window = shotWindow(now);
+                const coming = () => { const id = window(shotComing(mobsAround(bot, dying), bot.entity.position)); return id === null ? null : see(id); };
                 const outcome = await fightMelee(bot, {
                     first: pick.id, see, foes, shield, use, shotComing: coming,
                     onTarget: entity => claims.claim(`id:${entity.id}`, MODE_NAME, CLAIM_MS),
