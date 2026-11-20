@@ -107,26 +107,46 @@ function finish(creeper, self, order) {
     return { stance: 'hit_and_step_back', key: creeper.key, from: creeper.position, reason, sprint: true, distance: BACK_OFF_TO };
 }
 
-// The damage a hit does, by what is in the bot's hand (Java Edition; a fist does 1). Swords and axes are
-// what equipHighestAttack picks.
-const WEAPON_DAMAGE = {
-    wooden_sword: 4, golden_sword: 4, stone_sword: 5, copper_sword: 5, iron_sword: 6, diamond_sword: 7, netherite_sword: 8,
-    wooden_axe: 7, golden_axe: 7, stone_axe: 9, copper_axe: 9, iron_axe: 9, diamond_axe: 9, netherite_axe: 10,
-};
-const CREEPER_HEALTH = 20;
+// Swords and axes are what the bot counts as weapons. What each one does is the edition's answer
+// (meleeOf at the edition seam): Java and Bedrock give them different damage, and only Java makes a swing
+// wait for the weapon to recharge.
+const WEAPON = /_(sword|axe)$/;
+const TYPICAL_HEALTH = 20; // a zombie's, a skeleton's, a creeper's
+
+/**
+ * How long a weapon takes to kill a mob with this much health, from the first hit, swinging each time it is
+ * fully recharged: (hits needed - 1) recharges.
+ * @param {{damage: number, rechargeMs: number}} melee - the edition's answer for the weapon
+ */
+export function killTimeMs({ damage, rechargeMs }, health = TYPICAL_HEALTH) {
+    return (Math.ceil(health / damage) - 1) * rechargeMs;
+}
 
 /**
  * How many hits the best weapon among these items needs to kill a creeper, without critical hits.
  * @param {string[]} itemNames - what the bot carries
+ * @param {(name: string) => {damage: number}} meleeOf - the edition's answer (edition seam)
  */
-export function hitsNeeded(itemNames) {
-    const best = Math.max(1, ...itemNames.map(name => WEAPON_DAMAGE[name] ?? 0));
-    return Math.ceil(CREEPER_HEALTH / best);
+export function hitsNeeded(itemNames, meleeOf) {
+    const best = Math.max(1, ...itemNames.filter(name => WEAPON.test(name)).map(name => meleeOf(name).damage));
+    return Math.ceil(TYPICAL_HEALTH / best);
 }
 
-/** The name of the item among these that hits hardest, or null when none is a weapon. */
-export function bestWeapon(itemNames) {
-    let best = null;
-    for (const name of itemNames) if (WEAPON_DAMAGE[name] && (!best || WEAPON_DAMAGE[name] > WEAPON_DAMAGE[best])) best = name;
+/**
+ * The weapon among these that kills a typical mob soonest, or null when none is a weapon. Soonest, not
+ * hardest-hitting: on Java an iron axe hits for 9 and a sword for 6, but the sword swings almost twice as
+ * often and kills a zombie sooner. On a tie, the harder hit (fewer swings to land).
+ * @param {string[]} itemNames - what the bot carries
+ * @param {(name: string) => {damage: number, rechargeMs: number}} meleeOf - the edition's answer
+ */
+export function bestWeapon(itemNames, meleeOf) {
+    let best = null, bestTime = Infinity, bestDamage = 0;
+    for (const name of new Set(itemNames)) {
+        if (!WEAPON.test(name)) continue;
+        const melee = meleeOf(name);
+        if (melee.damage <= 1) continue; // a name the edition doesn't know as a weapon
+        const time = killTimeMs(melee);
+        if (time < bestTime || (time === bestTime && melee.damage > bestDamage)) { best = name; bestTime = time; bestDamage = melee.damage; }
+    }
     return best;
 }

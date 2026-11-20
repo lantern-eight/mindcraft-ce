@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
 
 const NAME = 'BedrockWary';
 const { step, summary } = createReport();
@@ -71,7 +71,7 @@ try {
         await cmd('difficulty peaceful', 1000);
         await cmd('difficulty normal');
         await waitFor(() => !agent?.actions.executing, 15000, () => 'the reflex is still moving');
-        for (let x = -30; x < 30; x += 15) await fill([x, 1, -30], [x + 14, 6, 30], 'air');
+        for (let x = -30; x <= 30; x += 15) await fill([x, 1, -30], [Math.min(x + 14, 30), 6, 30], 'air'); // to 30, the floor's edge
         await fill([-30, 0, -30], [30, 0, 30], 'stone');
         await cmd(`effect ${NAME} clear`);
         // Each scene gives the bot what it needs: a sword left from the last one would change what the
@@ -106,6 +106,7 @@ try {
         bot.on('error', error => console.error('Bot error:', error.message));
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
+        await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
         origin = bot.entity.position.floored().offset(0, 40, 0);
         await cmd('gamerule domobspawning false');
         await cmd('gamerule mobgriefing false');
@@ -424,7 +425,16 @@ try {
     console.error(error);
 } finally {
     running = false;
-    try { await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true'); } catch { /* the console is gone */ }
+    try {
+        await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true');
+        // Take the floor away, the bot first back down where it began: a floor left here would lift the spawn of
+        // every later script (docs/bedrock.md, "When Several Scripts Fail at Once"), and a bot left on it builds
+        // its next scenes 40 blocks higher still.
+        if (origin) {
+            await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y - 39} ${origin.z + 0.5}`, 1500);
+            for (let x = -30; x <= 30; x += 15) await fill([x, 0, -30], [Math.min(x + 14, 30), 6, 30], 'air');
+        }
+    } catch { /* the console is gone */ }
     console.log(JSON.stringify(summary()));
     bot?.quit();
     process.exit(summary().status === 'passed' ? 0 : 1);

@@ -124,6 +124,7 @@ stay.
 | **A chunk still arriving** | Bedrock sends a chunk in sections, and never sends one that is all air. Until a section arrives the bot takes it for air, as mineflayer does, so for a moment after a chunk loads the bot can see through a part of it that isn't there yet |
 | **World memory** | Works. Checked on a server by `bedrock_memory.js`: what is in view is remembered and what is buried is not; doors, beds, chests and fields are remembered as the things they are, under Bedrock's names, a double chest as one; a door out of sight is known as it was last seen. And by `bedrock_memory_scenarios.js`, as the agent runs it: a chest opened and walked away from is recalled with what was in it and the way back; the trail, saved places, what a sign says, and the changes found after a minute out of sight, told once; memory saved to disk. Each world has its own memory, named by a hash of the seed the server sends |
 | **Standing in the middle of a block** | After a walk the bot may stand up to a third of a block off the middle. On Java the pathfinder moves the bot there in one go when it stops; a Bedrock server refuses that move, and has the last word on where a walk stopped up to a second later. Before the bot digs the block under its feet (as `digDown` does), it steps to the middle of its block, so it drops into the hole it digs. Nothing else is known to need the middle |
+| **Coming back after dying** | Sometimes the bot stays dead. The server starts a respawn in steps, and the pinned libraries don't always see it through: after the first step (searching for a place to respawn) nothing more happens, and the bot waits with no health. It happened in about half of the deaths tried on a 1.26.63 server, in a scene and alone. With the world's `doimmediaterespawn` rule on (no death screen) it came back from every death given by the console, but still not always from one in a fight; so `bedrock_fight_arena.js` turns the rule on and heals the bot at 4 health, counting that round as lost. Not yet looked into in the libraries |
 | **Block and state names in cheat mode** | Bedrock names some blocks and most block states its own way (a stair's `upside_down_bit` where Java has `half`). Mindcraft's lists of blocks are in Java's names, and each check against one asks the [edition seam](edition-seam.md) for the Java name of the block in front of the bot, so `placeBlock` builds over a thin layer of snow (`snow_layer`) and not over a block of snow (`snow`), and the checks for water and lava (in `digDown`, `breakBlockAt` and the reflex that keeps the bot alive) take Bedrock's `flowing_water` and `flowing_lava` for water and lava too. What is left: with fair play off and cheat mode on, `placeBlock` writes its `/setblock` line in Java's terms for a block that faces a way (a torch on a wall, a lever, stairs, a door's top half, a bed's head), which Bedrock writes another way. Not tried; fair play keeps cheat mode off |
 
 ## Quirks Worth Knowing
@@ -167,6 +168,7 @@ node tests/live/bedrock_memory_scenarios.js            # world memory as the age
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
 node tests/live/bedrock_threats.js                     # the threat reflexes
+node tests/live/bedrock_fight_arena.js                 # how well the bot fights, measured (not in bedrock_all.js)
 ```
 
 - **`bedrock_smoke.js`** joins through the repo's own start-up code and checks what every skill leans on:
@@ -205,6 +207,13 @@ node tests/live/bedrock_threats.js                     # the threat reflexes
   zombies backed away from, and a lone one fought. Mob griefing is turned off for the run, and hostile mobs
   are cleared by switching to peaceful, since a console line can't name them. The Bedrock twin of
   `threat_scenarios.js` and, in brief, `mob_scenarios.js`.
+- **`bedrock_fight_arena.js`** measures the fight rather than checking it: the same rounds and kits as
+  `fight_arena.js` on Java (zombies, skeletons and spiders against bare hands up to an iron kit), each run
+  several times, with wins, time, damage and swings per kill (`--runs`, `--only`, `--kit`, `--out`). A
+  zombie is summoned with the event that makes it an adult. It is a yardstick for changes to how the bot
+  fights, so `bedrock_all.js` doesn't run it. It changes the world's rules for its run (the bot keeps its
+  inventory, respawns at once) and puts them back when it ends; if it was killed before that, start the
+  other scripts on a fresh world.
 - **`bedrock_storage.js`** installs chest sorting with fair play and world memory, fills containers from
   the console, has the bot sort them, and reads them back by opening them with the test's own hands: a
   chest of part stacks, a full chest of twenty kinds, and a chest, a double chest, a barrel and a trapped
@@ -288,6 +297,15 @@ blocks of the spawn. With `--clear` it fills that space with air from the consol
 does so only on a flat world like the one above (grass at y -61), and stops without changing anything on any
 other.
 
+The world is shared between runs, so each script starts by putting back what it can from the console
+(`freshStart` in `bedrock_fixture.js`): the game's default rules (a script then changes what it needs for its
+run), peaceful, noon, its bots in survival with empty hands and no effects, and each bot back down on the
+world's own ground if a run left it standing on something built. That keeps a rule, an inventory or a position
+one run left behind from failing the next. The scripts that build a floor of their own (`bedrock_threats.js`
+and the arena) take it away when they end, the bot first brought back down. What a run stopped part way through
+built stays; for that, `bedrock_spawn_check.js --clear`, or a fresh world (stop the server, delete or move its
+world folder, start it again).
+
 ## Where Things Are
 
 | | |
@@ -298,7 +316,7 @@ other.
 | `src/agent/bedrock/names.js` | Bedrock's names for blocks and states in Java's terms, so world memory knows a Bedrock bed or door for what it is. Memory itself keeps Bedrock's names |
 | `src/agent/bedrock/window_moves.js` | Moving a stack in an open chest, one item stack request a move, for chest sorting |
 | `src/agent/bedrock/lockdown_ready.js` | Loads a library the connection uses before the connection does, so that the sandbox for model-written code can still be set up afterwards |
-| `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, and a villager's trade window. A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
+| `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, a villager's trade window, and letting go of every key (through `setControlState`, as on Java, so that an action the agent stopped can't let go of the keys of the one after it). A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
 | `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |

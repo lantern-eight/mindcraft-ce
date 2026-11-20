@@ -96,8 +96,8 @@ wins:
 | # | What | What the bot does |
 |---|---|---|
 | 1 | Health under 6, with a hostile in view or a hit felt just now | **Runs**, 20 blocks from every hostile about, newcomers included |
-| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range |
-| 3 | Two or more melee mobs in view within 8 blocks that have come for the bot (or within 5, about to) | **Backs away from all of them at once**, 16 blocks from each, rather than from the nearest into the next. A fight already started on one of them doesn't hold this back |
+| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (one when the bot is armed, two in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range |
+| 3 | More melee mobs in view within 8 blocks that have come for the bot (or within 5, about to) than its gear takes on: two or more bare-handed, four or more with a sword or an axe. Or two or more with one too strong among them | **Backs away from all of them at once**, 16 blocks from each, rather than from the nearest into the next. A fight already started on one of them doesn't hold this back |
 | 4 | One melee mob coming at it that the bot shouldn't fight: the bot under half health, or too hungry to sprint (food 6 or less), or the mob too strong for a fight nobody asked for (a cave spider's poison, a warden, a ravager, a vindicator, a piglin brute, a hoglin or zoglin, a provoked enderman, a wither skeleton) | Backs away from it |
 | 5 | Hit twice within 4 s with nothing in view that could have done it: no mob within reach, none that has picked a target, none that shoots | **Gets away from the side the hits came from** |
 | | Anything else | Nothing. A lone mob in a fair fight is the fight's |
@@ -112,17 +112,59 @@ enough, or when all of them have been out of its view for 2 s (they have lost it
 
 ## The Fight
 
-With the threat reflexes on, `self_defense` is this fork's: it fights **one mob that has come for the bot,
-within 8 blocks, with the bot at half health or more and fed enough to sprint**. Measured melee trials
-(unarmed and unarmored, on vanilla) won one mob of most kinds and lost two zombies at once, so that is the
-scope. Two or more, or one too strong, are the mob reflex's to back away from.
+With the threat reflexes on, `self_defense` is this fork's: it fights **what has come for the bot, within 8
+blocks, as much as its gear takes on, with the bot at half health or more and fed enough to sprint**:
+
+| Gear | It takes on | Why |
+|---|---|---|
+| Bare hands | One melee mob | Measured melee trials (unarmed, unarmored) won one mob of most kinds and lost two zombies at once |
+| A sword or an axe | Up to three melee mobs and one skeleton (or stray, or bogged), which it rushes instead of hiding from | In the arenas a stone or a copper sword beat three zombies with at most 3 damage taken. By its own judgment it now beat a lone skeleton every time, with 3 to 5 damage on Java and none on Bedrock; backing away from it, as it did before, cost 8 to 16 on Java, and on Bedrock brought the bot near death every time. Two zombies, a skeleton and a spider at once it now won 6 times in 6 on Java (1 before) and 4 in 6 on Bedrock (none before) |
+| A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons | In the arenas an iron sword in iron armor won every round on both editions, two skeletons with 4 damage taken at most. Two skeletons are still backed away from with a sword alone, as a cautious player would; in the walled pen that cost 10 to 25 damage, but the pen is the worst place to back away in |
+
+More than that, or one too strong, are the mob reflex's to back away from. Under half health, or too hungry,
+the gear counts for nothing: it is the one mob again. A skeleton the fight can't find a way to (up on a
+ledge) is hidden from, as by an unarmed bot, and asked about again a few seconds later.
 
 - It doesn't start on a mob with another one close by that hasn't picked a target yet: it soon will.
-- It fights with the best weapon carried, and stops when the mob is gone, when the bot's health falls under
+- It fights with the weapon carried that kills soonest on that edition (on Java a sword over an axe, which hits
+  harder but swings almost half as often), and stops when the mob is gone, when the bot's health falls under
   6 (the mob reflex runs then), or after 30 s; a mob fought that long without finishing is left alone for a
   minute.
 - Whether the mob can be walked to is the kept path verdict (below), not a new search each round.
 - A creeper is never fought: the creeper reflex owns creepers.
+
+**How it fights** (`melee.js`), as a player would:
+
+- It swings when the weapon has recharged and the mob is in reach. On Java a swing before the attack meter
+  is full does as little as a fifth of the damage; on Bedrock there is no meter, but a mob just hurt can't be
+  hurt again for half a second. Reach is the game's: 3 blocks from the eye to the nearest point of the mob.
+- It turns to whichever mob is in reach when the one it was fighting isn't, and goes straight on to the next
+  mob that has come for it (one it would fight, as above) instead of stopping in between.
+- While the weapon recharges, with a second mob close or the target right on it, it steps back, so the mobs
+  reach it one at a time. Never backwards into lava, fire or off a drop.
+- It sprints straight at a mob on its own level when the ground between is open, safe and seen, and lets
+  the pathfinder find the way otherwise. It doesn't follow a mob more than 12 blocks from where the fight
+  began.
+- It lets go of a mob it hasn't got closer to in 6 s, and of one its swings in reach don't make flinch (the
+  red flash a player sees) for 4 s; either is left alone for a minute.
+- Everything it acts on is what the bot sees, through fair play's perception; with fair play off, what the
+  server sends.
+
+**Measured** in the fight arenas (`tests/live/fight_arena.js` and `bedrock_fight_arena.js`): seven rounds, from
+one zombie to two zombies, a skeleton and a spider at once, three runs each, with the bot told to fight every
+kind, against the fight it replaced (Mindcraft's, through its combat plugin). Each cell is the 21 rounds of a
+kit: rounds won, then swings per kill, then the damage the bot took in a round on average.
+
+| Kit | Java, before | Java, now | Bedrock, before | Bedrock, now |
+|---|---|---|---|---|
+| Bare hands | 9 won, 61 swings, 24 damage | 9 won, 44 swings, 16 damage | 7 won, 66 swings, 15 damage | 5 won, 47 swings, 14 damage |
+| Stone sword | 19 won, 7.6 swings, 12 damage | 21 won, 4.5 swings, 4 damage | 16 won, 5.8 swings, 9 damage | 21 won, 3.9 swings, 2 damage |
+| Copper sword | 17 won, 14 swings, 14 damage | 21 won, 4.4 swings, 4 damage | not run | 20 won, 3.8 swings, 2 damage |
+| Iron sword and armor | 21 won, 6.0 swings, 4 damage | 21 won, 3.8 swings, 2 damage | not run | 21 won, 3.0 swings, 0.4 damage |
+
+On Java almost every swing now lands (99 in 100, from about half). Bare hands lose most rounds either way,
+which is why the bot's own judgment takes on one mob without a weapon. The Bedrock run of the old fight
+stopped after two kits: a bot that died there didn't always come back (see [Known Gaps](bedrock.md#known-gaps)).
 
 It is registered under the same name and in the same place as Mindcraft's, so its switch, the profiles and the
 actions that pause it by name (`goToPlayer`, `defendSelf`, `stay`) keep their meaning.
@@ -130,6 +172,9 @@ actions that pause it by name (`goToPlayer`, `defendSelf`, `stay`) keep their me
 That is the bot's own judgment. A [standing order](#standing-orders) to fight a kind of mob widens it for
 that kind: and with no orders in the profile, a bot armed with a sword or an axe fights zombies and spiders
 however many come.
+
+A mob the fight gives up on is left alone by the fight for a minute; for that minute an order to fight it no
+longer holds, and the mob reflex deals with it as with any mob (cover from an archer, a retreat from a crowd).
 
 **One owner per threat.** The mob reflex and the fight share claims: the one that takes a mob keeps it for
 5 s, so they don't take turns over it, each stopping the other. A fight doesn't hold back a crowd retreat or
@@ -332,14 +377,16 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
   zombie, a skeleton) counts as having come for the bot as soon as it is in view, and an archer counts as
   aiming when it faces the bot. The crowd rule and the fight start a little sooner there than on Java, where
   the bot waits for the mob to show it.
-- **The bot's own fight scope is one mob,** at half health, with food to sprint on, measured unarmed. Armor
-  doesn't widen it, and a weapon widens it only through orders (the built-in ones cover zombies and the
-  plain spider).
+- **The bot's own fight scope comes from the arena,** which measured one kit of armor (full iron) and up to
+  three zombies, two skeletons, or four mobs mixed, on flat ground in a walled pen at night. More than that,
+  other kinds of archer (a pillager, a witch), and other ground (a cave, a ledge) were not measured, so the
+  bot backs away from them as before.
 - **An order is about a kind of mob, not a place or a mob.** "Fight the zombie by the door" or "leave the
   pillagers at the outpost alone" can't be said as an order.
 - **A fight under orders is still paused by the actions that pause `self_defense`** (`goToPlayer`,
   `defendSelf`, `stay`), as the bot's own fight is.
-- **The fight is Mindcraft's combat plugin:** no timing of hits to the weapon's cooldown, no shield.
+- **The fight has no shield yet,** and no bow. It doesn't jump for critical hits either: whether they pay off
+  in a fight against mobs is still to be measured.
 - **Cover is only behind walls.** The bot doesn't build cover, and a skeleton that walks around the wall finds
   it again; the bot then picks another spot or backs out of range. A skeleton that comes up close is taken
   cover from, not fought.
@@ -363,20 +410,21 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 | `picture.js` | The threat picture: creepers seen and heard, their fuse estimates, hisses remembered and settled. Pure |
 | `decide.js` | `decideThreat`: what to do about the creepers in the picture. Pure, tested with plain objects |
 | `mob_reflex.js` | The mob mode: each round it reads the mobs and the hits, asks for a decision, and acts as the creeper mode does |
-| `fight_reflex.js` | The fight, `self_defense` |
+| `fight_reflex.js` | The fight, `self_defense`: whom to fight, and when to stop |
+| `melee.js` | How the fight fights: swings timed to the weapon, reach from the eye, turning to the mob in reach, stepping back between swings, letting go of a fight that isn't working |
 | `mob_decide.js` | `decideMobThreat` and `chooseFight`: what to do about the other mobs, and which one to fight. Pure |
 | `orders.js` | The standing orders: the groups, which order applies to a mob, when it lapses, the profile's and the built-in ones. Pure |
 | `order_commands.js` | `!threatRules` and `!setThreatRule`, and the file the orders given by command are kept in |
 | `mobs.js` | The hostile mobs around, read the fair way, with the tells the seam reads |
 | `claims.js` | One owner per threat. Pure |
-| `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack`, `takeCover` and `fightOne`, the safe first step, and the line of sight over cells the bot knows |
+| `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack` and `takeCover`, the safe first step, and the line of sight over cells the bot knows |
 | `gaze.js` | The guard on every look, for endermen |
 | `danger_zones.js` | The zones: where, how wide, for how long, and what a cell costs to be in. Pure |
 | `danger_watch.js` | Notes zones from what the bot sees, hears and feels, once a second and as each sound arrives |
 
 Outside the folder: `src/agent/action_hold.js` (the hold), `src/agent/library/path_verdicts.js` (the kept
 path verdicts), `src/agent/library/place_costs.js` (the prices on places that every route search pays, which
-other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive` and `onHurt` questions in the edition seam, and
+other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive`, `onHurt`, `meleeOf` and `survivalReach` questions in the edition seam, and
 perception's `onHeard` listener (`src/agent/fairplay/perception.js`), which passes a sound on with what
 `heard()` gives and never its position.
 
@@ -395,3 +443,6 @@ left at once.
 `tests/live/danger_scenarios.js` checks the zones: a walk across an arena with no zone and with one where
 illagers were seen, a walk out of the middle of one, and the zones a skeleton aiming and an explosion heard
 leave (see the [README](../README.md#tests)).
+`tests/live/fight_arena.js` measures how a fight goes once the bot has chosen one: rounds of zombies,
+skeletons and spiders against kits from bare hands to iron, each run several times, with wins, time, damage
+and swings per kill. It is a yardstick, run before and after a change to the fight.

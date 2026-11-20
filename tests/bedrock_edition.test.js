@@ -183,6 +183,14 @@ test('a survival player on Bedrock reaches half a block farther to a block than 
     assert.deepEqual(bedrockEdition.survivalReach(), { blocks: 5, entities: 3 });
 });
 
+test('a melee hit on Bedrock: swords hit harder than axes, and every swing counts after the mob\'s half second', () => {
+    assert.deepEqual(bedrockEdition.meleeOf('iron_sword'), { damage: 7, rechargeMs: 500 });
+    assert.deepEqual(bedrockEdition.meleeOf('iron_axe'), { damage: 6, rechargeMs: 500 });
+    assert.deepEqual(bedrockEdition.meleeOf('netherite_sword'), { damage: 9, rechargeMs: 500 });
+    assert.deepEqual(bedrockEdition.meleeOf(undefined), { damage: 1, rechargeMs: 500 }, 'a bare hand');
+    assert.deepEqual(bedrockEdition.meleeOf('dirt'), { damage: 1, rechargeMs: 500 });
+});
+
 test('a Bedrock block is named in Java\'s terms for Mindcraft\'s lists, from the game data\'s own table', () => {
     // Mindcraft's skills and reflexes name blocks the way Java does: a thin layer of snow is "snow", water
     // is "water" whether still or flowing. Bedrock's names for the same things differ.

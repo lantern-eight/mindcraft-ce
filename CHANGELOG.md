@@ -9,6 +9,40 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.9.0-bedrock.1.10.0] - 2026-11-19
+
+A release for both editions. The fight fights the way a player does: it swings when the weapon has recharged
+(a copper sword used to swing at a third of its damage), measures reach from the eye, steps back between swings
+when mobs crowd it, and goes straight on to the next mob. In a new fight arena, measured on both editions, every
+armed kit now wins nearly every round, with half the swings and a fraction of the damage. A well-armed bot also
+takes on more by its own judgment: three melee mobs and a skeleton with a sword, two skeletons in full iron. No
+fixes to inherited code. Built on the same Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
+### Fixed
+
+- A mob the bot was told to fight, and gave up fighting (it couldn't reach it, or after 30 s), was neither
+  fought nor avoided for the minute after: an archer could shoot the bot where it stood. The bot's own judgment
+  now takes over for that minute, so it takes cover from the archer or backs away from the crowd.
+- On Bedrock Edition, an action that was stopped could let go of the keys of the action that took over from
+  it as it ended: a retreat that began as a fight ended stood still among the mobs it was backing away from.
+
+### Changed
+
+- The bot takes on more by its own judgment when well armed, as measured in the fight arena: with a sword or
+  an axe, up to three melee mobs at once instead of backing away from two, and a skeleton rushed instead of
+  hidden from; with a full iron set or better as well, two skeletons. Bare-handed, or under half health, or hungry,
+  it is still one mob. See [docs/threat-reflexes.md](docs/threat-reflexes.md#the-fight).
+- The fight (`self_defense` with the threat reflexes on) fights the way a player does instead of through
+  Mindcraft's combat plugin: it swings when the weapon has recharged (the plugin's table didn't know copper,
+  so a copper sword swung at a third of its damage), measures reach from the eye, turns to whichever mob is
+  in reach, steps back between swings when two crowd it, sprints straight at a mob on open ground, and goes
+  straight on to the next mob that comes for it. It lets go of a mob it can't get closer to, or whose hits
+  don't land. In the new arena (`tests/live/fight_arena.js`) a stone sword landed every swing and beat two
+  zombies without a scratch.
+- The threat reflexes pick the weapon that kills a mob soonest, not the one that hits hardest: on Java Edition a
+  sword over an axe of the same material (it swings almost twice as often), except in gold and wood; on Bedrock
+  Edition always a sword, which hits harder there. What each weapon does is an answer of the edition seam.
+
 ## [1.8.0-bedrock.1.9.0] - 2026-11-19
 
 A release for both editions. A player can give the bot standing orders about kinds of mobs (fight, flee or
@@ -897,7 +931,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...HEAD
+[1.9.0-bedrock.1.10.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...v1.9.0-bedrock.1.10.0
 [1.8.0-bedrock.1.9.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...v1.8.0-bedrock.1.9.0
 [1.7.1-bedrock.1.8.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.1...v1.7.1-bedrock.1.8.2
 [1.7.1-bedrock.1.8.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.0-bedrock.1.8.0...v1.7.1-bedrock.1.8.1
