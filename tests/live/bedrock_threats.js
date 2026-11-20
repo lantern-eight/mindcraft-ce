@@ -192,6 +192,37 @@ try {
         return { endedBlocksAway: Number(away.toFixed(1)) };
     });
 
+    // Cornered: walls to the north, south and east of the bot, and the creeper's glass pen closing the west.
+    // There is nowhere to run. A Bedrock player raises a shield by sneaking (the edition seam's raiseShield);
+    // faced at the blast, it stops it. Without one, the damage is what cornering costs.
+    for (const shield of [false, true]) {
+        await step(`cornered by a lit creeper${shield ? ', with a shield it is given: it goes in the off-hand, and the bot faces the blast sneaking behind it, no damage' : ', no shield: the damage it takes'}`, async () => {
+            await reset();
+            await fill([-1, 1, -1], [1, 2, -1], 'stone');
+            await fill([-1, 1, 1], [1, 2, 1], 'stone');
+            await fill([1, 1, 0], [1, 2, 0], 'stone');
+            if (shield) await cmd(`give ${NAME} shield`);
+            await delay(1500);
+            let gone = false;
+            const onGone = entity => { if (entity.name === 'creeper') gone = true; };
+            bot.on('entityGone', onGone);
+            await litCreeper([-2, 1, 0]);
+            await waitFor(() => gone, 8000, () => JSON.stringify(events));
+            bot.off('entityGone', onGone);
+            await delay(1000);
+            const raised = events.filter(e => e.event === 'shield').length;
+            const offHand = bot.inventory.slots[45]?.name ?? null;
+            if (shield) {
+                assert.equal(offHand, 'shield', 'the shield was put in the off-hand');
+                assert.ok(raised > 0, `the shield went up: ${JSON.stringify(events)}`);
+                assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth})`);
+            } else {
+                assert.equal(raised, 0);
+            }
+            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, offHand };
+        });
+    }
+
     await step('a creeper following the bot, which has a stone sword: on Bedrock it is left behind, within 3 rounds, the model told once, no damage', async () => {
         await reset();
         await cmd(`give ${NAME} stone_sword 1`, 700);

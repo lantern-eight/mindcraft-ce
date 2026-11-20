@@ -41,6 +41,9 @@ const KITS = [
     { name: 'stone sword', commands: [`give ${NAME} stone_sword`] },
     { name: 'copper sword', commands: [`give ${NAME} copper_sword`] },
     { name: 'iron kit', commands: [`give ${NAME} iron_sword`, ...armor] },
+    // The shield is given, not put in the off-hand: putting it there is the bot's to do. A Bedrock skeleton
+    // shows no bow drawn, so the shield goes up against none of these mobs: the kit checks it changes nothing.
+    { name: 'stone sword and shield', commands: [`give ${NAME} stone_sword`, `give ${NAME} shield`] },
 ];
 // Summoned the way that gives the same mob every round: a zombie made an adult by its own event.
 const SUMMON_EVENT = { zombie: ' 0 0 minecraft:as_adult', skeleton: '', spider: '' };

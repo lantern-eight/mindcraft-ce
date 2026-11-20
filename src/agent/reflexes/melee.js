@@ -27,7 +27,7 @@
 //     reach that never make the mob flinch (neko's breaker, made fair: the red flash a player sees, never
 //     the mob's health).
 //   - With a shield in the off-hand, it stops and holds it up toward an archer it sees drawing its bow
-//     while its target is out of reach, and goes on once the arrow is loosed (neko's matchup: close on a
+//     while its target is out of reach, and goes on once the arrow has landed (neko's matchup: close on a
 //     skeleton behind a shield). The shield is down to move and to swing (shield.js says why).
 //   - It neither swings nor changes what it holds in the middle of a meal: a player can't, and a sword put
 //     back in hand would cut the meal short (the use-item channel, item_use.js).
@@ -241,7 +241,7 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
             if (letGo) { ended = letGo; break; }
 
             // An arrow coming while the target is out of reach: stand, face the archer, shield up, and go on
-            // once it is loosed. Time spent behind the shield doesn't count as not getting closer.
+            // once it has landed (shotComing says when). Time behind the shield doesn't count as not getting closer.
             const shooter = shield?.has() && !inReach && !eating ? shotComing() : null;
             if (shooter) {
                 halt();
