@@ -4,7 +4,11 @@
 // Plain objects stand in for mobs, and a map for the blocks the bot knows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reachTo, pickTarget, shouldStepBack, openWayTo, charged, fightLetGo, withinLeash } from '../src/agent/reflexes/melee.js';
+import { EventEmitter } from 'node:events';
+import { Vec3 } from 'vec3';
+import { reachTo, pickTarget, shouldStepBack, openWayTo, charged, fightLetGo, withinLeash, fightMelee } from '../src/agent/reflexes/melee.js';
+import { createShield } from '../src/agent/reflexes/shield.js';
+import { createItemUse, EATING } from '../src/agent/reflexes/item_use.js';
 
 const eye = { x: 0.5, y: 65.62, z: 0.5 };
 const mob = (id, x, z, extra = {}) => ({ id, name: 'zombie', position: { x, y: 64, z }, width: 0.6, height: 1.95, ...extra });
@@ -83,4 +87,68 @@ test('the leash is on where the bot goes, not where the mob is: a mob against a 
     const home = { x: 0.5, y: 64, z: 0.5 };
     assert.equal(withinLeash({ x: 13.5, y: 64, z: 0.5 }, home, 3), true, 'the bot stands 10 out to hit it');
     assert.equal(withinLeash({ x: 15.6, y: 64, z: 0.5 }, home, 3), false, 'it would have to go past 12');
+});
+
+// A bot on a flat stone floor (its top at y 63), holding a stone sword with a shield in the off-hand, that
+// writes down what it does: the use of the off-hand, its keys, its swings.
+function fighter() {
+    const bot = new EventEmitter();
+    const did = [];
+    const slots = [];
+    slots[45] = { name: 'shield' };
+    const sword = { name: 'stone_sword' };
+    bot.entity = { position: new Vec3(0.5, 64, 0.5), eyeHeight: 1.62 };
+    bot.inventory = { slots, items: () => [sword] };
+    bot.heldItem = sword;
+    bot.blockAt = pos => ({ name: pos.y < 64 ? 'stone' : 'air', boundingBox: pos.y < 64 ? 'block' : 'empty' });
+    bot.lookAt = async () => {};
+    bot.attack = target => did.push(`swing ${target.id}`);
+    bot.equip = async () => {};
+    bot.activateItem = offHand => did.push(offHand ? 'shield up' : 'use main hand');
+    bot.deactivateItem = () => did.push('shield down');
+    const keys = {};
+    bot.setControlState = (key, on) => { keys[key] = on; };
+    bot.clearControlStates = () => { for (const key in keys) keys[key] = false; };
+    bot.pathfinder = { setGoal: () => {}, setMovements: () => {} };
+    return { bot, did, keys };
+}
+const skeleton = (x, drawing) => ({ id: 7, name: 'skeleton', position: new Vec3(x, 64, 0.5), width: 0.6, height: 1.99, drawing });
+
+test('the fight stands behind its shield while an archer draws, and rushes it once the arrow is loosed', async () => {
+    const { bot, did, keys } = fighter();
+    const use = createItemUse();
+    const shield = createShield(bot, { use });
+    let drawing = true, beats = 0, rushedWhileUp = false;
+    const mob = () => skeleton(10.5, drawing);
+    const outcome = await fightMelee(bot, {
+        first: 7, see: () => mob(), shield, use,
+        shotComing: () => (mob().drawing ? mob() : null),
+        stop: () => {
+            beats++;
+            if (beats === 4) drawing = false;          // the arrow is loosed
+            if (shield.up && keys.forward) rushedWhileUp = true;
+            return beats > 8;
+        },
+    });
+    assert.equal(outcome.ended, 'stopped');
+    assert.equal(outcome.blocks, 1);
+    assert.deepEqual(did.filter(d => d.startsWith('shield')), ['shield up', 'shield down'], 'up for the draw, down after');
+    assert.equal(rushedWhileUp, false, 'never moving with the shield up');
+    assert.equal(keys.forward, false, 'the keys let go at the end');
+    assert.equal(use.owner(), null, 'the channel is given back');
+});
+
+test('the fight swings with the shield down, and neither swings nor raises it in the middle of a meal', async () => {
+    const { bot, did } = fighter();
+    const use = createItemUse();
+    const shield = createShield(bot, { use });
+    use.take(EATING);
+    let beats = 0;
+    const zombie = { id: 3, name: 'zombie', position: new Vec3(2.0, 64, 0.5), width: 0.6, height: 1.95 };
+    await fightMelee(bot, { first: 3, see: () => zombie, shield, use, shotComing: () => skeleton(10.5, true), stop: () => ++beats > 4 });
+    assert.deepEqual(did, [], 'no swing, no shield, while eating');
+    use.release(EATING);
+    beats = 0;
+    await fightMelee(bot, { first: 3, see: () => zombie, shield, use, shotComing: () => skeleton(10.5, true), stop: () => ++beats > 2 });
+    assert.deepEqual(did, ['swing 3'], 'the zombie in reach comes first; the shield stays down to swing');
 });

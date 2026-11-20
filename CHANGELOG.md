@@ -9,8 +9,17 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- The fight uses a shield. A shield the bot carries goes in its off-hand when a fight starts, and while an archer
+  it sees is drawing its bow, with the mob it fights out of reach, the bot stops, faces the archer and holds the
+  shield up; once the arrow is loosed it lowers it and goes on. The shield is down to move and to swing, as a
+  player's must be. On Java Edition only: a Bedrock skeleton shows no bow drawn.
+
 ### Changed
 
+- In a fight the bot neither swings nor puts its weapon back in hand in the middle of a meal, which used to cut
+  the meal short.
 - Eating when hungry waits while the bot holds its shield up, and the shield waits for a meal to end: a meal
   no longer drops the shield in the middle of a block, nor a raised shield cut a meal short.
 

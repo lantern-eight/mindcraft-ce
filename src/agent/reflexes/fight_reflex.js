@@ -18,7 +18,7 @@
 //     crowd that is still there after that is the mob reflex's.
 //   - It stops when the bot's health falls under 6, for the mob reflex to run.
 //   - How it fights is melee.js's: swings timed to the weapon, turning to whichever mob is in reach, stepping
-//     back between swings when crowded. Once started, it goes on to the next mob that has come for it (and
+//     back between swings when crowded, a carried shield put in the off-hand and held up while an archer draws. Once started, it goes on to the next mob that has come for it (and
 //     that it would take on: joinsFight in mob_decide.js) without stopping in between, claiming each.
 import convoManager from '../conversation.js';
 import * as world from '../library/world.js';
@@ -28,6 +28,7 @@ import { chooseFight, joinsFight, fightScope, LOW_HEALTH } from './mob_decide.js
 import { fightMelee } from './melee.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
+import { shotComing } from './shield.js';
 
 export const MODE_NAME = 'self_defense';
 const GIVE_UP_MS = 60000;
@@ -41,9 +42,11 @@ const UNREACHABLE_MS = 5000;
  * @param {object} options
  * @param {object} options.claims - shared with the mob reflex (claims.js)
  * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
+ * @param {object} [options.shield] - the bot's shield (shield.js); none: the fight has no shield
+ * @param {object} [options.use] - the use-item channel (item_use.js)
  * @param {() => number} [options.now]
  */
-export function createFightReflex({ claims, orders = null, now = Date.now }) {
+export function createFightReflex({ claims, orders = null, shield = null, use = null, now = Date.now }) {
     const givenUp = new Map(); // mob id -> until when
     const told = new Map();
     const dying = new Set();
@@ -86,7 +89,7 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
         const line = `Fighting the ${pick.name.replace(/_/g, ' ')} (${where})${pick.ordered ? ', as I was told to' : ''}.`;
         say(agent, line);
         bot.emit?.('threat_reflex', { event: 'decided', at: performance.now(), stance: 'fight', key: `id:${pick.id}`, mode: MODE_NAME });
-        let result, ended = null, last = pick.id;
+        let result, ended = null, last = pick.id, blocks = 0;
         try {
             result = await agent.actions.runAction(`mode:${MODE_NAME}`, async () => {
                 // A fight under orders ends when the order lapses (under its minimum health), as the bot's
@@ -99,13 +102,17 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
                     const extra = { ownerOf: claims.ownerOf, givenUp: isGivenUp, orderOf: ordersFor(orders, me), scope: fightScope(me) };
                     return mobsAround(bot, dying).filter(mob => joinsFight(mob, extra)).map(mob => see(mob.id)).filter(Boolean);
                 };
+                await shield?.ready(); // a carried shield in the off-hand, where a player keeps it
+                // The mob about to loose a shot at the bot, as it is seen now: the one to block.
+                const coming = () => { const mob = shotComing(mobsAround(bot, dying)); return mob ? see(mob.id) : null; };
                 const outcome = await fightMelee(bot, {
-                    first: pick.id, see, foes,
+                    first: pick.id, see, foes, shield, use, shotComing: coming,
                     onTarget: entity => claims.claim(`id:${entity.id}`, MODE_NAME, CLAIM_MS),
                     stop: () => (bot.health ?? 20) < LOW_HEALTH || lapsed(),
                     maxMs: FIGHT_MS,
                 });
                 last = outcome.target ?? pick.id;
+                blocks = outcome.blocks ?? 0;
                 ended = outcome.ended === 'stopped' && lapsed() ? 'order lapsed' : outcome.ended;
                 // A mob fought without an end in sight is left alone for a minute.
                 if (['out of time', 'not getting closer', 'not landing'].includes(ended)) givenUp.set(last, now() + GIVE_UP_MS);
@@ -115,7 +122,7 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
             mode.active = false;
             claims.claim(`id:${last}`, MODE_NAME, 1000); // a moment more, so nothing snatches it as it falls
         }
-        bot.emit?.('threat_reflex', { event: 'done', at: performance.now(), stance: 'fight', ended, mode: MODE_NAME });
+        bot.emit?.('threat_reflex', { event: 'done', at: performance.now(), stance: 'fight', ended, blocks, mode: MODE_NAME });
         tellModel(agent, pick, interrupted, result, line);
     }
 

@@ -21,7 +21,8 @@ const LOOK_WITHIN = 24;
  * @param {object} bot
  * @param {Set<number>} [dying] - mobs seen dying, which can't fight any more
  * @returns {{id:number, name:string, position:object, distance:number, seenNow:boolean, aiming:boolean,
- *     aggressive:boolean, height:number}[]}
+ *     drawing:boolean, aggressive:boolean, height:number}[]} drawing: about to loose a shot (a bow drawn),
+ *     the moment to raise a shield
  */
 export function mobsAround(bot, dying = new Set()) {
     const edition = editionOf(bot.registry);
@@ -36,6 +37,7 @@ export function mobsAround(bot, dying = new Set()) {
                 position: { x: entity.position.x, y: entity.position.y, z: entity.position.z },
                 distance: entity.position.distanceTo(here), seenNow,
                 aiming: seenNow && edition.isAiming(bot.registry, entity, eye),
+                drawing: seenNow && edition.isDrawing(bot.registry, entity, eye),
                 aggressive: seenNow && edition.isAggressive(bot.registry, entity),
             };
         });
