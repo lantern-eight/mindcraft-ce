@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- Eating when hungry waits while the bot holds its shield up, and the shield waits for a meal to end: a meal
+  no longer drops the shield in the middle of a block, nor a raised shield cut a meal short.
+
 ## [1.9.0-bedrock.1.10.1] - 2026-11-19
 
 A release for Bedrock Edition's records only: the fix that keeps a stopped action from letting go of the keys of
