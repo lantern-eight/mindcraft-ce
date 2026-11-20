@@ -416,6 +416,16 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
+     * Is this mob about to loose a shot? A Bedrock server shows no bow drawn (a skeleton shooting the bot
+     * showed no flag, 1.26.63), so a skeleton's shots come with no tell to raise a shield for. A crossbow
+     * `charged`, or a blaze or ghast winding up (`charge_attack`), is read if a server sends it.
+     */
+    isDrawing(registry, entity, at) {
+        const flags = entity?.metadata?.flags ?? {};
+        return Boolean(flags.charged || flags.charge_attack);
+    },
+
+    /**
      * Has this mob picked a target and come for it? A Bedrock server doesn't say: a zombie biting the bot
      * showed no flag and no target (1.26.63). What a Bedrock player goes by is the kind of mob: one that
      * always attacks players has come for whoever it can see. A neutral mob (an enderman, a spider by day,
@@ -512,6 +522,14 @@ export const bedrockEdition = Object.freeze({
      */
     meleeOf(itemName) {
         return { damage: BEDROCK_DAMAGE.get(itemName) ?? 1, rechargeMs: BEDROCK_HURT_PAUSE_MS };
+    },
+
+    /**
+     * Raises the shield in the off-hand, or lowers it. A Bedrock player raises a shield by sneaking, on every
+     * kind of controls, and lowers it by standing up. Sneaking slows the walk as it always does.
+     */
+    raiseShield(bot, up) {
+        bot.setControlState('sneak', up);
     },
 
     moveStack,

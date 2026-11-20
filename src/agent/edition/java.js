@@ -345,6 +345,23 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * Is this mob about to loose a shot? It is the moment a player raises a shield: a skeleton holds its bow
+     * up all the while it has a target, but draws it for about a second before each arrow, and a player sees
+     * the string pulled back. Java keeps the draw as the hand-active bit of `living_entity_flags`. A crossbow
+     * shows nothing between loaded and loosed, so one loading or held up loaded counts; a ghast or a blaze
+     * winding up is its own tell (as isAiming reads them).
+     *
+     * @param {object} registry - the bot's game data
+     * @param {object} entity - a mob the bot can see
+     * @param {{x:number, y:number, z:number}} [at] - the eye of whoever asks; Java's answer doesn't need it
+     * @returns {boolean}
+     */
+    isDrawing(registry, entity, at) {
+        if (BOW_SHOOTERS.has(entity?.name)) return flagOf(registry, entity, 'living_entity_flags', HAND_ACTIVE);
+        return javaEdition.isAiming(registry, entity, at);
+    },
+
+    /**
      * Has this mob picked a target and come for it? A player sees it: a zombie walks at you with its arms
      * out, a skeleton raises its bow. Java keeps it as the aggressive bit of the mob's `mob_flags`, found by
      * name, which the game sets while a mob's attack goal runs and clears when it stops (a spider by day,
@@ -462,6 +479,21 @@ export const javaEdition = Object.freeze({
     meleeOf(itemName) {
         const { damage, speed } = JAVA_MELEE.get(itemName) ?? JAVA_HAND;
         return { damage, rechargeMs: Math.round(1000 / speed) };
+    },
+
+    /**
+     * Raises the shield in the off-hand, or lowers it. A Java player holds the use button with a shield in
+     * the off-hand (the main hand's item, a sword, has no use of its own), and lets go to lower it. While it
+     * is up the game slows a player to a fifth of a walk and lets it neither sprint nor swing; the shield
+     * blocks only from a quarter of a second after it goes up. Whoever raises it keeps to that (mineflayer's
+     * physics doesn't slow the bot by itself).
+     *
+     * @param {object} bot
+     * @param {boolean} up
+     */
+    raiseShield(bot, up) {
+        if (up) bot.activateItem(true);
+        else bot.deactivateItem();
     },
 
     /**

@@ -157,6 +157,24 @@ test('a Bedrock shooter aims when it faces the bot, or shows a flag for it; a mo
     assert.equal(bedrockEdition.isAggressive(null, { name: 'evocation_illager', metadata: { flags: {} } }), true, "an evoker, by Bedrock's name for it");
 });
 
+test('a Bedrock shooter shows no bow drawn, only a crossbow charged or a blaze or ghast winding up', () => {
+    // Facing the bot is aiming on Bedrock (isAiming), but nothing tells when the shot comes.
+    const at = { x: 0, y: 65.6, z: -10 };
+    const shooter = (name, flags = {}) => ({ name, position: { x: 0, y: 64, z: 0 }, yaw: 0, metadata: { flags } });
+    assert.equal(bedrockEdition.isDrawing(null, shooter('skeleton'), at), false, 'facing the bot, but no draw to see');
+    assert.equal(bedrockEdition.isDrawing(null, shooter('pillager', { charged: true }), at), true, 'a crossbow charged');
+    assert.equal(bedrockEdition.isDrawing(null, shooter('blaze', { charge_attack: true }), at), true);
+    assert.equal(bedrockEdition.isDrawing(null, null, at), false);
+});
+
+test('a Bedrock player raises the shield in the off-hand by sneaking', () => {
+    const controls = [];
+    const bot = { setControlState: (control, state) => controls.push([control, state]) };
+    bedrockEdition.raiseShield(bot, true);
+    bedrockEdition.raiseShield(bot, false);
+    assert.deepEqual(controls, [['sneak', true], ['sneak', false]]);
+});
+
 test('a Bedrock bot feels a hit from the side opposite the push it gets', () => {
     const listeners = {};
     const bot = { entity: { id: 3 }, _client: { on: (name, fn) => { listeners[name] = fn; }, off() {} } };
