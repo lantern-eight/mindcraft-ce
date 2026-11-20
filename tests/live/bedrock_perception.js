@@ -14,7 +14,7 @@ import { once } from 'node:events';
 import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
 
 const NAME = 'BedrockSight';
 const { step, summary } = createReport();
@@ -79,6 +79,7 @@ try {
         bot.on('error', error => console.error('Bot error:', error.message));
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
+        await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
         const ground = bot.entity.position.floored();
         origin = ground.offset(0, 40, 0); // the platform's middle
         await cmd('gamerule domobspawning false');

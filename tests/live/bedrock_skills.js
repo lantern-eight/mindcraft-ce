@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshBot, freshStart } from './bedrock_fixture.js';
 
 const NAME = 'BedrockSkills';
 const FRIEND = 'BedrockFriend';
@@ -81,6 +81,7 @@ async function friendAt(dx, dy, dz) {
         friend = initBot(FRIEND);
         friend.on('error', error => console.error('Second bot error:', error.message));
         await Promise.race([once(friend, 'spawn'), delay(30000).then(() => { throw new Error('The second bot did not spawn within 30 s'); })]);
+        await freshBot(server, friend); // nothing left from a last run in its hands
         await delay(2000);
     }
     await cmd(`tp ${FRIEND} ${xyz(at(dx, dy, dz))}`, 900);
@@ -598,6 +599,7 @@ try {
         bot.on('error', error => console.error('Bot error:', error.message));
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
+        await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
         // What the agent gives a bot before any skill runs.
         bot.modes = { pause() {}, unpause() {}, isOn: () => false };
         bot.output = '';

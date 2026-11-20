@@ -63,6 +63,47 @@ export function bedrockTestSettings(server) {
     return { minecraft_edition: 'bedrock', minecraft_version: server.version, host: server.host, port: server.port, auth: 'offline' };
 }
 
+// The world rules every script starts from: the game's own defaults, which a script may then change for its
+// run. They are set again at every start because the world is shared between runs, and a run that was killed,
+// or one that changed a rule and didn't put it back, would otherwise hand the change to the next script.
+const DEFAULT_RULES = ['keepinventory false', 'doimmediaterespawn false', 'dodaylightcycle true', 'doweathercycle true',
+    'domobspawning true', 'domobloot true', 'mobgriefing true', 'naturalregeneration true'];
+
+/**
+ * Puts the shared test world and these bots back the way every script expects them, before it sets up its own
+ * scene: the game's default rules, peaceful, noon, clear weather; each bot in survival with nothing in its
+ * inventory and no effects; and each bot back down on the world's own ground if a run left it standing on
+ * something it built (the scripts build 40 blocks above the bot, so a bot left up there would build the next
+ * scene 40 blocks higher still). What a killed run built stays; docs/bedrock.md says how to start a fresh
+ * world. Without a console it does nothing: the steps that need one are skipped anyway.
+ * @param {object} server - from bedrockTestServer()
+ * @param {object[]} bots - the bots of this script, joined and spawned
+ */
+export async function freshStart(server, bots) {
+    if (!server.hasConsole) return;
+    for (const rule of DEFAULT_RULES) await server.command(`gamerule ${rule}`, 100);
+    for (const line of ['difficulty peaceful', 'time set noon', 'weather clear']) await server.command(line, 100);
+    for (const bot of bots) await freshBot(server, bot);
+}
+
+/**
+ * The bot's part of freshStart alone, for a bot that joins after the script has set up its world.
+ * @param {object} server - from bedrockTestServer()
+ * @param {object} bot - joined and spawned
+ */
+export async function freshBot(server, bot) {
+    if (!server.hasConsole) return;
+    const name = bot.username;
+    for (const line of [`gamemode survival ${name}`, `clear ${name}`, `effect ${name} clear`]) await server.command(line, 100);
+    // Down to the world's own ground: the lowest grass under the bot, the flat world's top layer. Not the first
+    // grass met on the way down, which may be a scene's, built on a floor a run left behind.
+    const feet = bot.entity.position.floored();
+    const bottom = bot.game?.minY ?? -64;
+    let ground = null;
+    for (let y = feet.y - 1; y >= bottom; y--) if (bot.blockAt(feet.offset(0, y - feet.y, 0))?.name === 'grass_block') ground = y;
+    if (ground !== null && ground !== feet.y - 1) await server.command(`tp ${name} ${feet.x + 0.5} ${ground + 1} ${feet.z + 0.5}`, 2500);
+}
+
 /**
  * The steps of a live script, printed one line of JSON each, the way the Java live scripts print theirs.
  *

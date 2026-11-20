@@ -81,14 +81,15 @@ export function createCreeperReflex({ now = Date.now, orders = null } = {}) {
             underground = Boolean(block) && block.boundingBox !== 'empty';
         }
         const carried = bot.inventory?.items?.().map(item => item.name) ?? [];
+        const meleeOf = editionOf(bot.registry).meleeOf;
         return {
             position: { x: position.x, y: position.y, z: position.z },
             health: bot.health ?? 20,
             gameMode: bot.game?.gameMode,
             edition: editionOf(bot.registry).name,
             underground,
-            hitsNeeded: hitsNeeded(carried),
-            armed: bestWeapon(carried) !== null,
+            hitsNeeded: hitsNeeded(carried, meleeOf),
+            armed: bestWeapon(carried, meleeOf) !== null,
         };
     }
 

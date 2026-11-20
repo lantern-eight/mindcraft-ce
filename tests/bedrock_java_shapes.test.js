@@ -410,3 +410,26 @@ test('with no ticks coming, the steps give up in time and let go of the controls
     assert.equal(controls.forward, false);
     assert.equal(controls.sneak, false);
 });
+
+// The adapter lets go of every key by writing its own table; on Java each goes through setControlState, which
+// the agent wraps so that a stopped action can't touch the keys of the one after it.
+test('letting go of every key goes through setControlState, so a wrapper of it sees each key', () => {
+    const pressed = { forward: true, back: false, left: false, right: false, jump: false, sprint: true, sneak: false };
+    const bot = {
+        setControlState(key, state) { pressed[key] = state; },
+        clearControlStates() { for (const key of Object.keys(pressed)) pressed[key] = false; },
+        controlState: {},
+    };
+    for (const key of Object.keys(pressed)) Object.defineProperty(bot.controlState, key, { enumerable: true, get: () => pressed[key] });
+    javaShapes(bot);
+    // As the agent's guard does once an action is stopped: its key presses are ignored, so must be its letting go.
+    const original = bot.setControlState;
+    let stopped = true;
+    bot.setControlState = (key, state) => { if (!stopped) original(key, state); };
+    bot.clearControlStates();
+    assert.equal(pressed.forward, true, 'a stopped action let go of nothing');
+    assert.equal(pressed.sprint, true);
+    stopped = false;
+    bot.clearControlStates();
+    assert.ok(Object.values(pressed).every(state => state === false), 'the owner lets go of every key');
+});

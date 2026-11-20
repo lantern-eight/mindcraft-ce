@@ -6,7 +6,6 @@
 //   retreatFrom(bot, options)     the same, away from several threats at once
 //   hitAndStepBack(bot, options)  one sprint-hit at a creeper, which knocks it back, then back off
 //   takeCover(bot, options)       walk to the nearest spot a mob's line of sight doesn't reach
-//   fightOne(bot, options)        fight one mob until it is gone, or until told to stop
 //
 // A creeper's fuse is the clock: from lit to the blast is 1.5 s. So the first step away must not wait on
 // a path search. If the ground straight away from the threat is open and safe, the bot sprints that way
@@ -20,6 +19,7 @@
 // bot has seen (fair_legs.js), like every other walk.
 import pf from 'mineflayer-pathfinder';
 import { worldQueries } from '../library/world_queries.js';
+import { editionOf } from '../edition/index.js';
 import { bestWeapon } from './decide.js';
 
 const HAZARD = /lava|fire|magma|cactus|campfire|sweet_berry|powder_snow|wither_rose/; // flowing_lava too
@@ -196,7 +196,7 @@ function awayGoal(threats, to) {
  * @param {number} [options.to]
  */
 export async function hitAndStepBack(bot, { creeper, inReach, to = 8, report = () => {} }) {
-    const weapon = bestWeapon(bot.inventory.items().map(item => item.name));
+    const weapon = bestWeapon(bot.inventory.items().map(item => item.name), editionOf(bot.registry).meleeOf);
     if (weapon && bot.heldItem?.name !== weapon) {
         const item = bot.inventory.items().find(i => i.name === weapon);
         if (item) await bot.equip(item, 'hand');
@@ -337,44 +337,6 @@ export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, re
     } finally {
         bot.pathfinder.setGoal(null);
         bot.clearControlStates();
-    }
-    return { ended };
-}
-
-// ---- The fight ----
-
-/**
- * Fights one mob, with the best weapon carried, until it is gone from view, until `stop()` says so, or
- * until the action is stopped. The combat plugin does the hitting and the following; it never chases the
- * mob out of the fight's range.
- * @param {object} bot
- * @param {object} options
- * @param {() => object|null} options.target - the mob as the bot sees it now, or null
- * @param {() => boolean} [options.stop]
- * @param {number} [options.maxMs]
- * @returns {Promise<{ended: string}>}
- */
-export async function fightOne(bot, { target, stop = () => false, maxMs = 30000 }) {
-    const weapon = bestWeapon(bot.inventory.items().map(item => item.name));
-    if (weapon && bot.heldItem?.name !== weapon) {
-        const item = bot.inventory.items().find(i => i.name === weapon);
-        if (item) await bot.equip(item, 'hand');
-    }
-    const started = Date.now();
-    let mob = target(), ended = null;
-    if (!mob) return { ended: 'gone' };
-    try {
-        bot.pvp.attack(mob);
-        while (!ended) {
-            await wait(250);
-            mob = target();
-            if (bot.interrupt_code) ended = 'stopped';
-            else if (!mob) ended = 'gone';
-            else if (stop()) ended = 'stopped';
-            else if (Date.now() - started > maxMs) ended = 'out of time';
-        }
-    } finally {
-        bot.pvp.stop();
     }
     return { ended };
 }

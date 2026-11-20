@@ -5,6 +5,8 @@ import {once} from 'node:events';
 // Fork hook: reuse what the server jar unpacks on first start (see the helper).
 import {jarCacheArgs} from '../helpers/server_jar_cache.js';
 import {GAME_VERSION} from '../helpers/game_version.js';
+// Fork hook: clear away the worlds of earlier runs (see the helper).
+import {pruneTestWorlds} from '../helpers/test_worlds.js';
 export const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 export async function waitFor(check,timeout=30000,detail=()=> '') {
     const started=Date.now();
@@ -15,6 +17,7 @@ export async function waitFor(check,timeout=30000,detail=()=> '') {
 }
 // Fork hook: `properties` overrides server.properties lines, e.g. normal terrain and a seed for the timing bench.
 export async function vanillaFixture(port=55918,{properties={}}={}) {
+    pruneTestWorlds();
     const dir=path.resolve(`server_data/agent-verification-${Date.now()}`);
     const jar=path.resolve(process.env.MC_TEST_SERVER_JAR||'server_data/local-test/server.jar');
     if(!existsSync(jar)) throw new Error(`Set MC_TEST_SERVER_JAR to a Minecraft Java ${GAME_VERSION} server jar`);

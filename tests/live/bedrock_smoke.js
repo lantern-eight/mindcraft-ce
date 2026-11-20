@@ -16,7 +16,7 @@ import Vec3 from 'vec3';
 import pathfinderPlugin from 'mineflayer-pathfinder';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
 
 const { Movements, goals } = pathfinderPlugin;
 const NAME = 'BedrockSmoke';
@@ -52,6 +52,7 @@ try {
         bot.on('error', error => console.error('Bot error:', error.message));
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500); // the chunks around the bot arrive after the spawn
+        await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
         assert.equal(bot.registry.version.type, 'bedrock');
         assert.equal(bot.game.gameMode, 'survival', 'the test world should be in survival');
         return { version: bot.version, gameMode: bot.game.gameMode, dimension: bot.game.dimension };
