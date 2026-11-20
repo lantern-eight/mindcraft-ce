@@ -89,6 +89,13 @@ test('the leash is on where the bot goes, not where the mob is: a mob against a 
     assert.equal(withinLeash({ x: 15.6, y: 64, z: 0.5 }, home, 3), false, 'it would have to go past 12');
 });
 
+test('an archer backing away is followed farther: it shoots wherever the bot stops', () => {
+    const home = { x: 0.5, y: 64, z: 0.5 };
+    const skeleton = x => ({ name: 'skeleton', position: { x, y: 64, z: 0.5 } });
+    assert.equal(withinLeash({ x: 20.5, y: 64, z: 0.5 }, home, 3, { name: 'zombie' }), false, 'a zombie that far is let be');
+    assert.equal(withinLeash(skeleton(20.5).position, home, 3, skeleton(20.5)), true, 'a skeleton is followed');
+    assert.equal(withinLeash(skeleton(28.5).position, home, 3, skeleton(28.5)), false, 'but not past 24');
+});
 
 // A bot on a flat stone floor (its top at y 63), holding a stone sword with a shield in the off-hand, that
 // writes down what it does: the use of the off-hand, its keys, its swings.

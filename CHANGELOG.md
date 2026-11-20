@@ -33,6 +33,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - The fight gave up on a mob it kept hitting, as "not getting closer": a mob hit is knocked back, and catching up
   to hit it again brought the bot no nearer than the first time. Having the mob in reach now counts as getting
   somewhere.
+- The fight stopped following a skeleton 12 blocks from where the fight began, and stood there being shot until
+  it gave up: a skeleton backs away as it shoots. It now follows an archer up to 24 blocks.
 
 ### Changed
 

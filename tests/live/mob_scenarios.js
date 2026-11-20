@@ -400,7 +400,7 @@ try {
             await cmd('summon skeleton 10.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await waitFor(() => raw('skeleton').length === 0, 45000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
             assert.ok(decided('self_defense').length >= 1, JSON.stringify(decided()));
-            assert.equal(decided('mob_safety').filter(e => e.stance === 'take_cover').length, 0, 'no cover');
+            assert.equal(decided('mob_safety').filter(e => e.stance === 'take_cover').length, 0, `no cover: ${JSON.stringify(events.filter(e => e.event === 'decided' || e.event === 'done'))}`);
             return { fights: decided('self_defense').length, damage, lowestHealth };
         } finally {
             await order('skeletons', 'default', 0, 0);
