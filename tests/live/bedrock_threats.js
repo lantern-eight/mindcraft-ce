@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
 
 const NAME = 'BedrockWary';
 const { step, summary } = createReport();
@@ -106,6 +106,7 @@ try {
         bot.on('error', error => console.error('Bot error:', error.message));
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
+        await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
         origin = bot.entity.position.floored().offset(0, 40, 0);
         await cmd('gamerule domobspawning false');
         await cmd('gamerule mobgriefing false');

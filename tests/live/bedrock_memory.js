@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
 
 const NAME = 'BedrockMemory';
 const { step, summary } = createReport();
@@ -62,6 +62,7 @@ try {
         bot.on('error', error => console.error('Bot error:', error.message));
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
+        await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
         origin = bot.entity.position.floored().offset(0, 40, 0);
         await buildScene(); // straight above the bot, in chunks it already has
         await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y + 1} ${origin.z + 0.5}`, 2500);

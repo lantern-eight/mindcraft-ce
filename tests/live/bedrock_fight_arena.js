@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, delay, freshStart } from './bedrock_fixture.js';
 import { ROUNDS, createMeter, summarize, printSummary } from './arena_meter.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
@@ -74,6 +74,7 @@ try {
     bot.on('error', error => console.error('Bot error:', error.message));
     await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
     await delay(2500);
+    await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
     origin = bot.entity.position.floored().offset(0, 40, 0);
 
     const messages = [], events = [];

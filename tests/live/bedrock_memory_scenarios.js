@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
 
 const NAME = 'BedrockRecall';
 const { step, summary } = createReport();
@@ -91,6 +91,7 @@ try {
         bot.on('error', error => console.error('Bot error:', error.message));
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
+        await freshStart(server, [bot]); // the world as a script expects it, whatever the last run left
         for (const method of ['write', 'queue']) {
             const send = bot._client[method].bind(bot._client);
             bot._client[method] = (name, ...rest) => { sent.push(name); return send(name, ...rest); };

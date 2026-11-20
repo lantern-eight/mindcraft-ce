@@ -297,6 +297,13 @@ blocks of the spawn. With `--clear` it fills that space with air from the consol
 does so only on a flat world like the one above (grass at y -61), and stops without changing anything on any
 other.
 
+The world is shared between runs, so each script starts by putting back what it can from the console
+(`freshStart` in `bedrock_fixture.js`): the game's default rules (a script then changes what it needs for its
+run), peaceful, noon, its bots in survival with empty hands and no effects, and each bot back down on the grass
+if a run left it standing on something built. That keeps a rule or an inventory one run left behind from failing
+the next. It doesn't take away what was built; for that, `bedrock_spawn_check.js --clear`, or a fresh world
+(stop the server, delete or move its world folder, start it again).
+
 ## Where Things Are
 
 | | |
