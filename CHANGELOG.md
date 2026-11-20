@@ -9,6 +9,15 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.9.0-bedrock.1.10.0] - 2026-11-19
+
+A release for both editions. The fight fights the way a player does: it swings when the weapon has recharged
+(a copper sword used to swing at a third of its damage), measures reach from the eye, steps back between swings
+when mobs crowd it, and goes straight on to the next mob. In a new fight arena, measured on both editions, every
+armed kit now wins nearly every round, with half the swings and a fraction of the damage. A well-armed bot also
+takes on more by its own judgment: three melee mobs and a skeleton with a sword, two skeletons in full iron. No
+fixes to inherited code. Built on the same Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
 ### Fixed
 
 - A mob the bot was told to fight, and gave up fighting (it couldn't reach it, or after 30 s), was neither
@@ -922,7 +931,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...HEAD
+[1.9.0-bedrock.1.10.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...v1.9.0-bedrock.1.10.0
 [1.8.0-bedrock.1.9.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...v1.8.0-bedrock.1.9.0
 [1.7.1-bedrock.1.8.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.1...v1.7.1-bedrock.1.8.2
 [1.7.1-bedrock.1.8.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.0-bedrock.1.8.0...v1.7.1-bedrock.1.8.1
