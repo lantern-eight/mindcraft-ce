@@ -71,7 +71,7 @@ try {
         await cmd('difficulty peaceful', 1000);
         await cmd('difficulty normal');
         await waitFor(() => !agent?.actions.executing, 15000, () => 'the reflex is still moving');
-        for (let x = -30; x < 30; x += 15) await fill([x, 1, -30], [x + 14, 6, 30], 'air');
+        for (let x = -30; x <= 30; x += 15) await fill([x, 1, -30], [Math.min(x + 14, 30), 6, 30], 'air'); // to 30, the floor's edge
         await fill([-30, 0, -30], [30, 0, 30], 'stone');
         await cmd(`effect ${NAME} clear`);
         // Each scene gives the bot what it needs: a sword left from the last one would change what the
@@ -432,7 +432,7 @@ try {
         // its next scenes 40 blocks higher still.
         if (origin) {
             await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y - 39} ${origin.z + 0.5}`, 1500);
-            for (let x = -30; x < 30; x += 15) await fill([x, 0, -30], [x + 14, 6, 30], 'air');
+            for (let x = -30; x <= 30; x += 15) await fill([x, 0, -30], [Math.min(x + 14, 30), 6, 30], 'air');
         }
     } catch { /* the console is gone */ }
     console.log(JSON.stringify(summary()));
