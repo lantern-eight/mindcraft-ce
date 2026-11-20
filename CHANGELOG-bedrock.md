@@ -12,9 +12,18 @@ Bedrock part above it.
 
 ## [Unreleased]
 
+## [1.9.0-bedrock.1.10.2] - 2026-11-20
+
+The first release of `bedrock`'s pins alone: the Bedrock adapter it pins now has the fix for letting go of keys,
+which `main`'s 1.9.0-bedrock.1.10.1 lists among the offers upstream. `main`'s next release takes a Bedrock part
+above this one.
+
 ### Changed
 
 - The pinned Bedrock adapter (`lantern-eight/mineflayer` `bedrock-combined`, now at `8c8a368`) lets go of every key
   through `setControlState`, as mineflayer does on Java, with the fix offered to its author
   ([Pix3lPirat3/mineflayer#17](https://github.com/Pix3lPirat3/mineflayer/pull/17)). The bot already let go of its
   keys that way since 1.9.0-bedrock.1.10.0, so nothing changes for a player.
+
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.2...bedrock
+[1.9.0-bedrock.1.10.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.9.0-bedrock.1.10.2
