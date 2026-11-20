@@ -239,8 +239,11 @@ play's perception. On Bedrock the shield goes up by sneaking, as a Bedrock playe
 changes between its taking a target and each arrow. But it shoots on a fixed beat, every 3 s (2 s on hard),
 and each shot twangs. So the bot does what a Bedrock player does: it hears each shot (fair play's hearing, a
 direction and a rough distance), takes it as the skeleton it sees on that side, and holds the shield up from
-just before the next shot is due until the arrow lands (`shot_beat.js`). The first arrow comes unwarned. In a
-walled pen with no cover, an unarmed bot took 4 damage from a skeleton with a shield, against 11 without.
+just before the next shot is due until the arrow lands (`shot_beat.js`). The first arrow comes unwarned. It
+does so backing out of a skeleton's range with no cover near: in a walled pen, an unarmed bot took 4 damage
+from a skeleton with a shield, against 11 without. The fight doesn't keep the beat: it mostly kills a skeleton
+before its beat counts, and in the Bedrock arena keeping it blocked about an arrow a round and cost more than
+that in time stood still (the mixed round, six runs each: 8.5 damage with it, 6.5 without, every round won).
 
 ## Standing Orders
 

@@ -15,8 +15,8 @@
 // the bot makes keeps clear of an enderman's eyes (gaze.js).
 //
 // A carried shield goes in the off-hand, and the moves raise it where a player would (shield.js): when an
-// archer draws its bow, or, where the game shows no bow drawn (Bedrock), when the beat of its shots heard says
-// the next is due (shot_beat.js). The
+// archer draws its bow, or, backing out of its range where the game shows no bow drawn (Bedrock), when the beat
+// of its shots heard says the next is due (shot_beat.js). The
 // shield, eating and the swing share the use-item channel (item_use.js), one owner at a time, so a meal
 // doesn't drop the shield mid-block and the shield doesn't cut a meal short.
 //
@@ -87,7 +87,7 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     registerMode(mob.mode, { after: creeper.mode.name });
     mob.watch(agent.bot);
     // The fight keeps the stock switch's state: on unless the profile or a command said otherwise.
-    fight = createFightReflex({ claims, orders, shield, use, beat });
+    fight = createFightReflex({ claims, orders, shield, use });
     fight.mode.on = agent.bot.modes.exists('self_defense') ? agent.bot.modes.isOn('self_defense') : true;
     registerMode(fight.mode, { after: 'cowardice' });
     fight.watch(agent.bot);

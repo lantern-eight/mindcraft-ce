@@ -77,10 +77,11 @@ export function createMeter(bot, { brink = 0, onBrink = () => {} } = {}) {
             const r = round;
             round = null;
             const killed = [...r.ids].filter(id => r.dead.has(id) || !bot.entities[id]).length;
+            const left = [...r.ids].filter(id => !r.dead.has(id) && bot.entities[id]).map(id => bot.entities[id].name);
             const ran = events.some(e => e.event === 'decided' && e.mode === 'mob_safety');
             const outcome = r.died ? 'died' : killed === r.ids.size ? 'won' : ran ? 'ran' : 'timed out';
             const landed = r.swings.filter(s => s.landed).length;
-            return { ...fields, outcome, seconds: round1((Date.now() - r.startedAt) / 1000), killed, of: r.ids.size,
+            return { ...fields, outcome, seconds: round1((Date.now() - r.startedAt) / 1000), killed, of: r.ids.size, left,
                 damage: round1(r.damage), lowestHealth: round1(r.lowest), swings: r.swings.length, landed,
                 swingsPerKill: killed ? round1(r.swings.length / killed) : null,
                 fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length,

@@ -21,7 +21,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   skeleton shows no bow drawn.
 - Backing out of an archer's range with no cover near, the bot stops behind its shield the same way while the
   bow is drawn. In a walled pen it couldn't get out of, an unarmed bot took no damage from a skeleton with a
-  shield, and 8 without.
+  shield, and 8 without. On Bedrock, where no bow is seen drawn, it goes by the beat of the skeleton's shots
+  instead: a shot every 3 s, each heard, so the shield is up as the next is due. There the same pen cost 4
+  damage with a shield (the first arrow comes unwarned), and 11 without.
 - A bot backing off from a lit creeper it can't get clear of in time (it is cornered, or the fuse is nearly out)
   stops and holds its shield up toward it, which stops the blast. Cornered in a dead end, it took no damage, on
   both editions; on Bedrock it holds the shield up by sneaking, as a Bedrock player does.

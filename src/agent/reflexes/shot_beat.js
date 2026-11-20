@@ -10,7 +10,8 @@
 // and each shot twangs. A player who hears it learns the beat and raises the shield as the next one is due.
 // This is that: each shot heard is matched to the archer seen on that side, and a short while either side of
 // one beat on from it, that archer counts as about to shoot. The shield then goes up as for a bow drawn on
-// Java (shield.js), and stays up until the arrow lands.
+// Java (shield.js), and stays up until the arrow lands. The mob reflex keeps the beat as it backs out of an
+// archer's range with no cover near; the fight doesn't (fight_reflex.js says why).
 //
 // What it goes by is what a player has. The sound comes from fair play's hearing, which gives only what it is
 // (a skeleton shooting), a direction and a rough distance, never where; the archer is one the bot sees on that

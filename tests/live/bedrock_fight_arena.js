@@ -2,7 +2,8 @@
 // The fight arena on a real Bedrock Dedicated Server: how well the bot fights, measured (no model calls,
 // free to run).
 //   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_fight_arena.js
-//       [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>] [--orders=none] [--out=<file for the results as JSON>]
+//       [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>] [--orders=none] [--shield=nobeat]
+//       [--out=<file for the results as JSON>]
 // bedrock_fixture.js explains the variables; docs/bedrock.md shows a throwaway server to point them at.
 // NEVER a world you care about: it builds an arena, fills it with mobs and lets the bot die in it.
 //
@@ -25,6 +26,8 @@ import { ROUNDS, createMeter, summarize, printSummary } from './arena_meter.js';
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const RUNS = Number(arg('runs') || 3);
 const ONLY = arg('only'), KIT = arg('kit'), OUT = arg('out');
+// --shield=nobeat: the shield doesn't keep the beat of a skeleton's shots, to measure what the beat gives.
+const NO_BEAT = arg('shield') === 'nobeat';
 // --orders=none: no orders to fight, so the bot goes by its own judgment (and the built-in orders), and the
 // arena shows what its gear lets it take on rather than how a fight it was told to take goes.
 const ORDERS = arg('orders') !== 'none';
@@ -72,6 +75,8 @@ try {
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
     const { getCommand } = await import('../../src/agent/commands/index.js');
+    const { shieldTuning } = await import('../../src/agent/reflexes/shield.js');
+    shieldTuning.beat = !NO_BEAT;
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -170,7 +175,7 @@ try {
                 await waitFor(() => raw(kinds).length === scene.mobs.length, 8000, () => `${raw(kinds).length} of ${scene.mobs.length} mobs seen`);
                 meter.start(raw(kinds));
                 await waitFor(() => meter.over(), 50000);
-                const result = meter.finish({ kit: kit.name, round: scene.name, run, edition: 'bedrock', orders: ORDERS }, events, messages);
+                const result = meter.finish({ kit: kit.name, round: scene.name, run, edition: 'bedrock', orders: ORDERS, beat: !NO_BEAT }, events, messages);
                 results.push(result);
                 console.log(JSON.stringify(result));
             }

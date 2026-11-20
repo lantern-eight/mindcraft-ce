@@ -13,7 +13,7 @@ import * as mc from '../../utils/mcdata.js';
 import settings from '../settings.js';
 import { editionOf } from '../edition/index.js';
 import { bestWeapon } from './decide.js';
-import { offHandOf } from './shield.js';
+import { offHandOf, shieldTuning } from './shield.js';
 
 const LOOK_WITHIN = 24;
 
@@ -41,7 +41,7 @@ export function mobsAround(bot, dying = new Set(), beat = null) {
                 distance: entity.position.distanceTo(here), seenNow,
                 aiming: seenNow && edition.isAiming(bot.registry, entity, eye),
                 drawing: seenNow && (edition.isDrawing(bot.registry, entity, eye)
-                    || Boolean(beat?.due(entity.id, edition.shotBeatMs(entity.name, bot.game?.difficulty)))),
+                    || (shieldTuning.beat && Boolean(beat?.due(entity.id, edition.shotBeatMs(entity.name, bot.game?.difficulty))))),
                 aggressive: seenNow && edition.isAggressive(bot.registry, entity),
             };
         });

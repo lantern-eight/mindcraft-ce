@@ -46,8 +46,12 @@ const UNBLOCKED = new Set(['witch']);
  *   betweenSwings  raise it while the weapon recharges, with the mob in reach. Off: in the Java arena it saved
  *                  nothing and cost a little (a lone skeleton 4 damage instead of none), as LarsHamb's
  *                  arena found too
+ *   beat           where the game shows no bow drawn (Bedrock), raise it as an archer's next shot is due, by the
+ *                  beat of its shots heard (shot_beat.js), when backing out of its range. Off only to measure
+ *                  what that gives. (The fight doesn't keep the beat: in the Bedrock arena it blocked about an
+ *                  arrow a round, and cost more in time stood still.)
  */
-export const shieldTuning = { betweenSwings: false };
+export const shieldTuning = { betweenSwings: false, beat: true };
 
 /** What is in the bot's off-hand, or null. */
 export function offHandOf(bot) {
