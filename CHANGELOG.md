@@ -11,16 +11,20 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Added
 
-- The fight uses a shield. A shield the bot carries goes in its off-hand when a fight starts, and while an archer
-  it sees is drawing its bow, with the mob it fights out of reach, the bot stops, faces the archer and holds the
-  shield up until the arrow lands, then lowers it and goes on. It does so only when every archer aiming at it is
-  on the side it faces: a shield covers one side. The shield is down to move and to swing, as a player's must
-  be. On Java Edition only: a Bedrock skeleton shows no bow drawn.
+- The fight uses a shield. A shield the bot carries goes in its off-hand when a fight starts, and while an
+  archer it sees is drawing its bow, with the mob it fights out of reach, the bot stops, faces the archer and
+  holds the shield up until the arrow lands, then lowers it and goes on. It does so only when every archer
+  aiming at it is on the side it faces: a shield covers one side. The shield is down to move and to swing, as a
+  player's must be. In the fight arena on Java, a stone sword and a shield beat a lone skeleton with no damage
+  taken (4 without the shield), two skeletons with 4 (8), and two zombies, a skeleton and a spider with 6 (16);
+  fights with archers take longer, since the bot stands while it blocks. On Java Edition only: a Bedrock
+  skeleton shows no bow drawn.
 - Backing out of an archer's range with no cover near, the bot stops behind its shield the same way while the
   bow is drawn. In a walled pen it couldn't get out of, an unarmed bot took no damage from a skeleton with a
   shield, and 8 without.
 - A bot backing off from a lit creeper it can't get clear of in time (it is cornered, or the fuse is nearly out)
-  stops and holds its shield up toward it, which stops the blast. Cornered in a dead end, it took no damage.
+  stops and holds its shield up toward it, which stops the blast. Cornered in a dead end, it took no damage, on
+  both editions; on Bedrock it holds the shield up by sneaking, as a Bedrock player does.
 
 ### Changed
 

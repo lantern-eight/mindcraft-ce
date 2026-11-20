@@ -43,8 +43,9 @@ const UNBLOCKED = new Set(['witch']);
 /**
  * Settings the fight arena may change to measure them (tests/live/fight_arena.js). Not a player's setting:
  * what the arena shows to pay is what the bot does.
- *   betweenSwings  raise it while the weapon recharges, with the mob in reach. Off unless the arena shows it
- *                  pays: LarsHamb's arena found it made the fight weaker
+ *   betweenSwings  raise it while the weapon recharges, with the mob in reach. Off: in the Java arena it saved
+ *                  nothing and cost a little (a lone skeleton 4 damage instead of none), as LarsHamb's
+ *                  arena found too
  */
 export const shieldTuning = { betweenSwings: false };
 
