@@ -70,8 +70,6 @@ try {
     bot.on('error', error => console.error('Bot error:', error.message));
     await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
     await delay(2500);
-    // A dead bot comes back at once, so a round it lost doesn't end the run.
-    bot.on('death', () => setTimeout(() => { try { bot.respawn?.(); } catch { /* it may already be back */ } }, 1000));
     origin = bot.entity.position.floored().offset(0, 40, 0);
 
     const messages = [], events = [];
@@ -111,6 +109,9 @@ try {
     await cmd('gamerule mobgriefing false');
     await cmd('gamerule keepinventory true');
     await cmd('gamerule dodaylightcycle false');
+    // A bot that dies here sometimes stays dead: the pinned libraries don't always finish the respawn the server
+    // starts (docs/bedrock.md, Known Gaps). Respawning at once, with no death screen, always comes back.
+    await cmd('gamerule doimmediaterespawn true');
 
     // A stone floor 40 blocks above where the bot spawned, walled 10 blocks out on every side and 4 high,
     // at midnight, as on Java.
