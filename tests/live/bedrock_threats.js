@@ -69,7 +69,7 @@ try {
 
     let agent, reflexes;
     const messages = [], events = [];
-    let lowestHealth = 20;
+    let lowestHealth = 20, blocked = 0;
     const rawCreeper = () => Object.values(bot.entities).find(e => e.name === 'creeper') ?? null;
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 2 });
 
@@ -140,6 +140,10 @@ try {
         assert.ok(reflexes, 'the threat reflexes installed');
         bot.on('threat_reflex', event => events.push(event));
         bot.on('health', () => { lowestHealth = Math.min(lowestHealth, bot.health); });
+        // A hit the bot's shield stopped: the shield's block sound, where the bot stands.
+        bot._client.on('level_sound_event', packet => {
+            if (packet?.sound_id === 'item.shield.block' && bot.entity && bot.entity.position.distanceTo(packet.position) < 2) blocked++;
+        });
         bot.on('idle', () => { bot.clearControlStates(); bot.pathfinder.stop(); bot.modes.unPauseAll(); });
         (async () => {
             while (running) {
@@ -323,6 +327,29 @@ try {
         assert.notEqual(aimingAt, null, `it was never seen facing the bot: yaw ${skeleton.yaw}, head ${skeleton.headYaw}`);
         return { flagsFirstSetMs: flags, isAimingAfterMs: aimingAt };
     });
+
+    // No cover near, and no getting out of range: a pen walled 8 blocks out, as in the Java scene. Unarmed, so the
+    // fight doesn't rush the skeleton. A Bedrock skeleton shows no bow drawn, but shoots on a beat, each shot
+    // heard: with a shield the bot stands behind it as the next one is due. Its first arrow comes unwarned.
+    for (const shield of [false, true]) {
+        await step(`a skeleton in a walled pen with no cover, the bot unarmed${shield ? ' with a shield it is given: it blocks the shots it hears coming' : ', no shield: the damage it takes'}`, async () => {
+            await reset();
+            await cmd('time set midnight'); // a skeleton burns by day
+            for (const [a, b] of [[[-8, 1, -8], [8, 4, -8]], [[-8, 1, 8], [8, 4, 8]], [[-8, 1, -8], [-8, 4, 8]], [[8, 1, -8], [8, 4, 8]]])
+                await fill(a, b, 'stone');
+            if (shield) await cmd(`give ${NAME} shield`);
+            await delay(1500);
+            const blocksBefore = blocked;
+            const spot = at(5, 1, 0);
+            await cmd(`summon skeleton ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+            await delay(15000);
+            await cmd('time set noon');
+            const raised = events.filter(e => e.event === 'shield').length;
+            if (shield) assert.ok(raised > 0 && blocked > blocksBefore, `the shield went up (${raised}) and stopped arrows (${blocked - blocksBefore}): ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
+            else assert.equal(raised, 0);
+            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, blocked: blocked - blocksBefore };
+        });
+    }
 
     await step('a hit from a zombie to the south: the server pushes the bot north, and the hit is felt from the south', async () => {
         await reset();

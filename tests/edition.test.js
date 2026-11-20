@@ -224,6 +224,10 @@ test('Java reads a shot about to be loosed: a bow drawn, a crossbow loading or h
     assert.equal(javaEdition.isDrawing(registry, null), false);
 });
 
+test('Java gives no beat to an archer\'s shots: its draw is there to see', () => {
+    assert.equal(javaEdition.shotBeatMs('skeleton', 'normal'), null);
+});
+
 test('Java raises the shield by using the off-hand, and lowers it by letting go', () => {
     const calls = [];
     const bot = { activateItem: offHand => calls.push(['use', offHand]), deactivateItem: () => calls.push(['let go']) };

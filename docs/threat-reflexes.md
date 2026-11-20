@@ -233,8 +233,14 @@ How it is held, as a player must:
   middle of a meal, and the eating reflex waits for it to come down.
 
 What the bot goes by is what a player sees: a bow drawn, a creeper swelling and flashing, through fair
-play's perception. On Bedrock the shield goes up by sneaking, as a Bedrock player raises it; a Bedrock
-skeleton shows no bow drawn, so there the shield goes up only at a creeper.
+play's perception. On Bedrock the shield goes up by sneaking, as a Bedrock player raises it.
+
+**On Bedrock, by the beat.** A Bedrock skeleton shows no bow drawn: nothing a Bedrock server sends about it
+changes between its taking a target and each arrow. But it shoots on a fixed beat, every 3 s (2 s on hard),
+and each shot twangs. So the bot does what a Bedrock player does: it hears each shot (fair play's hearing, a
+direction and a rough distance), takes it as the skeleton it sees on that side, and holds the shield up from
+just before the next shot is due until the arrow lands (`shot_beat.js`). The first arrow comes unwarned. In a
+walled pen with no cover, an unarmed bot took 4 damage from a skeleton with a shield, against 11 without.
 
 ## Standing Orders
 
@@ -444,8 +450,9 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
   `defendSelf`, `stay`), as the bot's own fight is.
 - **The fight has no bow.** It doesn't jump for critical hits either: whether they pay off in a fight against
   mobs is still to be measured.
-- **A shield blocks only what the bot sees coming.** On Bedrock no skeleton shows a bow drawn, so its arrows
-  are never blocked. Nothing is blocked from a mob out of view, or between swings at a mob in reach (in the
+- **A shield blocks only what the bot sees or hears coming.** On Bedrock no skeleton shows a bow drawn, so
+  its first arrow is never blocked, and the rest only by the beat of its shots heard, which needs fair play's
+  hearing: with fair play off, Bedrock arrows are not blocked. Nothing is blocked from a mob out of view, or between swings at a mob in reach (in the
   arena that saved nothing and cost a little: see "Measured"). Arrows from archers on two sides at once are not
   blocked at all.
 - **Cover is only behind walls.** The bot doesn't build cover, and a skeleton that walks around the wall finds
@@ -480,6 +487,7 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 | `claims.js` | One owner per threat. Pure |
 | `moves.js` | `backOffFrom`, `retreatFrom`, `hitAndStepBack` and `takeCover`, the safe first step, the line of sight over cells the bot knows, and the guard that stops a move behind the shield |
 | `shield.js` | The shield: put in the off-hand, raised and lowered, and which mob a shot is coming from |
+| `shot_beat.js` | The beat of an archer's shots heard, for a game that shows no bow drawn: when the next is due |
 | `item_use.js` | One owner of the use-item channel the shield, eating and a bow share, and the eating plugin made to ask it |
 | `gaze.js` | The guard on every look, for endermen |
 | `danger_zones.js` | The zones: where, how wide, for how long, and what a cell costs to be in. Pure |
@@ -487,7 +495,7 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 
 Outside the folder: `src/agent/action_hold.js` (the hold), `src/agent/library/path_verdicts.js` (the kept
 path verdicts), `src/agent/library/place_costs.js` (the prices on places that every route search pays, which
-other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive`, `onHurt`, `meleeOf` and `survivalReach` questions in the edition seam, `isDrawing` and `raiseShield` for the shield, and
+other features can put prices on too), the `isFusing`, `isAiming`, `isAggressive`, `onHurt`, `meleeOf` and `survivalReach` questions in the edition seam, `isDrawing`, `shotBeatMs` and `raiseShield` for the shield, and
 perception's `onHeard` listener (`src/agent/fairplay/perception.js`), which passes a sound on with what
 `heard()` gives and never its position.
 

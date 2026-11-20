@@ -45,10 +45,11 @@ const LOST_SIGHT_MS = 2000;   // all of them out of view this long while retreat
  * @param {(id: number) => boolean} [options.gaveUp] - whether the fight gave up on a mob lately: an order to
  *     fight it then no longer holds here (ordersAfterGivingUp)
  * @param {object} [options.shield] - the bot's shield (shield.js); none: no shield
+ * @param {object} [options.beat] - the beat of shots heard (shot_beat.js), for a game that shows no bow drawn
  * @param {() => number} [options.now]
  * @returns {{mode: object, round: Function, watch: Function, hits: object[]}}
  */
-export function createMobReflex({ claims, orders = null, gaveUp = () => false, shield = null, now = Date.now }) {
+export function createMobReflex({ claims, orders = null, gaveUp = () => false, shield = null, beat = null, now = Date.now }) {
     const hits = [];          // {at, direction}: hits felt lately, oldest first
     const told = new Map();   // threat key -> when the model was last told about it
     const dying = new Set();  // mobs seen dying
@@ -147,7 +148,7 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
         return {
             shield,
             against: () => {
-                const id = window(shotComing(mobsAround(bot, dying), bot.entity.position));
+                const id = window(shotComing(mobsAround(bot, dying, beat), bot.entity.position));
                 const mob = id === null ? null : mobInView(bot, id);
                 return mob ? { x: mob.position.x, y: mob.position.y + (mob.height ?? 1.8) * 0.8, z: mob.position.z } : null;
             },

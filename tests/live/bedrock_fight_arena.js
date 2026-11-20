@@ -110,6 +110,10 @@ try {
     // is lost "by death" when health falls to 4 or under, and the console heals the bot then: below the 6 where
     // the bot runs, and more than most single hits here (a zombie's 3, a spider's 2) from dying.
     const meter = createMeter(bot, { brink: 4, onBrink: () => { cmd(`effect ${NAME} instant_health 1 10`, 0).catch(() => {}); } });
+    // A Bedrock server tells of a hit a shield stopped with the shield's block sound, where the bot stands.
+    bot._client.on('level_sound_event', packet => {
+        if (packet?.sound_id === 'item.shield.block' && bot.entity && bot.entity.position.distanceTo(packet.position) < 2) meter.blocked();
+    });
 
     // Fight every kind in the arena down to 6 health, the floor no order goes under, as on Java.
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);

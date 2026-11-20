@@ -123,7 +123,7 @@ class HashedStateTable {
 
 // What a Bedrock sound is called, as the word Java uses in its sound names, where the two differ. Hearing
 // reads the Java name ("entity.creeper.primed" is a creeper about to blow).
-const SOUND_WORDS = { fuse: 'primed' };
+const SOUND_WORDS = { fuse: 'primed', bow: 'shoot' };
 // Sounds the server sends that a player doesn't hear: a mob that appears makes no noise.
 const SILENT = new Set(['spawn']);
 // The mob events a Bedrock client plays a cry for, as the word in Java's sound name.
@@ -216,6 +216,10 @@ const BEDROCK_DAMAGE = new Map([
     ...bedrockTier('shovel', { wooden: 2, golden: 2, stone: 3, copper: 3, iron: 4, diamond: 5, netherite: 6 }),
     ['trident', 9],
 ]);
+// How often an archer shoots on Bedrock, in ms, on easy and normal and on hard (see shotBeatMs): each one's
+// ranged attack interval in Mojang's published behavior files.
+const SHOT_BEATS = { skeleton: [3000, 2000], stray: [3000, 2000], bogged: [3500, 2500] };
+
 // A mob hurt can't be hurt again for 10 ticks. With no attack meter, that is how often a swing counts.
 const BEDROCK_HURT_PAUSE_MS = 500;
 
@@ -525,6 +529,20 @@ export const bedrockEdition = Object.freeze({
      */
     meleeOf(itemName) {
         return { damage: BEDROCK_DAMAGE.get(itemName) ?? 1, rechargeMs: BEDROCK_HURT_PAUSE_MS };
+    },
+
+    /**
+     * How often a kind of archer shoots, when it shoots on a fixed beat. A Bedrock skeleton shows no bow drawn
+     * (isDrawing), but its shots keep time: one every 3 s (2 s on hard), a bogged's every 3.5 s (2.5 s), each
+     * with its `bow` sound, which a player hears and learns. Watched on a real server, a skeleton's first shot
+     * came 3.1 s after it took the bot as its target and the rest 3.05 s apart.
+     * @param {string} kind - the mob's name
+     * @param {string} [difficulty] - the game's difficulty, as the bot knows it
+     * @returns {number|null} ms between shots, or null for a mob that keeps no beat
+     */
+    shotBeatMs(kind, difficulty) {
+        const beat = SHOT_BEATS[kind];
+        return beat ? beat[difficulty === 'hard' ? 1 : 0] : null;
     },
 
     /**

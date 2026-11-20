@@ -482,6 +482,15 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * How often a kind of archer shoots, when that is the only way to know a shot is coming. Never on Java:
+     * the bow drawn is there to see (isDrawing), so the shield waits for it rather than for a beat.
+     * @returns {null}
+     */
+    shotBeatMs(kind, difficulty) {
+        return null;
+    },
+
+    /**
      * Raises the shield in the off-hand, or lowers it. A Java player holds the use button with a shield in
      * the off-hand (the main hand's item, a sword, has no use of its own), and lets go to lower it. While it
      * is up the game slows a player to a fifth of a walk and lets it neither sprint nor swing; the shield

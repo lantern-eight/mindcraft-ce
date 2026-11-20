@@ -44,9 +44,10 @@ const UNREACHABLE_MS = 5000;
  * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
  * @param {object} [options.shield] - the bot's shield (shield.js); none: the fight has no shield
  * @param {object} [options.use] - the use-item channel (item_use.js)
+ * @param {object} [options.beat] - the beat of shots heard (shot_beat.js), for a game that shows no bow drawn
  * @param {() => number} [options.now]
  */
-export function createFightReflex({ claims, orders = null, shield = null, use = null, now = Date.now }) {
+export function createFightReflex({ claims, orders = null, shield = null, use = null, beat = null, now = Date.now }) {
     const givenUp = new Map(); // mob id -> until when
     const told = new Map();
     const dying = new Set();
@@ -105,7 +106,7 @@ export function createFightReflex({ claims, orders = null, shield = null, use = 
                 await shield?.ready(); // a carried shield in the off-hand, where a player keeps it
                 // The mob about to loose a shot at the bot, or that just loosed it, as it is seen now: the one to block.
                 const window = shotWindow(now);
-                const coming = () => { const id = window(shotComing(mobsAround(bot, dying), bot.entity.position)); return id === null ? null : see(id); };
+                const coming = () => { const id = window(shotComing(mobsAround(bot, dying, beat), bot.entity.position)); return id === null ? null : see(id); };
                 const outcome = await fightMelee(bot, {
                     first: pick.id, see, foes, shield, use, shotComing: coming,
                     onTarget: entity => claims.claim(`id:${entity.id}`, MODE_NAME, CLAIM_MS),

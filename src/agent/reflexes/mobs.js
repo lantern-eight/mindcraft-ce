@@ -21,11 +21,13 @@ const LOOK_WITHIN = 24;
  * The hostile mobs within 24 blocks, nearest first, as plain objects for the decisions.
  * @param {object} bot
  * @param {Set<number>} [dying] - mobs seen dying, which can't fight any more
+ * @param {object} [beat] - the beat of shots heard (shot_beat.js): an archer whose next shot is due counts as
+ *     drawing, where the game shows no bow drawn
  * @returns {{id:number, name:string, position:object, distance:number, seenNow:boolean, aiming:boolean,
  *     drawing:boolean, aggressive:boolean, height:number}[]} drawing: about to loose a shot (a bow drawn),
  *     the moment to raise a shield
  */
-export function mobsAround(bot, dying = new Set()) {
+export function mobsAround(bot, dying = new Set(), beat = null) {
     const edition = editionOf(bot.registry);
     const here = bot.entity.position;
     const eye = { x: here.x, y: here.y + (bot.entity.eyeHeight ?? 1.62), z: here.z };
@@ -38,7 +40,8 @@ export function mobsAround(bot, dying = new Set()) {
                 position: { x: entity.position.x, y: entity.position.y, z: entity.position.z },
                 distance: entity.position.distanceTo(here), seenNow,
                 aiming: seenNow && edition.isAiming(bot.registry, entity, eye),
-                drawing: seenNow && edition.isDrawing(bot.registry, entity, eye),
+                drawing: seenNow && (edition.isDrawing(bot.registry, entity, eye)
+                    || Boolean(beat?.due(entity.id, edition.shotBeatMs(entity.name, bot.game?.difficulty)))),
                 aggressive: seenNow && edition.isAggressive(bot.registry, entity),
             };
         });
