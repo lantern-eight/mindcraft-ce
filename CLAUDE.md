@@ -107,6 +107,11 @@ editions, and the pins live on a branch of their own.
   -- package.json package-lock.json patches`, `SKIP_BUILD=1 npm ci`, then `git checkout HEAD --
   package.json package-lock.json patches`. `node_modules` isn't tracked, so it stays as installed while the
   branch changes, and the Java tests pass on those libraries too.
+- **To run long Java and Bedrock live scripts at the same time,** do those three steps in a worktree of the
+  working branch instead (`git worktree add --detach <a folder outside the repo> HEAD`), and run the Bedrock
+  scripts from there while the Java ones run in the main checkout. Each has its own `node_modules`, so neither
+  run disturbs the other's libraries. They share the CPU, so compare timings only with runs made the same
+  way. Remove the worktree when done (`git worktree remove`).
 - **A feature is built on `main`, for both editions where both can have it.** Its Bedrock side is answered
   at the edition seam where it needs one, and it is tested live on Java and on Bedrock. A feature that comes
   to Java first gets its Bedrock side in a task of its own, also on `main`; a question it adds to the seam
