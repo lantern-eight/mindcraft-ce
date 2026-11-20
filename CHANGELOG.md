@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.9.0-bedrock.1.10.1] - 2026-11-19
+
+A release for Bedrock Edition's records only: the fix that keeps a stopped action from letting go of the keys of
+the one after it, made on the bot in 1.9.0-bedrock.1.10.0, is offered to the Bedrock adapter, and
+`docs/upstream.md` lists it. Nothing changes for a player. Built on the same Mindcraft-CE commit as
+1.7.1-bedrock.1.8.1.
+
 ## [1.9.0-bedrock.1.10.0] - 2026-11-19
 
 A release for both editions. The fight fights the way a player does: it swings when the weapon has recharged
@@ -931,7 +938,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...HEAD
+[1.9.0-bedrock.1.10.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...v1.9.0-bedrock.1.10.1
 [1.9.0-bedrock.1.10.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...v1.9.0-bedrock.1.10.0
 [1.8.0-bedrock.1.9.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.2...v1.8.0-bedrock.1.9.0
 [1.7.1-bedrock.1.8.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.7.1-bedrock.1.8.1...v1.7.1-bedrock.1.8.2
