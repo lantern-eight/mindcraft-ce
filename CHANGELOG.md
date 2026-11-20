@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- A mob the bot was told to fight, and gave up fighting (it couldn't reach it, or after 30 s), was neither
+  fought nor avoided for the minute after: an archer could shoot the bot where it stood. The bot's own judgment
+  now takes over for that minute, so it takes cover from the archer or backs away from the crowd.
+
 ### Changed
 
 - The fight (`self_defense` with the threat reflexes on) fights the way a player does instead of through

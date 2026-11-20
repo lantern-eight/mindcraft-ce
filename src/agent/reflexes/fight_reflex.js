@@ -133,5 +133,5 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
         bot.on?.('entityGone', entity => dying.delete(entity.id));
     }
 
-    return { mode, round, watch, clear: () => { givenUp.clear(); told.clear(); dying.clear(); } };
+    return { mode, round, watch, gaveUpOn: isGivenUp, clear: () => { givenUp.clear(); told.clear(); dying.clear(); } };
 }

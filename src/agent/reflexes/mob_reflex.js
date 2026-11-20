@@ -23,7 +23,7 @@ import { holdActions } from '../action_hold.js';
 import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
-import { couldHaveHit, decideMobThreat } from './mob_decide.js';
+import { couldHaveHit, decideMobThreat, ordersAfterGivingUp } from './mob_decide.js';
 import { retreatFrom, takeCover } from './moves.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
@@ -39,10 +39,12 @@ const LOST_SIGHT_MS = 2000;   // all of them out of view this long while retreat
  * @param {object} options
  * @param {object} options.claims - shared with the fight (claims.js)
  * @param {object} [options.orders] - the standing orders (orders.js); none means the bot's own judgment
+ * @param {(id: number) => boolean} [options.gaveUp] - whether the fight gave up on a mob lately: an order to
+ *     fight it then no longer holds here (ordersAfterGivingUp)
  * @param {() => number} [options.now]
  * @returns {{mode: object, round: Function, watch: Function, hits: object[]}}
  */
-export function createMobReflex({ claims, orders = null, now = Date.now }) {
+export function createMobReflex({ claims, orders = null, gaveUp = () => false, now = Date.now }) {
     const hits = [];          // {at, direction}: hits felt lately, oldest first
     const told = new Map();   // threat key -> when the model was last told about it
     const dying = new Set();  // mobs seen dying
@@ -61,7 +63,7 @@ export function createMobReflex({ claims, orders = null, now = Date.now }) {
         if (!mode.on || mode.active || !bot?.entity) return;
         while (hits.length && now() - hits[0].at > HITS_KEPT_MS) hits.shift();
         const self = selfOf(bot);
-        const decision = decideMobThreat(mobsAround(bot, dying), self, { hits, now: now(), ownerOf: claims.ownerOf, orderOf: ordersFor(orders, self) });
+        const decision = decideMobThreat(mobsAround(bot, dying), self, { hits, now: now(), ownerOf: claims.ownerOf, orderOf: ordersAfterGivingUp(ordersFor(orders, self), gaveUp) });
         // Not awaited: the move runs as an action, and the round must not hold up the mode loop.
         if (MOVES.has(decision.stance)) act(agent, decision, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
     }

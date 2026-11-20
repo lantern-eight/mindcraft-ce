@@ -208,3 +208,18 @@ export function joinsFight(mob, { ownerOf = () => null, givenUp = () => false, o
     if (stance === 'fight') return true;
     return stance === null && isMelee(mob) && !TOO_STRONG.has(mob.name);
 }
+
+/**
+ * The orders as the mob reflex goes by them. An order to fight a mob leaves that mob to the fight; once the
+ * fight has given up on it (it couldn't get closer, or its hits didn't land), nothing would deal with it, and
+ * an archer could shoot the bot where it stands. So for a mob the fight gave up on, an order to fight no
+ * longer holds, and the bot's own judgment is back: cover from an archer, a retreat from a crowd.
+ * @param {(mob: object) => object|null} orderOf
+ * @param {(id: number) => boolean} gaveUp - whether the fight gave up on a mob lately
+ */
+export function ordersAfterGivingUp(orderOf, gaveUp) {
+    return mob => {
+        const order = orderOf(mob);
+        return order?.stance === 'fight' && gaveUp(mob.id) ? null : order;
+    };
+}

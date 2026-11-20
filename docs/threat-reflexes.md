@@ -149,6 +149,9 @@ That is the bot's own judgment. A [standing order](#standing-orders) to fight a 
 that kind: and with no orders in the profile, a bot armed with a sword or an axe fights zombies and spiders
 however many come.
 
+A mob the fight gives up on is left alone by the fight for a minute; for that minute an order to fight it no
+longer holds, and the mob reflex deals with it as with any mob (cover from an archer, a retreat from a crowd).
+
 **One owner per threat.** The mob reflex and the fight share claims: the one that takes a mob keeps it for
 5 s, so they don't take turns over it, each stopping the other. A fight doesn't hold back a crowd retreat or
 an urgent move (low health, a mob aiming); a retreat does hold back the fight from the mobs it ran from.

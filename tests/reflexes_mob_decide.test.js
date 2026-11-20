@@ -3,7 +3,7 @@
 // taken only one mob at a time and only when fit for it, and one owner per threat.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideMobThreat, chooseFight, joinsFight, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
+import { decideMobThreat, chooseFight, joinsFight, ordersAfterGivingUp, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
 import { createClaims } from '../src/agent/reflexes/claims.js';
 
 const self = (fields = {}) => ({ position: { x: 0, y: 64, z: 0 }, health: 20, food: 20, gameMode: 'survival', ...fields });
@@ -139,4 +139,18 @@ test('joining a fight under way: the mobs it would take on, coming for it, and n
     assert.equal(joinsFight(coming('zombie'), { givenUp: () => true }), false);
     assert.equal(joinsFight(coming('zombie'), { ownerOf: () => 'mob_safety' }), false, 'taken by the mob reflex');
     assert.equal(joinsFight(coming('zombie'), { ownerOf: () => 'self_defense' }), true);
+});
+
+test('an order to fight a mob the fight gave up on no longer holds: an archer it let go of is taken cover from', () => {
+    const skeleton = mob('skeleton', 6, { aiming: true });
+    const told = () => ({ stance: 'fight' });
+    // Under the order the mob reflex leaves it to the fight...
+    assert.equal(decideMobThreat([skeleton], self(), { orderOf: told }).stance, 'ignore');
+    // ...but once the fight has given up on it, nothing would deal with it: the bot's own judgment is back.
+    const orderOf = ordersAfterGivingUp(told, id => id === skeleton.id);
+    assert.equal(orderOf(skeleton), null);
+    assert.equal(decideMobThreat([skeleton], self(), { orderOf }).stance, 'take_cover');
+    // Other orders, and other mobs, are as they were.
+    assert.deepEqual(ordersAfterGivingUp(() => ({ stance: 'flee' }), () => true)(skeleton), { stance: 'flee' });
+    assert.deepEqual(ordersAfterGivingUp(told, () => false)(skeleton), { stance: 'fight' });
 });
