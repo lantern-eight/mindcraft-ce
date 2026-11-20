@@ -2,7 +2,7 @@
 // The fight arena on a real Bedrock Dedicated Server: how well the bot fights, measured (no model calls,
 // free to run).
 //   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_fight_arena.js
-//       [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>] [--out=<file for the results as JSON>]
+//       [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>] [--orders=none] [--out=<file for the results as JSON>]
 // bedrock_fixture.js explains the variables; docs/bedrock.md shows a throwaway server to point them at.
 // NEVER a world you care about: it builds an arena, fills it with mobs and lets the bot die in it.
 //
@@ -24,6 +24,9 @@ import { ROUNDS, createMeter, summarize, printSummary } from './arena_meter.js';
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const RUNS = Number(arg('runs') || 3);
 const ONLY = arg('only'), KIT = arg('kit'), OUT = arg('out');
+// --orders=none: no orders to fight, so the bot goes by its own judgment (and the built-in orders), and the
+// arena shows what its gear lets it take on rather than how a fight it was told to take goes.
+const ORDERS = arg('orders') !== 'none';
 const NAME = 'BedrockFighter';
 const server = bedrockTestServer();
 if (!server.hasConsole) throw new Error('The arena is built from the server console: set BEDROCK_TEST_CONSOLE');
@@ -102,7 +105,7 @@ try {
 
     // Fight every kind in the arena down to 6 health, the floor no order goes under, as on Java.
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
-    for (const group of ['zombies', 'skeletons', 'spiders'])
+    if (ORDERS) for (const group of ['zombies', 'skeletons', 'spiders'])
         assert.match(await order(group, 'fight', 6, 0), /fight/, `the order to fight ${group}`);
 
     await cmd('gamerule domobspawning false');
@@ -153,7 +156,7 @@ try {
                 await waitFor(() => raw(kinds).length === scene.mobs.length, 8000, () => `${raw(kinds).length} of ${scene.mobs.length} mobs seen`);
                 meter.start(raw(kinds));
                 await waitFor(() => meter.over(), 50000);
-                const result = meter.finish({ kit: kit.name, round: scene.name, run, edition: 'bedrock' }, events, messages);
+                const result = meter.finish({ kit: kit.name, round: scene.name, run, edition: 'bedrock', orders: ORDERS }, events, messages);
                 results.push(result);
                 console.log(JSON.stringify(result));
             }

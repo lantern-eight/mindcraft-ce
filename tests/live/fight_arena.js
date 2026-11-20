@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 // The fight arena: how well the bot fights, measured (no model calls, free to run).
 //   node tests/live/fight_arena.js [--port=55934] [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>]
-//                                  [--fair=off] [--out=<file for the results as JSON>]
+//                                  [--fair=off] [--orders=none] [--out=<file for the results as JSON>]
 // Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // The other live scenes check what the reflexes decide. This one measures how a fight goes once the bot has
@@ -30,6 +30,9 @@ const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=
 const port = Number(arg('port') || 55934);
 const RUNS = Number(arg('runs') || 3);
 const ONLY = arg('only'), KIT = arg('kit'), OUT = arg('out');
+// --orders=none: no orders to fight, so the bot goes by its own judgment (and the built-in orders), and the
+// arena shows what its gear lets it take on rather than how a fight it was told to take goes.
+const ORDERS = arg('orders') !== 'none';
 const FAIR = arg('fair') !== 'off';
 const NAME = 'Fighter';
 
@@ -103,7 +106,7 @@ try {
     const meter = createMeter(bot);
 
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
-    for (const group of ['zombies', 'skeletons', 'spiders'])
+    if (ORDERS) for (const group of ['zombies', 'skeletons', 'spiders'])
         assert.match(await order(group, 'fight', 6, 0), /fight/, `the order to fight ${group}`);
 
     await cmd('difficulty normal');
@@ -155,7 +158,7 @@ try {
                 const dressed = mobs.map(m => ({ kind: m.name, held: m.equipment?.[0]?.name ?? null,
                     armor: (m.equipment ?? []).slice(1).filter(Boolean).map(item => item.name) }));
                 await waitFor(() => meter.over(), 50000);
-                const result = { ...meter.finish({ kit: kit.name, round: scene.name, run, fair: FAIR }, events, messages),
+                const result = { ...meter.finish({ kit: kit.name, round: scene.name, run, fair: FAIR, orders: ORDERS }, events, messages),
                     odd: dressed.filter(d => d.armor.length || (d.kind === 'skeleton' && d.held !== 'bow')) };
                 results.push(result);
                 console.log(JSON.stringify(result));
