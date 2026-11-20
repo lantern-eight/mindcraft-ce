@@ -211,7 +211,9 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   `fight_arena.js` on Java (zombies, skeletons and spiders against bare hands up to an iron kit), each run
   several times, with wins, time, damage and swings per kill (`--runs`, `--only`, `--kit`, `--out`). A
   zombie is summoned with the event that makes it an adult. It is a yardstick for changes to how the bot
-  fights, so `bedrock_all.js` doesn't run it.
+  fights, so `bedrock_all.js` doesn't run it. It changes the world's rules for its run (the bot keeps its
+  inventory, respawns at once) and puts them back when it ends; if it was killed before that, start the
+  other scripts on a fresh world.
 - **`bedrock_storage.js`** installs chest sorting with fair play and world memory, fills containers from
   the console, has the bot sort them, and reads them back by opening them with the test's own hands: a
   chest of part stacks, a full chest of twenty kinds, and a chest, a double chest, a barrel and a trapped

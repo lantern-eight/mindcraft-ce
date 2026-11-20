@@ -178,6 +178,15 @@ try {
     process.exitCode = 1;
 } finally {
     running = false;
+    // Put the world back as the other Bedrock scripts expect it: with these rules left on, a later script's bot
+    // keeps what it picked up here (rotten flesh in its hand where a block should be) and respawns differently.
+    // Peaceful takes the last mobs away; the arena itself is cleared, so no later floor lands on it.
+    try {
+        for (const line of ['gamerule keepinventory false', 'gamerule doimmediaterespawn false', 'gamerule dodaylightcycle true',
+            'gamerule mobgriefing true', 'difficulty peaceful', `clear ${NAME}`, `effect ${NAME} clear`])
+            await cmd(line);
+        if (origin) await fill([-16, 0, -16], [16, 6, 16], 'air');
+    } catch { /* the console is gone */ }
     bot?.quit?.();
     process.exit(process.exitCode ?? 0);
 }
