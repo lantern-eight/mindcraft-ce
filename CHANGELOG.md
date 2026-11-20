@@ -18,8 +18,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 ### Changed
 
 - The bot takes on more by its own judgment when well armed, as measured in the fight arena: with a sword or
-  an axe, up to three melee mobs at once instead of backing away from two; with a full iron set or better as
-  well, up to two skeletons too, rushed instead of hidden from. Bare-handed, or under half health, or hungry,
+  an axe, up to three melee mobs at once instead of backing away from two, and a skeleton rushed instead of
+  hidden from; with a full iron set or better as well, two skeletons. Bare-handed, or under half health, or hungry,
   it is still one mob. See [docs/threat-reflexes.md](docs/threat-reflexes.md#the-fight).
 - The fight (`self_defense` with the threat reflexes on) fights the way a player does instead of through
   Mindcraft's combat plugin: it swings when the weapon has recharged (the plugin's table didn't know copper,

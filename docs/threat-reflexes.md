@@ -96,7 +96,7 @@ wins:
 | # | What | What the bot does |
 |---|---|---|
 | 1 | Health under 6, with a hostile in view or a hit felt just now | **Runs**, 20 blocks from every hostile about, newcomers included |
-| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (the bot armed and in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range |
+| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (one when the bot is armed, two in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range |
 | 3 | More melee mobs in view within 8 blocks that have come for the bot (or within 5, about to) than its gear takes on: two or more bare-handed, four or more with a sword or an axe. Or two or more with one too strong among them | **Backs away from all of them at once**, 16 blocks from each, rather than from the nearest into the next. A fight already started on one of them doesn't hold this back |
 | 4 | One melee mob coming at it that the bot shouldn't fight: the bot under half health, or too hungry to sprint (food 6 or less), or the mob too strong for a fight nobody asked for (a cave spider's poison, a warden, a ravager, a vindicator, a piglin brute, a hoglin or zoglin, a provoked enderman, a wither skeleton) | Backs away from it |
 | 5 | Hit twice within 4 s with nothing in view that could have done it: no mob within reach, none that has picked a target, none that shoots | **Gets away from the side the hits came from** |
@@ -118,12 +118,12 @@ blocks, as much as its gear takes on, with the bot at half health or more and fe
 | Gear | It takes on | Why |
 |---|---|---|
 | Bare hands | One melee mob | Measured melee trials (unarmed, unarmored) won one mob of most kinds and lost two zombies at once |
-| A sword or an axe | Up to three melee mobs | In the arena a stone or a copper sword beat three zombies, taking 3 damage |
-| A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons (or strays, or bogged), which it rushes instead of hiding from | In the arena an iron sword in iron armor won every round: two skeletons with 4 damage taken, two zombies, a skeleton and a spider with 7. A stone sword alone won that last one too, with 20 taken, so archers only when armored |
+| A sword or an axe | Up to three melee mobs and one skeleton (or stray, or bogged), which it rushes instead of hiding from | In the arenas a stone or a copper sword beat three zombies with at most 3 damage taken, and a skeleton with little or none; backing away from that skeleton in the open cost more (8 to 16 on Java, and on Bedrock it brought the bot near death every time) |
+| A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons | In the arenas an iron sword in iron armor won every round on both editions, two skeletons with 4 damage taken at most. Two skeletons cost a sword alone more, so the second only when armored |
 
 More than that, or one too strong, are the mob reflex's to back away from. Under half health, or too hungry,
 the gear counts for nothing: it is the one mob again. A skeleton the fight can't find a way to (up on a
-ledge) is hidden from, as without the armor, and asked about again a few seconds later.
+ledge) is hidden from, as by an unarmed bot, and asked about again a few seconds later.
 
 - It doesn't start on a mob with another one close by that hasn't picked a target yet: it soon will.
 - It fights with the weapon carried that kills soonest on that edition (on Java a sword over an axe, which hits
