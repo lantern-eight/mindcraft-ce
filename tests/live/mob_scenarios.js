@@ -25,6 +25,9 @@ const port = Number(arg('port') || 55932);
 const NAME = 'Wary';
 const results = [];
 const ONLY = arg('only');
+// A skeleton summoned on 26.3 gets no bow (summoning skips the random dressing a natural spawn gets), and
+// comes at the bot bare-handed. Every skeleton here is given one, so the scenes meet an archer.
+const BOW = 'equipment:{mainhand:{id:"minecraft:bow",count:1}}';
 // --stock: no threat reflexes, Mindcraft's own; only the night and standing-by scenes run, to compare.
 const STOCK = process.argv.includes('--stock');
 const step = async (name, fn) => {
@@ -105,6 +108,12 @@ try {
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 2 });
     const raw = name => Object.values(bot.entities).filter(e => e.name === name);
     const edition = editionOf(bot.registry);
+    // Hits the bot's shield stopped: the shield's block sound where the bot stands (an entity status, 29,
+    // before 1.21.5), counted once.
+    let blocked = 0, lastBlock = 0;
+    const onBlock = () => { if (Date.now() - lastBlock > 100) { lastBlock = Date.now(); blocked++; } };
+    edition.onSound(bot, (name, at) => { if (/shield\.block/.test(name ?? '') && at && bot.entity && bot.entity.position.distanceTo(at) < 2) onBlock(); });
+    bot._client.on('entity_status', packet => { if (packet.entityId === bot.entity?.id && packet.entityStatus === 29) onBlock(); });
 
     await cmd('difficulty normal');
     await cmd('gamerule spawn_mobs false');
@@ -154,7 +163,7 @@ try {
     await step('seam: a skeleton taking aim at the bot is seen aiming', async () => {
         await reset();
         reflexes.mob.mode.on = false; // only watching here
-        await cmd('summon skeleton 0.5 70 12.5 {PersistenceRequired:1b}');
+        await cmd('summon skeleton 0.5 70 12.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
         await cmd(`effect give ${NAME} resistance 30 4 true`);
         await waitFor(() => raw('skeleton').length === 1, 5000);
         const skeleton = raw('skeleton')[0];
@@ -240,7 +249,7 @@ try {
         await cmd('fill 3 70 3 3 72 5 cobblestone');
         await cmd(`effect give ${NAME} resistance 60 2 true`);
         await delay(1500); // the bot sees the wall
-        await cmd('summon skeleton 14.5 70 0.5 {PersistenceRequired:1b}');
+        await cmd('summon skeleton 14.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
         await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
         const done = events.find(e => e.event === 'done' && e.mode === 'mob_safety');
@@ -253,6 +262,30 @@ try {
         return { ended: done.ended, at: at.floored().toString(), damageBeforeCover: damageAtCover, damageInTheNext5s: damage - damageAtCover,
             reflexMovesAfter: decided('mob_safety').length - 1 };
     });
+
+    // No cover near, and no getting out of range: a pen walled 8 blocks out on every side, as in the fight
+    // arena, where backing away from skeletons came near death. Unarmed, so the fight doesn't rush it. With
+    // a shield the bot stops behind it while the bow is drawn and until the arrow lands. (On open ground the
+    // bot outruns a skeleton's first shot, and there is nothing to block.)
+    for (const shield of [false, true]) {
+        await step(`a skeleton aiming in a walled pen with no cover, the bot unarmed${shield ? ' with a shield it is given: it blocks the shots' : ', no shield: the damage it takes'}`, async () => {
+            await reset();
+            for (const [a, b] of [['-8 70 -8', '8 73 -8'], ['-8 70 8', '8 73 8'], ['-8 70 -8', '-8 73 8'], ['8 70 -8', '8 73 8']])
+                await cmd(`fill ${a} ${b} stone`);
+            if (shield) await cmd(`give ${NAME} shield`);
+            await delay(1500);
+            const blocksBefore = blocked;
+            await cmd('summon skeleton 5.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
+            await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
+            await delay(12000);
+            const raised = events.filter(e => e.event === 'shield').length;
+            const fell = events.filter(e => e.event === 'cover').map(e => e.ended);
+            assert.ok(fell.every(ended => ended === 'no cover' || ended === 'no way there'), `no cover was found: ${fell}`);
+            if (shield) assert.ok(raised > 0 && blocked > blocksBefore, `the shield went up (${raised}) and stopped arrows (${blocked - blocksBefore})`);
+            else assert.equal(raised, 0);
+            return { damage: Number(damage.toFixed(1)), raised, blocked: blocked - blocksBefore, moves: decided('mob_safety').length };
+        });
+    }
 
     await step('hit twice from behind a wall by something unseen: the bot gets away from that side', async () => {
         await reset();
@@ -349,7 +382,7 @@ try {
         await order('skeletons', 'ignore', 0, 0);
         try {
             await cmd(`effect give ${NAME} resistance 60 4 true`);
-            await cmd('summon skeleton 12.5 70 0.5 {PersistenceRequired:1b}');
+            await cmd('summon skeleton 12.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await delay(10000);
             assert.equal(decided().length, 0, JSON.stringify(decided()));
             return { arrowsTakenAsDamage: damage };
@@ -364,10 +397,10 @@ try {
         await order('skeletons', 'fight', 0, 0);
         try {
             await cmd(`effect give ${NAME} resistance 60 2 true`);
-            await cmd('summon skeleton 10.5 70 0.5 {PersistenceRequired:1b}');
+            await cmd('summon skeleton 10.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await waitFor(() => raw('skeleton').length === 0, 45000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
             assert.ok(decided('self_defense').length >= 1, JSON.stringify(decided()));
-            assert.equal(decided('mob_safety').filter(e => e.stance === 'take_cover').length, 0, 'no cover');
+            assert.equal(decided('mob_safety').filter(e => e.stance === 'take_cover').length, 0, `no cover: ${JSON.stringify(events.filter(e => e.event === 'decided' || e.event === 'done'))}`);
             return { fights: decided('self_defense').length, damage, lowestHealth };
         } finally {
             await order('skeletons', 'default', 0, 0);
@@ -412,7 +445,7 @@ try {
         roundMs.length = 0;
         pathSearches = 0;
         for (const [mob, x, z] of [['zombie', 14, 3], ['zombie', -13, 5], ['skeleton', 16, -12], ['spider', -15, -12], ['zombie', 3, 18], ['skeleton', -18, 14]])
-            await cmd(`summon ${mob} ${x}.5 70 ${z}.5 {PersistenceRequired:1b}`);
+            await cmd(`summon ${mob} ${x}.5 70 ${z}.5 {PersistenceRequired:1b${mob === 'skeleton' ? `,${BOW}` : ''}}`);
         await delay(60000);
         await cmd('time set noon');
         const moves = decided().length;

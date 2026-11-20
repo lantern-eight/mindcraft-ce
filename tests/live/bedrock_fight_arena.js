@@ -2,7 +2,8 @@
 // The fight arena on a real Bedrock Dedicated Server: how well the bot fights, measured (no model calls,
 // free to run).
 //   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_fight_arena.js
-//       [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>] [--orders=none] [--out=<file for the results as JSON>]
+//       [--runs=3] [--only=<part of a round's name>] [--kit=<part of a kit's name>] [--orders=none] [--shield=nobeat]
+//       [--out=<file for the results as JSON>]
 // bedrock_fixture.js explains the variables; docs/bedrock.md shows a throwaway server to point them at.
 // NEVER a world you care about: it builds an arena, fills it with mobs and lets the bot die in it.
 //
@@ -25,6 +26,8 @@ import { ROUNDS, createMeter, summarize, printSummary } from './arena_meter.js';
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const RUNS = Number(arg('runs') || 3);
 const ONLY = arg('only'), KIT = arg('kit'), OUT = arg('out');
+// --shield=nobeat: the shield doesn't keep the beat of a skeleton's shots, to measure what the beat gives.
+const NO_BEAT = arg('shield') === 'nobeat';
 // --orders=none: no orders to fight, so the bot goes by its own judgment (and the built-in orders), and the
 // arena shows what its gear lets it take on rather than how a fight it was told to take goes.
 const ORDERS = arg('orders') !== 'none';
@@ -41,6 +44,9 @@ const KITS = [
     { name: 'stone sword', commands: [`give ${NAME} stone_sword`] },
     { name: 'copper sword', commands: [`give ${NAME} copper_sword`] },
     { name: 'iron kit', commands: [`give ${NAME} iron_sword`, ...armor] },
+    // The shield is given, not put in the off-hand: putting it there is the bot's to do. A Bedrock skeleton
+    // shows no bow drawn, so the shield goes up against none of these mobs: the kit checks it changes nothing.
+    { name: 'stone sword and shield', commands: [`give ${NAME} stone_sword`, `give ${NAME} shield`] },
 ];
 // Summoned the way that gives the same mob every round: a zombie made an adult by its own event.
 const SUMMON_EVENT = { zombie: ' 0 0 minecraft:as_adult', skeleton: '', spider: '' };
@@ -69,6 +75,8 @@ try {
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
     const { getCommand } = await import('../../src/agent/commands/index.js');
+    const { shieldTuning } = await import('../../src/agent/reflexes/shield.js');
+    shieldTuning.beat = !NO_BEAT;
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -107,6 +115,10 @@ try {
     // is lost "by death" when health falls to 4 or under, and the console heals the bot then: below the 6 where
     // the bot runs, and more than most single hits here (a zombie's 3, a spider's 2) from dying.
     const meter = createMeter(bot, { brink: 4, onBrink: () => { cmd(`effect ${NAME} instant_health 1 10`, 0).catch(() => {}); } });
+    // A Bedrock server tells of a hit a shield stopped with the shield's block sound, where the bot stands.
+    bot._client.on('level_sound_event', packet => {
+        if (packet?.sound_id === 'item.shield.block' && bot.entity && bot.entity.position.distanceTo(packet.position) < 2) meter.blocked();
+    });
 
     // Fight every kind in the arena down to 6 health, the floor no order goes under, as on Java.
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
@@ -163,7 +175,7 @@ try {
                 await waitFor(() => raw(kinds).length === scene.mobs.length, 8000, () => `${raw(kinds).length} of ${scene.mobs.length} mobs seen`);
                 meter.start(raw(kinds));
                 await waitFor(() => meter.over(), 50000);
-                const result = meter.finish({ kit: kit.name, round: scene.name, run, edition: 'bedrock', orders: ORDERS }, events, messages);
+                const result = meter.finish({ kit: kit.name, round: scene.name, run, edition: 'bedrock', orders: ORDERS, beat: !NO_BEAT }, events, messages);
                 results.push(result);
                 console.log(JSON.stringify(result));
             }

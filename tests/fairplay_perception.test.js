@@ -341,6 +341,9 @@ test('describeDirection and soundSubject', () => {
     assert.equal(soundSubject('minecraft:block.eyeblossom.open'), null, 'a flower opening is not worth telling');
     assert.equal(soundSubject('minecraft:block.grass.step'), 'footsteps');
     assert.equal(soundSubject('minecraft:entity.generic.explode'), 'explosion');
+    // A bow's twang is told apart from a skeleton's rattle, as a player hears it.
+    assert.equal(soundSubject('minecraft:entity.skeleton.shoot'), 'skeleton (shooting)');
+    assert.equal(soundSubject('minecraft:entity.skeleton.ambient'), 'skeleton');
 });
 
 test('W7: doors, chests, footsteps and explosions are heard; a source in view is marked seen, a blast is always news', () => {

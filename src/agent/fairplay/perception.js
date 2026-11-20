@@ -106,7 +106,10 @@ export function soundSubject(soundName) {
     if (['player', 'generic', 'item', 'experience', 'arrow', 'fishing', 'firework', 'lightning', 'boat', 'minecart'].includes(subject.split('.')[0]))
         return null;
     const what = subject.replace(/\./g, '_');
-    return /primed/.test(name) ? `${what} (hissing)` : what;
+    // A creeper's hiss and a bow's twang are told apart from the mob's other noises, as a player hears them.
+    if (/primed/.test(name)) return `${what} (hissing)`;
+    if (/\.shoot$/.test(name)) return `${what} (shooting)`;
+    return what;
 }
 
 /**

@@ -166,6 +166,9 @@ test('the fight\'s scope by gear: bare hands one mob; a sword three melee mobs a
     assert.deepEqual(fightScope(armed()), { melee: 3, archers: 1 });
     assert.deepEqual(fightScope(armed({ armor: 14 })), { melee: 3, archers: 1 }, 'less than a full iron set');
     assert.deepEqual(fightScope(armored()), { melee: 3, archers: 2 });
+    assert.deepEqual(fightScope(armed({ shielded: true })), { melee: 3, archers: 2 }, 'a sword and a shield: as a full iron set');
+    assert.deepEqual(fightScope(self({ shielded: true })), { melee: 1, archers: 0 }, 'a shield without a weapon widens nothing');
+    assert.deepEqual(fightScope(armed({ shielded: true, health: 9 })), { melee: 1, archers: 0 }, 'nor under half health');
     assert.deepEqual(fightScope(armored({ health: 9 })), { melee: 1, archers: 0 }, 'under half health, gear doesn\'t count');
     assert.deepEqual(fightScope(armored({ food: 6 })), { melee: 1, archers: 0 }, 'too hungry to sprint or heal');
 });

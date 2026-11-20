@@ -170,7 +170,9 @@ export function bedrockEater(bot, { log = console.log, now = Date.now, slowMealM
                 : 'it holds nothing to eat.');
             return;
         }
-        await eat(food);
+        // Through the object handed out, as the Java plugin calls its own `eat`: whatever wraps that one
+        // call (the threat reflexes share the use-item channel with eating) wraps every meal here too.
+        await eater.eat(food);
     }
 
     function onTick() {
@@ -212,9 +214,10 @@ export function bedrockEater(bot, { log = console.log, now = Date.now, slowMealM
         watchdog = null;
     }
 
-    return {
+    const eater = {
         opts,
         setOpts(changes) { Object.assign(opts, changes); },
+        eat,
         enableAuto,
         disableAuto,
         cancelEat() { if (eating) bot.deactivateItem?.(); },
@@ -223,4 +226,5 @@ export function bedrockEater(bot, { log = console.log, now = Date.now, slowMealM
         check,
         noticeNoLooks,
     };
+    return eater;
 }
