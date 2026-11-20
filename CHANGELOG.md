@@ -28,6 +28,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- Fair play's hearing tells a skeleton's shot from its other noises: "skeleton (shooting)", as it already told a
+  creeper's hiss. On Bedrock a shot is heard by Java's name for it.
 - With a sword or an axe and a shield, the bot takes on two skeletons by its own judgment, as it did only in a
   full iron set. In the fight arena it won every such round, with 8 damage taken on Java and 5 to 8 on
   Bedrock; backing away from them, as before, lost two rounds of three on Java and every round on Bedrock.
