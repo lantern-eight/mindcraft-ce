@@ -118,8 +118,8 @@ blocks, as much as its gear takes on, with the bot at half health or more and fe
 | Gear | It takes on | Why |
 |---|---|---|
 | Bare hands | One melee mob | Measured melee trials (unarmed, unarmored) won one mob of most kinds and lost two zombies at once |
-| A sword or an axe | Up to three melee mobs and one skeleton (or stray, or bogged), which it rushes instead of hiding from | In the arenas a stone or a copper sword beat three zombies with at most 3 damage taken, and a skeleton with little or none; backing away from that skeleton in the open cost more (8 to 16 on Java, and on Bedrock it brought the bot near death every time) |
-| A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons | In the arenas an iron sword in iron armor won every round on both editions, two skeletons with 4 damage taken at most. Two skeletons cost a sword alone more, so the second only when armored |
+| A sword or an axe | Up to three melee mobs and one skeleton (or stray, or bogged), which it rushes instead of hiding from | In the arenas a stone or a copper sword beat three zombies with at most 3 damage taken. By its own judgment it now beat a lone skeleton every time, with 3 to 5 damage on Java and none on Bedrock; backing away from it, as it did before, cost 8 to 16 on Java, and on Bedrock brought the bot near death every time. Two zombies, a skeleton and a spider at once it now won 6 times in 6 on Java (1 before) and 4 in 6 on Bedrock (none before) |
+| A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons | In the arenas an iron sword in iron armor won every round on both editions, two skeletons with 4 damage taken at most. Two skeletons are still backed away from with a sword alone, as a cautious player would; in the walled pen that cost 10 to 25 damage, but the pen is the worst place to back away in |
 
 More than that, or one too strong, are the mob reflex's to back away from. Under half health, or too hungry,
 the gear counts for nothing: it is the one mob again. A skeleton the fight can't find a way to (up on a
@@ -149,6 +149,22 @@ ledge) is hidden from, as by an unarmed bot, and asked about again a few seconds
   red flash a player sees) for 4 s; either is left alone for a minute.
 - Everything it acts on is what the bot sees, through fair play's perception; with fair play off, what the
   server sends.
+
+**Measured** in the fight arenas (`tests/live/fight_arena.js` and `bedrock_fight_arena.js`): seven rounds, from
+one zombie to two zombies, a skeleton and a spider at once, three runs each, with the bot told to fight every
+kind, against the fight it replaced (Mindcraft's, through its combat plugin). Each cell is the 21 rounds of a
+kit: rounds won, then swings per kill, then the damage the bot took in a round on average.
+
+| Kit | Java, before | Java, now | Bedrock, before | Bedrock, now |
+|---|---|---|---|---|
+| Bare hands | 9 won, 61 swings, 24 damage | 9 won, 44 swings, 16 damage | 7 won, 66 swings, 15 damage | 5 won, 47 swings, 14 damage |
+| Stone sword | 19 won, 7.6 swings, 12 damage | 21 won, 4.5 swings, 4 damage | 16 won, 5.8 swings, 9 damage | 21 won, 3.9 swings, 2 damage |
+| Copper sword | 17 won, 14 swings, 14 damage | 21 won, 4.4 swings, 4 damage | not run | 20 won, 3.8 swings, 2 damage |
+| Iron sword and armor | 21 won, 6.0 swings, 4 damage | 21 won, 3.8 swings, 2 damage | not run | 21 won, 3.0 swings, 0.4 damage |
+
+On Java almost every swing now lands (99 in 100, from about half). Bare hands lose most rounds either way,
+which is why the bot's own judgment takes on one mob without a weapon. The Bedrock run of the old fight
+stopped after two kits: a bot that died there didn't always come back (see [Known Gaps](bedrock.md#known-gaps)).
 
 It is registered under the same name and in the same place as Mindcraft's, so its switch, the profiles and the
 actions that pause it by name (`goToPlayer`, `defendSelf`, `stay`) keep their meaning.
