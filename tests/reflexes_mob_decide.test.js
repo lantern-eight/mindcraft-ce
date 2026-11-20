@@ -3,7 +3,7 @@
 // taken only one mob at a time and only when fit for it, and one owner per threat.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideMobThreat, chooseFight, joinsFight, ordersAfterGivingUp, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
+import { decideMobThreat, chooseFight, joinsFight, ordersAfterGivingUp, fightScope, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
 import { createClaims } from '../src/agent/reflexes/claims.js';
 
 const self = (fields = {}) => ({ position: { x: 0, y: 64, z: 0 }, health: 20, food: 20, gameMode: 'survival', ...fields });
@@ -153,4 +153,62 @@ test('an order to fight a mob the fight gave up on no longer holds: an archer it
     // Other orders, and other mobs, are as they were.
     assert.deepEqual(ordersAfterGivingUp(() => ({ stance: 'flee' }), () => true)(skeleton), { stance: 'flee' });
     assert.deepEqual(ordersAfterGivingUp(told, () => false)(skeleton), { stance: 'fight' });
+});
+
+// ---- How much the bot takes on by its own judgment, by its gear ----
+
+const armed = (fields = {}) => self({ armed: true, armor: 0, ...fields });
+const armored = (fields = {}) => self({ armed: true, armor: 15, ...fields }); // a full iron set
+
+test('the fight\'s scope by gear: bare hands one mob; a sword three melee mobs; a sword and full iron two archers too', () => {
+    assert.deepEqual(fightScope(self()), { melee: 1, archers: 0 });
+    assert.deepEqual(fightScope(self({ armor: 20 })), { melee: 1, archers: 0 }, 'armor without a weapon widens nothing');
+    assert.deepEqual(fightScope(armed()), { melee: 3, archers: 0 });
+    assert.deepEqual(fightScope(armed({ armor: 14 })), { melee: 3, archers: 0 }, 'less than a full iron set');
+    assert.deepEqual(fightScope(armored()), { melee: 3, archers: 2 });
+    assert.deepEqual(fightScope(armored({ health: 9 })), { melee: 1, archers: 0 }, 'under half health, gear doesn\'t count');
+    assert.deepEqual(fightScope(armored({ food: 6 })), { melee: 1, archers: 0 }, 'too hungry to sprint or heal');
+});
+
+test('armed, the bot stands against up to three melee mobs on its own judgment; a fourth is a crowd', () => {
+    const three = [mob('zombie', 4), mob('spider', 5), mob('husk', 6)];
+    assert.equal(decideMobThreat(three, armed()).stance, 'ignore', 'no retreat from three');
+    assert.equal(chooseFight(three, armed()), three[0], 'the nearest first');
+    const four = [...three, mob('zombie', 7)];
+    assert.equal(decideMobThreat(four, armed()).stance, 'retreat');
+    assert.equal(chooseFight(four, armed()), null);
+    // Unarmed, two are already a crowd, as before.
+    assert.equal(decideMobThreat(three.slice(0, 2), self()).stance, 'retreat');
+    // Hurt, the gear stops counting: two are a crowd again.
+    assert.equal(decideMobThreat(three.slice(0, 2), armed({ health: 9 })).stance, 'retreat');
+    // Too strong to take on unasked, whatever the gear.
+    assert.equal(chooseFight([mob('vindicator', 4)], armored()), null);
+    assert.equal(decideMobThreat([mob('zombie', 4), mob('vindicator', 5)], armored()).stance, 'retreat', 'a crowd with one it shouldn\'t fight');
+});
+
+test('armed and armored, an archer aiming is rushed instead of hidden from, unless the fight gave up on it', () => {
+    const skeleton = mob('skeleton', 12, { aiming: true });
+    assert.equal(decideMobThreat([skeleton], armed()).stance, 'take_cover', 'a sword alone: cover, as before');
+    assert.equal(chooseFight([skeleton], armed()), null);
+    assert.equal(decideMobThreat([skeleton], armored()).stance, 'ignore', 'left to the fight');
+    assert.equal(chooseFight([skeleton], armored()), skeleton);
+    const two = [skeleton, mob('stray', 10, { aiming: true })];
+    assert.equal(chooseFight(two, armored()), two[1], 'two archers, the nearer first');
+    const three = [...two, mob('skeleton', 14, { aiming: true })];
+    assert.equal(decideMobThreat(three, armored()).stance, 'take_cover', 'three archers: too many');
+    assert.equal(chooseFight(three, armored()), null);
+    // The fight couldn't reach it, or gave up: cover again.
+    assert.equal(decideMobThreat([skeleton], armored(), { gaveUp: id => id === skeleton.id }).stance, 'take_cover');
+    assert.equal(chooseFight([skeleton], armored(), { givenUp: id => id === skeleton.id }), null);
+    // A mixed group within scope: two zombies and a skeleton.
+    const mixed = [mob('zombie', 4), mob('zombie', 6), skeleton];
+    assert.equal(decideMobThreat(mixed, armored()).stance, 'ignore');
+    assert.equal(chooseFight(mixed, armored()), mixed[0]);
+});
+
+test('joining a fight under way follows the same scope: an archer joins only when armored', () => {
+    const skeleton = mob('skeleton', 6, { aiming: true });
+    assert.equal(joinsFight(skeleton, { scope: { melee: 3, archers: 0 } }), false);
+    assert.equal(joinsFight(skeleton, { scope: { melee: 3, archers: 2 } }), true);
+    assert.equal(joinsFight(mob('zombie', 3), { scope: { melee: 3, archers: 2 } }), true);
 });

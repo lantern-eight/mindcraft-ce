@@ -244,3 +244,18 @@ async function waitUntil(check, ms) {
         await delay(20);
     }
 }
+
+test('the armor the bot wears, in the points its armor bar shows', async () => {
+    const { armorOf } = await import('../src/agent/reflexes/mobs.js');
+    const wearing = (...names) => {
+        const slots = {};
+        names.forEach((name, i) => { slots[5 + i] = name ? { name } : null; });
+        return { inventory: { slots }, getEquipmentDestSlot: part => ({ head: 5, torso: 6, legs: 7, feet: 8 })[part] };
+    };
+    assert.equal(armorOf(wearing('iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots')), 15, 'a full iron set');
+    assert.equal(armorOf(wearing('diamond_helmet', 'diamond_chestplate', 'diamond_leggings', 'diamond_boots')), 20);
+    assert.equal(armorOf(wearing(null, 'diamond_chestplate', 'iron_leggings', null)), 13);
+    assert.equal(armorOf(wearing('turtle_helmet', 'leather_chestplate', null, 'chainmail_boots')), 6);
+    assert.equal(armorOf(wearing(null, null, null, null)), 0);
+    assert.equal(armorOf({ inventory: { slots: {} } }), 0, 'a bot that can\'t say where armor goes');
+});

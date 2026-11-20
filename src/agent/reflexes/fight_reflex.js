@@ -24,7 +24,7 @@ import convoManager from '../conversation.js';
 import * as world from '../library/world.js';
 import { log } from '../library/skills.js';
 import { describeDirection } from '../fairplay/perception.js';
-import { chooseFight, joinsFight, LOW_HEALTH } from './mob_decide.js';
+import { chooseFight, joinsFight, fightScope, LOW_HEALTH } from './mob_decide.js';
 import { fightMelee } from './melee.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
@@ -33,6 +33,9 @@ export const MODE_NAME = 'self_defense';
 const GIVE_UP_MS = 60000;
 const FIGHT_MS = 30000;
 const TELL_AGAIN_MS = 60000;
+// A mob the fight couldn't find a way to is passed over for this long, then asked about again. Meanwhile the
+// mob reflex deals with it (gaveUpOn): an archer on a ledge is hidden from, not stood under.
+const UNREACHABLE_MS = 5000;
 
 /**
  * @param {object} options
@@ -45,7 +48,8 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
     const told = new Map();
     const dying = new Set();
 
-    const isGivenUp = id => (givenUp.get(id) ?? 0) > now();
+    const unreachable = new Map(); // mob id -> until when
+    const isGivenUp = id => (givenUp.get(id) ?? 0) > now() || (unreachable.get(id) ?? 0) > now();
 
     const mode = {
         name: MODE_NAME,
@@ -67,7 +71,8 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
         const pick = chooseFight(mobs, self, { ownerOf, givenUp: isGivenUp, orderOf });
         if (!pick) return;
         const entity = mobInView(bot, pick.id);
-        if (!entity || !(await world.isClearPath(bot, entity))) return;
+        if (!entity) return;
+        if (!(await world.isClearPath(bot, entity))) { unreachable.set(pick.id, now() + UNREACHABLE_MS); return; }
         if (mode.active || !mode.on) return; // something else started while the path was asked
         act(agent, { ...pick, ordered: orderOf(pick)?.stance === 'fight' }, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
     }
@@ -90,7 +95,8 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
                 const see = id => (dying.has(id) ? null : mobInView(bot, id));
                 // The mobs it may turn to as the fight goes on, decided afresh each beat as the first was.
                 const foes = () => {
-                    const extra = { ownerOf: claims.ownerOf, givenUp: isGivenUp, orderOf: ordersFor(orders, selfOf(bot)) };
+                    const me = selfOf(bot);
+                    const extra = { ownerOf: claims.ownerOf, givenUp: isGivenUp, orderOf: ordersFor(orders, me), scope: fightScope(me) };
                     return mobsAround(bot, dying).filter(mob => joinsFight(mob, extra)).map(mob => see(mob.id)).filter(Boolean);
                 };
                 const outcome = await fightMelee(bot, {
@@ -133,5 +139,5 @@ export function createFightReflex({ claims, orders = null, now = Date.now }) {
         bot.on?.('entityGone', entity => dying.delete(entity.id));
     }
 
-    return { mode, round, watch, gaveUpOn: isGivenUp, clear: () => { givenUp.clear(); told.clear(); dying.clear(); } };
+    return { mode, round, watch, gaveUpOn: isGivenUp, clear: () => { givenUp.clear(); unreachable.clear(); told.clear(); dying.clear(); } };
 }

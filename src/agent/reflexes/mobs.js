@@ -63,13 +63,34 @@ export function say(agent, message) {
     agent.openChat(message);
 }
 
-/** What the bot knows about itself, for the decisions: where it is, its health and food, and whether it
- *  carries a sword or an axe (for an order to fight when armed). */
+// Armor points of each piece, the same on both editions: what the armor bar shows a player.
+const PIECE_POINTS = { helmet: 0, chestplate: 1, leggings: 2, boots: 3 };
+const ARMOR_POINTS = {
+    leather: [1, 3, 2, 1], copper: [2, 4, 3, 1], golden: [2, 5, 3, 1], chainmail: [2, 5, 4, 1],
+    iron: [2, 6, 5, 2], diamond: [3, 8, 6, 3], netherite: [3, 8, 6, 3],
+};
+const pointsOf = name => {
+    if (name === 'turtle_helmet') return 2;
+    const [, material, piece] = /^([a-z]+)_(helmet|chestplate|leggings|boots)$/.exec(name ?? '') ?? [];
+    return ARMOR_POINTS[material]?.[PIECE_POINTS[piece]] ?? 0;
+};
+
+/** The armor points of what the bot wears, as its armor bar shows them. */
+export function armorOf(bot) {
+    if (typeof bot.getEquipmentDestSlot !== 'function') return 0;
+    return ['head', 'torso', 'legs', 'feet']
+        .map(part => bot.inventory?.slots?.[bot.getEquipmentDestSlot(part)]?.name)
+        .reduce((sum, name) => sum + pointsOf(name), 0);
+}
+
+/** What the bot knows about itself, for the decisions: where it is, its health and food, whether it carries
+ *  a sword or an axe (for an order to fight when armed), and the armor it wears (for how much it takes on). */
 export function selfOf(bot) {
     const position = bot.entity.position;
     return {
         position: { x: position.x, y: position.y, z: position.z },
         health: bot.health ?? 20, food: bot.food ?? 20, gameMode: bot.game?.gameMode,
         armed: bestWeapon(bot.inventory?.items?.().map(item => item.name) ?? [], editionOf(bot.registry).meleeOf) !== null,
+        armor: armorOf(bot),
     };
 }

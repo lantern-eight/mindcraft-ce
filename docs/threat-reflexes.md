@@ -96,8 +96,8 @@ wins:
 | # | What | What the bot does |
 |---|---|---|
 | 1 | Health under 6, with a hostile in view or a hit felt just now | **Runs**, 20 blocks from every hostile about, newcomers included |
-| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range |
-| 3 | Two or more melee mobs in view within 8 blocks that have come for the bot (or within 5, about to) | **Backs away from all of them at once**, 16 blocks from each, rather than from the nearest into the next. A fight already started on one of them doesn't hold this back |
+| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (the bot armed and in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range |
+| 3 | More melee mobs in view within 8 blocks that have come for the bot (or within 5, about to) than its gear takes on: two or more bare-handed, four or more with a sword or an axe. Or two or more with one too strong among them | **Backs away from all of them at once**, 16 blocks from each, rather than from the nearest into the next. A fight already started on one of them doesn't hold this back |
 | 4 | One melee mob coming at it that the bot shouldn't fight: the bot under half health, or too hungry to sprint (food 6 or less), or the mob too strong for a fight nobody asked for (a cave spider's poison, a warden, a ravager, a vindicator, a piglin brute, a hoglin or zoglin, a provoked enderman, a wither skeleton) | Backs away from it |
 | 5 | Hit twice within 4 s with nothing in view that could have done it: no mob within reach, none that has picked a target, none that shoots | **Gets away from the side the hits came from** |
 | | Anything else | Nothing. A lone mob in a fair fight is the fight's |
@@ -112,10 +112,18 @@ enough, or when all of them have been out of its view for 2 s (they have lost it
 
 ## The Fight
 
-With the threat reflexes on, `self_defense` is this fork's: it fights **one mob that has come for the bot,
-within 8 blocks, with the bot at half health or more and fed enough to sprint**. Measured melee trials
-(unarmed and unarmored, on vanilla) won one mob of most kinds and lost two zombies at once, so that is the
-scope. Two or more, or one too strong, are the mob reflex's to back away from.
+With the threat reflexes on, `self_defense` is this fork's: it fights **what has come for the bot, within 8
+blocks, as much as its gear takes on, with the bot at half health or more and fed enough to sprint**:
+
+| Gear | It takes on | Why |
+|---|---|---|
+| Bare hands | One melee mob | Measured melee trials (unarmed, unarmored) won one mob of most kinds and lost two zombies at once |
+| A sword or an axe | Up to three melee mobs | In the arena a stone or a copper sword beat three zombies, taking 3 damage |
+| A sword or an axe, and 15 armor points or more (a full iron set) | Up to three melee mobs and two skeletons (or strays, or bogged), which it rushes instead of hiding from | In the arena an iron sword in iron armor won every round: two skeletons with 4 damage taken, two zombies, a skeleton and a spider with 7. A stone sword alone won that last one too, with 20 taken, so archers only when armored |
+
+More than that, or one too strong, are the mob reflex's to back away from. Under half health, or too hungry,
+the gear counts for nothing: it is the one mob again. A skeleton the fight can't find a way to (up on a
+ledge) is hidden from, as without the armor, and asked about again a few seconds later.
 
 - It doesn't start on a mob with another one close by that hasn't picked a target yet: it soon will.
 - It fights with the weapon carried that kills soonest on that edition (on Java a sword over an axe, which hits
@@ -353,9 +361,10 @@ instead of 100, and spent half a second on their rounds instead of four and a ha
   zombie, a skeleton) counts as having come for the bot as soon as it is in view, and an archer counts as
   aiming when it faces the bot. The crowd rule and the fight start a little sooner there than on Java, where
   the bot waits for the mob to show it.
-- **The bot's own fight scope is one mob,** at half health, with food to sprint on, measured unarmed. Armor
-  doesn't widen it, and a weapon widens it only through orders (the built-in ones cover zombies and the
-  plain spider).
+- **The bot's own fight scope comes from the arena,** which measured one kit of armor (full iron) and up to
+  three zombies, two skeletons, or four mobs mixed, on flat ground in a walled pen at night. More than that,
+  other kinds of archer (a pillager, a witch), and other ground (a cave, a ledge) were not measured, so the
+  bot backs away from them as before.
 - **An order is about a kind of mob, not a place or a mob.** "Fight the zombie by the door" or "leave the
   pillagers at the outpost alone" can't be said as an order.
 - **A fight under orders is still paused by the actions that pause `self_defense`** (`goToPlayer`,

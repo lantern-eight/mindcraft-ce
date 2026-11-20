@@ -63,7 +63,7 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, n
         if (!mode.on || mode.active || !bot?.entity) return;
         while (hits.length && now() - hits[0].at > HITS_KEPT_MS) hits.shift();
         const self = selfOf(bot);
-        const decision = decideMobThreat(mobsAround(bot, dying), self, { hits, now: now(), ownerOf: claims.ownerOf, orderOf: ordersAfterGivingUp(ordersFor(orders, self), gaveUp) });
+        const decision = decideMobThreat(mobsAround(bot, dying), self, { hits, now: now(), ownerOf: claims.ownerOf, orderOf: ordersAfterGivingUp(ordersFor(orders, self), gaveUp), gaveUp });
         // Not awaited: the move runs as an action, and the round must not hold up the mode loop.
         if (MOVES.has(decision.stance)) act(agent, decision, self).catch(error => console.warn(`[${MODE_NAME}] ${error.stack ?? error}`));
     }
