@@ -8,6 +8,7 @@ import { Vec3 } from 'vec3';
 import { firstStep, safeCell, guardStep, retreatFrom } from '../src/agent/reflexes/moves.js';
 import { createShield } from '../src/agent/reflexes/shield.js';
 import { createItemUse } from '../src/agent/reflexes/item_use.js';
+import '../src/agent/bedrock/edition.js';
 
 // A flat stone floor with its top at y 63, air above, and whatever `cells` changes. "x,y,z" -> name;
 // null in `cells` means the bot doesn't know that cell.
@@ -104,4 +105,22 @@ test('a retreat stands behind the shield while its guard names something, and lo
     assert.equal(did.filter(d => d === 'shield up').length, 1);
     assert.equal(did.at(-2), 'shield down', 'lowered at the end');
     assert.equal(shield.up, false);
+});
+
+test('on Bedrock a retreat behind the shield keeps the sneak key held: letting go of every key would lower it', async () => {
+    const { bot, shield } = guardedBot();
+    bot.registry = { version: { type: 'bedrock' } };
+    const keys = {};
+    let sneakLetGo = false;
+    bot.setControlState = (key, on) => { if (key === 'sneak' && keys.sneak && !on && shield.up) sneakLetGo = true; keys[key] = on; };
+    bot.clearControlStates = () => { if (keys.sneak && shield.up) sneakLetGo = true; for (const key in keys) keys[key] = false; };
+    bot.pathfinder.setGoal = () => bot.clearControlStates(); // as the pathfinder does when its goal is dropped
+    let steps = 0;
+    await retreatFrom(bot, {
+        from: () => [{ x: 8.5, y: 64, z: 0.5 }], to: 16,
+        guard: { against: () => ({ x: 8.5, y: 65.5, z: 0.5 }), shield },
+        done: () => ++steps > 5,
+    });
+    assert.equal(sneakLetGo, false, 'the sneak was let go while the shield was up');
+    assert.equal(keys.sneak, false, 'and let go at the end');
 });

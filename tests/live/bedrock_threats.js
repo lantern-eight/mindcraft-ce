@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // The threat reflexes on a real Bedrock Dedicated Server (no model calls, free to run).
-//   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_threats.js
+//   BEDROCK_TEST_HOST=... BEDROCK_TEST_PORT=... BEDROCK_TEST_CONSOLE="..." node tests/live/bedrock_threats.js [--only=<part of a scene's name>]
 // bedrock_fixture.js explains the variables; docs/bedrock.md shows a throwaway server to point them at.
 // NEVER a world you care about: creepers explode here, and the scenes are built and torn down from the console.
 //
@@ -25,7 +25,16 @@ import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
 
 const NAME = 'BedrockWary';
-const { step, summary } = createReport();
+const report = createReport();
+const { summary } = report;
+// --only: the scenes whose name has this in it, after the first, which joins and sets up.
+const ONLY = process.argv.find(a => a.startsWith('--only='))?.split('=')[1];
+let joined = false;
+const step = (name, fn) => {
+    if (joined && ONLY && !new RegExp(ONLY).test(name)) return null;
+    joined = true;
+    return report.step(name, fn);
+};
 const server = bedrockTestServer();
 if (!server.hasConsole) throw new Error('The scenes are built from the server console: set BEDROCK_TEST_CONSOLE');
 const cmd = server.command;
@@ -192,34 +201,42 @@ try {
         return { endedBlocksAway: Number(away.toFixed(1)) };
     });
 
-    // Cornered: walls to the north, south and east of the bot, and the creeper's glass pen closing the west.
-    // There is nowhere to run. A Bedrock player raises a shield by sneaking (the edition seam's raiseShield);
-    // faced at the blast, it stops it. Without one, the damage is what cornering costs.
+    // Cornered: a dead end one block wide, walls to the north, south and east of the bot, and a creeper lit
+    // inside its mouth, with no glass pen (glass between would take most of the blast; a lit creeper stands
+    // where it is). There is nowhere to run. A Bedrock player raises a shield by sneaking (the edition seam's
+    // raiseShield); faced at the blast, it stops it. Without one, the damage is what cornering costs: on easy,
+    // as on Java, so a bot without a shield lives to be measured.
     for (const shield of [false, true]) {
         await step(`cornered by a lit creeper${shield ? ', with a shield it is given: it goes in the off-hand, and the bot faces the blast sneaking behind it, no damage' : ', no shield: the damage it takes'}`, async () => {
             await reset();
-            await fill([-1, 1, -1], [1, 2, -1], 'stone');
-            await fill([-1, 1, 1], [1, 2, 1], 'stone');
+            await cmd('difficulty easy');
+            await fill([-3, 1, -1], [1, 2, -1], 'stone');
+            await fill([-3, 1, 1], [1, 2, 1], 'stone');
             await fill([1, 1, 0], [1, 2, 0], 'stone');
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
-            let gone = false;
-            const onGone = entity => { if (entity.name === 'creeper') gone = true; };
+            let gone = null;
+            const onGone = entity => { if (entity.name === 'creeper') gone = performance.now(); };
             bot.on('entityGone', onGone);
-            await litCreeper([-2, 1, 0]);
+            const spot = at(-2, 1, 0);
+            const lit = performance.now();
+            await cmd(`summon creeper ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:start_exploding_forced`, 0);
             await waitFor(() => gone, 8000, () => JSON.stringify(events));
             bot.off('entityGone', onGone);
             await delay(1000);
             const raised = events.filter(e => e.event === 'shield').length;
+            // When the shield went up, against when the creeper was lit and when it went.
+            const upAt = events.find(e => e.event === 'shield')?.at;
+            const timing = { raisedMsAfterLit: upAt ? Math.round(upAt - lit) : null, blastMsAfterLit: Math.round(gone - lit) };
             const offHand = bot.inventory.slots[45]?.name ?? null;
             if (shield) {
                 assert.equal(offHand, 'shield', 'the shield was put in the off-hand');
                 assert.ok(raised > 0, `the shield went up: ${JSON.stringify(events)}`);
-                assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth})`);
+                assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth}, ${JSON.stringify(timing)})`);
             } else {
                 assert.equal(raised, 0);
             }
-            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, offHand };
+            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, offHand, ...timing };
         });
     }
 

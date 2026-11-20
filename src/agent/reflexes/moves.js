@@ -99,10 +99,17 @@ export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () =
     return retreatFrom(bot, { from: () => { const point = from(); return point ? [point] : null; }, to, maxMs, done, report, guard });
 }
 
+// The keys that walk. Stopping a move lets go of these and no others: on Bedrock the shield is held up by the
+// sneak key (raiseShield), and letting go of every key would lower it.
+const WALKING = ['forward', 'back', 'left', 'right', 'sprint', 'jump'];
+const stopWalking = bot => { for (const key of WALKING) bot.setControlState(key, false); };
+
 /**
  * One step of a guard: when it names something to block, the bot stops where it is (`stop`), faces it and
  * holds the shield up. True while it does; false, with the shield down, when there is nothing to block, no
- * shield in the off-hand, or the channel is busy (a meal).
+ * shield in the off-hand, or the channel is busy (a meal). Once the shield is up the bot is already
+ * standing, and isn't stopped again: stopping the pathfinder lets go of every key, the sneak that holds a
+ * Bedrock shield up among them.
  * @param {object} bot
  * @param {{against: () => {x:number, y:number, z:number}|null, shield: object}|null} guard - the point to
  *     face, and the bot's shield (shield.js)
@@ -111,7 +118,7 @@ export async function backOffFrom(bot, { from, to = 8, maxMs = 3000, done = () =
 export async function guardStep(bot, guard, stop) {
     const at = guard?.shield?.has() ? guard.against() : null;
     if (!at) { guard?.shield?.lower(); return false; }
-    stop();
+    if (!guard.shield.up) stop();
     const here = bot.entity.position;
     await bot.lookAt(here.offset(at.x - here.x, at.y - here.y, at.z - here.z), true);
     return guard.shield.raise();
@@ -164,7 +171,7 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         return null;
     };
     let ended = finished(), blocks = 0;
-    const halt = () => { bot.pathfinder.setGoal(null); bot.clearControlStates(); };
+    const halt = () => { bot.pathfinder.setGoal(null); stopWalking(bot); };
     const guarding = async () => {
         const wasUp = guard?.shield?.up;
         const up = await guardStep(bot, guard, halt);
@@ -191,7 +198,7 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
                 if (guard && await guarding()) break; // behind the shield; the pathfinder goes on after
                 await wait(STEP_MS);
             }
-            bot.clearControlStates();
+            stopWalking(bot);
         }
         // The rest, by the pathfinder, re-aimed when a threat moves.
         let aimedAt = null, stepped = Boolean(step);
