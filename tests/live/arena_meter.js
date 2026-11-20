@@ -31,8 +31,12 @@ const round1 = value => (value == null ? null : Math.round(value * 10) / 10);
  * within half a second, as a player sees a hit land. A mob counts as killed when the server says it died, or
  * when it is gone from the bot's tracking (Bedrock removes a dead mob without a death status every time).
  * @param {object} bot
+ * @param {object} [options]
+ * @param {number} [options.brink] - health at or under which the round counts as lost by death, and `onBrink`
+ *     is told (to heal the bot before it really dies); none: only a real death counts
+ * @param {() => void} [options.onBrink]
  */
-export function createMeter(bot) {
+export function createMeter(bot, { brink = 0, onBrink = () => {} } = {}) {
     let round = null;
     const attack = bot.attack;
     bot.attack = function (target, ...rest) {
@@ -50,6 +54,7 @@ export function createMeter(bot) {
         if (bot.health < round.health) round.damage += round.health - bot.health;
         round.health = bot.health;
         round.lowest = Math.min(round.lowest, bot.health);
+        if (brink > 0 && bot.health > 0 && bot.health <= brink && !round.died) { round.died = true; onBrink(); }
     });
     bot.on('death', () => { if (round) round.died = true; });
 

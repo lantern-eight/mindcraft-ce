@@ -9,8 +9,9 @@
 // The Bedrock twin of fight_arena.js, with the same rounds and kits and the same measures (arena_meter.js).
 // It is a yardstick, not a check: run before and after a change to how the bot fights. Bedrock's console
 // differs: it can't remove mobs by kind, so peaceful difficulty clears them between rounds; a zombie is
-// summoned with the event that makes it an adult, since nothing else stops one coming out a baby; and the
-// kits are given with Bedrock's commands.
+// summoned with the event that makes it an adult, since nothing else stops one coming out a baby; the kits
+// are given with Bedrock's commands; and a round counts as lost by death at 4 health, when the bot is healed,
+// since a Bedrock bot that really dies may not come back.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -101,7 +102,10 @@ try {
             await delay(Math.max(0, 300 - (Date.now() - started)));
         }
     })().catch(error => console.error('the update loop stopped:', error));
-    const meter = createMeter(bot);
+    // A bot that really dies here may stay dead (see the gamerule below), which would end the run. So a round
+    // is lost "by death" when health falls to 4 or under, and the console heals the bot then: below the 6 where
+    // the bot runs, and more than most single hits here (a zombie's 3, a spider's 2) from dying.
+    const meter = createMeter(bot, { brink: 4, onBrink: () => { cmd(`effect ${NAME} instant_health 1 10`, 0).catch(() => {}); } });
 
     // Fight every kind in the arena down to 6 health, the floor no order goes under, as on Java.
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
