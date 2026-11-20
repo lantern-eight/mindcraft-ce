@@ -178,6 +178,10 @@ What the server jar unpacks on its first start (and for Paper, downloads and pat
 `server_data/jar-cache` and shared by every run after. `MC_TEST_JAR_CACHE` picks another folder; `off` gives
 each server its own copy again. Run the live scripts one at a time: they share a port and that folder.
 
+Each run's world goes in a new folder under `server_data`, and the next run clears away those over an hour old
+(`tests/helpers/test_worlds.js`), except ones holding a model run's results. `MC_TEST_KEEP_WORLDS=1` keeps them
+all, to look into a world after a run.
+
 ## Documentation
 
 | Page | What it covers |
