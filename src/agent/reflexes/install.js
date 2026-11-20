@@ -61,11 +61,13 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     const watch = createDangerWatch({ zones });
     agent.fairPlay?.onHeard?.(sound => { creeper.hear(agent, sound); watch.hear(agent, sound); });
     const claims = createClaims();
-    const mob = createMobReflex({ claims, orders });
+    let fight = null;
+    // A mob the fight gave up on is the mob reflex's again, whatever the orders said (ordersAfterGivingUp).
+    const mob = createMobReflex({ claims, orders, gaveUp: id => fight?.gaveUpOn(id) ?? false });
     registerMode(mob.mode, { after: creeper.mode.name });
     mob.watch(agent.bot);
     // The fight keeps the stock switch's state: on unless the profile or a command said otherwise.
-    const fight = createFightReflex({ claims, orders });
+    fight = createFightReflex({ claims, orders });
     fight.mode.on = agent.bot.modes.exists('self_defense') ? agent.bot.modes.isOn('self_defense') : true;
     registerMode(fight.mode, { after: 'cowardice' });
     fight.watch(agent.bot);

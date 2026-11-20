@@ -204,6 +204,21 @@ function javaNamesFor(registry) {
 // A survival player's reach on Bedrock (see survivalReach).
 const SURVIVAL_REACH = Object.freeze({ blocks: 5, entities: 3 });
 
+// ---- Melee ----
+
+// What a melee hit does on Bedrock (see meleeOf): each item's attack damage. Bedrock's swords hit harder
+// than Java's and its axes softer, so a sword is the better weapon there in every material.
+const bedrockTier = (kind, damages) => Object.entries(damages).map(([material, damage]) => [`${material}_${kind}`, damage]);
+const BEDROCK_DAMAGE = new Map([
+    ...bedrockTier('sword', { wooden: 5, golden: 5, stone: 6, copper: 6, iron: 7, diamond: 8, netherite: 9 }),
+    ...bedrockTier('axe', { wooden: 4, golden: 4, stone: 5, copper: 5, iron: 6, diamond: 7, netherite: 8 }),
+    ...bedrockTier('pickaxe', { wooden: 3, golden: 3, stone: 4, copper: 4, iron: 5, diamond: 6, netherite: 7 }),
+    ...bedrockTier('shovel', { wooden: 2, golden: 2, stone: 3, copper: 3, iron: 4, diamond: 5, netherite: 6 }),
+    ['trident', 9],
+]);
+// A mob hurt can't be hurt again for 10 ticks. With no attack meter, that is how often a swing counts.
+const BEDROCK_HURT_PAUSE_MS = 500;
+
 // Mobs that attack any player they see, whatever happens, and the ones among them that shoot (see
 // isAggressive and isAiming). By Bedrock's names: an evoker is `evocation_illager` there.
 const ALWAYS_HOSTILE = new Set(['zombie', 'husk', 'drowned', 'zombie_villager', 'zombie_villager_v2', 'skeleton', 'stray', 'bogged',
@@ -484,6 +499,19 @@ export const bedrockEdition = Object.freeze({
      */
     survivalReach() {
         return SURVIVAL_REACH;
+    },
+
+    /**
+     * What a melee hit with an item does. Bedrock has no attack meter: every swing does the item's full
+     * damage however soon it follows the last. What limits a fight instead is the mob: once hurt, it can't
+     * be hurt again for half a second, so a swing sooner than that does nothing. That half second is the
+     * "recharge" here, the same for every item.
+     *
+     * @param {string|null|undefined} itemName - what is in the hand; nothing means a bare hand
+     * @returns {{damage: number, rechargeMs: number}}
+     */
+    meleeOf(itemName) {
+        return { damage: BEDROCK_DAMAGE.get(itemName) ?? 1, rechargeMs: BEDROCK_HURT_PAUSE_MS };
     },
 
     moveStack,

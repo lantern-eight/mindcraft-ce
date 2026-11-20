@@ -33,6 +33,8 @@ function makeBot() {
         inventory: { items: () => [] }, heldItem: null,
         async equip(item) { bot.heldItem = item; },
         on(name, fn) { (listeners[name] ??= []).push(fn); },
+        off(name, fn) { listeners[name] = (listeners[name] ?? []).filter(other => other !== fn); },
+        attack(mob) { bot.attacking = mob; },
         emit(name, ...args) { for (const fn of listeners[name] ?? []) fn(...args); },
         blockAt: pos => (Math.floor(pos.y) <= 63 ? { name: 'stone', boundingBox: 'block' } : { name: 'air', boundingBox: 'empty' }),
         nearestEntity(match) {
@@ -42,7 +44,6 @@ function makeBot() {
         async lookAt(point) { const d = point.minus(bot.entity.position); facing = new Vec3(d.x, 0, d.z).normalize(); },
         setControlState(name, on) { controls[name] = on; },
         clearControlStates() { for (const key in controls) controls[key] = false; },
-        pvp: { attack(mob) { bot.attacking = mob; }, stop() { bot.attacking = null; } },
         pathfinder: {
             setMovements() {},
             setGoal(g) { goal = g; },
@@ -138,10 +139,10 @@ test('a lone zombie is fought; two are not; one that has not come for the bot is
     await installed.fight.round(agent);
     await delay(20);
     assert.equal(agent.actions.currentActionLabel, 'mode:self_defense');
-    assert.equal(bot.attacking?.id, one.id);
+    await waitUntil(() => bot.attacking, 3000); // it closes in, then swings
+    assert.equal(bot.attacking.id, one.id);
     delete bot.entities[one.id]; // it dies
-    await waitUntil(() => !agent.actions.executing, 3000);
-    assert.equal(bot.attacking, null, 'the fight stops when the mob is gone');
+    await waitUntil(() => !agent.actions.executing, 3000); // the fight stops when the mob is gone
 
     put(bot, zombie(-3.5), zombie(-5.5));
     await installed.fight.round(agent);
@@ -176,7 +177,7 @@ test('hurt and with a zombie coming, the bot backs away instead of fighting', as
     bot.stopWalking();
 });
 
-test('armed, the built-in order fights two zombies one after the other instead of backing away', async () => {
+test('armed, the built-in order fights two zombies one after the other, without stopping in between, instead of backing away', async () => {
     const { agent, bot, installed, messages } = makeAgent();
     bot.inventory.items = () => [{ name: 'iron_sword' }];
     const [near, far] = put(bot, zombie(-3.5), zombie(-5.5, 2.5));
@@ -187,16 +188,15 @@ test('armed, the built-in order fights two zombies one after the other instead o
     await installed.fight.round(agent);
     await delay(20);
     assert.equal(agent.actions.currentActionLabel, 'mode:self_defense');
-    assert.equal(bot.attacking?.id, near.id, 'the nearer one first');
+    await waitUntil(() => bot.attacking, 3000);
+    assert.equal(bot.attacking.id, near.id, 'the nearer one first');
     assert.equal(bot.heldItem?.name, 'iron_sword');
     delete bot.entities[near.id];
-    await waitUntil(() => !agent.actions.executing, 3000);
-    assert.match(messages[0], /Fighting the zombie \(west, very close\), as I was told to\./);
-    await installed.fight.round(agent);
-    await delay(20);
-    assert.equal(bot.attacking?.id, far.id, 'then the other');
+    await waitUntil(() => bot.attacking.id === far.id, 3000); // then the other, in the same fight
+    assert.equal(agent.actions.currentActionLabel, 'mode:self_defense');
     bot.health = 9; // under the order's minimum: the fight stops, and the crowd rules are back
     await waitUntil(() => !agent.actions.executing, 3000);
+    assert.match(messages[0], /Fighting the zombie \(west, very close\), as I was told to\./, 'the model is told once, as it ends');
     bot.stopWalking();
 });
 
@@ -244,3 +244,18 @@ async function waitUntil(check, ms) {
         await delay(20);
     }
 }
+
+test('the armor the bot wears, in the points its armor bar shows', async () => {
+    const { armorOf } = await import('../src/agent/reflexes/mobs.js');
+    const wearing = (...names) => {
+        const slots = {};
+        names.forEach((name, i) => { slots[5 + i] = name ? { name } : null; });
+        return { inventory: { slots }, getEquipmentDestSlot: part => ({ head: 5, torso: 6, legs: 7, feet: 8 })[part] };
+    };
+    assert.equal(armorOf(wearing('iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots')), 15, 'a full iron set');
+    assert.equal(armorOf(wearing('diamond_helmet', 'diamond_chestplate', 'diamond_leggings', 'diamond_boots')), 20);
+    assert.equal(armorOf(wearing(null, 'diamond_chestplate', 'iron_leggings', null)), 13);
+    assert.equal(armorOf(wearing('turtle_helmet', 'leather_chestplate', null, 'chainmail_boots')), 6);
+    assert.equal(armorOf(wearing(null, null, null, null)), 0);
+    assert.equal(armorOf({ inventory: { slots: {} } }), 0, 'a bot that can\'t say where armor goes');
+});
