@@ -111,6 +111,14 @@ export function openWayTo(blockAt, feet, to) {
 }
 
 /**
+ * Whether the bot may go after a mob here: the leash holds the bot within 12 blocks of where the fight began,
+ * so a mob counts as within it when the bot could hit it from inside (a reach short of it).
+ */
+export function withinLeash(target, home, reach) {
+    return flat(target, home) - reach <= LEASH;
+}
+
+/**
  * Why to let go of a fight now, or null to go on.
  * @param {object} state - {now, closestAt (when it last got closer), inReach, swingsSinceLanded, lastLandedAt}
  */
@@ -247,7 +255,7 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
                         halt();
                     }
                 }
-            } else if (flat(target.position, home) > LEASH) {
+            } else if (!withinLeash(target.position, home, reach)) {
                 // It has gone past the leash: face it, but don't follow. It comes back, or the fight lets go.
                 if (moving !== 'still') halt();
             } else if (openWayTo(blockAt, position, target.position)) {

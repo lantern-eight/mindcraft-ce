@@ -4,7 +4,7 @@
 // Plain objects stand in for mobs, and a map for the blocks the bot knows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reachTo, pickTarget, shouldStepBack, openWayTo, charged, fightLetGo } from '../src/agent/reflexes/melee.js';
+import { reachTo, pickTarget, shouldStepBack, openWayTo, charged, fightLetGo, withinLeash } from '../src/agent/reflexes/melee.js';
 
 const eye = { x: 0.5, y: 65.62, z: 0.5 };
 const mob = (id, x, z, extra = {}) => ({ id, name: 'zombie', position: { x, y: 64, z }, width: 0.6, height: 1.95, ...extra });
@@ -77,4 +77,10 @@ test('letting go of a fight that is not working', () => {
     // Swinging in reach and never seeing it flinch: something is in the way, or the hits do nothing.
     assert.equal(fightLetGo({ ...base, inReach: true, swingsSinceLanded: 5, lastLandedAt: 4000 }), 'not landing');
     assert.equal(fightLetGo({ ...base, inReach: true, swingsSinceLanded: 2, lastLandedAt: 4000 }), null, 'a couple of misses happen');
+});
+
+test('the leash is on where the bot goes, not where the mob is: a mob against a wall 13 out is still in reach of it', () => {
+    const home = { x: 0.5, y: 64, z: 0.5 };
+    assert.equal(withinLeash({ x: 13.5, y: 64, z: 0.5 }, home, 3), true, 'the bot stands 10 out to hit it');
+    assert.equal(withinLeash({ x: 15.6, y: 64, z: 0.5 }, home, 3), false, 'it would have to go past 12');
 });
