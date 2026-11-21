@@ -14,7 +14,9 @@ import { openMemory } from '../src/agent/memory/store.js';
 import { createRecorder } from '../src/agent/memory/recorder.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 
-const STRICT = resolvePolicy({ fair_play: 'strict' });
+// Strict, but seeing all around: these scenes put things on every side of the bot to test something other
+// than the view. The narrowed view, strict's own, has tests of its own.
+const ALL_AROUND = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } });
 
 function clock(start = 1_000_000) {
     let t = start;
@@ -23,7 +25,7 @@ function clock(start = 1_000_000) {
     return now;
 }
 
-function setup(build, { policy = STRICT, entities = [], now = clock(), options = {} } = {}) {
+function setup(build, { policy = ALL_AROUND, entities = [], now = clock(), options = {} } = {}) {
     const world = fixtureWorld({ min: [-24, -4, -24], max: [24, 24, 24] });
     world.fill('stone', [-24, 0, -24], [24, 0, 24]); // floor
     build(world);
@@ -170,7 +172,7 @@ test('stop() removes every listener perception added, so respawns do not pile th
     const { world } = setup(() => {});
     const bot = stubBot(world);
     bot._client = new EventEmitter();
-    const perception = createPerception({ bot, policy: STRICT, ...NO_BUDGETS });
+    const perception = createPerception({ bot, policy: ALL_AROUND, ...NO_BUDGETS });
     perception.start();
     const events = ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload'];
     const packets = ['sound_effect', 'named_sound_effect', 'entity_sound_effect'];
@@ -227,6 +229,95 @@ test('E3: name tags show standing players through walls within 64 blocks, but no
     const far = { id: 11, type: 'player', username: 'Kim', position: at(10.5, 1, 0.5).offset(70, 0, 0), height: 1.8, eyeHeight: 1.62 };
     const { perception } = setup(w => w.fill('stone', [4, 1, -6], [4, 6, 6]), { entities: [standing, sneaking, far] });
     assert.deepEqual(perception.entities().map(e => e.username), ['Alex']);
+});
+
+const NARROW = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 70 } });
+
+test('a narrow view: what is behind the bot is unknown until it turns', () => {
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: at(0.5, 1, 8.5), height: 1.95 }; // south, behind
+    const { bot, perception, world } = setup(w => w.set('diamond_ore', 0, 1, 6), { policy: NARROW, entities: [zombie] });
+    // The stub bot faces north (yaw 0), so +z is behind it.
+    assert.equal(perception.blockAt(at(0, 1, 6)), null, 'the ore behind');
+    assert.deepEqual(perception.entities(), [], 'the zombie behind');
+    assert.equal(perception.findBlocks({ matching: diamond(world), maxDistance: 16 }).length, 0);
+    bot.entity.yaw = Math.PI; // turn round to face south
+    bot.entity.pitch = -0.3;
+    assert.equal(perception.blockAt(at(0, 1, 6))?.name, 'diamond_ore');
+    assert.deepEqual(perception.entities().map(e => e.name), ['zombie']);
+    assert.ok(perception.screenNow(), 'a screen while the view is narrow');
+});
+
+test('a narrow view: a point just behind the bot is touched, not seen', () => {
+    const { bot, perception } = setup(() => {}, { policy: NARROW });
+    // The bot stands at the origin facing north; the cell just south of it is within touch.
+    const behind = at(0.5, 1.85, 1.5), ahead = at(0.5, 1.85, -2.5);
+    assert.equal(perception.seesCell(behind), true, 'touch reaches the cell');
+    assert.equal(perception.seesPoint(behind), false, 'but the eyes don\'t');
+    assert.equal(perception.seesPoint(ahead), true);
+    bot.entity.yaw = Math.PI; // facing south, looking a little down: it is 38 degrees below the eye
+    bot.entity.pitch = -0.3;
+    assert.equal(perception.seesPoint(behind), true);
+});
+
+test('a narrow view: what is heard says which side of the bot it came from, as well as which way', () => {
+    const { bot, perception } = setup(() => {}, { policy: NARROW });
+    perception.hearSound('minecraft:entity.zombie.ambient', at(0.5, 1, 8.5));   // south: behind the bot, facing north
+    perception.hearSound('minecraft:entity.skeleton.ambient', at(-8.5, 1, 0.5)); // west: to its left
+    perception.hearSound('minecraft:entity.spider.ambient', at(8.5, 1, 0.5));    // east: to its right
+    perception.hearSound('minecraft:entity.cow.ambient', at(0.5, 1, -8.5));      // north: in front
+    const said = Object.fromEntries(perception.heard().map(h => [h.subject, h.text]));
+    assert.equal(said.zombie, 'behind you, south, close');
+    assert.equal(said.skeleton, 'to your left, west, close');
+    assert.equal(said.spider, 'to your right, east, close');
+    assert.equal(said.cow, 'in front of you, north, close');
+    assert.equal(perception.heard().find(h => h.subject === 'zombie').direction, 'south', 'the compass way is kept apart');
+    bot.entity.yaw = Math.PI; // turned round
+    assert.match(perception.heard().find(h => h.subject === 'zombie').text, /^in front of you/);
+    const wide = setup(() => {});
+    wide.perception.hearSound('minecraft:entity.zombie.ambient', at(0.5, 1, 8.5));
+    assert.equal(wide.perception.heard()[0].text, 'south, close', 'seeing all around, the compass alone');
+});
+
+test('a narrow view: a name tag shows through walls only on screen', () => {
+    const ahead = { id: 9, type: 'player', username: 'Alex', position: at(0.5, 1, -10.5), height: 1.8, eyeHeight: 1.62 };
+    const behind = { id: 10, type: 'player', username: 'Sam', position: at(0.5, 1, 10.5), height: 1.8, eyeHeight: 1.62 };
+    const walls = w => { w.fill('stone', [-6, 1, -5], [6, 8, -5]); w.fill('stone', [-6, 1, 5], [6, 8, 5]); };
+    const { bot, perception } = setup(walls, { policy: NARROW, entities: [ahead, behind] });
+    assert.deepEqual(perception.entities().map(e => e.username), ['Alex'], 'north, through the wall');
+    bot.entity.yaw = Math.PI;
+    assert.deepEqual(perception.entities().map(e => e.username).sort(), ['Alex', 'Sam'],
+        'facing south: Sam\'s tag is on screen, and Alex is remembered a moment where last seen');
+    const all = setup(walls, { entities: [ahead, behind] });
+    assert.equal(all.perception.screenNow(), null, 'all around: no screen');
+    assert.deepEqual(all.perception.entities().map(e => e.username).sort(), ['Alex', 'Sam'], 'all around, both');
+});
+
+test('entitiesInSightAnyWay: a mob in a clear line from the eye, whichever way the bot faces; not one behind a wall', () => {
+    const open = { id: 7, type: 'hostile', name: 'enderman', position: at(0.5, 1, 10.5), height: 2.9 };
+    const walled = { id: 8, type: 'hostile', name: 'enderman', position: at(10.5, 1, 0.5), height: 2.9 };
+    const { perception } = setup(w => w.fill('stone', [5, 1, -3], [5, 8, 3]), { policy: NARROW, entities: [open, walled] });
+    assert.deepEqual(perception.entities(), [], 'neither is in view facing north');
+    assert.deepEqual(perception.entitiesInSightAnyWay(64).map(e => e.id), [7]);
+    assert.deepEqual(perception.entitiesInSightAnyWay(5).map(e => e.id), [], 'too far');
+});
+
+// The wall rules hold through a player's screen too, once the bot faces the scene.
+test('through a player\'s screen, facing them: a buried ore is unknown, an ore in view known; a mob behind a wall unseen', () => {
+    const ores = setup(w => {
+        w.fill('stone', [4, 1, -2], [8, 5, 2]);
+        w.set('diamond_ore', 6, 3, 0); // buried
+        w.set('diamond_ore', 4, 2, -3); // standing alone
+    }, { policy: NARROW });
+    ores.bot.entity.yaw = -Math.PI / 2; // facing east, at the stone
+    assert.equal(ores.perception.blockAt(at(6, 3, 0)), null);
+    assert.equal(ores.perception.blockAt(at(4, 2, -3))?.name, 'diamond_ore');
+    assert.deepEqual(ores.perception.findBlocks({ matching: diamond(ores.world), maxDistance: 32, count: 5 }).map(p => p.toArray()), [[4, 2, -3]]);
+
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: at(8.5, 1, 0.5), height: 1.95 };
+    const pig = { id: 8, type: 'animal', name: 'pig', position: at(2.5, 1, 1.5), height: 0.9 };
+    const mobs = setup(w => w.fill('stone', [4, 1, -3], [4, 6, 3]), { policy: NARROW, entities: [zombie, pig] });
+    mobs.bot.entity.yaw = -Math.PI / 2;
+    assert.deepEqual(mobs.perception.entities().map(e => e.name), ['pig'], 'the pig in front, not the zombie behind the wall');
 });
 
 test('open_face sight sees ore in a sealed cave; ray sight does not', () => {
@@ -292,7 +383,7 @@ test('hearing reads the server\'s sound packets and names each sound from the ri
     const cow = { id: 21, type: 'animal', name: 'cow', position: at(-4.5, 1, 0.5), height: 1.4 };
     const bot = stubBot(world, { entities: [cow] });
     bot._client = new EventEmitter();
-    const perception = createPerception({ bot, policy: STRICT, ...NO_BUDGETS });
+    const perception = createPerception({ bot, policy: ALL_AROUND, ...NO_BUDGETS });
     perception.start();
     const sounds = world.registry.soundsByName, first = world.registry.soundsArray[0].id;
     // The protocol counts sounds from 0, wherever minecraft-data starts counting.

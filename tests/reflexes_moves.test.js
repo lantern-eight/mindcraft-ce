@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vec3 } from 'vec3';
-import { firstStep, safeCell, guardStep, retreatFrom } from '../src/agent/reflexes/moves.js';
+import { firstStep, safeCell, guardStep, retreatFrom, backAwayFacing } from '../src/agent/reflexes/moves.js';
 import { createShield } from '../src/agent/reflexes/shield.js';
 import { createItemUse } from '../src/agent/reflexes/item_use.js';
 import '../src/agent/bedrock/edition.js';
@@ -50,6 +50,23 @@ test('a wall or an unknown cell is no step', () => {
     assert.equal(safeCell(world({ '1,65,0': 'stone' }), { x: 1, y: 64, z: 0 }), false, 'no head room');
     assert.equal(safeCell(world({ '1,63,0': null }), { x: 1, y: 64, z: 0 }), false, 'the floor is unknown');
     assert.equal(safeCell(world({ '1,64,0': null }), { x: 1, y: 64, z: 0 }), false);
+});
+
+test('in a dead end whose corners the bot believes open, no diagonal step slips between the walls', () => {
+    // From inside a one-wide dead end the corner blocks show no face, so memory may still hold the open
+    // ground from before they were built. A step at 45 degrees passes through a side wall first.
+    const cells = {};
+    for (const [x, z] of [[1, 0], [0, 1], [0, -1]]) cells[`${x},64,${z}`] = 'stone';
+    for (const [x, z] of [[1, 1], [1, -1]]) cells[`${x},64,${z}`] = 'air';
+    for (const at of [{ x: 0.7, y: 64, z: 0.5 }, { x: 0.5, y: 64, z: 0.5 }]) // from the middle the line runs through the corner
+        assert.equal(firstStep(world(cells), at, creeperWest), null, JSON.stringify(at));
+});
+
+test('a straight run along a wall the bot stands against is still a step', () => {
+    const cells = {};
+    for (let x = -3; x <= 4; x++) cells[`${x},64,1`] = 'stone'; // a wall along z = 1, the bot's side touching it
+    const step = firstStep(world(cells), { x: 0.5, y: 64, z: 0.7 }, { x: -2.5, y: 64, z: 0.7 });
+    assert.ok(step && step.x > 0.99, JSON.stringify(step));
 });
 
 test('walled in on every side away from the threat: no first step, the pathfinder decides', () => {
@@ -123,4 +140,56 @@ test('on Bedrock a retreat behind the shield keeps the sneak key held: letting g
     });
     assert.equal(sneakLetGo, false, 'the sneak was let go while the shield was up');
     assert.equal(keys.sneak, false, 'and let go at the end');
+});
+
+// A guarded bot whose 'back' key walks it 0.3 blocks a step away from where it last looked.
+function backingBot(cells = {}) {
+    const { bot, did, shield } = guardedBot();
+    bot.blockAt = world(cells);
+    const keys = {};
+    let facing = { x: 1, z: 0 };
+    bot.lookAt = async point => {
+        const dx = point.x - bot.entity.position.x, dz = point.z - bot.entity.position.z, d = Math.hypot(dx, dz) || 1;
+        facing = { x: dx / d, z: dz / d };
+        did.push(`look ${Math.round(point.x)},${Math.round(point.z)}`);
+    };
+    bot.setControlState = (key, on) => { keys[key] = on; };
+    bot.clearControlStates = () => { for (const key in keys) keys[key] = false; did.push('stand'); };
+    const timer = setInterval(() => {
+        if (keys.back) bot.entity.position = bot.entity.position.offset(-facing.x * 0.3, 0, -facing.z * 0.3);
+    }, 50);
+    return { bot, did, shield, keys, stop: () => clearInterval(timer) };
+}
+
+test('backing away facing an archer: it walks backwards looking at it, to the distance', async () => {
+    const { bot, did, shield, stop } = backingBot();
+    try {
+        const archer = { x: 8.5, y: 64, z: 0.5 };
+        const outcome = await backAwayFacing(bot, {
+            from: () => [archer], face: () => ({ ...archer, y: 65.5 }), to: 12, maxMs: 5000,
+            guard: { against: () => null, shield },
+        });
+        assert.equal(outcome.ended, 'far enough');
+        assert.ok(bot.entity.position.x < -3, `it went back, west: ${bot.entity.position}`);
+        assert.ok(did.filter(d => d.startsWith('look')).every(d => d === 'look 9,1'), 'looking at the archer all the way');
+    } finally { stop(); }
+});
+
+test('backing away facing an archer into a wall: it stands there facing it, and the shield goes up for a shot', async () => {
+    const wall = {};
+    for (let z = -3; z <= 3; z++) for (const y of [64, 65]) wall[`-1,${y},${z}`] = 'stone';
+    const { bot, did, shield, stop } = backingBot(wall);
+    try {
+        const archer = { x: 8.5, y: 64, z: 0.5 };
+        let shot = false, steps = 0;
+        const outcome = await backAwayFacing(bot, {
+            from: () => [archer], face: () => ({ ...archer, y: 65.5 }), to: 12, maxMs: 5000,
+            guard: { against: () => (shot ? { ...archer, y: 65.5 } : null), shield },
+            done: () => { if (++steps === 20) shot = true; return steps > 30; },
+        });
+        assert.equal(outcome.ended, 'done');
+        assert.ok(bot.entity.position.x >= -0.2, `stopped at the wall: ${bot.entity.position}`);
+        assert.equal(outcome.blocks, 1, 'the shield went up for the shot');
+        assert.ok(did.includes('shield up'));
+    } finally { stop(); }
 });

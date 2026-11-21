@@ -14,6 +14,12 @@ const rawQueries = Object.freeze({
     findBlocks: (bot, options) => bot.findBlocks(options),
     /** The block at a position, or null. */
     blockAt: (bot, position) => bot.blockAt(position),
+    /**
+     * What the bot believes fills a cell, for planning a move there: like blockAt, but open space the bot
+     * has seen and remembers comes back as air, where blockAt says nothing. Null: never seen. The raw answer
+     * is the live block.
+     */
+    believedAt: (bot, position) => bot.blockAt(position),
     /** Every entity the bot knows about, itself included. */
     entities: (bot) => Object.values(bot.entities),
     /** The nearest entity (not the bot itself) that matches. */

@@ -9,6 +9,104 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.11.0-bedrock.1.12.0] - 2026-11-21
+
+A release for both editions. Under strict fair play the bot sees through a player's screen instead of all
+around: 70° tall on a 16:9 screen, Java's default field of view, and what is behind it it doesn't know until it
+turns. Hearing and touch still reach all around, and `fov_degrees: 360` brings the view all around back. The
+bot turns to look as a player does: before acting on a block, round about when a search finds nothing in
+front, toward a hit or a sound it can't place, and about the whole circle while idle. `turn_speed` makes
+every turn take time (off by default for now), and `!lookAround` lets the model have it look. World memory
+records only what was on screen. The reflexes were fitted to a bot that can't see behind it: it runs looking
+at the ground ahead, backs out of an archer's range facing it behind a shield, goes by distance when it can't
+see what it leaves, and settles what it knows of a lit creeper it can no longer see. No fixes to inherited
+code. Built on the same Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
+### Added
+
+- `turn_speed`, a fair-play switch for how fast the bot turns its head, in degrees a second. Every turn, the
+  fight's and the reflexes' included, is then made a step each game tick, as a player turns, instead of at once.
+  `180` is a player on a controller; the default stays `"instant"` for now.
+- `!lookAround`, under a narrowed field of view: the bot turns round and looks every way, so the model can
+  have it see what is behind it. `!entities` says that only what is in front is listed.
+- A skill that searches (collecting blocks, going to the nearest block or mob, attacking the nearest) looks
+  round first through a player's screen when it found nothing, or only something far off, unless it has just
+  looked every way from there.
+
+### Fixed
+
+- A lit creeper that blew up out of the bot's view stayed in what the creeper reflex knew, still lit, and the
+  bot could go on getting away from it, missing a real creeper meanwhile. A blast heard where a lit creeper
+  was now settles it, and so does looking at where a creeper stood lit and seeing nothing there, or a hit
+  from its side once its fuse has run out: a silent creeper's blast makes no sound.
+
+- A walk whose route ended short of its goal, on ground the bot had not seen and that turned out not to be
+  there, left the bot standing at the end of it until its action timed out. The route is now planned again
+  from there.
+
+### Changed
+
+- Under strict fair play the bot sees through a player's screen instead of all around: 70° tall on a 16:9
+  screen, about 102° across, Java's default field of view, on both editions. What is behind it, it doesn't
+  see until it turns. Hearing and touch still reach all around. `fair_play_custom` `fov_degrees: 360` brings
+  back the view all around, and `fair_play: "off"` keeps it.
+- `fov_degrees` is now the game's own field-of-view number: the height of the screen in degrees, `30` to
+  `110` as on the game's slider, on a 16:9 screen, and what the bot sees is shaped like that screen, not a
+  cone. `360` means all around; any other number is refused at startup. It used to be the width of a cone.
+- A player's name tag shows through walls only when it is on screen, as in the game. A player standing
+  behind the bot is no longer known from their name tag.
+- World memory records only what is on screen, the way the bot faces at the moment it looks, and looks again
+  when the bot turns, even in the middle of a look, so a turn of a second to look at something records it.
+- The bot turns to face a block within reach before digging, opening, using or placing against it, then
+  checks that it can see it, as a player turns to click something behind them.
+- Through a player's screen, what the bot heard says which side of it the sound came from as well as which way:
+  `heard: zombie (behind you, south, close)`.
+- Through a player's screen, with the threat reflexes on, the bot glances toward a hit from something it can't
+  see, a hostile mob heard close by, a shot heard, and back the way it came when it has backed off from a
+  threat, holding the look about a second. A glance at a sound that showed nothing is remembered, so a zombie
+  groaning behind a wall turns the bot once, not every few seconds.
+- Under fair play the idle bot looks about the whole circle in turn, a look every second or two through a
+  player's screen, and looks at a mob or player the way a person does: it holds the look, looks away, looks
+  back, and after a few looks leaves them alone a while. With several in view it looks between them, so none
+  is turned off the screen. It looks only at mobs and players, never an item lying on the ground. While a
+  hostile mob is in view it holds still, so it doesn't turn another off the screen that the reflexes need to
+  see. Mindcraft's idle look stared at the nearest entity, items included, or looked a random way.
+- While it walks through a player's screen, the bot looks a little down at the ground ahead, as a player does,
+  instead of level over it, so it sees where it is about to step.
+- Getting away from a creeper or a mob, the bot turns to the way out and runs looking at the ground ahead, as a
+  player does. Running with its head level, through a player's screen it couldn't see the next steps and left
+  the sprint for the slower pathfinder. Cornered by a lit creeper with a shield, it turns to the blast behind the shield
+  first, wherever it knows the creeper to be, seen or heard.
+- Through a player's screen, the reflexes' moves (a dash, cover, a step back in a fight) count open ground
+  the bot has seen and remembers as open. They took everything out of view for unknown, so a bot facing a
+  skeleton found no cover behind it, beside a wall it had just looked at. Cover the bot can't find a way to
+  ends the move at once, so it backs out of range instead of waiting there while the skeleton shoots.
+- Through a player's screen, a lit creeper the bot has just run past, now behind it, still counts for the
+  shield: it stands where it was, and the bot turns the shield to it. The shield went up only at one in view,
+  and a creeper touched but out of sight was taken to have gone off.
+- A creeper the bot sees die is gone from what it knows at once, and a hiss the game still plays where it fell
+  is taken for that creeper. The kill went on being a lit creeper out of view, or a new one heard, and the
+  bot backed off from it a moment after the hit that killed it.
+- A dash away from a threat checks every cell the body sweeps, along both its sides, not only the middle of
+  its line each whole block. At 45 degrees from the middle of a block it could aim between two walls that
+  meet at a corner, and stall there with a lit creeper behind it instead of raising its shield.
+- Through a player's screen, leaving a creeper that follows, the bot takes it to be coming on at a walk while
+  it runs facing away. Measured from where it last saw the creeper, it stopped inside the creeper's reach,
+  looked back, and left again, for as long as the creeper kept up.
+- With a shield and no cover near, the bot backs out of an archer's range walking backwards, facing it, as a
+  player does. Running, it faced away from the archer, and a shield covers only the side the bot faces: through
+  a player's screen it couldn't see the archer draw or tell its next shot was due, and never raised the shield;
+  seeing all around, it turned to raise it too late as often as not. In a walled pen on Bedrock it took every
+  arrow.
+- Through a player's screen, backing away from mobs, or out of an archer's range with no cover near, goes on
+  to its distance. It stopped once the mobs had been out of view for 2 s, as if they had lost the bot, but the
+  bot runs facing away from them, so it stopped short.
+- Digging down as a staircase, the bot looks at each block before it digs it and at the floor before it steps
+  down, as a player does. Through a player's screen it stopped at the first step, which was below its view.
+- Going up to the surface, the bot looks up the column above it before deciding where to climb to.
+- The enderman gaze guard also counts an enderman behind the bot in a clear line from its eye, so turning
+  round can't stare at one.
+
 ## [1.10.0-bedrock.1.11.0] - 2026-11-20
 
 A release for both editions. The bot uses a shield the way a player does: it keeps one in its off-hand, holds
@@ -989,7 +1087,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...HEAD
+[1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0
 [1.10.0-bedrock.1.11.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.10.0-bedrock.1.11.0
 [1.9.0-bedrock.1.10.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...v1.9.0-bedrock.1.10.1
 [1.9.0-bedrock.1.10.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...v1.9.0-bedrock.1.10.0

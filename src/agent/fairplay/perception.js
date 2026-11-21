@@ -10,7 +10,7 @@
 //   - memory:   blocks it saw before (world memory, src/agent/memory/), exactly as it remembers them.
 //               With world memory off it remembers nothing out of view;
 //   - hearing:  sounds the server actually sent, as "zombie, north-east, close" (never coordinates);
-//   - players:  name tags show through walls within 64 blocks unless the player is sneaking.
+//   - players:  name tags show through walls within 64 blocks unless the player is sneaking, when on screen.
 // The fair query provider (world.js), the fair bot facade (generated code), and the guards all ask here.
 //
 // How it answers "what block is there?":
@@ -29,12 +29,13 @@
 //                           frozen where it was last seen for one that just slipped out of view
 //   liveOf(entity)          the live entity behind such a stand-in, for the reach guard
 //   seesCell / seesFace / seesEntity   what is in view this instant, for the reach guard
+//   seesPoint(point)        sight alone, this instant: whether a point is in view
 //   heard(options)          recent sounds, summarised
 //   onHeard(listener)       told of each sound as it arrives, summarised the same way
 //   start() / stop()        start listening for sounds; end the service for good and remove its listeners
 // The looking around that fills memory is world memory's recorder (memory/recorder.js), not perception's.
 import Vec3 from 'vec3';
-import { buildStopsSightTable, createSight, viewDirection } from './sight.js';
+import { buildStopsSightTable, createSight, inView, screenOf } from './sight.js';
 import { lazyStateTable, scanSection, sectionsInRange } from './block_scan.js';
 import { stateOfProps } from '../memory/block_state.js';
 import { editionOf } from '../edition/index.js';
@@ -42,6 +43,7 @@ import { editionOf } from '../edition/index.js';
 const PLAYER_EYE_HEIGHT = 1.62;
 const NAMETAG_RANGE = 64; // vanilla name tags render through walls up to about this far
 const CROUCH_EYE_HEIGHT = 1.27; // mineflayer sets this on players who are sneaking
+const NAMETAG_ABOVE = 0.5; // the tag floats about this far above the player's head
 
 /** 8-way compass direction and a rough distance, the way a player hears a sound. Never coordinates. */
 export function describeDirection(from, to) {
@@ -170,6 +172,7 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     let feetX = 0, feetY = 0, feetZ = 0;
     let cacheX = 0, cacheY = 0, cacheZ = 0;
     let cacheEye = null, cacheYaw = NaN, cachePitch = NaN, cacheStale = true;
+    let screen = null, screenYaw = NaN, screenPitch = NaN; // the view, under a narrowed field of view
     const invalidate = () => { cacheStale = true; };
 
     function eye() {
@@ -187,9 +190,12 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             cacheX = Math.floor(e.x); cacheY = Math.floor(e.y); cacheZ = Math.floor(e.z);
         }
         eyeNow = e;
-        viewOpts = narrowView
-            ? { maxDistance: blockSightDistance, fovDegrees: policy.fov_degrees, viewDir: viewDirection(yaw, pitch) }
-            : { maxDistance: blockSightDistance };
+        // The screen is worked out once per facing, not per question.
+        if (narrowView && (yaw !== screenYaw || pitch !== screenPitch || !screen)) {
+            screen = screenOf(yaw, pitch, policy.fov_degrees);
+            screenYaw = yaw; screenPitch = pitch;
+        }
+        viewOpts = narrowView ? { maxDistance: blockSightDistance, screen } : { maxDistance: blockSightDistance };
         const p = bot.entity.position;
         feetX = Math.floor(p.x); feetY = Math.floor(p.y); feetZ = Math.floor(p.z);
     }
@@ -424,8 +430,8 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             const distance = entity.position.distanceTo(here);
             let known = false;
             if (entity.type === 'player' && policy.players_through_walls === 'nametag'
-                && distance <= NAMETAG_RANGE && entity.eyeHeight !== CROUCH_EYE_HEIGHT) {
-                known = true; // a standing player's name tag shows through walls
+                && distance <= NAMETAG_RANGE && entity.eyeHeight !== CROUCH_EYE_HEIGHT && nameTagOnScreen(entity)) {
+                known = true; // a standing player's name tag shows through walls, when it is on screen
             } else if (policy.sight === 'all' && distance <= policy.entity_distance) {
                 known = true;
             } else if (distance <= policy.entity_distance && sight.canSeeEntity(eyeNow, entity, entityView)) {
@@ -444,6 +450,18 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         for (const id of standIns.keys()) if (!stillOut.has(id)) standIns.delete(id);
         stillOut.clear();
         return out;
+    }
+
+    /**
+     * Is a player's name tag, or the player under it, on screen? The game draws the tag through walls, but
+     * only where the screen shows: one behind the bot is not seen. Walls don't matter here, so this is the
+     * screen alone, no ray. Under a view all around, it always is.
+     */
+    function nameTagOnScreen(entity) {
+        if (!narrowView) return true;
+        const { x, y, z } = entity.position;
+        const height = entity.height ?? 1.8;
+        return [height + NAMETAG_ABOVE, height * 0.9, height * 0.5].some(up => inView(eyeNow, { x, y: y + up, z }, viewOpts));
     }
 
     /**
@@ -498,6 +516,20 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         }
     }
 
+    /** Where a point is from the bot's facing: in front, to its left or right, or behind it. Null overhead. */
+    function sideOf(here, point) {
+        const dx = point.x - here.x, dz = point.z - here.z;
+        if (Math.hypot(dx, dz) < 1.5) return null;
+        const yaw = bot.entity.yaw ?? 0;
+        // The angle from the facing round to the sound; mineflayer's yaw grows toward the west (the left).
+        const toward = Math.atan2(-dx, -dz);
+        const off = ((toward - yaw) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+        const halfWidth = (screen?.widthDegrees ?? 102) / 2 * Math.PI / 180;
+        if (Math.abs(off) <= halfWidth) return 'in front of you';
+        if (Math.abs(off) >= 3 * Math.PI / 4) return 'behind you';
+        return off > 0 ? 'to your left' : 'to your right';
+    }
+
     /**
      * Calls `listener(sound)` the moment each sound is heard, with what heard() would list for it:
      * subject, direction, distance band, `seen`, `news`, `text`. Never where it came from. A reflex that
@@ -512,6 +544,11 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     // One sound as heard() reports it. `inView` gives the entities in view, asked for only when needed.
     function describeSound(sound, here, inView) {
         const where = describeDirection(here, sound.position);
+        // Through a player's screen, which side of the bot it came from as well: "behind you" is what a player
+        // makes of a sound, and what tells the model to turn. The compass way stays: it is fair (the debug
+        // screen shows the facing), and the glance turns by it.
+        const side = narrowView ? sideOf(here, sound.position) : null;
+        if (side) where.text = `${side}, ${where.text}`;
         const kind = sound.subject.replace(/ \(.*$/, '');
         const near = (p, range) => Math.hypot(p.x - sound.position.x, p.y - sound.position.y, p.z - sound.position.z) <= range;
         let seen = null;
@@ -587,6 +624,12 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             beginLook();
             return perceivable(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z));
         },
+        /** Sight only, right now (no touch, no memory): can the bot see this point? */
+        seesPoint: point => {
+            if (policy.sight === 'all') return true;
+            beginLook();
+            return sight.canSeePoint(eyeNow, point, viewOpts);
+        },
         /** Is this one side of a block in view? `face` is a unit normal with x, y, z. */
         seesFace: (pos, face) => {
             beginLook();
@@ -615,6 +658,30 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             entity = liveOf(entity); // a stand-in's own spot is where the mob was, not where it is
             beginLook();
             return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
+        },
+        /**
+         * The screen the bot sees through right now (sight.js `screenOf`), or null when it sees all around.
+         * World memory's recorder looks with it, so memory holds only what was in view.
+         */
+        screenNow: () => {
+            if (!narrowView || !bot.entity?.position) return null;
+            beginLook();
+            return screen;
+        },
+        /**
+         * Entities a turn of the head would show: within `maxDistance` and in a clear line from the eye,
+         * whichever way the bot faces now. Only for the gaze guard (reflexes/gaze.js), which must not let a
+         * turn sweep over an enderman's eyes. That is fair: an enderman's eyes are at the middle of the
+         * screen of any look that would stare at them, so the moment the bot looks, it sees it. Nothing
+         * may use this to know what is behind the bot.
+         */
+        entitiesInSightAnyWay: (maxDistance, filter = () => true) => {
+            if (!bot.entity?.position) return [];
+            beginLook();
+            const all = { maxDistance };
+            return Object.values(bot.entities).filter(entity => entity !== bot.entity && entity.position && filter(entity)
+                && (policy.sight === 'all' ? entity.position.distanceTo(bot.entity.position) <= maxDistance
+                    : sight.canSeeEntity(eyeNow, entity, all)));
         },
         knowsCell: pos => blockAt(pos) !== null,
         /** Counts for live runs: `searchesCut` is how many block searches ran out of their time budget. */

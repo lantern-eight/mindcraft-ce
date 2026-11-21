@@ -175,6 +175,14 @@ export function stubBot(world, { position = [0.5, 1, 0.5], yaw = 0, pitch = 0, e
         world: { getBiome: () => 0, getColumn: (cx, cz) => world.column(cx, cz) },
         game: { minY: -64, height: 384, dimension: 'overworld', gameMode: 'survival' },
         moveTo(x, y, z) { bot.entity.position = new Vec3(x, y, z); },
+        // Turning, as mineflayer's does it: the facing changes at once. `looks` counts the turns.
+        looks: 0,
+        async look(newYaw, newPitch) { bot.entity.yaw = newYaw; bot.entity.pitch = newPitch; bot.looks++; },
+        async lookAt(point) {
+            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight, 0);
+            const dx = point.x - eye.x, dy = point.y - eye.y, dz = point.z - eye.z;
+            await bot.look(Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz)));
+        },
     });
     bot.entities[0] = bot.entity;
     for (const e of entities) bot.entities[e.id] = e;

@@ -138,6 +138,8 @@ test('a shield goes up at a lit creeper only when the bot can\'t get past the bl
     assert.equal(blockTheBlast(lit(2, 0), { stuck: true }), true, 'stuck, or already behind the shield');
     assert.equal(blockTheBlast(lit(6.5, 29), { stuck: true }), false, 'past the blast\'s reach');
     assert.equal(blockTheBlast({ ...lit(3, 25), lit: false }), false, 'gone out');
-    assert.equal(blockTheBlast({ ...lit(3, 25), seenNow: false }), false, 'out of view: nothing to face');
+    assert.equal(blockTheBlast({ ...lit(3, 25), seenNow: false, unseenMs: 300 }), true, 'just out of view, behind the bot it ran past: it stands where it was, and is faced');
+    assert.equal(blockTheBlast({ ...lit(3, 25), seenNow: false, unseenMs: 2000 }), false, 'out of view for longer than a fuse: nothing to face');
+    assert.equal(blockTheBlast({ ...lit(3, 25), seenNow: false, unseenMs: null }), false, 'only heard: nothing to face');
     assert.equal(blockTheBlast(null), false);
 });

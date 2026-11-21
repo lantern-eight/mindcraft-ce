@@ -33,6 +33,12 @@ import { setWorldQueries, worldQueries } from '../library/world_queries.js';
 import { checkFairWiring } from './wiring_check.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
+import { installWalkingGaze } from './walking_gaze.js';
+import { installTurnSpeed } from './turn_speed.js';
+import { lookAroundCommand, lookBeforeSearching, watchLooks } from './look_around.js';
+import { setSearchLook } from '../library/search_look.js';
+import { createIdleLook } from './idle_look.js';
+import { registerMode } from '../modes.js';
 import { setAttackReach } from '../library/attack_reach.js';
 import { setDigDownWay } from '../library/dig_down_way.js';
 import { digStairsDown } from '../library/stairs_down.js';
@@ -153,6 +159,7 @@ export function isFormerScope(old, scope) {
 export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000, memoryDir = null, perceptionOptions = {},
     wiringWorld = worldModule } = {}) {
     const policy = resolvePolicy({ ...config, ...(agent.prompter?.profile ?? {}) });
+    const narrowView = (policy.fov_degrees ?? 360) < 360 && policy.sight !== 'all';
     if (policy.mode === 'off') return null;
     const bot = agent.bot;
     const chatGuard = makeChatGuard(policy);
@@ -219,9 +226,11 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
             return () => heardListeners.delete(listener);
         },
         heardLines() {
-            return (handle.perception?.heard() ?? [])
+            // Through a player's screen, a word that the list is only what is in front, and how to see more.
+            const view = narrowView ? ['view: only what is in front of you is listed; !lookAround to turn round and look'] : [];
+            return view.concat((handle.perception?.heard() ?? [])
                 .filter(sound => !sound.seen || sound.news)
-                .map(sound => `heard: ${sound.subject} (${sound.text})`);
+                .map(sound => `heard: ${sound.subject} (${sound.text})`));
         },
         /**
          * The runner for model-written code (newAction, executeCode, augments). null when policy says
@@ -288,6 +297,15 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // By the first spawn the bot's plugins are loaded, so its methods exist to be wrapped.
         handle.reach ??= createReachGuard({ policy, getPerception: () => handle.perception, getRegistry: () => bot.registry });
         installReachGuard(bot, handle.reach);
+        // Through a player's screen the bot looks a little down as it walks, at the ground it is about to
+        // step on, instead of level over it.
+        installWalkingGaze(bot, { getScreen: () => handle.perception?.screenNow?.() ?? null });
+        // Every turn of the head at the policy's speed, a step each game tick, so no look is a free look round.
+        installTurnSpeed(bot, { getSpeed: () => policy.turn_speed });
+        // Which ways the bot has looked lately, for looking round before a search gives up, and when idle.
+        handle.looks = watchLooks(bot, { getScreen: () => handle.perception?.screenNow?.() ?? null });
+        // And a skill that searches looks round before it gives up, or walks off to a far find.
+        setSearchLook(bot, lookBeforeSearching);
         // A single hit walks within the reach the guard allows first, instead of swinging from where the
         // stock skill would and being refused.
         setAttackReach(bot, entity => handle.reach.withinReach(entity));
@@ -329,6 +347,18 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     saveTimer.unref?.();
     bot.on('end', () => { clearInterval(saveTimer); handle.legs?.stop(); handle.recorder?.stop(); handle.perception?.stop(); saveMap({ budgetMs: Infinity }); });
 
+    // Through a player's screen, a way for the model to have the bot turn round and look.
+    if (narrowView) registerCommand(lookAroundCommandSpec, { action: true });
+
+    // The idle look-around in place of the stock one, in the same place and under the same name, keeping its
+    // switch: it looks about the whole circle in turn, and at mobs as a person does, not at one forever.
+    if (bot.modes?.exists?.('idle_staring')) {
+        const idle = createIdleLook();
+        idle.mode.on = bot.modes.isOn('idle_staring');
+        const names = Object.keys(bot.modes.getJson());
+        registerMode(idle.mode, { before: names[names.indexOf('idle_staring') + 1] ?? null });
+    }
+
     // The model's ways to ask what the bot remembers.
     if (worldMemory) {
         registerCommand(recallCommand);
@@ -340,4 +370,25 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
     agent.fairPlay = handle;
     console.log(`[fair play] ${policy.mode} mode is on.`);
     return handle;
+}
+
+// !lookAround: an action, so that it takes over from what the bot was doing, as turning round does.
+const lookAroundCommandSpec = {
+    name: '!lookAround',
+    description: 'Turn round and look every way. You see only what is in front of you; this looks at the rest, so it is known in !entities, !nearbyBlocks and searches.',
+    // What an action says is what it logs.
+    perform: asAction('lookAround', async agent => skills.log(agent.bot, await lookAroundCommand(agent.bot))),
+};
+
+/** Runs a command's work as one of the bot's actions, as the built-in action commands do. */
+function asAction(label, fn) {
+    const run = async (agent, args, structured) => {
+        const result = await agent.actions.runAction(`action:${label}`, () => fn(agent, ...args), { timeout: -1 });
+        if (structured) return result;
+        if (result.interrupted && !result.timedout) return;
+        return result.message;
+    };
+    const perform = (agent, ...args) => run(agent, args, false);
+    perform.structured = (agent, ...args) => run(agent, args, true);
+    return perform;
 }

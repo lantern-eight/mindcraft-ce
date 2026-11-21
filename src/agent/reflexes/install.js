@@ -42,6 +42,7 @@ import { createShield } from './shield.js';
 import { createShotBeat } from './shot_beat.js';
 import { mobsAround } from './mobs.js';
 import { guardGaze } from './gaze.js';
+import { createGlance } from './glance.js';
 import { createDangerZones } from './danger_zones.js';
 import { createDangerWatch } from './danger_watch.js';
 import { addPlaceCosts } from '../library/place_costs.js';
@@ -74,8 +75,11 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     const zones = createDangerZones();
     const watch = createDangerWatch({ zones });
     const beat = createShotBeat();
+    // Through a player's screen, a sound or a hit from what the bot can't see turns its head (glance.js).
+    const glance = createGlance();
     agent.fairPlay?.onHeard?.(sound => {
         creeper.hear(agent, sound);
+        glance.hear(agent, sound);
         watch.hear(agent, sound);
         // A shot heard, matched to the archer seen on that side (only shots: the rest pass at once).
         if (/ \(shooting\)$/.test(sound.subject) && agent.bot?.entity) beat.hear(sound, mobsAround(agent.bot), agent.bot.entity.position);
@@ -91,14 +95,27 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     fight.mode.on = agent.bot.modes.exists('self_defense') ? agent.bot.modes.isOn('self_defense') : true;
     registerMode(fight.mode, { after: 'cowardice' });
     fight.watch(agent.bot);
-    agent.bot.on?.('respawn', () => { mob.clear(); fight.clear(); claims.clear(); beat.clear(); });
+    agent.bot.on?.('respawn', () => { mob.clear(); fight.clear(); claims.clear(); beat.clear(); glance.clear(); });
+    // A hit from the unseen, and the end of a back-off, reach the glance through the reflexes' own reports.
+    let ranFromStart = null;
+    agent.bot.on?.('threat_reflex', event => {
+        if (event.event === 'felt' && event.unseen) glance.felt(agent, event.direction);
+        // A hit from where a lit creeper was, its fuse run out: the blast. The creeper is gone.
+        if (event.event === 'felt' && event.direction && agent.bot?.entity) creeper.picture.felt(event.direction, { position: agent.bot.entity.position });
+        if (event.event === 'decided' && /flee|retreat|cover|back|leave/.test(String(event.stance))) ranFromStart = agent.bot.entity?.position?.clone?.() ?? null;
+        if (event.event === 'done' && ranFromStart) { glance.ranFrom(agent, ranFromStart); ranFromStart = null; }
+    });
+    // A glance waiting for a break in the work is looked at a few times a second.
+    const glanceTimer = setInterval(() => { try { glance.tick(agent); } catch (error) { console.warn('[threat reflexes] The glance failed:', error.message); } }, 200);
+    glanceTimer.unref?.();
+    agent.bot.on?.('end', () => clearInterval(glanceTimer));
     // No look the bot makes, whoever asks for it, meets an enderman's eyes.
     guardGaze(agent.bot);
     // Where the bot met danger, its routes go round for a while. The zones outlive a respawn: the places
     // are as dangerous as they were. The watch forgets them when the dimension changes.
     watch.watch(agent);
     addPlaceCosts(agent.bot, zones);
-    const handle = { creeper, mob, fight, claims, zones, watch, orders, shield, use, beat };
+    const handle = { creeper, mob, fight, claims, zones, watch, orders, shield, use, beat, glance };
     agent.threatReflexes = handle;
     return handle;
 }

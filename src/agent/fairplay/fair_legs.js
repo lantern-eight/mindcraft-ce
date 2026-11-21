@@ -255,6 +255,7 @@ export function installFairLegs(bot, { getPerception, getEntities = () => getPer
     let lastForced = -Infinity;
     let replans = 0;
     let looked = null;              // what the last look at the way ahead was of, so that nothing is looked at twice
+    // Kept as the pathfinder's own list, which it empties step by step, so an empty one means the route is walked.
     const onPathUpdate = result => { route = Array.isArray(result?.path) && result.path.length ? result.path : null; };
     const dropRoute = () => { route = null; };
     const pathEvents = [['path_update', onPathUpdate], ['path_reset', dropRoute], ['path_stop', dropRoute], ['goal_reached', dropRoute]];
@@ -274,11 +275,24 @@ export function installFairLegs(bot, { getPerception, getEntities = () => getPer
      */
     function check() {
         const path = route, here = bot.entity?.position, movements = bot.pathfinder?.movements;
-        if (!path || path.length < 2 || !here || !movements) return false;
+        if (!path || !here || !movements) return false;
         // The pathfinder is not going anywhere: whatever route was kept is over.
         if (!bot.pathfinder.goal) { route = null; return false; }
         const t = clock();
         if (t - lastForced < minGapMs) return false;
+        // The route has run out, and the goal isn't reached. The search ended it on a cell the bot had never
+        // seen, taken for open ground, from which the goal was in reach; walking there, the bot found it was
+        // not (floor it had not seen, say, under the edge of its view). The pathfinder plans only once for a
+        // route and then waits at its end for good, so it is asked to plan again, once for each route.
+        if (path.length === 0) {
+            route = null;
+            if (bot.pathfinder.goal.isEnd?.(here.floored?.() ?? { x: Math.floor(here.x), y: Math.floor(here.y), z: Math.floor(here.z) })) return false;
+            lastForced = t;
+            replans++;
+            bot.pathfinder.setMovements(movements);
+            return true;
+        }
+        if (path.length < 2) return false;
         // A new plan stops the bot for a moment. Not in mid-air, where that could drop it short of the
         // far side of a jump, and not in the middle of a block it is digging or placing.
         if ((bot.entity.onGround === false && !bot.entity.isInWater) || bot.pathfinder.isMining?.() || bot.pathfinder.isBuilding?.()) return false;

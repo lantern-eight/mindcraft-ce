@@ -10,9 +10,15 @@
 // So every look the bot makes goes through a guard (bot.look, which bot.lookAt also calls). When the look
 // would come within twice the game's angle of an enderman's eyes, its pitch is lowered until it doesn't:
 // the bot looks at the enderman's feet, or the ground before it. A look that is nowhere near one is let
-// through untouched. Endermen are the ones world.js hands out, so under fair play only those in view count,
-// as only those can see the bot stare.
+// through untouched.
+//
+// Which endermen count: those in a clear line from the bot's eye, whichever way it faces now. Under a
+// narrowed field of view, one behind the bot is not in view before the look, but a look that would stare
+// at it puts its eyes at the middle of the screen: the moment the bot looks, it sees it, so it must count
+// already. One behind a wall can't see the bot's stare, and doesn't. Without fair play, world.js hands out
+// every enderman near, walls or not.
 import * as world from '../library/world.js';
+import { fairPlayOf } from '../fairplay/fair_queries.js';
 
 const ENDERMAN_EYE = 2.55;
 const MARGIN = 2;          // twice the game's angle
@@ -50,27 +56,41 @@ export function safePitch(eye, yaw, pitch, eyes) {
  * @param {object} bot
  */
 export function guardGaze(bot) {
-    if (!bot || typeof bot.look !== 'function' || bot.look.gazeGuarded) return;
-    const look = bot.look;
+    if (!bot || typeof bot.look !== 'function' || bot.look.gazeGuarded || bot.gazeGuarded) return;
+    bot.gazeGuarded = true;
+    // Under fair play's turn speed (fairplay/turn_speed.js) a turn is made in steps, and each step must be
+    // judged, not only where the turn ends: a sweep round can pass over an enderman's eyes on the way.
+    if (bot.lookPacer) bot.lookPacer.stepThrough(look => guarded(bot, look));
+    else bot.look = guarded(bot, bot.look);
+}
+
+function guarded(bot, look) {
     // The pathfinder looks the way it walks every tick, and asking what is in view costs a look around; the
     // endermen in view are asked for at most every 250 ms.
     let eyes = [], askedAt = -Infinity;
     const endermenEyes = () => {
         if (Date.now() - askedAt < EYES_KEPT_MS) return eyes;
         askedAt = Date.now();
-        eyes = world.getNearbyEntities(bot, NOTICE_WITHIN)
-            .filter(entity => entity.name === 'enderman')
+        const isEnderman = entity => entity.name === 'enderman';
+        const endermen = new Map(world.getNearbyEntities(bot, NOTICE_WITHIN).filter(isEnderman).map(e => [e.id, e]));
+        for (const entity of fairPlayOf(bot)?.perception?.entitiesInSightAnyWay?.(NOTICE_WITHIN, isEnderman) ?? [])
+            endermen.set(entity.id, entity);
+        eyes = [...endermen.values()]
             .map(entity => ({ x: entity.position.x, y: entity.position.y + ENDERMAN_EYE, z: entity.position.z }));
         return eyes;
     };
-    const guarded = async (yaw, pitch, force) => {
+    const guard = async (yaw, pitch, force) => {
         const position = bot.entity?.position;
         if (!position) return look(yaw, pitch, force);
         const eyes = endermenEyes();
         if (!eyes.length) return look(yaw, pitch, force);
         const eye = { x: position.x, y: position.y + (bot.entity.eyeHeight ?? 1.62), z: position.z };
-        return look(yaw, safePitch(eye, yaw, pitch, eyes), force);
+        // The pitch the look will really have: fair play tilts the pathfinder's level look down while it
+        // walks (fairplay/walking_gaze.js). A safe look is passed on as asked, a lowered one as lowered.
+        const intended = bot.lookWalkingGaze?.(yaw, pitch, force) ?? pitch;
+        const safe = safePitch(eye, yaw, intended, eyes);
+        return look(yaw, safe === intended ? pitch : safe, force);
     };
-    guarded.gazeGuarded = true;
-    bot.look = guarded;
+    guard.gazeGuarded = true;
+    return guard;
 }

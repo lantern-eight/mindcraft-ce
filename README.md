@@ -151,6 +151,7 @@ node tests/live/fairplay_scenarios.js
 | `memory_scenarios.js` | World memory: what the bot is told it saw, and what changed while it was away (one step waits a minute) |
 | `navigator_scenarios.js` | Travel back along the trail the bot walked |
 | `legs_scenarios.js` | Route planning over only what the bot has seen |
+| `narrow_view_scenarios.js` | A player's field of view (`fov_degrees` 70): what is behind the bot unknown to perception and memory until it turns, turning to dig, open and build against a block behind it, refused behind a wall, and turning round toward an enderman without staring |
 | `look_first_scenarios.js` | Skills given a spot by its coordinates look before they decide; `digDown`'s staircase; `goToSurface` |
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
 | `mining_scenarios.js` | Mining and digging |
@@ -163,6 +164,12 @@ node tests/live/fairplay_scenarios.js
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
+The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VIEW=all` (or `--view=all`)
+runs them seeing all around instead, which tells a failure that comes from the view apart from one in what
+the scene is about; a release runs them both ways. `narrow_view_scenarios.js` is about the view itself and
+always uses the screen. `java_all.js` runs every script here both ways, one after another, with a line for each
+and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts).
+
 The last three replay recorded model replies, so they cost nothing; `--live-model` makes them call the
 configured model instead. Each run leaves its server's folder under `server_data/`, which can be deleted.
 
@@ -171,8 +178,10 @@ makes a world of normal terrain from a fixed seed, takes each timing five times,
 values with the last release's, kept in `tests/live/perception_bench_results.json` under the seed and game
 version they were measured on (one seed makes different land in different game versions). It fails if a fair
 timing is more than 1.5 times its last value plus 3 ms; `--record` saves the result for the version in
-`package.json`. Timings depend on the computer, so compare releases measured on the same one: mineflayer's own
-searches are timed alongside as a yardstick.
+`package.json`. Its plain timings are taken seeing all around, as releases before the narrow view were; those
+named `narrow_` use strict's own view, and `narrow_turning_logs64_8turns` times a search after each of eight
+turns round the circle. Timings depend on the computer, so compare releases measured on the same one:
+mineflayer's own searches are timed alongside as a yardstick.
 
 What the server jar unpacks on its first start (and for Paper, downloads and patches) is kept in
 `server_data/jar-cache` and shared by every run after. `MC_TEST_JAR_CACHE` picks another folder; `off` gives

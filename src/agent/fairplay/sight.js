@@ -102,6 +102,105 @@ export function viewDirection(yaw, pitch) {
     return { x: -Math.sin(yaw) * cosPitch, y: Math.sin(pitch), z: -Math.cos(yaw) * cosPitch };
 }
 
+// The screen the view is shaped like. The game's field-of-view number is the screen's height in degrees,
+// and the width follows from the window's shape; 16:9 is the common one.
+const SCREEN_ASPECT = 16 / 9;
+
+/**
+ * The view a player has when facing this way: a flat screen `fovDegrees` tall (the game's own FOV number,
+ * which on both editions is the vertical angle) and 16:9 wide, so Java's default 70 is about 102 degrees
+ * across. A point is on screen when, seen along the facing, it is ahead of the eye and within half the
+ * height up or down and half the width to either side. That is a screen's projection, not a cone: a
+ * cone as wide as the screen would show things above and below that a player can't see, and one as tall
+ * would hide things at the sides that a player can.
+ *
+ * Worked out once per facing, so a check is a few multiplications. Yaw and pitch follow mineflayer: yaw 0
+ * faces north (-z), positive pitch looks up, and the screen is never rolled.
+ *
+ * @returns {{ahead:object, right:object, up:object, tanHalfWidth:number, tanHalfHeight:number, yaw:number,
+ *   pitch:number, widthDegrees:number, heightDegrees:number}|null} null for 360, which means all around
+ */
+export function screenOf(yaw, pitch, fovDegrees) {
+    if (!(fovDegrees < 360)) return null;
+    const tanHalfHeight = Math.tan((fovDegrees / 2) * Math.PI / 180);
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    return {
+        ahead: { x: -sy * cp, y: sp, z: -cy * cp },
+        right: { x: cy, y: 0, z: -sy },
+        up: { x: sy * sp, y: cp, z: cy * sp },
+        tanHalfWidth: tanHalfHeight * SCREEN_ASPECT,
+        tanHalfHeight,
+        yaw, pitch,
+        widthDegrees: screenWidthDegrees(fovDegrees),
+        heightDegrees: fovDegrees,
+    };
+}
+
+/** How wide the screen of this FOV is, in degrees: 70 tall is about 102 across. 360 stays 360. */
+export function screenWidthDegrees(fovDegrees) {
+    if (!(fovDegrees < 360)) return 360;
+    return 2 * Math.atan(Math.tan((fovDegrees / 2) * Math.PI / 180) * SCREEN_ASPECT) * 180 / Math.PI;
+}
+
+/** Is the offset (dx, dy, dz) from the eye on this screen? The eye's own spot counts as on it. */
+function onScreen(screen, dx, dy, dz) {
+    const { ahead: f, right: r, up: u } = screen;
+    const along = dx * f.x + dy * f.y + dz * f.z;
+    if (along <= 0) return dx === 0 && dy === 0 && dz === 0;
+    const side = dx * r.x + dz * r.z;
+    if (side > screen.tanHalfWidth * along || -side > screen.tanHalfWidth * along) return false;
+    const high = dx * u.x + dy * u.y + dz * u.z;
+    return high <= screen.tanHalfHeight * along && -high <= screen.tanHalfHeight * along;
+}
+
+/**
+ * Is the point on screen? Takes the same options as the sight checks: `screen` from screenOf, or
+ * `fovDegrees` with `viewDir` (a direction from viewDirection). No screen, or 360, means all around.
+ */
+export function inView(eye, point, opts) {
+    const screen = screenFrom(opts);
+    return !screen || onScreen(screen, point.x - eye.x, point.y - eye.y, point.z - eye.z);
+}
+
+/**
+ * How much of a box is on screen: 'none', 'part' or 'all'. 'none' only when it certainly is not: every
+ * corner beyond the same edge of the screen. A box that straddles a corner of the view may be called
+ * 'part' with nothing of it showing, which costs the caller a look and no more. World memory's recorder
+ * asks this of a 16-block cube before looking at any of its blocks.
+ */
+export function boxInView(eye, minX, minY, minZ, maxX, maxY, maxZ, opts) {
+    const screen = screenFrom(opts);
+    if (!screen) return 'all';
+    const { ahead: f, right: r, up: u, tanHalfWidth: w, tanHalfHeight: h } = screen;
+    // Outside past each edge counts per corner; a box is out of view when all eight are past one edge.
+    let behind = 0, left = 0, rightOut = 0, below = 0, above = 0, inside = 0;
+    for (let i = 0; i < 8; i++) {
+        const dx = (i & 1 ? maxX : minX) - eye.x, dy = (i & 2 ? maxY : minY) - eye.y, dz = (i & 4 ? maxZ : minZ) - eye.z;
+        const along = dx * f.x + dy * f.y + dz * f.z;
+        const side = dx * r.x + dz * r.z;
+        const high = dx * u.x + dy * u.y + dz * u.z;
+        let out = false;
+        if (along <= 0) { behind++; out = true; }
+        if (side > w * along) { rightOut++; out = true; }
+        if (-side > w * along) { left++; out = true; }
+        if (high > h * along) { above++; out = true; }
+        if (-high > h * along) { below++; out = true; }
+        if (!out) inside++;
+    }
+    if (behind === 8 || left === 8 || rightOut === 8 || above === 8 || below === 8) return 'none';
+    return inside === 8 ? 'all' : 'part';
+}
+
+// The screen in a set of options: given whole, or made from the older `fovDegrees` and `viewDir`.
+function screenFrom(opts) {
+    if (opts?.screen !== undefined) return opts.screen;
+    const fov = opts?.fovDegrees ?? 360;
+    if (!(fov < 360) || !opts?.viewDir) return null;
+    const v = opts.viewDir;
+    const length = Math.hypot(v.x, v.y, v.z) || 1;
+    return screenOf(Math.atan2(-v.x, -v.z), Math.asin(Math.max(-1, Math.min(1, v.y / length))), fov);
+}
+
 /**
  * Creates the sight checks over one world.
  * @param {object} options
@@ -189,20 +288,17 @@ export function createSight({ getStateId, stopsSight }) {
         return false;
     }
 
-    /** Distance and field-of-view limits. Returns false when the point is out of range or out of view. */
+    /**
+     * Distance and field-of-view limits. Returns false when the point is out of range or off the screen
+     * (screenOf). The screen comes before the ray, so a narrower view costs less, not more: a point out
+     * of view never gets one.
+     */
     function withinView(eye, px, py, pz, opts) {
         const dx = px - eye.x, dy = py - eye.y, dz = pz - eye.z;
-        const distSq = dx * dx + dy * dy + dz * dz;
         const maxDistance = opts?.maxDistance ?? Infinity;
-        if (distSq > maxDistance * maxDistance) return false;
-        const fov = opts?.fovDegrees ?? 360;
-        if (fov < 360 && opts?.viewDir && distSq > 0) {
-            const v = opts.viewDir;
-            const vLen = Math.hypot(v.x, v.y, v.z) || 1;
-            const cos = (dx * v.x + dy * v.y + dz * v.z) / (Math.sqrt(distSq) * vLen);
-            if (cos < Math.cos((fov / 2) * Math.PI / 180)) return false;
-        }
-        return true;
+        if (dx * dx + dy * dy + dz * dz > maxDistance * maxDistance) return false;
+        const screen = screenFrom(opts);
+        return !screen || onScreen(screen, dx, dy, dz);
     }
 
     /**
