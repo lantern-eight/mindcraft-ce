@@ -9,6 +9,19 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.11.0-bedrock.1.12.0] - 2026-11-21
+
+A release for both editions. Under strict fair play the bot sees through a player's screen instead of all
+around: 70° tall on a 16:9 screen, Java's default field of view, and what is behind it it doesn't know until it
+turns. Hearing and touch still reach all around, and `fov_degrees: 360` brings the view all around back. The
+bot turns to look as a player does: before acting on a block, round about when a search finds nothing in
+front, toward a hit or a sound it can't place, and about the whole circle while idle. `turn_speed` makes
+every turn take time (off by default for now), and `!lookAround` lets the model have it look. World memory
+records only what was on screen. The reflexes were fitted to a bot that can't see behind it: it runs looking
+at the ground ahead, backs out of an archer's range facing it behind a shield, goes by distance when it can't
+see what it leaves, and settles what it knows of a lit creeper it can no longer see. No fixes to inherited
+code. Built on the same Mindcraft-CE commit as 1.7.1-bedrock.1.8.1.
+
 ### Added
 
 - `turn_speed`, a fair-play switch for how fast the bot turns its head, in degrees a second. Every turn, the
@@ -1074,7 +1087,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...HEAD
+[1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0
 [1.10.0-bedrock.1.11.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.10.0-bedrock.1.11.0
 [1.9.0-bedrock.1.10.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...v1.9.0-bedrock.1.10.1
 [1.9.0-bedrock.1.10.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.8.0-bedrock.1.9.0...v1.9.0-bedrock.1.10.0
