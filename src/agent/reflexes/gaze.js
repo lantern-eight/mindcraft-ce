@@ -78,7 +78,11 @@ export function guardGaze(bot) {
         const eyes = endermenEyes();
         if (!eyes.length) return look(yaw, pitch, force);
         const eye = { x: position.x, y: position.y + (bot.entity.eyeHeight ?? 1.62), z: position.z };
-        return look(yaw, safePitch(eye, yaw, pitch, eyes), force);
+        // The pitch the look will really have: fair play tilts the pathfinder's level look down while it
+        // walks (fairplay/walking_gaze.js). A safe look is passed on as asked, a lowered one as lowered.
+        const intended = bot.lookWalkingGaze?.(yaw, pitch, force) ?? pitch;
+        const safe = safePitch(eye, yaw, intended, eyes);
+        return look(yaw, safe === intended ? pitch : safe, force);
     };
     guarded.gazeGuarded = true;
     bot.look = guarded;

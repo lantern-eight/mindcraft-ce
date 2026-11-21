@@ -30,6 +30,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   when the bot turns.
 - The bot turns to face a block within reach before digging, opening, using or placing against it, then
   checks that it can see it, as a player turns to click something behind them.
+- While it walks through a player's screen, the bot looks a little down at the ground ahead, as a player does,
+  instead of level over it, so it sees where it is about to step.
 - The enderman gaze guard also counts an enderman behind the bot in a clear line from its eye, so turning
   round can't stare at one.
 

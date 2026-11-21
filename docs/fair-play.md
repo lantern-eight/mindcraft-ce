@@ -51,10 +51,12 @@ Details that matter:
 - **The bot sees through a player's screen,** 70° tall on a 16:9 screen, about 102° across: Java's
   default field of view, used on Bedrock too (whose own default is 60). What is behind it, it doesn't see
   until it turns. `fov_degrees` sets the number, as the game's own FOV slider does; `360` sees all around,
-  as `fair_play: "off"` does. Light is ignored, as if brightness were turned up. A point is in view when it is on that screen, not in a cone:
-  a cone as wide would show things above and below that a player can't see. Looking straight ahead, the
-  ground closer than about 2.3 blocks is below the screen, as it is for a player; touch still covers the
-  cells around the feet. Touch and hearing don't depend on the view.
+  as `fair_play: "off"` does. A point is in view when it is on that screen, not in a cone: a cone as wide
+  would show things above and below that a player can't see. Touch and hearing don't depend on the view,
+  and light is ignored, as if brightness were turned up.
+- **While it walks, it looks a little down,** 25° below level, at the ground a few steps ahead, as a player
+  does. Looking level, the ground closer than about 2.3 blocks is below the screen, and the bot would step
+  onto ground it had never seen. Touch covers the cells around its feet either way.
 - **A mob that steps out of view stays known for 3 seconds,** so reflexes don't flicker when something
   walks behind a tree. It is known where it was last seen, standing still: the bot can't follow it
   behind the wall.
