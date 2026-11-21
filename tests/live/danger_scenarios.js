@@ -116,6 +116,9 @@ try {
         await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
         await agent.actions.stop();
         await delay(2000);
+        // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
+        // and through a player's screen which way it faces decides what it sees.
+        await bot.look((180 - facing) * Math.PI / 180, 0, true);
         if (clearZones) zones.clear();
         messages.length = 0;
         bot.modes.behavior_log = '';

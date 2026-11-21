@@ -134,6 +134,9 @@ try {
         await cmd(`tp ${OTHER} 30.5 70 30.5`);
         await waitFor(() => !agent.actions.executing, 15000, () => `still running ${agent.actions.currentActionLabel}`);
         await delay(2000); // the hold from the last scene has ended, and the bot has looked around
+        // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
+        // and through a player's screen which way it faces decides what it sees.
+        await bot.look((180 - facing) * Math.PI / 180, 0, true);
         events.length = 0; explosions.length = 0; creeperSpawns.length = 0; messages.length = 0;
         reflexes.creeper.picture.clear();
         reflexes.zones?.clear(); // each scene starts with no danger remembered from the last one's blast
@@ -170,7 +173,7 @@ try {
 
     for (let run = 1; run <= RUNS; run++) {
         await step(`seen only by sight (a silent creeper, normal fuse) lit 2 blocks away, run ${run}: first step within 600 ms, 7 or more blocks off when it goes off, no damage`, async () => {
-            await reset();
+            await reset({ facing: 90 }); // facing west, at where the creeper will be
             await cmd('summon creeper -1.5 70 0.5 {Fuse:30s,ignited:1b,ExplosionRadius:0b,NoAI:1b,Silent:1b}');
             await waitFor(() => explosions.length > 0, 6000, () => JSON.stringify(events));
             const spawned = creeperSpawns[0].at;
@@ -262,7 +265,7 @@ try {
     });
 
     await step('during !stay: the bot still backs off', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         act('action:stay', () => skills.stay(bot, -1));
         await delay(500);
         await cmd('summon creeper -1.5 70 0.5 {Fuse:200s,ignited:1b,ExplosionRadius:0b,NoAI:1b,Silent:1b}');
@@ -273,7 +276,7 @@ try {
     });
 
     await step('a command during a back-off: the back-off finishes first, then the command runs', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         await cmd('summon creeper -1.5 70 0.5 {Fuse:200s,ignited:1b,ExplosionRadius:0b,NoAI:1b,Silent:1b}');
         await waitFor(() => events.some(e => e.event === 'decided'), 4000);
         await delay(100);
@@ -290,7 +293,7 @@ try {
     });
 
     await step('a creeper not lit yet, 5 blocks away, with self_defense on: the bot does not walk toward it', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         assert.equal(bot.modes.isOn('self_defense'), true);
         await cmd('summon creeper -4.5 70 0.5 {NoAI:1b}');
         const watch = watchDistance({ x: -4.5, z: 0.5 });
@@ -303,9 +306,12 @@ try {
     });
 
     await step('backing off with lava straight behind: it turns aside, never stands in lava, takes no damage', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         await cmd('fill 1 69 -1 4 69 1 lava');
+        // The bot has seen the lava: it looks round at it, and back to where the creeper will be.
+        await bot.look(-Math.PI / 2, -0.5, true);
         await delay(1000);
+        await bot.look(Math.PI / 2, 0, true);
         let inLava = false;
         const check = () => { if (/lava/.test(bot.blockAt(bot.entity.position.floored())?.name ?? '')) inLava = true; };
         bot.on('move', check);
@@ -325,7 +331,7 @@ try {
     // (a shield faced at an explosion stops it), without one the damage is what cornering costs.
     for (const shield of [false, true]) {
         await step(`cornered in a dead end by a lit creeper${shield ? ', with a shield it is given: it faces the blast behind the shield, no damage' : ', no shield: the damage it takes'}`, async () => {
-            await reset();
+            await reset({ facing: 90 }); // facing west, at where the creeper will be
             for (const wall of ['-2 70 -1 1 71 -1', '-2 70 1 1 71 1', '1 70 0 1 71 0']) await cmd(`fill ${wall} stone`);
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);

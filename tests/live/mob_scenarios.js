@@ -140,6 +140,9 @@ try {
         await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
         await agent.actions.stop();
         await delay(2000);
+        // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
+        // and through a player's screen which way it faces decides what it sees.
+        await bot.look((180 - facing) * Math.PI / 180, 0, true);
         events.length = 0; messages.length = 0;
         if (reflexes) { reflexes.mob.clear(); reflexes.fight.clear(); reflexes.claims.clear(); reflexes.creeper.picture.clear(); }
         lowestHealth = lastHealth = bot.health; damage = 0;
@@ -211,7 +214,7 @@ try {
     // ---- The mob reflex ----
 
     await step('two zombies coming: the bot backs away from both, ends 12 or more from each, takes little damage', async () => {
-        await reset();
+        await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
         await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
         await cmd('summon zombie 0.5 70 -6.5 {PersistenceRequired:1b}');
         const spawned = performance.now();
@@ -304,7 +307,7 @@ try {
     });
 
     await step('badly hurt with a zombie in view: the bot runs, it doesn\'t fight', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword`);
         await cmd(`damage ${NAME} 15 minecraft:generic`);
         await waitFor(() => bot.health <= 5, 3000);
@@ -320,7 +323,7 @@ try {
     // ---- The fight ----
 
     await step('a lone zombie, the bot with a stone sword at full health: it fights and kills it', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword`);
         await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
         await waitFor(() => raw('zombie').length === 0, 30000, () => JSON.stringify(events));
@@ -341,7 +344,7 @@ try {
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
 
     await step('armed with a stone sword, two zombies coming: the built-in order fights them instead of backing away, while health holds', async () => {
-        await reset();
+        await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
         await cmd(`give ${NAME} stone_sword`);
         healthAtDecisions.length = 0;
         await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
@@ -358,7 +361,7 @@ try {
     });
 
     await step('told by command to back away from zombies: a lone zombie coming is backed away from, to the order\'s distance, and the line says why', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, where the zombie will be
         assert.match(await order('zombies', 'flee', 0, 20), /back away from zombies to 20 blocks/);
         try {
             act('action:stay', () => skills.stay(bot, -1));
