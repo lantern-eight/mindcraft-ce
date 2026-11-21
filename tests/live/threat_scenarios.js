@@ -315,7 +315,10 @@ try {
     await step('backing off with lava straight behind: it turns aside, never stands in lava, takes no damage', async () => {
         await reset({ facing: 90 }); // facing west, at where the creeper will be
         await cmd('fill 1 69 -1 4 69 1 lava');
-        // The bot has seen the lava: it looks round at it, and back to where the creeper will be.
+        // The bot has seen the lava and the ground round it: it looks round, recorded (through a player's
+        // screen the ground to either side is otherwise unknown, and no step aside is safe), looks at the lava,
+        // and back to where the creeper will be.
+        await lookAbout();
         await bot.look(-Math.PI / 2, -0.5, true);
         await delay(1000);
         await bot.look(Math.PI / 2, 0, true);
