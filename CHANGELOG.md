@@ -25,6 +25,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   and has its shield up at once, instead of turning its back to look for a way. To hit a creeper it turns to it
   from outside the range that lights it and goes in once it faces it; and after backing off from one it means to
   hit, it turns to face it again.
+- Under fair play, `attackEntity` told to land one hit turns the bot to face the mob first, as a player does;
+  turning at a player's speed, the walk up could end facing away, and a hit at a mob out of view is refused.
 - A creeper's hiss from near where the bot sees one, or saw one lately, is taken for that creeper lighting, not
   a second creeper. Seeing through a player's screen, a creeper the bot had stepped back from was soon behind it,
   and its hiss had the bot back off again from a creeper that wasn't there.

@@ -39,7 +39,7 @@ import { lookAroundCommand, lookBeforeSearching, watchLooks } from './look_aroun
 import { setSearchLook } from '../library/search_look.js';
 import { createIdleLook } from './idle_look.js';
 import { registerMode } from '../modes.js';
-import { setAttackReach } from '../library/attack_reach.js';
+import { setAttackReach, setFaceBeforeHit } from '../library/attack_reach.js';
 import { setDigDownWay } from '../library/dig_down_way.js';
 import { digStairsDown } from '../library/stairs_down.js';
 import { installFairLegs } from './fair_legs.js';
@@ -309,6 +309,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // A single hit walks within the reach the guard allows first, instead of swinging from where the
         // stock skill would and being refused.
         setAttackReach(bot, entity => handle.reach.withinReach(entity));
+        // And faces the mob before it swings, as a player does: the hit needs it in view.
+        setFaceBeforeHit(bot, entity => bot.lookAt(entity.position.offset(0, (entity.height ?? 1) * 0.6, 0), true));
         // Digging down goes as a staircase, so each block the bot stands on next is in view first. The
         // stock way reads the blocks under the floor, which only a bot that sees everything could.
         if (policy.sight !== 'all') setDigDownWay(bot, (b, distance) => digStairsDown(b, distance, { breakBlockAt: skills.breakBlockAt, log: skills.log }));
