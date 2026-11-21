@@ -19,7 +19,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, LIVE_VIEW } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55932);
@@ -214,7 +214,7 @@ try {
 
     // ---- The mob reflex ----
 
-    await step('two zombies coming: the bot backs away from both, ends 12 or more from each, takes little damage', async () => {
+    await step('two zombies coming: the bot backs away from both, ends 12 or more from each (10 through a player\'s screen), takes little damage', async () => {
         await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
         await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
         await cmd('summon zombie 0.5 70 -6.5 {PersistenceRequired:1b}');
@@ -226,7 +226,11 @@ try {
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
         assert.equal(decided('mob_safety')[0].key, 'crowd', JSON.stringify(decided()));
         assert.equal(decided('self_defense').length, 0, 'it did not fight two');
-        assert.ok(nearest >= 12, `ended ${nearest.toFixed(1)} from the nearest`);
+        // Through a player's screen the bot backs away facing the way out and goes by where it last saw them,
+        // while they come on: it ends nearer than it knows, looks back, and backs away again if they come
+        // within the crowd's 8 blocks. All around it sees them the whole way.
+        const least = LIVE_VIEW === 'all' ? 12 : 10;
+        assert.ok(nearest >= least, `ended ${nearest.toFixed(1)} from the nearest: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - spawned) })))}`);
         assert.ok(damage <= 4, `${damage} damage`);
         return { decidedAfterMs: Math.round(decided('mob_safety')[0].at - spawned), firstStepMs: first ? Math.round(first.at - decided('mob_safety')[0].at) : null,
             how: first?.how, endedFromNearest: Number(nearest.toFixed(1)), damage };
@@ -253,7 +257,13 @@ try {
         // skeleton to the east sees the bot, and the shadow of the wall is a few steps away.
         await cmd('fill 3 70 3 3 72 5 cobblestone');
         await cmd(`effect give ${NAME} resistance 60 2 true`);
-        await delay(1500); // the bot sees the wall
+        // The bot sees the wall: it looks at it, as a player in a new place looks about, and world memory keeps
+        // it. Through a player's screen it is just past the edge of a look east. Then it faces east again. The
+        // recorder looks a few milliseconds at a time, with the facing of the moment, so the look is held.
+        await faceToward(bot, { x: 3.5, y: 71, z: 4 });
+        await delay(3000);
+        await faceToward(bot, { x: 14.5, y: 71.6, z: 0.5 });
+        await delay(500);
         await cmd('summon skeleton 14.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
         await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
