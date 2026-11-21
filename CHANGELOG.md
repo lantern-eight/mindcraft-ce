@@ -14,6 +14,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - With `turn_speed` set, a walk goes the way its route heads while the head is still turning, on the keys a
   player would hold (left, back, a diagonal), instead of the way the bot happens to face. Round a corner it
   swung wide: off a narrow bridge, into a trench beside the path, or stuck in a tight spot.
+- With `turn_speed` set, building a pillar under itself the bot looks down before it jumps, as a player does;
+  it had jumped first and landed again before its head came round to place the block. And `goToSurface`
+  climbs out more surely at any turning speed: it waits to land before judging where it got to, looks up
+  again when a newer look cut the first short, climbs again when the pillar's last block didn't go down,
+  and steps up out of a hole a block deep at the top instead of calling the hole the surface.
 
 ## [1.11.0-bedrock.1.12.0] - 2026-11-21
 

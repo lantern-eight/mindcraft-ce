@@ -102,6 +102,45 @@ test('a walk\'s level look heads for the walking gaze\'s pitch, though its steps
     assert.ok(Math.abs(bot.entity.pitch - WALKING_PITCH) < 1e-9, `${bot.entity.pitch}`);
 });
 
+test('building a pillar, the bot looks down before it jumps, as a player does, and jumps once it does', async () => {
+    const { bot } = turner();
+    const events = new EventEmitter();
+    bot.on = events.on.bind(events);
+    bot.off = events.off.bind(events);
+    // installTurnSpeed listens for game ticks when it is put on: put it on again over this bot's look.
+    delete bot.lookPacer;
+    const plain = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.look = plain;
+    const waiting = [];
+    installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => new Promise(resolve => waiting.push(resolve)) });
+    const gameTick = () => { const next = waiting.splice(0); for (const resolve of next) resolve(); return new Promise(r => setImmediate(r)); };
+    bot.entity.onGround = true;
+    bot.entity.pitch = 60 * DEG; // looking up, at the block it just dug overhead
+    bot.controlState = { jump: false };
+    // As mineflayer's: asking for the jump queues one as well.
+    bot.setControlState = (state, on) => { bot.controlState[state] = on; if (state === 'jump' && on) bot.jumpQueued = true; };
+    bot.pathfinder = { isBuilding: () => true };
+
+    // The pathfinder asks for the jump each tick; the hold takes it back while the head turns down.
+    let ticks = 0;
+    for (; ticks < 40; ticks++) {
+        bot.setControlState('jump', true);
+        events.emit('physicsTick');
+        if (bot.controlState.jump) break;
+        assert.equal(bot.jumpQueued, false, 'no jump left queued either');
+        await gameTick();
+    }
+    assert.ok(bot.entity.pitch <= -65 * DEG, `it jumped looking down (pitch ${(bot.entity.pitch / DEG).toFixed(0)})`);
+    assert.ok(ticks >= 12 && ticks <= 30, `after turning down for ${ticks} ticks, from looking up`);
+
+    // Not building, or already looking down, or at instant turns: the jump is left alone.
+    bot.entity.pitch = 0;
+    bot.pathfinder = { isBuilding: () => false };
+    bot.setControlState('jump', true);
+    events.emit('physicsTick');
+    assert.equal(bot.controlState.jump, true, 'an ordinary jump up a step');
+});
+
 test('the keys for a heading: ahead is forward, a quarter turn left is left, behind is back, between is both', () => {
     const on = keys => Object.entries(keys).filter(([, v]) => v).map(([k]) => k).sort().join('+');
     assert.equal(on(keysToward(0)), 'forward');

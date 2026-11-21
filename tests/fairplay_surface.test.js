@@ -69,3 +69,48 @@ test('under open sky at the bottom of a shaft, the bot climbs until it can step 
     assert.deepEqual(trips, [81]);
     assert.match(bot.output, /walls all round: climbing to y=81[\s\S]*Reached the surface at y=81/);
 });
+
+test('a climb that ends at the top of a jump waits to land, and climbs again when it drops back short', async () => {
+    // As the shaft above: the walk to 81 ends mid-jump the first time, and the bot drops back to 80, in a pit
+    // a block deep that it could take for open ground if it judged from the air.
+    const cells = {};
+    for (let y = 60; y <= 80; y++) for (const [x, z] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) cells[`${x},${y},${z}`] = 'stone';
+    const { bot } = namedCells({ cells, at: new Vec3(0.5, 79, 0.5) });
+    const trips = [];
+    const goToPosition = async (_bot, x, y, z) => {
+        trips.push(y);
+        bot.entity.position = new Vec3(x + 0.5, y + 0.2, z + 0.5);
+        bot.entity.onGround = false;
+        // Lands a moment later: back in the pit the first time, on top the second.
+        setTimeout(() => { bot.entity.position = new Vec3(x + 0.5, trips.length === 1 ? y - 1 : y, z + 0.5); bot.entity.onGround = true; }, 120);
+    };
+    assert.equal(await climbToSurface(bot, { goToPosition, log }), true);
+    assert.deepEqual(trips, [81, 81], 'it climbed again once it found itself back a block short');
+    assert.equal(Math.floor(bot.entity.position.y), 81);
+});
+
+test('left in a hole a block deep, the bot steps up and out onto the ground beside it', async () => {
+    // Ground up to 80 all round; the bot stands in the column at 80, its head level with the open air.
+    const cells = {};
+    for (let y = 60; y <= 80; y++) for (const [x, z] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) cells[`${x},${y},${z}`] = 'stone';
+    const { bot } = namedCells({ cells, at: new Vec3(0.5, 80, 0.5) });
+    const trips = [];
+    const goToPosition = async (_bot, x, y, z) => { trips.push([x, y, z].join(',')); bot.entity.position = new Vec3(x + 0.5, y, z + 0.5); };
+    assert.equal(await climbToSurface(bot, { goToPosition, log }), true);
+    assert.equal(trips.length, 1);
+    assert.match(trips[0], /,81,/, `stepped up onto the ground beside: ${trips[0]}`);
+    assert.match(bot.output, /Reached the surface at y=81/);
+});
+
+test('a look up cut short by a newer look is asked again until the bot faces up', async () => {
+    const cells = {};
+    for (let y = 70; y <= 80; y++) cells[`0,${y},0`] = 'stone';
+    const { bot } = namedCells({ cells });
+    let looks = 0;
+    bot.entity.pitch = 0;
+    // The first look up is overtaken half way, as a paced turn is by a newer look.
+    bot.look = async (yaw, pitch) => { looks++; bot.entity.pitch = looks === 1 ? pitch / 2 : pitch; };
+    const goToPosition = async (_bot, x, y, z) => { bot.entity.position = new Vec3(x + 0.5, y, z + 0.5); };
+    await climbToSurface(bot, { goToPosition, log });
+    assert.ok(looks >= 2, `looked again (${looks} looks)`);
+});

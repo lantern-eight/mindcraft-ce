@@ -21,6 +21,12 @@ const TICK_MS = 50;
 const TAU = 2 * Math.PI;
 // Closer than this to the facing asked for counts as there. The game's own mouse step is 0.15 degrees.
 const THERE = 0.002;
+// Building a pillar under itself, the bot jumps and places the block below its feet at the top of the jump.
+// A jump is up and down in about 0.6 s, and from a level look turning to face straight down takes half of
+// that, from looking up (just after digging the block overhead) all of it. So a player looks down first, and
+// jumps once looking down. This far down the block below is on screen, and the last bit of the turn, as the
+// place looks at the very face, is a tick or two.
+const TOWER_PITCH = -65 * Math.PI / 180;
 // The walk's heading counts as current for this long after its last look: the pathfinder looks every tick.
 const HEADING_FRESH_MS = 120;
 // The movement keys a player holds for a heading this far round from the facing (cos and sin of 67.5
@@ -95,6 +101,25 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
         }
     }
 
+    // The pathfinder builds a pillar by holding jump while it waits for the bot to rise, and places when it
+    // is high enough. It sets jump each game tick, after the physics has moved the bot; this runs after it
+    // (it was put on later) and before the next move. So, until the bot looks down, it takes the jump back
+    // and turns the head down instead: the jump starts once the look is there, as a player's would.
+    let lookingDown = false;
+    const holdTowerJump = () => {
+        const entity = bot.entity;
+        if (stopped || !bot.controlState?.jump || !bot.pathfinder?.isBuilding?.() || !entity?.onGround) return;
+        const speed = getSpeed();
+        if (speed === 'instant' || !(speed > 0) || !(entity.pitch > TOWER_PITCH)) return;
+        // Asking for the jump also queued one (mineflayer's physics jumps on either), so both are taken back.
+        bot.setControlState('jump', false);
+        bot.jumpQueued = false;
+        if (lookingDown) return;
+        lookingDown = true;
+        Promise.resolve(bot.look(entity.yaw, -Math.PI / 2, true)).catch(() => {}).finally(() => { lookingDown = false; });
+    };
+    bot.on?.('physicsTick', holdTowerJump);
+
     // The pathfinder walks by looking the way it is going and holding forward. At a player's turning speed
     // the facing lags behind that look, and forward then carries the bot the way it faces: round a corner it
     // swings wide, off a bridge or into a trench beside the path. A player walks the way they mean to go with
@@ -135,6 +160,7 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
         /** Every look goes straight through from now on. */
         stop() {
             stopped = true;
+            bot.off?.('physicsTick', holdTowerJump);
             bot.off?.('physicsTick', steer);
             if (setControl) putBack();
         },
