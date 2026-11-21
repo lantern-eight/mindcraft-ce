@@ -126,7 +126,11 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
                     log(bot, `Took cover from the ${decision.name} (${ended}).`);
                     return;
                 }
-                const outcome = await retreatFrom(bot, { from, to: decision.distance, report, maxMs: decision.stance === 'flee' ? 10000 : 8000, done: lostSight });
+                // Out of the bot's view means out of the mobs' only when the bot sees all around: through a
+                // player's screen it backs away facing the way out, so it goes by distance, and looks back when
+                // it stops (the glance).
+                const outcome = await retreatFrom(bot, { from, to: decision.distance, report, maxMs: decision.stance === 'flee' ? 10000 : 8000,
+                    done: () => !narrowView(agent) && lostSight() });
                 ended = outcome.ended;
                 log(bot, `${decision.stance === 'flee' ? 'Ran' : 'Backed away'} from ${whatOf(decision)} (${ended}).`);
             }, { timeout: 1 });
@@ -139,6 +143,9 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
         report({ event: 'done', at: performance.now(), ended, interrupted: Boolean(result?.interrupted) });
         tellModel(agent, decision, interrupted, result, line);
     }
+
+    // Whether the bot sees through a player's screen (fair play's narrow view), not all around.
+    const narrowView = agent => Boolean(agent.fairPlay?.looks?.getScreen?.());
 
     // Backing out of range with no cover near: the shield up toward an archer while it draws, and until its
     // arrow lands, when every archer aiming is on one side (shield.js).

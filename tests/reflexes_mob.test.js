@@ -19,9 +19,9 @@ const registry = minecraftData(GAME_VERSION);
 const MOB_FLAGS = registry.entitiesByName.zombie.metadataKeys.indexOf('mob_flags');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// A bot on a flat stone floor (top at y 63) that walks 0.3 blocks per 50 ms the way it last looked while
+// A bot on a flat stone floor (top at y 63) that walks `stride` blocks (0.3) per 50 ms the way it last looked while
 // "forward" is held, and straight away from the goal while the pathfinder has an inverted goal.
-function makeBot() {
+function makeBot({ stride = 0.3 } = {}) {
     const listeners = {};
     const controls = {};
     let facing = new Vec3(1, 0, 0);
@@ -42,6 +42,7 @@ function makeBot() {
                 .sort((a, b) => a.position.distanceTo(this.entity.position) - b.position.distanceTo(this.entity.position))[0] ?? null;
         },
         async lookAt(point) { const d = point.minus(bot.entity.position); facing = new Vec3(d.x, 0, d.z).normalize(); },
+        async look(yaw) { facing = new Vec3(-Math.sin(yaw), 0, -Math.cos(yaw)); },
         setControlState(name, on) { controls[name] = on; },
         clearControlStates() { for (const key in controls) controls[key] = false; },
         pathfinder: {
@@ -54,19 +55,19 @@ function makeBot() {
     // Away from every point of an inverted goal: GoalNear, or a GoalCompositeAny of them.
     const awayPoints = () => (goal?.goal?.goals ?? (goal?.goal ? [goal.goal] : [])).map(g => new Vec3(g.x, 64, g.z));
     const timer = setInterval(() => {
-        if (controls.forward) bot.entity.position = bot.entity.position.plus(facing.scaled(0.3));
+        if (controls.forward) bot.entity.position = bot.entity.position.plus(facing.scaled(stride));
         else if (awayPoints().length) {
             let away = new Vec3(0, 0, 0);
             for (const p of awayPoints()) away = away.plus(bot.entity.position.minus(p).normalize());
-            bot.entity.position = bot.entity.position.plus(new Vec3(away.x, 0, away.z).normalize().scaled(0.3));
+            bot.entity.position = bot.entity.position.plus(new Vec3(away.x, 0, away.z).normalize().scaled(stride));
         }
     }, 50);
     bot.stopWalking = () => clearInterval(timer);
     return bot;
 }
 
-function makeAgent(profileModes = null, { threatRules } = {}) {
-    const bot = makeBot();
+function makeAgent(profileModes = null, { threatRules, stride } = {}) {
+    const bot = makeBot({ stride });
     const messages = [];
     const agent = {
         name: 'Bot', bot, task: null, shut_up: true, last_sender: null,
@@ -113,6 +114,30 @@ test('two zombies coming: the hold goes up first, then the bot backs away from b
     assert.ok(Math.hypot(p.x + 4.5, p.z - 0.5) >= 16 && Math.hypot(p.x - 0.5, p.z + 5.5) >= 16, `past 16 from each: ${p}`);
     bot.stopWalking();
 });
+
+for (const view of ['all around', 'through a player\'s screen']) {
+    test(`two zombies that slip out of view while the bot backs away, seeing ${view}`, async () => {
+        // A slow walker: the zombies have been out of view 2 s before it gets far enough.
+        const { agent, bot, installed } = makeAgent(null, { stride: 0.1 });
+        // Through a player's screen the bot backs away facing the way out, so the zombies leave its view at
+        // once: that says nothing about whether they have lost it, and it goes on to its distance.
+        if (view !== 'all around') agent.fairPlay = { looks: { getScreen: () => ({}) } };
+        const events = [];
+        bot.on('threat_reflex', event => events.push(event));
+        const mobs = put(bot, zombie(-4.5, 0.5), zombie(0.5, -5.5));
+        try {
+            installed.mob.round(agent);
+            await delay(100);
+            for (const mob of mobs) delete bot.entities[mob.id]; // out of view
+            await waitUntil(() => !agent.actions.executing, 12000);
+            const done = events.find(e => e.event === 'done');
+            if (view === 'all around') assert.equal(done?.ended, 'done', 'all around, out of view means they lost it');
+            else assert.equal(done?.ended, 'far enough', 'it went on to its distance');
+        } finally {
+            bot.stopWalking();
+        }
+    });
+}
 
 test('the model is told once per threat, however often the crowd comes back', async () => {
     const { agent, bot, installed, messages } = makeAgent();

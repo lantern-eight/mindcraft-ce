@@ -112,7 +112,9 @@ works and one that keeps running. Mobs that fly (a phantom, a vex) are no reason
 
 Moving away goes through the same moves as the creeper reflex: a straight sprint first where the way is
 safe, then the pathfinder, toward wherever is farthest from all of them. Leaving ends when the bot is far
-enough, or when all of them have been out of its view for 2 s (they have lost it too).
+enough, or, seeing all around, when all of them have been out of its view for 2 s (they have lost it too).
+Through a player's screen the bot backs away facing the way out, so their being out of view says nothing:
+it goes by distance, and looks back when it stops (the glance).
 
 ## The Fight
 
