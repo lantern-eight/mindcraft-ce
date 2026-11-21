@@ -12,6 +12,18 @@ import '../src/agent/bedrock/edition.js'; // registers Bedrock's answers at the 
 
 // The bot stands at the origin on a stone floor, eye at y 2.62. Its click and hit methods just record
 // what reached "the server".
+// Which view a scene runs with when it doesn't name one: the scenes about walls and reach run twice, seeing
+// all around and through a player's screen (strict's own), with the bot turning to its target as it must.
+let view = 'all';
+const both = (title, fn) => {
+    for (const each of ['all', 'narrow']) {
+        test(`${title} (${each === 'all' ? 'seeing all around' : 'through a player\'s screen'})`, async () => {
+            view = each;
+            try { await fn(); } finally { view = 'all'; }
+        });
+    }
+};
+
 function setup(build, { custom = null, entities = [], deciding = true, edition = null } = {}) {
     const world = fixtureWorld({ min: [-16, -4, -16], max: [16, 16, 16] });
     world.fill('stone', [-16, 0, -16], [16, 0, 16]);
@@ -21,8 +33,7 @@ function setup(build, { custom = null, entities = [], deciding = true, edition =
     for (const name of ['dig', 'placeBlock', 'activateBlock', 'openContainer', 'openFurnace', 'activateEntity', 'useOn'])
         bot[name] = async target => { sent.push([name, target.name ?? target.username]); return name; };
     bot.attack = target => { sent.push(['attack', target.name]); };
-    // Seeing all around unless the scene says otherwise: most scenes are about reach and walls, not the view.
-    const policy = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360, ...custom } });
+    const policy = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: view === 'all' ? 360 : 70, ...custom } });
     const perception = createPerception({ bot, policy, ...NO_BUDGETS });
     // Hand-built game data has no edition, and counts as Java's; `edition` names another game.
     const guard = createReachGuard({ policy, getPerception: () => perception, getRegistry: () => (edition ? { version: { type: edition } } : bot.registry) });
@@ -32,7 +43,7 @@ function setup(build, { custom = null, entities = [], deciding = true, edition =
     return { world, bot, sent, block, guard, setDeciding: value => { isDeciding = value; } };
 }
 
-test('R1: a chest behind a wall cannot be opened, even within reach; with a way to see it, it can', async () => {
+both('R1: a chest behind a wall cannot be opened, even within reach; with a way to see it, it can', async () => {
     const walled = setup(w => {
         w.fill('stone', [2, 1, -2], [2, 4, 2]); // a wall one block east of the bot
         w.set('chest', 3, 1, 0);                // a chest right behind it, well within reach
@@ -49,7 +60,7 @@ test('R1: a chest behind a wall cannot be opened, even within reach; with a way 
     assert.deepEqual(open.sent, [['openContainer', 'chest']]);
 });
 
-test('a block in plain view but too far away cannot be dug until the bot moves closer', async () => {
+both('a block in plain view but too far away cannot be dug until the bot moves closer', async () => {
     const { bot, block, sent } = setup(w => w.set('oak_log', 7, 1, 0));
     await assert.rejects(bot.dig(block(7, 1, 0)), /can't reach the block at 7, 1, 0: it is 6\.\d blocks away and you can reach 4\.5/);
     bot.moveTo(4.5, 1, 0.5);
@@ -57,14 +68,14 @@ test('a block in plain view but too far away cannot be dug until the bot moves c
     assert.deepEqual(sent, [['dig', 'oak_log']]);
 });
 
-test('reach is measured from the eye to the nearest part of the block, as the game does', async () => {
+both('reach is measured from the eye to the nearest part of the block, as the game does', async () => {
     const { bot, block, sent } = setup(w => { w.set('oak_log', 5, 2, 0); w.set('oak_log', 0, 1, -6); });
     await bot.dig(block(5, 2, 0)); // its near face is 4.5 blocks from the eye: just in reach
     await assert.rejects(bot.dig(block(0, 1, -6)), /can't reach/); // nearest point 5.5 blocks away
     assert.equal(sent.length, 1);
 });
 
-test('R2: a block can only be placed against a side the bot can see', async () => {
+both('R2: a block can only be placed against a side the bot can see', async () => {
     const { bot, block } = setup(w => w.set('stone', 3, 1, 0));
     const stone = block(3, 1, 0);
     assert.equal(await bot.placeBlock(stone, new Vec3(-1, 0, 0)), 'placeBlock', 'the side facing the bot');
@@ -72,7 +83,7 @@ test('R2: a block can only be placed against a side the bot can see', async () =
     await assert.rejects(bot.placeBlock(stone, new Vec3(1, 0, 0)), /can't see the side of the block at 3, 1, 0/);
 });
 
-test('the block underfoot can be dug and built on, though the bot is standing on it', async () => {
+both('the block underfoot can be dug and built on, though the bot is standing on it', async () => {
     const { bot, block, sent } = setup(() => {});
     await bot.dig(block(0, 0, 0));
     await bot.placeBlock(block(0, 0, 0), new Vec3(0, 1, 0));
@@ -90,7 +101,7 @@ test('a mob behind a wall cannot be hit, and one in the open only from within 3 
     assert.deepEqual(sent, [['attack', 'pig']]);
 });
 
-test('the pathfinder, which acts outside a command, is not held to the guard for blocks', async () => {
+both('the pathfinder, which acts outside a command, is not held to the guard for blocks', async () => {
     const { bot, block, sent, setDeciding } = setup(w => { w.fill('stone', [2, 1, -2], [2, 4, 2]); w.set('chest', 3, 1, 0); });
     setDeciding(false); // what a call from the pathfinder's own timer looks like
     await bot.openContainer(block(3, 1, 0));
@@ -110,7 +121,7 @@ test('the combat plugin\'s own swings land only on a mob within reach that was i
     assert.deepEqual(sent, [['attack', 'pig']]);
 });
 
-test('interact_through_walls lifts the sight rule but not the reach rule', async () => {
+both('interact_through_walls lifts the sight rule but not the reach rule', async () => {
     const { bot, block, sent } = setup(w => {
         w.fill('stone', [2, 1, -2], [2, 4, 2]);
         w.set('chest', 3, 1, 0);
@@ -130,7 +141,7 @@ test('refusals carry a code, and the guard only wraps once', async () => {
     assert.equal(error.code, 'fair_play_reach');
 });
 
-test('the reach is the game\'s own: half a block more for a block on Bedrock, the same for a mob', async () => {
+both('the reach is the game\'s own: half a block more for a block on Bedrock, the same for a mob', async () => {
     // A log whose near face is 4.8 blocks from the eye: past Java's reach of 4.5, inside Bedrock's 5.
     const log = w => { w.set('oak_log', 5, 2, 0); w.set('oak_log', 6, 2, 0); };
     const java = setup(log);
@@ -150,7 +161,7 @@ test('the reach is the game\'s own: half a block more for a block on Bedrock, th
     assert.throws(() => mob.bot.attack(cow), /it is 3\.3 blocks away and you can reach 3\./);
 });
 
-test('a reach set by hand is used on either game', async () => {
+both('a reach set by hand is used on either game', async () => {
     const far = w => w.set('oak_log', 6, 2, 0); // near face 5.5 blocks from the eye
     for (const edition of [null, 'bedrock']) {
         const { bot, block, sent } = setup(far, { custom: { reach_blocks: 6 }, edition });

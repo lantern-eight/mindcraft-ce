@@ -270,6 +270,25 @@ test('entitiesInSightAnyWay: a mob in a clear line from the eye, whichever way t
     assert.deepEqual(perception.entitiesInSightAnyWay(5).map(e => e.id), [], 'too far');
 });
 
+// The wall rules hold through a player's screen too, once the bot faces the scene.
+test('through a player\'s screen, facing them: a buried ore is unknown, an ore in view known; a mob behind a wall unseen', () => {
+    const ores = setup(w => {
+        w.fill('stone', [4, 1, -2], [8, 5, 2]);
+        w.set('diamond_ore', 6, 3, 0); // buried
+        w.set('diamond_ore', 4, 2, -3); // standing alone
+    }, { policy: NARROW });
+    ores.bot.entity.yaw = -Math.PI / 2; // facing east, at the stone
+    assert.equal(ores.perception.blockAt(at(6, 3, 0)), null);
+    assert.equal(ores.perception.blockAt(at(4, 2, -3))?.name, 'diamond_ore');
+    assert.deepEqual(ores.perception.findBlocks({ matching: diamond(ores.world), maxDistance: 32, count: 5 }).map(p => p.toArray()), [[4, 2, -3]]);
+
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: at(8.5, 1, 0.5), height: 1.95 };
+    const pig = { id: 8, type: 'animal', name: 'pig', position: at(2.5, 1, 1.5), height: 0.9 };
+    const mobs = setup(w => w.fill('stone', [4, 1, -3], [4, 6, 3]), { policy: NARROW, entities: [zombie, pig] });
+    mobs.bot.entity.yaw = -Math.PI / 2;
+    assert.deepEqual(mobs.perception.entities().map(e => e.name), ['pig'], 'the pig in front, not the zombie behind the wall');
+});
+
 test('open_face sight sees ore in a sealed cave; ray sight does not', () => {
     const build = w => {
         w.fill('stone', [4, 1, -3], [14, 6, 3]);
