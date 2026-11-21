@@ -45,6 +45,14 @@ test('a mob in view is looked at, held, looked away from, and after a few looks 
     assert.equal(starts(), 4, 'and after a rest, it is looked at again');
 });
 
+test('an item lying at its feet, a boat or an arrow is no mob to look at', () => {
+    const item = { id: 7, name: 'item', type: 'other', height: 0.25, position: new Vec3(0.5, 64, 0.5) };
+    const arrow = { id: 8, name: 'arrow', type: 'projectile', height: 0.5, position: new Vec3(0.5, 64, -3.5) };
+    const { did, step } = idler({ mobs: [item, arrow] });
+    step(0);
+    assert.ok(!did.some(d => d[0] === 'at'), `it looked at no item: ${JSON.stringify(did)}`);
+});
+
 test('with two mobs in view it looks between them, so neither is turned off the screen', () => {
     const west = { id: 5, name: 'zombie', type: 'hostile', height: 1.95, position: new Vec3(-5.5, 64, 0.5) };
     const north = { id: 6, name: 'zombie', type: 'hostile', height: 1.95, position: new Vec3(0.5, 64, -5.5) };

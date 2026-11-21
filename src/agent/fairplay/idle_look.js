@@ -23,6 +23,10 @@ import * as world from '../library/world.js';
 import { editionOf } from '../edition/index.js';
 import { looksOf, stalestHeading } from './look_around.js';
 
+// The kinds of the game's entities that are alive: a player or a mob. An item lying on the ground, a boat, an
+// arrow or an armor stand is not looked at as a mob is; an item at the bot's feet had it staring at the ground.
+const ALIVE = new Set(['player', 'mob', 'hostile', 'animal', 'passive', 'ambient', 'water_creature']);
+const isAlive = (bot, e) => ALIVE.has(bot.registry?.entitiesByName?.[e.name]?.type ?? e.type);
 const HOSTILE_WITHIN = 24;          // a hostile mob in view this near holds the gaze where it is
 const WITHIN = 10;                  // mobs farther than this aren't looked at, as in the stock mode
 const HOLD_MS = [1500, 3500];       // how long a look at a mob is held
@@ -91,9 +95,9 @@ export function createIdleLook({ now = Date.now, random = Math.random, narrow = 
             if (!bot?.entity?.position) return;
             const t = now();
             if ((looksOf(bot)?.holdUntil ?? 0) > t) return; // a glance has the head
-            // Mobs in view, live (not one that just slipped out of sight), never an enderman.
+            // Mobs and players in view, live (not one that just slipped out of sight), never an enderman.
             const mobs = world.getNearbyEntities(bot, WITHIN)
-                .filter(e => e !== bot.entity && e.name !== 'enderman' && e.lastSeenAt === undefined);
+                .filter(e => e !== bot.entity && isAlive(bot, e) && e.name !== 'enderman' && e.lastSeenAt === undefined);
             // A hostile mob in view: the reflexes have the bot's eyes. Through a player's screen any turn, even
             // toward it, can turn another off the screen that they need to see.
             if (narrow(bot) && world.getNearbyEntities(bot, HOSTILE_WITHIN).some(e => e.lastSeenAt === undefined
