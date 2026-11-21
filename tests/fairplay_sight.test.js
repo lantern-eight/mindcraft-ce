@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fixtureWorld } from './helpers/fixture_world.js';
-import { buildStopsSightTable, createSight, viewDirection } from '../src/agent/fairplay/sight.js';
+import { buildStopsSightTable, createSight, viewDirection, screenOf, screenWidthDegrees, inView, boxInView } from '../src/agent/fairplay/sight.js';
 
 const EYE = { x: 0.5, y: 2.62, z: 0.5 };
 
@@ -157,6 +157,48 @@ test('field of view limits sight when narrowed, and 360 degrees sees all around'
     assert.equal(sight.canSeeBlock(EYE, 8, 2, 0, { fovDegrees: 90, viewDir: facingNorth }), null);
     const facingEast = viewDirection(-Math.PI / 2, 0);
     assert.ok(sight.canSeeBlock(EYE, 8, 2, 0, { fovDegrees: 90, viewDir: facingEast }));
+});
+
+test('the view is a 16:9 screen as tall as the game\'s FOV: 70 tall is about 102 across', () => {
+    assert.ok(Math.abs(screenWidthDegrees(70) - 102.4) < 0.1, `${screenWidthDegrees(70)}`);
+    assert.ok(Math.abs(screenWidthDegrees(60) - 91.5) < 0.1, `${screenWidthDegrees(60)}`);
+    assert.equal(screenWidthDegrees(360), 360);
+    assert.equal(screenOf(0, 0, 360), null, '360 is all around, not a screen');
+
+    const eye = { x: 0, y: 0, z: 0 };
+    const north = { screen: screenOf(0, 0, 70) }; // yaw 0 faces -z
+    const at = (degreesRight, degreesUp) => {
+        // A point 10 blocks off, this many degrees right of and above the facing.
+        const h = degreesRight * Math.PI / 180, v = degreesUp * Math.PI / 180;
+        return { x: 10 * Math.sin(h) * Math.cos(v), y: 10 * Math.sin(v), z: -10 * Math.cos(h) * Math.cos(v) };
+    };
+    assert.ok(inView(eye, at(0, 0), north));
+    assert.ok(inView(eye, at(50, 0), north), '50 degrees to the side is on a 102 degree wide screen');
+    assert.ok(!inView(eye, at(53, 0), north), '53 is past its edge');
+    assert.ok(!inView(eye, at(-53, 0), north), 'on either side');
+    assert.ok(inView(eye, at(0, 34), north) && inView(eye, at(0, -34), north), '34 up or down fits in 70 tall');
+    assert.ok(!inView(eye, at(0, 37), north) && !inView(eye, at(0, -37), north), '37 does not');
+    assert.ok(!inView(eye, at(180, 0), north), 'behind');
+    assert.ok(inView(eye, eye, north), 'the eye\'s own spot');
+    // A cone as wide as the screen would show 50 degrees up; the screen does not.
+    assert.ok(!inView(eye, at(0, 50), north));
+    // Looking down, the screen tilts with the look: straight ahead and level is then above it.
+    const down = { screen: screenOf(0, -60 * Math.PI / 180, 70) };
+    assert.ok(!inView(eye, at(0, 0), down) && inView(eye, at(0, -60), down));
+    // The ground right before the feet is below a level look: about 2.3 blocks ahead at eye height 1.62.
+    assert.ok(!inView({ x: 0, y: 1.62, z: 0 }, { x: 0, y: 0, z: -2 }, north));
+    assert.ok(inView({ x: 0, y: 1.62, z: 0 }, { x: 0, y: 0, z: -2.5 }, north));
+});
+
+test('a box is out of view, partly in it or wholly in it', () => {
+    const eye = { x: 0, y: 0, z: 0 };
+    const north = { screen: screenOf(0, 0, 70) };
+    assert.equal(boxInView(eye, -1, -1, -10, 1, 1, -8, north), 'all');
+    assert.equal(boxInView(eye, -1, -1, 8, 1, 1, 10, north), 'none', 'behind');
+    assert.equal(boxInView(eye, 20, -1, -10, 22, 1, -8, north), 'none', 'off to the side');
+    assert.equal(boxInView(eye, -8, -8, -16, 8, 8, 0, north), 'part', 'the cube the eye is at the edge of');
+    assert.equal(boxInView(eye, -8, -8, -8, 8, 8, 8, north), 'part', 'a cube around the eye');
+    assert.equal(boxInView(eye, 0, 0, 0, 1, 1, 1, {}), 'all', 'all around');
 });
 
 test('E1: a mob behind a wall is not seen; a window at head height is enough to see it', () => {

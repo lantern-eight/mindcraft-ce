@@ -223,7 +223,10 @@ declined.
 **Making a release:**
 
 1. On the working branch, every commit passes `npm test` and every live script passes on its tip (Java,
-   and Bedrock on `bedrock`'s libraries when the change reaches Bedrock). The `fix/` branches it broke off
+   and Bedrock on `bedrock`'s libraries when the change reaches Bedrock), with the narrow view and seeing
+   all around: `node tests/live/java_all.js` runs the Java ones both ways, and `node
+   tests/live/bedrock_all.js` runs the Bedrock ones once with `MC_TEST_VIEW` unset and once with
+   `MC_TEST_VIEW=all`. Fair play's view can be either, and people use both. The `fix/` branches it broke off
    are offered upstream, when the maintainer says so, and their lines are in `docs/upstream.md`.
 2. A last commit, "Release X": the Unreleased lines move under a heading with the version and the date,
    with its compare link at the bottom of `CHANGELOG.md`; the version goes in `package.json` and in both

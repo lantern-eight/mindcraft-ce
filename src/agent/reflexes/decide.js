@@ -54,15 +54,20 @@ const ignore = { stance: 'ignore' };
 
 /**
  * Whether to stop and hold a shield up at a lit creeper instead of running on. A player does when the blast
- * will catch them anyway: the creeper is in view and lit within the blast's reach, and at a sprint the fuse
+ * will catch them anyway: the creeper is in view (or was a moment ago) and lit within the blast's reach, and at a sprint the fuse
  * runs out before the bot is past that reach; or the bot can't get away (it is stuck, or already behind its
  * shield, standing). The fuse is the picture's estimate, which a player keeps the same way: it swells and
  * flashes faster as it nears the end.
  * @param {object|null} creeper - from the threat picture: {seenNow, lit, distance, fuse}
  * @param {{stuck?: boolean}} [extra]
  */
+const JUST_SEEN_MS = 1500;   // a fuse's length: a lit creeper out of view this short a while is where it was
+
 export function blockTheBlast(creeper, { stuck = false } = {}) {
-    if (!creeper?.seenNow || !creeper.lit || creeper.distance >= BLAST_REACH) return false;
+    // In view, or seen moments ago: a swelling creeper stands where it was, so one the bot has just run past,
+    // behind it through a player's screen, is where the bot knows it to be, and the shield is turned to it.
+    const known = creeper?.seenNow || (creeper?.unseenMs != null && creeper.unseenMs <= JUST_SEEN_MS);
+    if (!known || !creeper.lit || creeper.distance >= BLAST_REACH) return false;
     if (stuck) return true;
     const ticksLeft = Math.max(0, FUSE_TICKS - (creeper.fuse ?? 0));
     return creeper.distance + ticksLeft * SPRINT_PER_TICK < BLAST_REACH;

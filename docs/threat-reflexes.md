@@ -24,6 +24,7 @@ spiders, ignore skeletons), which the reflexes follow at once from then on.
 - [The Shield](#the-shield)
 - [Standing Orders](#standing-orders)
 - [Never Looking an Enderman in the Eye](#never-looking-an-enderman-in-the-eye)
+- [The Glance](#the-glance)
 - [Danger Zones](#danger-zones)
 - [What They Know, and How](#what-they-know-and-how)
 - [Holding Other Work](#holding-other-work)
@@ -99,7 +100,7 @@ wins:
 | # | What | What the bot does |
 |---|---|---|
 | 1 | Health under 6, with a hostile in view or a hit felt just now | **Runs**, 20 blocks from every hostile about, newcomers included |
-| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (one when the bot is armed, two in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range, stopping behind its shield while the bow is drawn |
+| 2 | A mob in view aiming at the bot within 16 blocks: a skeleton's bow raised or drawn, a pillager's crossbow held up or loading, a ghast or blaze winding up. Not a skeleton the fight will rush (one when the bot is armed, two in full iron or better, below) | **Takes cover:** walks to the nearest spot behind a wall it has seen that hides its whole body from the mob's eyes, picking again if the mob moves; with no cover near, backs out of range, stopping behind its shield while the bow is drawn. Through a player's screen, with a shield, it backs out walking backwards, facing the archer, so it sees each draw (or hears each shot due, on Bedrock) |
 | 3 | More melee mobs in view within 8 blocks that have come for the bot (or within 5, about to) than its gear takes on: two or more bare-handed, four or more with a sword or an axe. Or two or more with one too strong among them | **Backs away from all of them at once**, 16 blocks from each, rather than from the nearest into the next. A fight already started on one of them doesn't hold this back |
 | 4 | One melee mob coming at it that the bot shouldn't fight: the bot under half health, or too hungry to sprint (food 6 or less), or the mob too strong for a fight nobody asked for (a cave spider's poison, a warden, a ravager, a vindicator, a piglin brute, a hoglin or zoglin, a provoked enderman, a wither skeleton) | Backs away from it |
 | 5 | Hit twice within 4 s with nothing in view that could have done it: no mob within reach, none that has picked a target, none that shoots | **Gets away from the side the hits came from** |
@@ -111,7 +112,9 @@ works and one that keeps running. Mobs that fly (a phantom, a vex) are no reason
 
 Moving away goes through the same moves as the creeper reflex: a straight sprint first where the way is
 safe, then the pathfinder, toward wherever is farthest from all of them. Leaving ends when the bot is far
-enough, or when all of them have been out of its view for 2 s (they have lost it too).
+enough, or, seeing all around, when all of them have been out of its view for 2 s (they have lost it too).
+Through a player's screen the bot backs away facing the way out, so their being out of view says nothing:
+it goes by distance, and looks back when it stops (the glance).
 
 ## The Fight
 
@@ -212,7 +215,7 @@ off-hand is empty (whatever else is there was put there on purpose). Then it goe
 | Where | When | Why |
 |---|---|---|
 | In the fight | An archer in view is drawing its bow at the bot, and the mob the bot fights is out of reach | A player closing on a skeleton blocks while the bow is drawn and runs in between |
-| Backing out of an archer's range, with no cover near | The same | Out in the open the bot outruns a skeleton's first shot and nothing needs blocking; where it can't get out of range, the shield stops the shots |
+| Backing out of an archer's range, with no cover near | The same. With a shield the bot backs out walking backwards, facing the archer, so the shield is on the right side and the bot sees the draw | Out in the open the bot outruns a skeleton's first shot and nothing needs blocking; where it can't get out of range, the shield stops the shots |
 | Backing off from a lit creeper | The bot won't get past the blast's reach before the fuse runs out, or is stuck | A shield faced at a blast stops it |
 
 Measured on real servers: cornered in a dead end by a lit creeper (on easy), the bot took no damage behind its
@@ -327,9 +330,32 @@ An enderman turns on a player who looks at its head, within an angle that narrow
 degrees at 10 blocks), and the bot looks around all the time: the idle look-around, a dash away from a
 creeper, the pathfinder facing the way it walks. So every look the bot makes goes through a guard: a look
 that would come within twice that angle of an enderman's eyes is lowered until it doesn't, and every other
-look is left alone. The endermen are the ones world.js hands out: under fair play only those in view, as only
-those can see the bot stare. On a real server an unguarded look at an enderman's head angered it in about a
+look is left alone. Under fair play the endermen that count are those in a clear line from the bot's eye,
+whichever way it faces: with a narrowed field of view, one behind the bot is off screen until it turns, but a
+look that would stare at it puts its eyes in the middle of the screen, so the bot sees it the moment it
+looks. One behind a wall can't see the bot stare, and doesn't count. On a real server an unguarded look at an enderman's head angered it in about a
 third of a second; with the guard it never did.
+
+## The Glance
+
+Through a player's screen (fair play's narrowed field of view) what is behind the bot reaches it as a sound
+or a hit, as it does a player, and a player turns to look. So the bot turns its head for about a second
+toward a hit from something it can't see, a hostile mob heard close by and not seen (not a creeper's hiss, which the creeper reflex answers by running), a shot heard from any
+distance, and back the way it came when a back-off from a creeper or a mob ends (the threat is behind it
+then, and a player looks back to see whether it follows). The turn is an ordinary look: paced, kept off an
+enderman's eyes, and seen by perception and world memory. The idle look-around gives way while it lasts.
+
+- **Looked once, remembered.** A miner hears zombies groan on the far side of a wall, looks once, sees rock,
+  and stops looking. A glance at a sound leaves a note of what it was, which way, how far it sounded and where
+  the bot stood, and the same sound from the same way doesn't turn the bot again while the note holds: a
+  minute and a half, until the bot moves four blocks, until the sound comes closer or from another way, and
+  never past a hit.
+- **Not away from a mob in front.** While a hostile mob is in view nearby, a sound waits: turning to it would
+  turn that mob off the screen, and the reflexes judge by what is in view. A hit or a shot doesn't wait.
+- **Busy too, at a break in the work.** Not while the bot walks (the walk steers the head, and turning it
+  would turn the walk) or while a reflex moves it. A sound waits for a block being dug to break, and is let go
+  after three seconds; a hit or a shot doesn't wait.
+- **Seeing all around,** there is nothing to turn for, and the glance does nothing.
 
 ## Danger Zones
 
@@ -393,7 +419,17 @@ server tracks without it.
   hiss. It is settled when the creeper is seen with its fuse out, when the bot has been away long enough for
   any fuse to run down, or after 10 s with nothing new. When the creeper that hissed comes into view, its
   entry carries over, and a back-off that started on the sound follows the creeper seen.
+- **Leaving through a player's screen,** the bot runs facing away, so it can't see whether the creeper has
+  lost it. It goes by distance, taking the creeper to come on at a walk while out of view, and looks back
+  when it stops.
+- **A creeper that went off is forgotten:** one lit near where a blast was heard; one last seen lit when the
+  bot can see where it stood and it isn't there (a swelling creeper stands still, so it hasn't stepped
+  aside); and one out of view whose fuse has run out by now, when a hit comes from its side: the blast. A
+  silent creeper's blast makes no sound, so only the eyes and the body can tell.
 - **Cover** is only cover where the bot has seen the wall: a cell it never saw counts as open.
+- **Where to step** (a dash, a cover spot, a step back in a fight) is judged by what the bot knows: ground in
+  view, and ground and open space it has seen and remembers (world memory). Through a player's screen most
+  of the ground round the bot is out of view at any moment; a cell never seen is not stepped into.
 - **Danger zones** are noted from the same sight, hearing and touch, never from a stand-in out of view.
 
 ## Holding Other Work
@@ -492,7 +528,8 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 | `shield.js` | The shield: put in the off-hand, raised and lowered, and which mob a shot is coming from |
 | `shot_beat.js` | The beat of an archer's shots heard, for a game that shows no bow drawn: when the next is due |
 | `item_use.js` | One owner of the use-item channel the shield, eating and a bow share, and the eating plugin made to ask it |
-| `gaze.js` | The guard on every look, for endermen |
+| `gaze.js` | The guard on every look, for endermen, and on each step of a paced turn |
+| `glance.js` | The glance: turning toward a hit, a sound or a shot from what the bot can't see, and the notes of what it looked at |
 | `danger_zones.js` | The zones: where, how wide, for how long, and what a cell costs to be in. Pure |
 | `danger_watch.js` | Notes zones from what the bot sees, hears and feels, once a second and as each sound arrives |
 

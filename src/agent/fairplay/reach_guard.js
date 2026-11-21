@@ -10,12 +10,18 @@
 //      The server allows more to forgive lag; the bot doesn't use that slack.
 //   2. Sight: the target is in view this instant. Remembering where something is doesn't count, and
 //      for placing a block it is the side being clicked that has to be in view.
+// Under a narrowed field of view a player turns to face a block before clicking it, so for the block
+// actions the bot does the same: a block within reach but off screen is looked at first, and then
+// checked. One behind a wall is still refused once the bot faces it. A mob is not turned to: whoever
+// swings at it looks at it first (the fight, the reflexes, the combat plugin), and a swing at one
+// behind is refused.
 // A refusal is an error with a message the model can act on ("move to where you can see it").
 //
 // Who is guarded: actions started by something that decides, meaning a command, a skill, a reflex, or
 // generated code. Those all run inside one of CE's actions, which is how the guard recognises them.
 // The pathfinder and the combat plugin call the same bot methods from their own timers while they
 // carry an action out; they are the "legs" and stay unguarded for now (see the design, layer 6).
+import Vec3 from 'vec3';
 import { actionContext } from '../action_context.js';
 import { editionOf } from '../edition/index.js';
 
@@ -81,6 +87,23 @@ export function createReachGuard({ policy, getPerception, getRegistry = () => nu
             throw refusal(`You can't see the side of ${where} that you would place against. Try another side, or move.`);
     }
 
+    /**
+     * Where to look before acting on a block, or null when there is no need to turn: the view is all
+     * around, the block (or the side to be clicked) is on screen already, or it is out of reach, which
+     * checkBlock refuses without a turn. Aims at the middle of the block, or of the side to be clicked.
+     * @returns {Vec3|null}
+     */
+    function aimFor(block, face = null) {
+        const perception = getPerception();
+        const pos = block?.position;
+        if (!perception?.screenNow?.() || !pos || policy.interact_through_walls === true) return null;
+        const x = Math.floor(pos.x), y = Math.floor(pos.y), z = Math.floor(pos.z);
+        if (distanceToBox(perception.eye(), x, y, z, x + 1, y + 1, z + 1) > reachOf('blocks') + 1e-6) return null;
+        if (face ? perception.seesFace(pos, face) : perception.seesCell(pos)) return null;
+        const side = face ? [Math.sign(face.x), Math.sign(face.y), Math.sign(face.z)] : [0, 0, 0];
+        return new Vec3(x + 0.5 + side[0] * 0.5, y + 0.5 + side[1] * 0.5, z + 0.5 + side[2] * 0.5);
+    }
+
     // Eye to the nearest part of the mob's box, as the game measures a hit.
     function distanceToEntity(perception, entity) {
         const pos = entity.position;
@@ -128,7 +151,7 @@ export function createReachGuard({ policy, getPerception, getRegistry = () => nu
         return policy.interact_through_walls === true || perception.seenWithin(entity, UNDECIDED_HIT_SIGHT_MS);
     }
 
-    return { checkBlock, checkEntity, withinReach, allowsUndecidedHit };
+    return { checkBlock, checkEntity, withinReach, allowsUndecidedHit, aimFor };
 }
 
 // How recently a target must have been in view for the combat plugin's own swing at it.
@@ -136,7 +159,8 @@ const UNDECIDED_HIT_SIGHT_MS = 1000;
 
 /**
  * Wraps the bot's own click, dig, place and hit methods so each one asks the guard first. Safe to call
- * more than once; only the first call wraps.
+ * more than once; only the first call wraps. A block action turns toward its block first when the guard
+ * says to (aimFor), through bot.lookAt, so the enderman gaze guard has that look too.
  *
  * @param {object} bot - the mineflayer bot, after its plugins are loaded
  * @param {{checkBlock: function, checkEntity: function}} guard
@@ -152,7 +176,12 @@ export function installReachGuard(bot, guard, { deciding = () => actionContext(b
         if (typeof original !== 'function') continue;
         // async, so a refusal arrives as a rejected promise like any other failure of these methods.
         bot[name] = async function (block, ...rest) {
-            if (deciding()) guard.checkBlock(block, verb, name === 'placeBlock' ? rest[0] : null);
+            if (deciding()) {
+                const face = name === 'placeBlock' ? rest[0] : null;
+                const aim = guard.aimFor?.(block, face);
+                if (aim && typeof bot.lookAt === 'function') await bot.lookAt(aim);
+                guard.checkBlock(block, verb, face);
+            }
             return await original.call(this, block, ...rest);
         };
     }

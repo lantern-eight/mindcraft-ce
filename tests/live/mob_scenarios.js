@@ -19,6 +19,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55932);
@@ -47,7 +48,7 @@ const server = await vanillaFixture(port);
 let bot, running = true;
 try {
     setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline',
-        fair_play: 'strict', world_memory: true, threat_reflexes: !STOCK, narrate_behavior: false });
+        ...fairPlaySettings(), world_memory: true, threat_reflexes: !STOCK, narrate_behavior: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -75,10 +76,11 @@ try {
     };
     agent.actions = new ActionManager(agent);
     initModes(agent);
+    // The bot's own look, before anything wraps it (fair play paces turns, and a paced turn's steps go
+    // through the gaze guard), for the enderman scene's comparison.
+    const unguardedLook = bot.look;
     const fair = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'mob-memory-')) });
     assert.ok(fair, 'fair play installed');
-    // The bot's own look, before the gaze guard goes on it, for the enderman scene's comparison.
-    const unguardedLook = bot.look;
     // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
     const reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'mob-orders-')) });
     assert.ok(STOCK ? !reflexes : reflexes, 'threat reflexes installed, unless --stock');
@@ -122,6 +124,12 @@ try {
     await cmd('forceload add -40 -40 40 40');
 
     // A flat stone floor with its top at y 69, a wall round the edge, open air above, nothing alive but the bot.
+    // A look all round, recorded: through a player's screen world memory would otherwise keep what was
+    // there before a scene built or cleared something behind the bot, a wall that is gone or one that is new,
+    // and the reflexes would plan by it. Seeing all around, the bot sees it all at once anyway.
+    const lookAbout = async () => {
+        if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
+    };
     async function reset({ x = 0.5, z = 0.5, facing = -90 } = {}) {
         await cmd('kill @e[type=!player]');
         await cmd('kill @e[type=!player]');
@@ -139,8 +147,12 @@ try {
         await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
         await agent.actions.stop();
         await delay(2000);
+        await lookAbout();
+        // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
+        // and through a player's screen which way it faces decides what it sees.
+        await bot.look((180 - facing) * Math.PI / 180, 0, true);
         events.length = 0; messages.length = 0;
-        if (reflexes) { reflexes.mob.clear(); reflexes.fight.clear(); reflexes.claims.clear(); reflexes.creeper.picture.clear(); }
+        if (reflexes) { reflexes.mob.clear(); reflexes.fight.clear(); reflexes.claims.clear(); reflexes.creeper.picture.clear(); reflexes.glance?.clear(); }
         lowestHealth = lastHealth = bot.health; damage = 0;
     }
     const firstStepAfter = from => events.find(e => e.event === 'step' && e.at >= from);
@@ -209,8 +221,8 @@ try {
 
     // ---- The mob reflex ----
 
-    await step('two zombies coming: the bot backs away from both, ends 12 or more from each, takes little damage', async () => {
-        await reset();
+    await step('two zombies coming: the bot backs away from both, ends 12 or more from each (10 through a player\'s screen), takes little damage', async () => {
+        await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
         await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
         await cmd('summon zombie 0.5 70 -6.5 {PersistenceRequired:1b}');
         const spawned = performance.now();
@@ -221,7 +233,11 @@ try {
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
         assert.equal(decided('mob_safety')[0].key, 'crowd', JSON.stringify(decided()));
         assert.equal(decided('self_defense').length, 0, 'it did not fight two');
-        assert.ok(nearest >= 12, `ended ${nearest.toFixed(1)} from the nearest`);
+        // Through a player's screen the bot backs away facing the way out and goes by where it last saw them,
+        // while they come on: it ends nearer than it knows, looks back, and backs away again if they come
+        // within the crowd's 8 blocks. All around it sees them the whole way.
+        const least = LIVE_VIEW === 'all' ? 12 : 10;
+        assert.ok(nearest >= least, `ended ${nearest.toFixed(1)} from the nearest: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - spawned) })))}`);
         assert.ok(damage <= 4, `${damage} damage`);
         return { decidedAfterMs: Math.round(decided('mob_safety')[0].at - spawned), firstStepMs: first ? Math.round(first.at - decided('mob_safety')[0].at) : null,
             how: first?.how, endedFromNearest: Number(nearest.toFixed(1)), damage };
@@ -248,7 +264,13 @@ try {
         // skeleton to the east sees the bot, and the shadow of the wall is a few steps away.
         await cmd('fill 3 70 3 3 72 5 cobblestone');
         await cmd(`effect give ${NAME} resistance 60 2 true`);
-        await delay(1500); // the bot sees the wall
+        // The bot sees the wall: it looks at it, as a player in a new place looks about, and world memory keeps
+        // it. Through a player's screen it is just past the edge of a look east. Then it faces east again. The
+        // recorder looks a few milliseconds at a time, with the facing of the moment, so the look is held.
+        await faceToward(bot, { x: 3.5, y: 71, z: 4 });
+        await delay(3000);
+        await faceToward(bot, { x: 14.5, y: 71.6, z: 0.5 });
+        await delay(500);
         await cmd('summon skeleton 14.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
         await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
@@ -274,6 +296,7 @@ try {
                 await cmd(`fill ${a} ${b} stone`);
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
+            await lookAbout(); // the bot sees its pen
             const blocksBefore = blocked;
             await cmd('summon skeleton 5.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
@@ -303,7 +326,7 @@ try {
     });
 
     await step('badly hurt with a zombie in view: the bot runs, it doesn\'t fight', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword`);
         await cmd(`damage ${NAME} 15 minecraft:generic`);
         await waitFor(() => bot.health <= 5, 3000);
@@ -319,7 +342,7 @@ try {
     // ---- The fight ----
 
     await step('a lone zombie, the bot with a stone sword at full health: it fights and kills it', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword`);
         await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
         await waitFor(() => raw('zombie').length === 0, 30000, () => JSON.stringify(events));
@@ -340,7 +363,7 @@ try {
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
 
     await step('armed with a stone sword, two zombies coming: the built-in order fights them instead of backing away, while health holds', async () => {
-        await reset();
+        await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
         await cmd(`give ${NAME} stone_sword`);
         healthAtDecisions.length = 0;
         await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
@@ -357,7 +380,7 @@ try {
     });
 
     await step('told by command to back away from zombies: a lone zombie coming is backed away from, to the order\'s distance, and the line says why', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, where the zombie will be
         assert.match(await order('zombies', 'flee', 0, 20), /back away from zombies to 20 blocks/);
         try {
             act('action:stay', () => skills.stay(bot, -1));

@@ -276,7 +276,9 @@ test('standing on a flat grass floor, the bot knows the grass and not the dirt o
     columns.get('0,0').setBlockStateId(new Vec3(5, -60, 0), registry.blocksByName.diamond_ore.defaultState); // in the open
     columns.get('0,0').setBlockStateId(new Vec3(6, -63, 3), registry.blocksByName.diamond_ore.defaultState); // buried
     const bot = bedrockBot(registry, columns, [0.5, -60, 0.5]);
-    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), searchBudgetMs: Infinity });
+    // Seeing all around: the blocks asked about lie on every side of the bot.
+    const allAround = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } });
+    const perception = createPerception({ bot, policy: allAround, searchBudgetMs: Infinity });
     const nameAt = (x, y, z) => perception.blockAt(new Vec3(x, y, z))?.name ?? null;
 
     assert.equal(nameAt(4, -61, 2), 'grass_block', 'the floor a few blocks off');

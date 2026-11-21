@@ -22,6 +22,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, delay, freshStart } from './bedrock_fixture.js';
 import { ROUNDS, createMeter, summarize, printSummary } from './arena_meter.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const RUNS = Number(arg('runs') || 3);
@@ -68,7 +69,7 @@ async function waitFor(check, ms, why = () => 'timed out') {
 }
 
 try {
-    setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'strict', world_memory: true, threat_reflexes: true, narrate_behavior: false });
+    setSettings({ ...rootSettings, ...bedrockTestSettings(server), ...fairPlaySettings(), world_memory: true, threat_reflexes: true, narrate_behavior: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

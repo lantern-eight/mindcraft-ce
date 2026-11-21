@@ -18,6 +18,7 @@
 // looks in, takes from and puts into one chest named by where it is.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import Vec3 from 'vec3';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -25,6 +26,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55928);
 const NAME = 'Sorter';
@@ -40,7 +42,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', fair_play: 'strict', world_memory: true, chest_sorting: true });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(), world_memory: true, chest_sorting: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -108,6 +110,11 @@ try {
     /** Runs a piece of the test while a message from `source` is being handled. */
     const during = (source, run) => agent.handleMessage(source, run);
     const settled = async () => { await delay(400); await waitFor(() => !handle.recorder.busy, 20000, () => 'the look-around never finished'); await delay(300); };
+    // Walking into a room, a player looks along it. Through a player's screen the bot does the same, turning
+    // to each of these spots and letting world memory look; seeing all around, the turns change nothing.
+    const lookAlong = async (...spots) => {
+        for (const [x, y, z] of spots) { await bot.lookAt(new Vec3(x + 0.5, y + 0.5, z + 0.5), true); await settled(); }
+    };
 
     // ---- The director's side: filling chests and reading them back through the console ----
 
@@ -354,6 +361,7 @@ try {
         await cmd(`tp ${NAME} 38.5 70 0.5 -90 0`);
         await delay(1500);
         await settled();
+        await lookAlong([41, 70, -6], [41, 70, 6], [41, 70, 0]);
         assert.match(say('!markChest', 41, 70, -4, 'Alice', 'same'), /is now Alice's/);
         assert.match(say('!markChest', 41, 70, -2, 'alice', 'same'), /is now Alice's/, 'one owner, however the name is typed');
         assert.match(say('!markChest', 41, 70, 0, 'Alice', 'never'), /is now Alice's, never sorted/);

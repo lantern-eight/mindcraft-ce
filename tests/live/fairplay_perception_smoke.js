@@ -14,6 +14,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55918);
 const results = [];
@@ -56,8 +57,11 @@ try {
     await cmd('tp FairSmoke 0.5 70 0.5 0 0');
     await delay(2500);
 
-    const policy = resolvePolicy({ fair_play: 'strict' });
+    const policy = resolvePolicy(fairPlaySettings());
     const perception = createPerception({ bot, policy, searchBudgetMs: Infinity });
+    // Through a player's screen the bot sees one side at a time, so it turns to each thing a scene asks
+    // about, as a player would. Seeing all around, turning changes nothing.
+    const face = (x, y, z) => bot.lookAt(new Vec3(x, y, z), true);
     const ore = bot.registry.blocksByName.diamond_ore.id;
     const chest = bot.registry.blocksByName.chest.id;
 
@@ -66,25 +70,33 @@ try {
         assert.equal(raw.length, 3, `raw found ${raw.length}`);
     });
 
-    await step('buried diamond and sealed chest are hidden; the diamond in the open is known', () => {
+    await step('buried diamond and sealed chest are hidden; the diamond in the open is known', async () => {
+        await face(6.5, 72.5, 0.5);
         assert.equal(perception.blockAt(new Vec3(6, 72, 0)), null);
+        await face(0.5, 71.5, 8.5);
         assert.equal(perception.blockAt(new Vec3(0, 71, 8)), null);
+        await face(-5.5, 70.5, 0.5);
         assert.equal(perception.blockAt(new Vec3(-6, 70, 0))?.name, 'diamond_ore');
         const found = perception.findBlocks({ matching: [ore, chest], maxDistance: 32, count: 10 });
         assert.deepEqual(found.map(p => [p.x, p.y, p.z]), [[-6, 70, 0]]);
     });
 
-    await step('the cow behind the wall is not perceived; the one in the open is', () => {
+    await step('the cow behind the wall is not perceived; the one in the open is', async () => {
+        await face(-5, 71, -8); // north-west, with both cows on screen
+        await delay(3500); // past the moment a mob that slipped out of view is still known
         const cows = perception.entities().filter(e => e.name === 'cow');
         assert.equal(cows.length, 1, `perceived ${cows.length} cows`);
         assert.ok(cows[0].position.x < -5);
     });
 
-    await step('world.js answers fairly once the provider is installed', () => {
+    await step('world.js answers fairly once the provider is installed', async () => {
         registerFairPlay(bot, { perception, policy });
         setWorldQueries(fairQueries);
+        await face(-5.5, 70.5, 0.5);
         const diamonds = world.getNearestBlocksWhere(bot, b => b.name === 'diamond_ore', 32, 10);
         assert.deepEqual(diamonds.map(b => b.position.x), [-6]);
+        await face(-5, 71, -8);
+        await delay(3500);
         assert.equal(world.getNearbyEntities(bot, 32).filter(e => e.name === 'cow').length, 1);
         setWorldQueries(null);
     });

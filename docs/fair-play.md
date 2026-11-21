@@ -40,7 +40,7 @@ through walls.
 | **Sight** | A block is seen when a straight line from the bot's eye reaches one of its sides without crossing a full, opaque block. A mob is seen the same way, at any point along its middle or the edges of its body |
 | **Memory** | With world memory on, blocks it saw before are remembered exactly as they were last seen. A furnace that someone removed while the bot was away is still "there" until the bot looks again |
 | **Hearing** | Sounds the server actually sent: mobs, doors, trapdoors and gates, chests and barrels opening and closing, a mob's footsteps, and explosions, reported as "zombie (north-east, close)" or "door (opened) (east, near)"; a creeper's hiss and a bow's twang are told apart from a mob's other noises, as "creeper (hissing)" and "skeleton (shooting)". A direction and a rough distance, never coordinates. Other players' footsteps aren't heard: the server never sends them |
-| **Name tags** | Players within 64 blocks are known even through walls, unless they are sneaking. Vanilla shows name tags the same way |
+| **Name tags** | Players within 64 blocks are known even through walls, unless they are sneaking, when their tag is in view. Vanilla shows name tags the same way |
 
 Details that matter:
 
@@ -48,8 +48,15 @@ Details that matter:
   stairs, fences, chests, doors, torches, and a piston that has pushed its head out. That is slightly
   generous (a slab does hide a little). A shulker box is a wall, as it looks.
 - **Chunks the client hasn't been sent count as walls,** so the bot can't see into them.
-- **The view is all around (360°)** and light is ignored, as if the bot glances around constantly with
-  brightness turned up. Both can be tightened later.
+- **The bot sees through a player's screen,** 70° tall on a 16:9 screen, about 102° across: Java's
+  default field of view, used on Bedrock too (whose own default is 60). What is behind it, it doesn't see
+  until it turns. `fov_degrees` sets the number, as the game's own FOV slider does; `360` sees all around,
+  as `fair_play: "off"` does. A point is in view when it is on that screen, not in a cone: a cone as wide
+  would show things above and below that a player can't see. Touch and hearing don't depend on the view,
+  and light is ignored, as if brightness were turned up.
+- **While it walks, it looks a little down,** 25° below level, at the ground a few steps ahead, as a player
+  does. Looking level, the ground closer than about 2.3 blocks is below the screen, and the bot would step
+  onto ground it had never seen. Touch covers the cells around its feet either way.
 - **A mob that steps out of view stays known for 3 seconds,** so reflexes don't flicker when something
   walks behind a tree. It is known where it was last seen, standing still: the bot can't follow it
   behind the wall.
@@ -68,7 +75,7 @@ the bot plans to get somewhere.
 
 | Rule | What happens |
 |---|---|
-| **Reach** | Clicking, digging, placing against or hitting something needs it within a survival player's reach of the bot's eye (on Java 4.5 blocks for a block and 3 for a mob, on Bedrock 5 and 3) **and in view right now**. To place a block, the side being clicked must be in view |
+| **Reach** | Clicking, digging, placing against or hitting something needs it within a survival player's reach of the bot's eye (on Java 4.5 blocks for a block and 3 for a mob, on Bedrock 5 and 3) **and in view right now**. To place a block, the side being clicked must be in view. Under a narrowed field of view the bot turns to face a block within reach before clicking, digging or placing against it, as a player does; one behind a wall is still refused. It doesn't turn to hit a mob: what swings at one looks at it first |
 | **No slash commands** | A chat message starting with `/` is dropped before it reaches the server, except whispers (`/tell`, `/msg`, `/w`) |
 | **No cheat mode** | Mindcraft's `cheat` mode stays off whoever asks: the model, a player typing `!setMode("cheat", true)`, a profile, or generated code |
 | **Never an operator** | If the server makes the bot an operator, or puts it outside survival, it stops acting and says why until that is undone |
@@ -99,6 +106,8 @@ walk there, and look when I get to it."
 - **It looks as it goes.** A few times a second the next steps of the route are checked against what is
   now in view. When a step turns out to be a drop or a rock face, the route is planned again from where
   the bot stands. It waits for the bot to land or to finish a block it is digging first.
+  A route that ends short of the goal, because its last steps were on ground the bot had not seen and
+  turned out not to be there, is planned again too, instead of leaving the bot standing at its end.
 - **What it has seen, it plans round from the first step.** A wall it met yesterday is walked round today,
   not walked up to.
 - **A wall is believed to be as thick as what the bot has seen of it.** Digging in can look cheaper than
@@ -115,9 +124,15 @@ player's legs do.
 
 - `!nearbyBlocks` and `!entities` (and the state summary built from them) list only what the bot perceives.
 - `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view. A
-  creeper's hiss and an explosion are listed even in plain view.
+  creeper's hiss and an explosion are listed even in plain view. Through a player's screen the line also
+  says which side of the bot it came from: `heard: zombie (behind you, south, close)`.
 - A creeper's hiss or an explosion close by also reaches the [creeper reflex](threat-reflexes.md) the
   moment it is heard, with the same direction and distance band and nothing more.
+- Through a player's screen, `!entities` says that only what is in front is listed, and `!lookAround`
+  turns the bot round to look every way, three or four looks, each held a moment so world memory sees it.
+- A skill that searches (`!collectBlocks`, `!searchForBlock`, `!searchForEntity`, `!attack`) looks round
+  first when it found nothing, or only something more than a step or two away, unless the bot has looked
+  every way from about there in the last fifteen seconds. What the bot saw before, memory already answers.
 - With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model
@@ -163,7 +178,8 @@ place in the code, so flipping one changes that rule and nothing else.
 | `stations_through_walls` | `false` | `true` (crafting tables, beds, doors, anvils) |
 | `mobs_through_walls` | `false` | `true` |
 | `players_through_walls` | `"nametag"` | `true`, `false` |
-| `fov_degrees` | `360` | a narrower field of view, such as `110` (above 0, up to 360) |
+| `fov_degrees` | `70` (Java's default: a 16:9 screen 70° tall, about 102° across) | the game's field of view, the screen's height in degrees: `30` to `110`; or `360` to see all around |
+| `turn_speed` | `"instant"` (mineflayer's own: the facing changes at once) | degrees a second, `30` to `3600`: `180` is a player on a controller, a half turn in a second. Every turn is made a step each game tick at that speed, the fight's and the reflexes' too, so no look is a free look round |
 | `sight_distance` | `"server"` (whatever is loaded) | a number of blocks |
 | `entity_distance` | `64` | blocks |
 | `hearing_radius` | `16` | blocks |
@@ -176,7 +192,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `generated_code` | `"wrapped"` | `"off"` (refuse to write code), `"raw"` (stock behavior, for measuring only) |
 
 A misspelled switch is an error at startup, not a rule silently left on, and so is a number out of range: a
-negative hearing radius, or a field of view of 0 or over 360 degrees.
+negative hearing radius, or a field of view outside the game's 30 to 110 degrees (other than 360).
 
 **Why switches:** to measure what a "cheat" is worth. Run a task under strict, then again with one switch
 flipped, and compare. When a strict run fails, flipping switches one at a time shows which limit caused it.

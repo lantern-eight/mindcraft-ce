@@ -34,11 +34,28 @@ import { holdActions, holdKind } from '../action_hold.js';
 import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
+import { fairPlayOf } from '../fairplay/fair_queries.js';
 import { createThreatPicture } from './picture.js';
 import { bestWeapon, blockTheBlast, decideThreat, hitsNeeded } from './decide.js';
 import { backOffFrom, hitAndStepBack } from './moves.js';
 
 export const MODE_NAME = 'creeper_safety';
+const FOLLOW_SPEED = 3;       // blocks a second: about as fast as a creeper walks after its target
+
+/**
+ * Where a creeper that is following the bot has likely got to, out of view for `ms`: from where it was last
+ * known, that much nearer the bot at a creeper's walking pace, never closer than a block. Leaving through a
+ * player's screen the bot runs facing away; a player knows the creeper behind is still coming, and a leave
+ * measured from where it was last seen ended inside its reach, every time.
+ * @returns {{x: number, y: number, z: number}}
+ */
+export function comingOn(position, toward, ms) {
+    const dx = toward.x - position.x, dz = toward.z - position.z;
+    const d = Math.hypot(dx, dz);
+    const step = Math.min(Math.max(0, d - 1), FOLLOW_SPEED * ms / 1000);
+    if (d === 0 || step === 0) return { ...position };
+    return { x: position.x + dx / d * step, y: position.y, z: position.z + dz / d * step };
+}
 const MOVES = new Set(['back_off', 'hit_and_step_back', 'leave']);
 const HOLD_AFTER_MS = 1500;   // after a move, how long other starts still wait
 const ROOF_CHECK = 8;         // blocks above the head that make the bot "underground" for the decision
@@ -99,11 +116,22 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
     // Tells the picture which creepers are in view right now, and whether each one's fuse is lit.
     function look(bot) {
         const edition = editionOf(bot.registry);
-        const inView = world.getNearbyEntities(bot, LOOK_WITHIN)
-            .filter(entity => entity.name === 'creeper' && entity.lastSeenAt === undefined && !dying.has(entity.id)) // not a stand-in
+        const seen = world.getNearbyEntities(bot, LOOK_WITHIN)
+            .filter(entity => entity.name === 'creeper' && entity.lastSeenAt === undefined); // not a stand-in
+        // One seen dying is gone: a player sees it fall. Left in the picture it was a lit creeper out of view,
+        // and the next round backed off from it, a moment after the hit that killed it.
+        for (const entity of seen) if (dying.has(entity.id)) picture.forget(entity.id, entity.position);
+        const inView = seen.filter(entity => !dying.has(entity.id))
             .map(entity => ({ id: entity.id, position: entity.position, lit: edition.isFusing(bot.registry, entity) }));
         const self = selfOf(bot);
-        picture.see(inView, self);
+        // Whether the bot can see where a creeper stood, by the middle of its body, within the distance it
+        // follows creepers at: one lit there that isn't there any more went off. Sight, not touch: a cell the
+        // bot touches tells it about the block there, not whether a creeper it just ran past stands in it.
+        // Fair play's eyes only; without them, the picture never guesses.
+        const perception = fairPlayOf(bot)?.perception;
+        const spotInView = perception?.seesPoint ? spot => Math.hypot(spot.x - self.position.x, spot.y - self.position.y, spot.z - self.position.z) <= LOOK_WITHIN
+            && perception.seesPoint({ x: spot.x, y: spot.y + 0.85, z: spot.z }) : undefined;
+        picture.see(inView, self, { spotInView });
         return self;
     }
 
@@ -160,11 +188,12 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
 
         // Where the creeper is now, as the bot knows it, while it moves.
         let last = decision.from;
+        const leavingBlind = decision.stance === 'leave' && narrowView(agent);
         const from = () => {
             look(bot);
             const key = picture.resolve(decision.key);
             const track = picture.creepers(selfOf(bot)).find(c => c.key === key);
-            if (track) last = track.position;
+            if (track) last = leavingBlind && !track.seenNow && track.unseenMs ? comingOn(track.position, bot.entity.position, track.unseenMs) : track.position;
             return last;
         };
         let result, ended = null;
@@ -186,8 +215,10 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                 shield?.ready().catch(() => {});
                 const outcome = await backOffFrom(bot, {
                     from, to: decision.distance, report, maxMs: leaving ? 10000 : 3000,
-                    // Leaving also ends when the creeper has lost sight of the bot for good.
-                    done: () => leaving && outOfSight(bot, decision.key),
+                    // Leaving also ends when the creeper has lost sight of the bot for good. Out of the bot's view
+                    // means out of the creeper's only when the bot sees all around: through a player's screen
+                    // the bot runs facing away, so it leaves by distance, and looks back when it stops.
+                    done: () => leaving && !narrowView(agent) && outOfSight(bot, decision.key),
                     guard: blastGuard(bot, decision.key),
                 });
                 ended = outcome.ended;
@@ -220,10 +251,16 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                 const track = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(key));
                 if (!blockTheBlast(track, { stuck: shield.up || barelyMoved })) return null;
                 const creeper = creeperInView(bot, track.id);
-                return creeper ? { x: creeper.position.x, y: creeper.position.y + (creeper.height ?? 1.7) * 0.5, z: creeper.position.z } : null;
+                if (creeper) return { x: creeper.position.x, y: creeper.position.y + (creeper.height ?? 1.7) * 0.5, z: creeper.position.z };
+                // Out of view (behind the bot, through a player's screen): where the bot knows it to be, seen
+                // or heard. Turning the shield there turns the bot to face it, as a player would.
+                return track.position ? { x: track.position.x, y: track.position.y + 0.85, z: track.position.z } : null;
             },
         };
     }
+
+    // Whether the bot sees through a player's screen (fair play's look memory knows).
+    const narrowView = agent => Boolean(agent.fairPlay?.looks?.getScreen?.());
 
     // Out of view for a while: the creeper no longer sees the bot either, and loses it.
     function outOfSight(bot, key) {

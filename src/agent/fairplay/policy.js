@@ -18,7 +18,11 @@ export const STRICT_RULES = Object.freeze({
     stations_through_walls: false,
     mobs_through_walls: false,
     players_through_walls: 'nametag', // 'nametag' | true | false
-    fov_degrees: 360,
+    fov_degrees: 70,                // the game's field-of-view number: the screen's height in degrees, 30 to
+                                    // 110, or 360 for all around. 70 is Java's default, about 102 across on a
+                                    // 16:9 screen, and is used on Bedrock too, whose own default is 60
+    turn_speed: 'instant',          // how fast the head turns, in degrees a second (180 is a player on a
+                                    // controller, a half turn in a second), or 'instant', as mineflayer turns
     sight_distance: 'server',       // 'server' (whatever is loaded) or a number of blocks
     entity_distance: 64,
     hearing_radius: 16,
@@ -42,6 +46,7 @@ export const OFF_RULES = Object.freeze({
     stations_through_walls: true,
     mobs_through_walls: true,
     players_through_walls: true,
+    fov_degrees: 360,
     route_planning: 'all',
     interact_through_walls: true,
     slash_commands: true,
@@ -58,7 +63,8 @@ const CHOICES = {
 
 // The numeric switches, and the numbers each may take.
 const RANGES = {
-    fov_degrees: { min: 0, max: 360, minInclusive: false, text: 'a number of degrees above 0, up to 360' },
+    // The game's own slider runs from 30 to 110. 360 is not a screen: it means the bot sees all around.
+    fov_degrees: { min: 30, max: 110, minInclusive: true, also: [360], text: 'the game\'s field of view, 30 to 110 degrees, or 360 for all around' },
     entity_distance: { min: 0, max: Infinity, minInclusive: true, text: 'a number of blocks, 0 or more' },
     hearing_radius: { min: 0, max: Infinity, minInclusive: true, text: 'a number of blocks, 0 or more' },
 };
@@ -75,13 +81,17 @@ function validate(rules) {
             if (!CHOICES[key].includes(value)) throw new Error(`fair_play_custom.${key} must be one of ${CHOICES[key].join(', ')}`);
         } else if (key === 'sight_distance') {
             if (value !== 'server' && !(Number.isFinite(value) && value > 0)) throw new Error('fair_play_custom.sight_distance must be "server" or a positive number');
+        } else if (key === 'turn_speed') {
+            if (value !== 'instant' && !(Number.isFinite(value) && value >= 30 && value <= 3600))
+                throw new Error('fair_play_custom.turn_speed must be "instant" or a number of degrees a second, 30 to 3600');
         } else if (key === 'reach_blocks' || key === 'reach_entities') {
             if (value !== 'survival' && !(Number.isFinite(value) && value > 0)) throw new Error(`fair_play_custom.${key} must be "survival" or a positive number`);
         } else if (RANGES[key]) {
             // A number out of range doesn't fail loudly where it is used: a negative hearing radius just
             // hears nothing, and an infinite one hears the whole server. Catch it here, at startup.
-            const { min, max, minInclusive, text } = RANGES[key];
-            const inRange = Number.isFinite(value) && (minInclusive ? value >= min : value > min) && value <= max;
+            const { min, max, minInclusive, also = [], text } = RANGES[key];
+            const inRange = also.includes(value)
+                || (Number.isFinite(value) && (minInclusive ? value >= min : value > min) && value <= max);
             if (!inRange) throw new Error(`fair_play_custom.${key} must be ${text}`);
         } else if (key === 'slash_allowlist') {
             if (!Array.isArray(value) || !value.every(v => typeof v === 'string' && /^[a-z0-9_:-]+$/i.test(v)))

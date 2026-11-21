@@ -17,6 +17,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
+import { fairPlaySettings, lookRound } from '../helpers/live_view.js';
 
 const NAME = 'BedrockMemory';
 const { step, summary } = createReport();
@@ -75,14 +76,16 @@ try {
     const memory = openMemory({ baseDir: mkdtempSync(path.join(tmpdir(), 'bedrock-memory-')), scope: 'live/overworld', now,
         canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
-    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), memory: recorder.view,
+    const perception = createPerception({ bot, policy: resolvePolicy(fairPlaySettings()), memory: recorder.view,
         now, searchBudgetMs: Infinity });
     recorder.attach(perception);
 
-    await step('a look around keeps what is in view, and nothing that is buried', () => {
+    await step('a look around keeps what is in view, and nothing that is buried', async () => {
         const started = performance.now();
         recorder.tick();
         const ms = performance.now() - started;
+        // Through a player's screen one look sees one side: the bot turns round, and memory looks each time.
+        await lookRound(bot, () => recorder.tick());
         assert.equal(memory.cells.read(at(5, 0, 5).x, at(5, 0, 5).y, at(5, 0, 5).z), 'stone');
         assert.equal(memory.cells.read(at(5, -1, 5).x, at(5, -1, 5).y, at(5, -1, 5).z), null, 'the dirt under the floor');
         return { wholeLookMs: Math.round(ms) };

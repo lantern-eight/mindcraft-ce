@@ -69,13 +69,19 @@ await once(bot, 'spawn');
 await bot.waitForChunksToLoad();
 await delay(4000);
 
-const policy = resolvePolicy({ fair_play: 'strict' });
+// Two views. The timings by their plain names are taken seeing all around, as every release before the
+// narrow view was measured, so they stay comparable. Those named narrow_ are strict's own view, a player's
+// screen (fov_degrees 70), facing the way the bot spawned; a narrow view is checked before any ray, so it
+// should cost less, not more. `narrow_turning_` times a search after each of eight turns round the circle,
+// which throws away perception's cached sight answers each time, as a bot that looks around does.
+const ALL_AROUND = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } });
+const NARROW = resolvePolicy({ fair_play: 'strict' });
 const id = name => bot.registry.blocksByName[name].id;
 const everything = bot.registry.blocksArray.filter(b => b.name !== 'air').map(b => b.id);
 const logs = bot.registry.blocksArray.filter(b => b.name.endsWith('_log')).map(b => b.id);
 
 // Perception with world memory, as the shipped settings run it. Memory goes to a throwaway folder.
-const withMemory = (scope, recorderOptions = {}) => {
+const withMemory = (scope, recorderOptions = {}, policy = ALL_AROUND) => {
     let recorder = null;
     const memory = openMemory({ baseDir: mkdtempSync(path.join(tmpdir(), 'fair-bench-')), scope,
         canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
@@ -87,14 +93,15 @@ const withMemory = (scope, recorderOptions = {}) => {
 
 // One round of every measurement, each with fresh perception and memory so nothing is answered from the
 // round before. Returns the timings (ms) and how much each search found.
-function measureOnce() {
+function measureOnce(policy = ALL_AROUND, prefix = '') {
     const timings = {}, found = {};
     let n;
+    const startYaw = bot.entity.yaw, startPitch = bot.entity.pitch;
     // World memory's look-around: once in a single go (how much work a whole look is), then in budgeted
     // slices (how many ticks a look takes, and the longest any one tick held up the bot).
-    const whole = withMemory('bench', { tickBudgetMs: Infinity });
+    const whole = withMemory('bench', { tickBudgetMs: Infinity }, policy);
     [timings.passWhole] = time(() => whole.recorder.tick());
-    const sliced = withMemory('bench2');
+    const sliced = withMemory('bench2', {}, policy);
     let ticks = 0, longest = 0, total = 0;
     for (; ticks < 500; ticks++) {
         const [ms] = time(() => sliced.recorder.tick());
@@ -119,12 +126,28 @@ function measureOnce() {
     both('diamond64', { matching: id('diamond_ore'), maxDistance: 64, count: 128 });
     both('sand512', { matching: id('sand'), maxDistance: 512, count: 1 });
     [timings.fairEntities, n] = time(() => perception.entities().length); found.fairEntities = n;
+    if (prefix) {
+        // A look around in eight turns, a search after each: what turning costs perception.
+        let total = 0;
+        for (let i = 1; i <= 8; i++) {
+            bot.entity.yaw = startYaw + i * Math.PI / 4;
+            const [ms] = time(() => perception.findBlocks({ matching: logs, maxDistance: 64, count: 128 }).length);
+            total += ms;
+        }
+        timings.turning_logs64_8turns = Math.round(total * 10) / 10;
+        bot.entity.yaw = startYaw; bot.entity.pitch = startPitch;
+    }
     for (const each of [whole, sliced]) { each.recorder.stop(); each.eyes.stop(); }
-    return { timings, found };
+    if (!prefix) return { timings, found };
+    const named = obj => Object.fromEntries(Object.entries(obj).filter(([key]) => !key.startsWith('raw_')).map(([key, value]) => [prefix + key, value]));
+    return { timings: named(timings), found: named(found) };
 }
 
 const middle = values => { const sorted = [...values].sort((a, b) => a - b); return sorted[Math.floor(sorted.length / 2)]; };
-const rounds = Array.from({ length: ROUNDS }, measureOnce);
+const rounds = Array.from({ length: ROUNDS }, () => {
+    const all = measureOnce(ALL_AROUND), narrow = measureOnce(NARROW, 'narrow_');
+    return { timings: { ...all.timings, ...narrow.timings }, found: { ...all.found, ...narrow.found } };
+});
 const pick = key => Object.fromEntries(Object.keys(rounds[0][key]).map(k => [k, middle(rounds.map(r => r[key][k]))]));
 const result = {
     release: JSON.parse(readFileSync('package.json', 'utf8')).version,
