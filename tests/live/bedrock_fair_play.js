@@ -26,6 +26,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const NAME = 'BedrockFair';
 const { step, summary } = createReport();
@@ -69,7 +70,7 @@ async function buildScene() {
 }
 
 try {
-    setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'strict', world_memory: true });
+    setSettings({ ...rootSettings, ...bedrockTestSettings(server), ...fairPlaySettings(), world_memory: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

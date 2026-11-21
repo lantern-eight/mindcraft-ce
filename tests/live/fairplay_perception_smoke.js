@@ -14,6 +14,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55918);
 const results = [];
@@ -56,7 +57,7 @@ try {
     await cmd('tp FairSmoke 0.5 70 0.5 0 0');
     await delay(2500);
 
-    const policy = resolvePolicy({ fair_play: 'strict' });
+    const policy = resolvePolicy(fairPlaySettings());
     const perception = createPerception({ bot, policy, searchBudgetMs: Infinity });
     const ore = bot.registry.blocksByName.diamond_ore.id;
     const chest = bot.registry.blocksByName.chest.id;

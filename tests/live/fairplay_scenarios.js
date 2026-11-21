@@ -23,6 +23,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55922);
 const worldMemory = !process.argv.includes('--no-world-memory');
@@ -39,7 +40,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', fair_play: 'strict', world_memory: worldMemory });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(), world_memory: worldMemory });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

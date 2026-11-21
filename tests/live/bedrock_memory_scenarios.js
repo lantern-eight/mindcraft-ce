@@ -21,6 +21,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const NAME = 'BedrockRecall';
 const { step, summary } = createReport();
@@ -69,7 +70,7 @@ const BOX = [[[0, 3, 0], [0, 3, 0]], [[-1, 1, 0], [-1, 3, 0]], [[1, 1, 0], [1, 3
 const box = async block => { for (const [a, b] of block === 'air' ? [...BOX].reverse() : BOX) await fill(a, b, block); };
 
 try {
-    setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'strict', world_memory: true });
+    setSettings({ ...rootSettings, ...bedrockTestSettings(server), ...fairPlaySettings(), world_memory: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

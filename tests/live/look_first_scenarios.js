@@ -18,6 +18,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55923);
 const NAME = 'LookFirst';
@@ -33,7 +34,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', fair_play: 'strict', world_memory: true });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(), world_memory: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

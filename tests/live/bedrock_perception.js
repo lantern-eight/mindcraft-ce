@@ -15,6 +15,7 @@ import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const NAME = 'BedrockSight';
 const { step, summary } = createReport();
@@ -65,7 +66,7 @@ async function tearDown() {
 }
 
 try {
-    setSettings({ ...rootSettings, ...bedrockTestSettings(server), fair_play: 'strict' });
+    setSettings({ ...rootSettings, ...bedrockTestSettings(server), ...fairPlaySettings() });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { createPerception } = await import('../../src/agent/fairplay/perception.js');
     const { resolvePolicy } = await import('../../src/agent/fairplay/policy.js');
@@ -90,7 +91,7 @@ try {
         assert.match(String(bot.worldIdentity), /^[0-9a-f]{16}$/, `world name ${bot.worldIdentity}`);
     });
 
-    const policy = resolvePolicy({ fair_play: 'strict' });
+    const policy = resolvePolicy(fairPlaySettings());
     const perception = createPerception({ bot, policy, searchBudgetMs: Infinity });
     const id = name => bot.registry.blocksByName[name].id;
     const coords = list => list.map(p => [p.x - origin.x, p.y - origin.y, p.z - origin.z]);

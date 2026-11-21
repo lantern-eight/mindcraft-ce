@@ -17,6 +17,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const NAME = 'BedrockMemory';
 const { step, summary } = createReport();
@@ -75,7 +76,7 @@ try {
     const memory = openMemory({ baseDir: mkdtempSync(path.join(tmpdir(), 'bedrock-memory-')), scope: 'live/overworld', now,
         canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
-    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), memory: recorder.view,
+    const perception = createPerception({ bot, policy: resolvePolicy(fairPlaySettings()), memory: recorder.view,
         now, searchBudgetMs: Infinity });
     recorder.attach(perception);
 
