@@ -182,11 +182,15 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         // The dash: straight away at once, if that way is safe, and on for as long as it stays safe. A
         // sprint in a straight line is the fastest way out; the pathfinder walks more than it sprints.
         const away = ended ? null : awayFrom(bot.entity.position, threats);
+        // Turn to the way out first, looking at the ground there, as a player turning to run does: the
+        // cells the first steps go onto are then in view, even through a player's screen, and can be judged.
+        if (away) await bot.lookAt(bot.entity.position.offset(away.x * 3, 0, away.z * 3), true);
         const position = bot.entity.position;
         const step = away ? firstStep(blockAt, position, { x: position.x - away.x, z: position.z - away.z })
             : ended ? null : firstStep(blockAt, position, threats[0]);
         if (step && !(guard && await guarding())) {
-            const ahead = () => bot.entity.position.offset(step.x * 3, 1.6, step.z * 3);
+            // At the ground three blocks ahead, not level: the two cells checked before each stride stay on screen.
+            const ahead = () => bot.entity.position.offset(step.x * 3, 0, step.z * 3);
             await bot.lookAt(ahead(), true);
             bot.setControlState('sprint', true);
             bot.setControlState('forward', true);
