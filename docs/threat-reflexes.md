@@ -24,6 +24,7 @@ spiders, ignore skeletons), which the reflexes follow at once from then on.
 - [The Shield](#the-shield)
 - [Standing Orders](#standing-orders)
 - [Never Looking an Enderman in the Eye](#never-looking-an-enderman-in-the-eye)
+- [The Glance](#the-glance)
 - [Danger Zones](#danger-zones)
 - [What They Know, and How](#what-they-know-and-how)
 - [Holding Other Work](#holding-other-work)
@@ -333,6 +334,25 @@ look that would stare at it puts its eyes in the middle of the screen, so the bo
 looks. One behind a wall can't see the bot stare, and doesn't count. On a real server an unguarded look at an enderman's head angered it in about a
 third of a second; with the guard it never did.
 
+## The Glance
+
+Through a player's screen (fair play's narrowed field of view) what is behind the bot reaches it as a sound
+or a hit, as it does a player, and a player turns to look. So the bot turns its head for about a second
+toward a hit from something it can't see, a hostile mob heard close by and not seen, a shot heard from any
+distance, and back the way it came when a back-off from a creeper or a mob ends (the threat is behind it
+then, and a player looks back to see whether it follows). The turn is an ordinary look: paced, kept off an
+enderman's eyes, and seen by perception and world memory. The idle look-around gives way while it lasts.
+
+- **Looked once, remembered.** A miner hears zombies groan on the far side of a wall, looks once, sees rock,
+  and stops looking. A glance at a sound leaves a note of what it was, which way, how far it sounded and where
+  the bot stood, and the same sound from the same way doesn't turn the bot again while the note holds: a
+  minute and a half, until the bot moves four blocks, until the sound comes closer or from another way, and
+  never past a hit.
+- **Busy too, at a break in the work.** Not while the bot walks (the walk steers the head, and turning it
+  would turn the walk) or while a reflex moves it. A sound waits for a block being dug to break, and is let go
+  after three seconds; a hit or a shot doesn't wait.
+- **Seeing all around,** there is nothing to turn for, and the glance does nothing.
+
 ## Danger Zones
 
 A player who saw pillagers by a tower walks round it the next time, and doesn't walk back into the spot a
@@ -494,7 +514,8 @@ All in `src/agent/reflexes/`, behind `threat_reflexes`:
 | `shield.js` | The shield: put in the off-hand, raised and lowered, and which mob a shot is coming from |
 | `shot_beat.js` | The beat of an archer's shots heard, for a game that shows no bow drawn: when the next is due |
 | `item_use.js` | One owner of the use-item channel the shield, eating and a bow share, and the eating plugin made to ask it |
-| `gaze.js` | The guard on every look, for endermen |
+| `gaze.js` | The guard on every look, for endermen, and on each step of a paced turn |
+| `glance.js` | The glance: turning toward a hit, a sound or a shot from what the bot can't see, and the notes of what it looked at |
 | `danger_zones.js` | The zones: where, how wide, for how long, and what a cell costs to be in. Pure |
 | `danger_watch.js` | Notes zones from what the bot sees, hears and feels, once a second and as each sound arrives |
 

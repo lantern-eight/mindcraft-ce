@@ -41,6 +41,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   when the bot turns.
 - The bot turns to face a block within reach before digging, opening, using or placing against it, then
   checks that it can see it, as a player turns to click something behind them.
+- Through a player's screen, with the threat reflexes on, the bot glances toward a hit from something it can't
+  see, a hostile mob heard close by, a shot heard, and back the way it came when it has backed off from a
+  threat, holding the look about a second. A glance at a sound that showed nothing is remembered, so a zombie
+  groaning behind a wall turns the bot once, not every few seconds.
 - Under fair play the idle bot looks about the whole circle in turn, a look every second or two through a
   player's screen, and looks at a mob or player the way a person does: it holds the look, looks away, looks
   back, and after a few looks leaves them alone a while. Mindcraft's idle look stared at the nearest mob, or

@@ -181,7 +181,7 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
             // a zombie is right there, and remembers it after the zombie falls.
             const explained = Boolean(bot.entity) && mobsAround(bot, dying).some(mob => mob.seenNow && couldHaveHit(mob));
             hits.push({ at: now(), direction, explained });
-            bot.emit?.('threat_reflex', { event: 'felt', at: performance.now(), direction, mode: MODE_NAME });
+            bot.emit?.('threat_reflex', { event: 'felt', at: performance.now(), direction, unseen: !explained, mode: MODE_NAME });
         });
         bot.on?.('entityDead', entity => dying.add(entity.id));
         bot.on?.('entityGone', entity => dying.delete(entity.id));
