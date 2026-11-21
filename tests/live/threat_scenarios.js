@@ -21,7 +21,7 @@ import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
 import { readFileSync } from 'node:fs';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55931);
@@ -115,6 +115,12 @@ try {
     await cmd('forceload add -40 -40 40 40');
 
     // A flat stone floor with its top at y 69, open air above, nothing alive but the two players.
+    // A look all round, recorded: through a player's screen world memory would otherwise keep what was
+    // there before a scene built something behind the bot, open ground where a wall now stands, and the
+    // reflexes would plan by it. Seeing all around, the bot sees it all at once anyway.
+    const lookAbout = async () => {
+        if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
+    };
     async function reset({ x = 0.5, z = 0.5, facing = -90 } = {}) {
         await cmd('kill @e[type=!player]');
         // Again, for the loot the mobs just killed dropped. Left lying, a creeper's gunpowder drew the bot over
@@ -335,13 +341,18 @@ try {
             for (const wall of ['-2 70 -1 1 71 -1', '-2 70 1 1 71 1', '1 70 0 1 71 0']) await cmd(`fill ${wall} stone`);
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
+            await lookAbout(); // the bot sees the dead end it stands in
+            // Facing the mouth again: the idle look-around may have turned the bot to the walls meanwhile, and
+            // through a player's screen a silent creeper behind it is neither seen nor heard.
+            await faceToward(bot, { x: -1.5, y: 71.6, z: 0.5 });
             await cmd('summon creeper -1.5 70 0.5 {Fuse:30s,ignited:1b,NoAI:1b,Silent:1b}');
+            const facingAtSummon = [Math.round(bot.entity.yaw * 180 / Math.PI), Math.round(bot.entity.pitch * 180 / Math.PI)];
             await waitFor(() => explosions.length > 0, 6000, () => JSON.stringify(events));
             await delay(1000);
             const raised = events.filter(e => e.event === 'shield').length;
             const offHand = bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')]?.name ?? null;
             if (shield) {
-                assert.equal(offHand, 'shield', 'the shield was put in the off-hand');
+                assert.equal(offHand, 'shield', `the shield was put in the off-hand: it stood at ${bot.entity.position}, facing ${facingAtSummon} at the summon, events ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
                 assert.ok(raised > 0, `the shield went up: ${JSON.stringify(events)}`);
                 assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth})`);
             } else {
