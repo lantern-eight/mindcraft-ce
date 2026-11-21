@@ -338,7 +338,7 @@ third of a second; with the guard it never did.
 
 Through a player's screen (fair play's narrowed field of view) what is behind the bot reaches it as a sound
 or a hit, as it does a player, and a player turns to look. So the bot turns its head for about a second
-toward a hit from something it can't see, a hostile mob heard close by and not seen, a shot heard from any
+toward a hit from something it can't see, a hostile mob heard close by and not seen (not a creeper's hiss, which the creeper reflex answers by running), a shot heard from any
 distance, and back the way it came when a back-off from a creeper or a mob ends (the threat is behind it
 then, and a player looks back to see whether it follows). The turn is an ordinary look: paced, kept off an
 enderman's eyes, and seen by perception and world memory. The idle look-around gives way while it lasts.

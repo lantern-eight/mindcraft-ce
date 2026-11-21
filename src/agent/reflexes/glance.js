@@ -4,7 +4,8 @@
 // Through a player's screen, what is behind the bot reaches it only as a sound or a hit, as it does a player.
 // A player turns to look. So does the bot, for a moment (about a second), toward:
 //   - a hit from something not in view (the side it came from, as the edition seam tells it);
-//   - a hostile mob heard close by and not seen, or a shot heard ("skeleton (shooting)");
+//   - a hostile mob heard close by and not seen, or a shot heard ("skeleton (shooting)"), but never a
+//     creeper's hiss: that is the creeper reflex's, which turns the bot to run;
 //   - the way it ran from, as a back-off from a creeper or a mob ends: the threat is behind it then, and a
 //     player who has just run looks back to see whether it follows.
 // The turn is an ordinary look: paced (fairplay/turn_speed.js), kept off an enderman's eyes (gaze.js), and
@@ -97,6 +98,9 @@ export function createGlance({ now = Date.now } = {}) {
         if (!narrow(agent) || !sound || sound.seen) return;
         const yaw = YAW_OF[sound.direction];
         if (yaw === undefined) return; // above, below or here: no way to turn
+        // A creeper's hiss is the creeper reflex's: it turns the bot to run, and a glance back at the creeper
+        // would turn it round again.
+        if (/ \(hissing\)$/.test(sound.subject)) return;
         const shot = / \(shooting\)$/.test(sound.subject);
         const kind = sound.subject.replace(/ \(.*$/, '');
         const hostile = agent.bot?.registry?.entitiesByName?.[kind]?.type === 'hostile';

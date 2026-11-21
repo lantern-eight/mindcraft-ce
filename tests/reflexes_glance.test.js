@@ -35,7 +35,8 @@ test('a hostile heard close and not seen turns the bot toward it, and holds the 
     glance.hear(agent, heard('cow', 'west', 'very close'));
     glance.hear(agent, heard('zombie', 'west', 'far'));
     glance.hear(agent, heard('zombie', 'west', 'close', true));
-    assert.deepEqual(looks, [SOUTH], 'not for a cow, a far zombie, or one in view');
+    glance.hear(agent, heard('creeper (hissing)', 'west', 'very close'));
+    assert.deepEqual(looks, [SOUTH], 'not for a cow, a far zombie, one in view, or a hiss (the creeper reflex runs)');
     glance.hear(agent, heard('skeleton (shooting)', 'west', 'far'));
     assert.deepEqual(looks, [SOUTH, WEST], 'a shot, from any distance');
 });
