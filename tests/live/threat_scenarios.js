@@ -377,6 +377,9 @@ try {
         const restart = event => { if (event.event === 'done') setTimeout(busy, 1700); };
         bot.on('threat_reflex', restart);
         busy();
+        // Facing east again, where the creeper will come from: in the moment before the bot was set to work, the
+        // idle look-around may have turned it, and through a player's screen it then meets the creeper unseen.
+        await bot.look(-Math.PI / 2, 0, true);
         await cmd('summon creeper 30.5 70 0.5 {ExplosionRadius:0b}');
         const started = Date.now();
         // Over when the creeper is dead, or when it has stopped coming for 10 s with the bot idle.
