@@ -121,11 +121,12 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
             .map(entity => ({ id: entity.id, position: entity.position, lit: edition.isFusing(bot.registry, entity) }));
         const self = selfOf(bot);
         // Whether the bot can see where a creeper stood, by the middle of its body, within the distance it
-        // follows creepers at: one lit there that isn't there any more went off. Fair play's eyes only;
-        // without them, the picture never guesses.
+        // follows creepers at: one lit there that isn't there any more went off. Sight, not touch: a cell the
+        // bot touches tells it about the block there, not whether a creeper it just ran past stands in it.
+        // Fair play's eyes only; without them, the picture never guesses.
         const perception = fairPlayOf(bot)?.perception;
-        const spotInView = perception?.seesCell ? spot => Math.hypot(spot.x - self.position.x, spot.y - self.position.y, spot.z - self.position.z) <= LOOK_WITHIN
-            && perception.seesCell({ x: spot.x, y: spot.y + 0.85, z: spot.z }) : undefined;
+        const spotInView = perception?.seesPoint ? spot => Math.hypot(spot.x - self.position.x, spot.y - self.position.y, spot.z - self.position.z) <= LOOK_WITHIN
+            && perception.seesPoint({ x: spot.x, y: spot.y + 0.85, z: spot.z }) : undefined;
         picture.see(inView, self, { spotInView });
         return self;
     }

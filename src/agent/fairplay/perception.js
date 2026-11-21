@@ -29,6 +29,7 @@
 //                           frozen where it was last seen for one that just slipped out of view
 //   liveOf(entity)          the live entity behind such a stand-in, for the reach guard
 //   seesCell / seesFace / seesEntity   what is in view this instant, for the reach guard
+//   seesPoint(point)        sight alone, this instant: whether a point is in view
 //   heard(options)          recent sounds, summarised
 //   onHeard(listener)       told of each sound as it arrives, summarised the same way
 //   start() / stop()        start listening for sounds; end the service for good and remove its listeners
@@ -622,6 +623,12 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         seesCell: pos => {
             beginLook();
             return perceivable(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z));
+        },
+        /** Sight only, right now (no touch, no memory): can the bot see this point? */
+        seesPoint: point => {
+            if (policy.sight === 'all') return true;
+            beginLook();
+            return sight.canSeePoint(eyeNow, point, viewOpts);
         },
         /** Is this one side of a block in view? `face` is a unit normal with x, y, z. */
         seesFace: (pos, face) => {

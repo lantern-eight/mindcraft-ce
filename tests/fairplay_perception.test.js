@@ -247,6 +247,18 @@ test('a narrow view: what is behind the bot is unknown until it turns', () => {
     assert.ok(perception.screenNow(), 'a screen while the view is narrow');
 });
 
+test('a narrow view: a point just behind the bot is touched, not seen', () => {
+    const { bot, perception } = setup(() => {}, { policy: NARROW });
+    // The bot stands at the origin facing north; the cell just south of it is within touch.
+    const behind = at(0.5, 1.85, 1.5), ahead = at(0.5, 1.85, -2.5);
+    assert.equal(perception.seesCell(behind), true, 'touch reaches the cell');
+    assert.equal(perception.seesPoint(behind), false, 'but the eyes don\'t');
+    assert.equal(perception.seesPoint(ahead), true);
+    bot.entity.yaw = Math.PI; // facing south, looking a little down: it is 38 degrees below the eye
+    bot.entity.pitch = -0.3;
+    assert.equal(perception.seesPoint(behind), true);
+});
+
 test('a narrow view: what is heard says which side of the bot it came from, as well as which way', () => {
     const { bot, perception } = setup(() => {}, { policy: NARROW });
     perception.hearSound('minecraft:entity.zombie.ambient', at(0.5, 1, 8.5));   // south: behind the bot, facing north
