@@ -14,6 +14,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - `turn_speed`, a fair-play switch for how fast the bot turns its head, in degrees a second. Every turn, the
   fight's and the reflexes' included, is then made a step each game tick, as a player turns, instead of at once.
   `180` is a player on a controller; the default stays `"instant"` for now.
+- `!lookAround`, under a narrowed field of view: the bot turns round and looks every way, so the model can
+  have it see what is behind it. `!entities` says that only what is in front is listed.
+- A skill that searches (collecting blocks, going to the nearest block or mob, attacking the nearest) looks
+  round first through a player's screen when it found nothing, or only something far off, unless it has just
+  looked every way from there.
 
 ### Fixed
 

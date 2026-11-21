@@ -127,6 +127,11 @@ player's legs do.
   creeper's hiss and an explosion are listed even in plain view.
 - A creeper's hiss or an explosion close by also reaches the [creeper reflex](threat-reflexes.md) the
   moment it is heard, with the same direction and distance band and nothing more.
+- Through a player's screen, `!entities` says that only what is in front is listed, and `!lookAround`
+  turns the bot round to look every way, three or four looks, each held a moment so world memory sees it.
+- A skill that searches (`!collectBlocks`, `!searchForBlock`, `!searchForEntity`, `!attack`) looks round
+  first when it found nothing, or only something more than a step or two away, unless the bot has looked
+  every way from about there in the last fifteen seconds. What the bot saw before, memory already answers.
 - With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model
