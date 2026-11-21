@@ -29,6 +29,23 @@ export function fairPlaySettings() {
 }
 
 /**
+ * Turns the bot to a facing and makes sure it got there. At a player's turning speed a turn takes up to a
+ * second, and a newer look (the idle look-around, a glance) ends it part way; a scene that needs the bot
+ * facing a way asks again until it is.
+ * @param {object} bot
+ * @param {number} yaw
+ * @param {number} [pitch]
+ */
+export async function faceExactly(bot, yaw, pitch = 0) {
+    const off = () => Math.abs(((yaw - bot.entity.yaw) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI) + Math.abs(pitch - bot.entity.pitch);
+    for (let tries = 0; tries < 5; tries++) {
+        await bot.look(yaw, pitch, true);
+        if (off() < 0.02) return;
+    }
+    throw new Error(`the bot would not face ${yaw.toFixed(2)}, ${pitch.toFixed(2)}: it faces ${bot.entity.yaw.toFixed(2)}, ${bot.entity.pitch.toFixed(2)}`);
+}
+
+/**
  * Turns the bot to face a point, as a player turns to look at something a scene asks about. Through a
  * player's screen that decides what the bot sees; seeing all around, it changes nothing.
  * @param {object} bot
@@ -37,7 +54,7 @@ export function fairPlaySettings() {
 export async function faceToward(bot, point) {
     const p = bot.entity.position;
     const dx = point.x - p.x, dy = point.y - (p.y + (bot.entity.eyeHeight ?? 1.62)), dz = point.z - p.z;
-    await bot.look(Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz)), true);
+    await faceExactly(bot, Math.atan2(-dx, -dz), Math.atan2(dy, Math.hypot(dx, dz)));
 }
 
 /**

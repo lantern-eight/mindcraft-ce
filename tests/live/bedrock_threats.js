@@ -23,7 +23,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
-import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW, faceExactly } from '../helpers/live_view.js';
 
 const NAME = 'BedrockWary';
 const report = createReport();
@@ -91,7 +91,7 @@ try {
         await tpTo([0, 1, 0], facing, 2500);
         // Facing the way the scene asks again: the idle look-around may have turned the bot meanwhile, and
         // through a player's screen which way it faces decides what it sees.
-        await bot.look((180 - facing) * Math.PI / 180, 0, true);
+        await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);
         events.length = 0; messages.length = 0;
         reflexes?.creeper.picture.clear();
         reflexes?.zones.clear(); // as on Java: no danger remembered from the last scene bends this one's escape

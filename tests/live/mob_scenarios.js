@@ -19,7 +19,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
-import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW, faceExactly } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55932);
@@ -150,7 +150,7 @@ try {
         await lookAbout();
         // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
         // and through a player's screen which way it faces decides what it sees.
-        await bot.look((180 - facing) * Math.PI / 180, 0, true);
+        await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);
         events.length = 0; messages.length = 0;
         if (reflexes) { reflexes.mob.clear(); reflexes.fight.clear(); reflexes.claims.clear(); reflexes.creeper.picture.clear(); reflexes.glance?.clear(); }
         lowestHealth = lastHealth = bot.health; damage = 0;
