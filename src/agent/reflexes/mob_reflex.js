@@ -121,14 +121,14 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
                     let outcome = await takeCover(bot, { eye, report, done: () => !aimingNow(bot, id) && lostSight() });
                     report({ event: 'cover', at: performance.now(), ended: outcome.ended });
                     if (outcome.ended === 'no cover' || outcome.ended === 'no way there')
-                        outcome = await retreatFrom(bot, { from, to: decision.distance, report, done: lostSight, guard: archerGuard(bot) });
+                        outcome = await retreatFrom(bot, { from, to: decision.distance, report, done: () => !narrowView(agent) && lostSight(), guard: archerGuard(bot) });
                     ended = outcome.ended;
                     log(bot, `Took cover from the ${decision.name} (${ended}).`);
                     return;
                 }
                 // Out of the bot's view means out of the mobs' only when the bot sees all around: through a
                 // player's screen it backs away facing the way out, so it goes by distance, and looks back when
-                // it stops (the glance).
+                // it stops (the glance). The same for backing out of an archer's range with no cover, above.
                 const outcome = await retreatFrom(bot, { from, to: decision.distance, report, maxMs: decision.stance === 'flee' ? 10000 : 8000,
                     done: () => !narrowView(agent) && lostSight() });
                 ended = outcome.ended;
