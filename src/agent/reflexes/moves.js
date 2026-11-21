@@ -33,6 +33,11 @@ const TURNS = [0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2]; // stra
 const STEP_MS = 50;
 
 const floorOf = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
+const yawTo = (from, to) => Math.atan2(-(to.x - from.x), -(to.z - from.z));
+// How near a creeper the bot comes before it faces it, to hit it: outside the 3 blocks that light it.
+const STANDOFF = 4;
+// Facing a point closely enough to swing at it: within 25 degrees either way.
+const facing = (bot, point) => !Number.isFinite(bot.entity.yaw) || Math.abs(((yawTo(bot.entity.position, point) - bot.entity.yaw) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI) <= 25 * Math.PI / 180;
 const open = block => Boolean(block) && block.boundingBox === 'empty' && !HAZARD.test(block.name);
 
 /**
@@ -83,6 +88,25 @@ export function firstStep(blockAt, position, from) {
         if (cellsAhead(position, { x, z }).every(cell => safeCell(blockAt, cell))) return { x, z };
     }
     return null;
+}
+
+/**
+ * Whether the bot has room to move off away from a threat at all: the cell next to it straight away, or 45
+ * or 90 degrees aside, open at the feet and the head. Those cells are within touch, so the bot knows them
+ * whichever way it faces. False in a dead end.
+ */
+export function wayOut(blockAt, position, away) {
+    const here = floorOf(position);
+    const roomAt = cell => open(blockAt(cell)) && open(blockAt({ ...cell, y: cell.y + 1 }));
+    return TURNS.some(turn => {
+        const x = away.x * Math.cos(turn) - away.z * Math.sin(turn), z = away.x * Math.sin(turn) + away.z * Math.cos(turn);
+        const next = floorOf({ x: position.x + x * 0.8, y: position.y, z: position.z + z * 0.8 });
+        if (next.x === here.x && next.z === here.z) return false;
+        if (!roomAt(next)) return false;
+        // Corner to corner, the body would have to pass between the two cells beside: both must be open.
+        if (next.x !== here.x && next.z !== here.z) return roomAt({ ...here, x: next.x }) && roomAt({ ...here, z: next.z });
+        return true;
+    });
 }
 
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -157,6 +181,52 @@ export function awayFrom(position, points) {
 }
 
 /**
+ * While the bot turns to run, backs it away on the keys, as a player does: back, or a diagonal, whichever
+ * carries it the way out from the facing it has got to (fairplay/turn_speed.js turns a walk's heading into
+ * keys). With mineflayer's instant turn the turn is over at once and this does nothing.
+ *
+ * It steps only onto a cell it touches open at the feet and the head. What is under that cell it may not
+ * know: the ground behind the bot was never in view. A player backing off a lit creeper takes that chance,
+ * and so does the bot, as a route through ground it hasn't seen does (fair_legs.js); but known lava, fire
+ * or a known drop of more than 2 it won't step onto. It stops when `blocked()` says the shield is needed
+ * instead: cornered, it got nowhere.
+ * @returns {Promise<number>} when it took its first step back (performance.now()), or 0 if it took none
+ */
+async function backWhileTurning(bot, { turning, away, blockAt, finished, blocked = () => false }) {
+    if (!bot.lookPacer?.walkToward) return 0;
+    let turned = false;
+    Promise.resolve(turning).finally(() => { turned = true; });
+    await wait(0);
+    let first = 0, stopped = false;
+    const yaw = Math.atan2(-away.x, -away.z);
+    try {
+        while (!turned && !(stopped = Boolean(finished() || blocked()))) {
+            const here = bot.entity.position;
+            const next = floorOf({ x: here.x + away.x * 0.8, y: here.y, z: here.z + away.z * 0.8 });
+            const below = { ...next, y: next.y - 1 };
+            const room = open(blockAt(next)) && open(blockAt({ ...next, y: next.y + 1 }));
+            const ok = room && (!blockAt(below) || safeCell(blockAt, next));
+            if (ok && !first) {
+                bot.lookPacer.walkToward(yaw);
+                bot.setControlState('forward', true);
+                bot.setControlState('sprint', true);
+                first = performance.now();
+            } else if (!ok && first) {
+                stopped = true;
+                break;
+            }
+            await wait(STEP_MS);
+        }
+    } finally {
+        bot.lookPacer.walkToward(null);
+        // Turned round while backing away, the keys stay down: facing the way out now, forward is the way
+        // out, and the sprint that follows starts at speed rather than from a stand.
+        if (first && stopped) stopWalking(bot);
+    }
+    return first;
+}
+
+/**
  * Sprints away from several threats at once until the bot is `to` blocks from each, when `done()` says so,
  * after `maxMs`, or when the action is stopped. It goes away from all of them together, not just the
  * nearest: running from one zombie straight into the next is what a flee that follows the nearest does.
@@ -186,7 +256,7 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         if (Date.now() - started > maxMs) return 'out of time';
         return null;
     };
-    let ended = finished(), blocks = 0;
+    let ended = finished(), blocks = 0, backed = 0;
     const halt = () => { bot.pathfinder.setGoal(null); stopWalking(bot); };
     const guarding = async () => {
         const wasUp = guard?.shield?.up;
@@ -198,12 +268,28 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         // The dash: straight away at once, if that way is safe, and on for as long as it stays safe. A
         // sprint in a straight line is the fastest way out; the pathfinder walks more than it sprints.
         const away = ended ? null : awayFrom(bot.entity.position, threats);
+        // Walled in on every side away from it (a dead end), there is no way out to turn the bot's back to
+        // the threat for. It stays facing it, and its guard is told at once that it can't get clear, rather
+        // than finding out from going nowhere for a while.
+        const boxedIn = Boolean(away) && !wayOut(blockAt, bot.entity.position, away);
+        if (boxedIn) guard?.cornered?.();
         // Behind the shield first, when there is no getting clear: turning to run would turn the bot's back
         // to the blast.
-        const shielded = !ended && Boolean(guard) && await guarding();
+        let shielded = !ended && Boolean(guard) && await guarding();
         // Otherwise turn to the way out, looking at the ground there, as a player turning to run does: the
         // cells the first steps go onto are then in view, even through a player's screen, and can be judged.
-        if (away && !shielded) await bot.lookAt(bot.entity.position.offset(away.x * 3, 0, away.z * 3), true);
+        // At a player's turning speed the turn takes up to a second, most of a creeper's fuse, and a player
+        // doesn't stand still for it: they back away on the keys while they turn (backWhileTurning).
+        if (away && !shielded && !boxedIn) {
+            const turning = bot.lookAt(bot.entity.position.offset(away.x * 3, 0, away.z * 3), true);
+            backed = await backWhileTurning(bot, { turning, away, blockAt, finished,
+                blocked: () => Boolean(guard?.shield?.has() && guard.against()) });
+            if (backed) report({ event: 'step', at: backed, how: 'back' });
+            // Cornered while it turned (it got nowhere): the shield, faced back at the threat, and not the rest
+            // of a turn that would put the bot's back to it. The guard's look takes over from the turn.
+            if (guard && await guarding()) shielded = true;
+            else await turning;
+        }
         const position = bot.entity.position;
         const step = away ? firstStep(blockAt, position, { x: position.x - away.x, z: position.z - away.z })
             : ended ? null : firstStep(blockAt, position, threats[0]);
@@ -213,7 +299,7 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
             await bot.lookAt(ahead(), true);
             bot.setControlState('sprint', true);
             bot.setControlState('forward', true);
-            report({ event: 'step', at: performance.now(), how: 'dash' });
+            if (!backed) report({ event: 'step', at: performance.now(), how: 'dash' });
             while (!(ended = finished())) {
                 // Two blocks ahead, as for the first step: one more block is all a sprint covers between checks.
                 if (!cellsAhead(bot.entity.position, step).every(cell => safeCell(blockAt, cell))) break; // something in the way: the pathfinder picks
@@ -223,7 +309,7 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
             stopWalking(bot);
         }
         // The rest, by the pathfinder, re-aimed when a threat moves.
-        let aimedAt = null, stepped = Boolean(step);
+        let aimedAt = null, stepped = Boolean(step) || backed;
         while (!ended && !(ended = finished())) {
             if (guard && await guarding()) { aimedAt = null; await wait(STEP_MS); continue; }
             if (!aimedAt || aimedAt.length !== threats.length || threats.some((point, i) => flat(aimedAt[i], point) > 2)) {
@@ -325,18 +411,37 @@ export async function hitAndStepBack(bot, { creeper, inReach, to = 8, report = (
         while (!bot.interrupt_code && Date.now() - started < 1500) {
             const target = creeper();
             if (!target) break;
-            await bot.lookAt(target.position.offset(0, (target.height ?? 1.7) * 0.6, 0), true);
-            // Sprinting as the hit lands is what knocks it back far.
-            bot.setControlState('sprint', true);
-            bot.setControlState('forward', true);
-            if (inReach(target)) {
-                await bot.attack(target);
-                hit = true;
-                break;
+            const aim = target.position.offset(0, (target.height ?? 1.7) * 0.6, 0);
+            const turning = bot.lookAt(aim, true);
+            if (facing(bot, aim)) {
+                // Facing it: in at a sprint, and the hit as soon as it is in reach. Sprinting as the hit lands
+                // is what knocks it back far.
+                bot.lookPacer?.walkToward?.(null);
+                bot.setControlState('sprint', true);
+                bot.setControlState('forward', true);
+                if (inReach(target)) {
+                    await turning;
+                    await bot.attack(target);
+                    hit = true;
+                    break;
+                }
+            } else if (flat(bot.entity.position, target.position) > STANDOFF) {
+                // Turning to it at a player's speed, the bot closes in on the keys meanwhile, as a player does
+                // (fairplay/turn_speed.js; at an instant turn it already faces it)...
+                bot.lookPacer?.walkToward?.(yawTo(bot.entity.position, aim));
+                bot.setControlState('sprint', true);
+                bot.setControlState('forward', true);
+            } else {
+                // ...but no nearer than this until it faces it: a creeper lights with a player within 3 blocks,
+                // and one that lit while the bot's head came round is still burning after the hit.
+                bot.lookPacer?.walkToward?.(null);
+                bot.setControlState('forward', false);
+                bot.setControlState('sprint', false);
             }
             await wait(STEP_MS);
         }
     } finally {
+        bot.lookPacer?.walkToward?.(null);
         bot.clearControlStates();
     }
     const last = creeper();

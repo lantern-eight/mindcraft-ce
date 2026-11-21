@@ -19,6 +19,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   climbs out more surely at any turning speed: it waits to land before judging where it got to, looks up
   again when a newer look cut the first short, climbs again when the pillar's last block didn't go down,
   and steps up out of a hole a block deep at the top instead of calling the hole the surface.
+- With `turn_speed` set, the threat reflexes no longer stand still through a turn. Turning to run from a creeper,
+  the bot backs away on the keys while its head comes round, and sprints once it faces the way out; a creeper lit
+  2 blocks off had gone off while it was still turning. Walled in with no way out, it keeps facing the creeper
+  and has its shield up at once, instead of turning its back to look for a way. To hit a creeper it turns to it
+  from outside the range that lights it and goes in once it faces it; and after backing off it turns to face
+  the creeper again.
 
 ## [1.11.0-bedrock.1.12.0] - 2026-11-21
 

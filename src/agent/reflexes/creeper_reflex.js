@@ -25,6 +25,7 @@
 // It sees through world.js like every other reflex: what is in view under fair play, everything without
 // it. A creeper that just slipped out of view is handed out as a stand-in where it was last seen; its fuse
 // isn't read from that (it would read the live creeper behind the wall), the picture estimates it instead.
+import Vec3 from 'vec3';
 import convoManager from '../conversation.js';
 import settings from '../settings.js';
 import * as world from '../library/world.js';
@@ -208,6 +209,7 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                     });
                     ended = outcome.hit ? 'hit and stepped back' : outcome.ended;
                     log(bot, outcome.hit ? 'Hit the creeper and stepped back.' : `Backed off from the creeper (${outcome.ended}).`);
+                    await faceIt(bot, decision.key, outcome.ended);
                     return;
                 }
                 const leaving = decision.stance === 'leave';
@@ -223,6 +225,7 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                 });
                 ended = outcome.ended;
                 log(bot, `${leaving ? 'Left the creeper behind' : 'Backed off from the creeper'} (${outcome.ended}).`);
+                if (!leaving) await faceIt(bot, decision.key, outcome.ended);
             }, { timeout: 1 });
         } finally {
             mode.active = false;
@@ -234,14 +237,16 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
     }
 
     // Backing off from a lit creeper the bot can't get clear of in time (blockTheBlast): the shield up,
-    // faced at it, until it has blown or gone out. Stuck is going nowhere for half a second, or standing
-    // behind the shield already.
+    // faced at it, until it has blown or gone out. Stuck is going nowhere for half a second, standing behind
+    // the shield already, or walled in with no way out (the move says so, moves.js).
     function blastGuard(bot, key) {
         if (!shield) return null;
         const started = now();
         const trail = []; // {at, x, z}: where the bot was lately
+        let cornered = false; // told by the move: walled in on every side away from the creeper
         return {
             shield,
+            cornered: () => { cornered = true; },
             against: () => {
                 const here = bot.entity.position;
                 trail.push({ at: now(), x: here.x, z: here.z });
@@ -249,7 +254,7 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                 const barelyMoved = now() - started >= STUCK_MS && now() - trail[0].at >= STUCK_MS
                     && Math.hypot(here.x - trail[0].x, here.z - trail[0].z) < STUCK_MOVE;
                 const track = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(key));
-                if (!blockTheBlast(track, { stuck: shield.up || barelyMoved })) return null;
+                if (!blockTheBlast(track, { stuck: shield.up || cornered || barelyMoved })) return null;
                 const creeper = creeperInView(bot, track.id);
                 if (creeper) return { x: creeper.position.x, y: creeper.position.y + (creeper.height ?? 1.7) * 0.5, z: creeper.position.z };
                 // Out of view (behind the bot, through a player's screen): where the bot knows it to be, seen
@@ -257,6 +262,17 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                 return track.position ? { x: track.position.x, y: track.position.y + 0.85, z: track.position.z } : null;
             },
         };
+    }
+
+    // Backed off far enough from a creeper still about, the bot turns to face it again, as a player keeps an
+    // eye on one they stepped back from. It ran facing away; at a player's turning speed a hit when the
+    // creeper comes on again would otherwise start with a half turn, the creeper lighting meanwhile. Seeing
+    // through a player's screen, it also sees the creeper again rather than only hearing it.
+    async function faceIt(bot, key, ended) {
+        if (ended !== 'far enough' || bot.interrupt_code) return;
+        const track = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(key));
+        if (!track?.position) return;
+        await bot.lookAt(new Vec3(track.position.x, track.position.y + 1.2, track.position.z), true);
     }
 
     // Whether the bot sees through a player's screen (fair play's look memory knows).

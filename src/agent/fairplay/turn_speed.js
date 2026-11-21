@@ -132,6 +132,9 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
     if (setControl) {
         bot.setControlState = function (control, state) {
             asked[control] = state;
+            // While it steers, a movement key asked for between ticks (a reflex's walk sets its keys on its
+            // own clock) is steered at once too, or it would hold forward and back together until the tick.
+            if (steering && MOVES.includes(control)) return steer();
             return setControl.call(this, control, state);
         };
     }
@@ -144,7 +147,7 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
         if (!setControl) return;
         const entity = bot.entity;
         const speed = getSpeed();
-        const walking = asked.forward && !asked.back && !asked.left && !asked.right && heading && Date.now() - heading.at <= HEADING_FRESH_MS;
+        const walking = asked.forward && !asked.back && !asked.left && !asked.right && heading && (heading.held || Date.now() - heading.at <= HEADING_FRESH_MS);
         if (stopped || speed === 'instant' || !(speed > 0) || !walking || !entity || !Number.isFinite(entity.yaw)) return putBack();
         const keys = keysToward(angleBetween(entity.yaw, heading.yaw));
         if (keys.forward && !keys.left && !keys.right) return putBack();
@@ -155,6 +158,12 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
     bot.on?.('physicsTick', steer);
 
     const pacer = {
+        /**
+         * Walks toward a heading (a yaw) on the keys, while forward is held, whichever way the bot faces:
+         * for a move that walks without the pathfinder, as a reflex backing away while it turns to run does.
+         * Held until called with null, or until the pathfinder walks somewhere and looks its own way.
+         */
+        walkToward(yaw) { heading = Number.isFinite(yaw) ? { yaw, at: Date.now(), held: true } : null; },
         /** A guard put on bot.look after this wraps each step instead of the whole turn. */
         stepThrough(wrap) { step = wrap(step); },
         /** Every look goes straight through from now on. */

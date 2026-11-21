@@ -188,3 +188,45 @@ test('walking while the head turns, the bot goes the way the walk heads, with th
     events.emit('physicsTick');
     assert.equal(pressed(), 'sprint', 'nothing it did not ask for is left held');
 });
+
+test('a heading asked for outright (a reflex backing away as it turns) is walked on the keys until let go', async () => {
+    const { bot } = turner();
+    const events = new EventEmitter();
+    bot.on = events.on.bind(events);
+    bot.off = events.off.bind(events);
+    delete bot.lookPacer;
+    bot.look = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.controlState = {};
+    bot.setControlState = (state, on) => { bot.controlState[state] = on; };
+    const pacer = installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => new Promise(() => {}) });
+    const pressed = () => ['forward', 'back', 'left', 'right', 'sprint'].filter(k => bot.controlState[k]).join('+');
+    // Facing a creeper to the north (yaw 0), the way out is south (yaw pi).
+    pacer.walkToward(Math.PI);
+    bot.setControlState('forward', true);
+    bot.setControlState('sprint', true);
+    await new Promise(r => setTimeout(r, 200)); // longer than a pathfinder heading stays fresh
+    events.emit('physicsTick');
+    assert.equal(pressed(), 'back', 'it backs away, no sprint going backwards');
+    pacer.walkToward(null);
+    events.emit('physicsTick');
+    assert.equal(pressed(), 'forward+sprint', 'let go, the keys are what was asked for');
+});
+
+test('a move key asked for between ticks while the walk is steered is steered at once: never forward and back together', async () => {
+    const { bot } = turner();
+    const events = new EventEmitter();
+    bot.on = events.on.bind(events);
+    bot.off = events.off.bind(events);
+    delete bot.lookPacer;
+    bot.look = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.controlState = {};
+    bot.setControlState = (state, on) => { bot.controlState[state] = on; };
+    const pacer = installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => new Promise(() => {}) });
+    pacer.walkToward(Math.PI); // behind
+    bot.setControlState('forward', true);
+    events.emit('physicsTick');
+    assert.equal(bot.controlState.back, true);
+    bot.setControlState('forward', true); // a reflex presses it again on its own clock
+    assert.equal(bot.controlState.forward, false, 'steered at once, not left held with back');
+    assert.equal(bot.controlState.back, true);
+});
