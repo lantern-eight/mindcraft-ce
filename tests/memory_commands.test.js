@@ -149,7 +149,8 @@ test('world_memory: true turns it all on through the fair-play installer, per wo
     };
     initModes(agent);
     const memoryDir = mkdtempSync(path.join(tmpdir(), 'fair-memory-'));
-    const config = { fair_play: 'strict', world_memory: true, host: 'localhost', port: 1 };
+    // Seeing all around: the chest and the sand are on different sides of the bot.
+    const config = { fair_play: 'custom', fair_play_custom: { fov_degrees: 360 }, world_memory: true, host: 'localhost', port: 1 };
     const handle = installFairPlay(agent, { config, memoryDir, perceptionOptions: { ...NO_BUDGETS } });
     try {
         assert.ok(handle.memory, 'world memory is open');

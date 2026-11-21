@@ -67,6 +67,8 @@ test('policy: custom starts from strict, and typos or bad values are errors rath
 
 test('policy: the numeric switches take only numbers that make sense', () => {
     const custom = rules => resolvePolicy({ fair_play: 'custom', fair_play_custom: rules });
+    assert.equal(resolvePolicy({ fair_play: 'strict' }).fov_degrees, 70, 'strict sees through a player\'s screen, the game\'s default');
+    assert.equal(resolvePolicy({ fair_play: 'off' }).fov_degrees, 360, 'off sees all around');
     assert.equal(custom({ fov_degrees: 110 }).fov_degrees, 110);
     assert.equal(custom({ fov_degrees: 30 }).fov_degrees, 30);
     assert.equal(custom({ fov_degrees: 70 }).fov_degrees, 70);

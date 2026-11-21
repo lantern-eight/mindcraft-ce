@@ -14,7 +14,9 @@ import { openMemory } from '../src/agent/memory/store.js';
 import { createRecorder } from '../src/agent/memory/recorder.js';
 import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 
-const STRICT = resolvePolicy({ fair_play: 'strict' });
+// Strict, but seeing all around: these scenes put things on every side of the bot to test something other
+// than the view. The narrowed view, strict's own, has tests of its own.
+const ALL_AROUND = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } });
 
 function clock(start = 1_000_000) {
     let t = start;
@@ -23,7 +25,7 @@ function clock(start = 1_000_000) {
     return now;
 }
 
-function setup(build, { policy = STRICT, entities = [], now = clock(), options = {} } = {}) {
+function setup(build, { policy = ALL_AROUND, entities = [], now = clock(), options = {} } = {}) {
     const world = fixtureWorld({ min: [-24, -4, -24], max: [24, 24, 24] });
     world.fill('stone', [-24, 0, -24], [24, 0, 24]); // floor
     build(world);
@@ -170,7 +172,7 @@ test('stop() removes every listener perception added, so respawns do not pile th
     const { world } = setup(() => {});
     const bot = stubBot(world);
     bot._client = new EventEmitter();
-    const perception = createPerception({ bot, policy: STRICT, ...NO_BUDGETS });
+    const perception = createPerception({ bot, policy: ALL_AROUND, ...NO_BUDGETS });
     perception.start();
     const events = ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload'];
     const packets = ['sound_effect', 'named_sound_effect', 'entity_sound_effect'];
@@ -331,7 +333,7 @@ test('hearing reads the server\'s sound packets and names each sound from the ri
     const cow = { id: 21, type: 'animal', name: 'cow', position: at(-4.5, 1, 0.5), height: 1.4 };
     const bot = stubBot(world, { entities: [cow] });
     bot._client = new EventEmitter();
-    const perception = createPerception({ bot, policy: STRICT, ...NO_BUDGETS });
+    const perception = createPerception({ bot, policy: ALL_AROUND, ...NO_BUDGETS });
     perception.start();
     const sounds = world.registry.soundsByName, first = world.registry.soundsArray[0].id;
     // The protocol counts sounds from 0, wherever minecraft-data starts counting.

@@ -19,7 +19,9 @@ import { propsOfState, stateOfProps } from '../src/agent/memory/block_state.js';
 import { registerEdition } from '../src/agent/edition/index.js';
 import { javaEdition } from '../src/agent/edition/java.js';
 
-const STRICT = resolvePolicy({ fair_play: 'strict' });
+// Strict, but seeing all around: these scenes put things on every side of the bot to test something other
+// than the view. The narrowed view, strict's own, has tests of its own.
+const ALL_AROUND = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } });
 const SCOPE = 'local:55916/w1/overworld';
 
 function clock(start = 1_000_000) {
@@ -30,7 +32,7 @@ function clock(start = 1_000_000) {
 }
 
 /** A flat stone floor at y 0, the bot standing on it at the origin, and whatever `build` adds. */
-function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [], prepare = () => {}, policy = STRICT } = {}) {
+function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [], prepare = () => {}, policy = ALL_AROUND } = {}) {
     const world = fixtureWorld({ min: [-40, -4, -40], max: [40, 24, 40] });
     world.fill('stone', [-40, 0, -40], [40, 0, 40]);
     build(world);

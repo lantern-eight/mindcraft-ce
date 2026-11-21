@@ -21,7 +21,8 @@ function setup(build, { custom = null, entities = [], deciding = true, edition =
     for (const name of ['dig', 'placeBlock', 'activateBlock', 'openContainer', 'openFurnace', 'activateEntity', 'useOn'])
         bot[name] = async target => { sent.push([name, target.name ?? target.username]); return name; };
     bot.attack = target => { sent.push(['attack', target.name]); };
-    const policy = resolvePolicy(custom ? { fair_play: 'custom', fair_play_custom: custom } : { fair_play: 'strict' });
+    // Seeing all around unless the scene says otherwise: most scenes are about reach and walls, not the view.
+    const policy = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360, ...custom } });
     const perception = createPerception({ bot, policy, ...NO_BUDGETS });
     // Hand-built game data has no edition, and counts as Java's; `edition` names another game.
     const guard = createReachGuard({ policy, getPerception: () => perception, getRegistry: () => (edition ? { version: { type: edition } } : bot.registry) });
@@ -175,13 +176,14 @@ test('a mob known only from where it was last seen is hit, or not, by where it i
     // moment it is still known, where it was seen; a swing at that stand-in is judged on the zombie.
     const zombie = { id: 7, type: 'hostile', name: 'zombie', position: new Vec3(2.5, 1, 0.5), height: 1.95, width: 0.6 };
     const { world, bot, sent } = setup(() => {}, { entities: [zombie] });
-    const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), ...NO_BUDGETS });
+    const allAround = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } });
+    const perception = createPerception({ bot, policy: allAround, ...NO_BUDGETS });
     assert.equal(perception.entities()[0], zombie);
     world.fill('stone', [-2, 1, 1], [3, 4, 1]); // a wall north of the bot, out of the line to where it stood
     zombie.position = new Vec3(0.5, 1, 2.5);      // within reach, behind the wall
     const standIn = perception.entities()[0];
     assert.notEqual(standIn, zombie);
-    const guard = createReachGuard({ policy: resolvePolicy({ fair_play: 'strict' }), getPerception: () => perception, getRegistry: () => bot.registry });
+    const guard = createReachGuard({ policy: allAround, getPerception: () => perception, getRegistry: () => bot.registry });
     assert.ok(perception.seesCell(new Vec3(2, 2, 0)), 'the spot where it stood is still in view');
     assert.throws(() => guard.checkEntity(standIn), /can't see the zombie/);
     zombie.position = new Vec3(2.5, 1, 0.5); // back where it was, in plain view

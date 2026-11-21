@@ -11,18 +11,21 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Changed
 
+- Under strict fair play the bot sees through a player's screen instead of all around: 70° tall on a 16:9
+  screen, about 102° across, Java's default field of view, on both editions. What is behind it, it doesn't
+  see until it turns. Hearing and touch still reach all around. `fair_play_custom` `fov_degrees: 360` brings
+  back the view all around, and `fair_play: "off"` keeps it.
 - `fov_degrees` is now the game's own field-of-view number: the height of the screen in degrees, `30` to
-  `110` as on the game's slider, on a 16:9 screen, so `70` (Java's default) is about 102° across. What the
-  bot sees is shaped like that screen, not a cone. `360`, the default, still means all around; any other
-  number is refused at startup. It used to be the width of a cone, which nobody had set.
-- With a narrowed view, a player's name tag shows through walls only when it is on screen, as in the game. A
-  player standing behind the bot is no longer known from their name tag.
-- With a narrowed view, world memory records only what is on screen, the way the bot faces at the moment
-  it looks, and looks again when the bot turns. It used to record all around whatever the view.
-- With a narrowed view, the bot turns to face a block within reach before digging, opening, using or placing
-  against it, then checks that it can see it. It used to refuse anything not already in front of it.
-- With a narrowed view, the enderman gaze guard also counts an enderman behind the bot in a clear line from its
-  eye, so turning round can't stare at one. It used to count only those already on screen.
+  `110` as on the game's slider, on a 16:9 screen, and what the bot sees is shaped like that screen, not a
+  cone. `360` means all around; any other number is refused at startup. It used to be the width of a cone.
+- A player's name tag shows through walls only when it is on screen, as in the game. A player standing
+  behind the bot is no longer known from their name tag.
+- World memory records only what is on screen, the way the bot faces at the moment it looks, and looks again
+  when the bot turns.
+- The bot turns to face a block within reach before digging, opening, using or placing against it, then
+  checks that it can see it, as a player turns to click something behind them.
+- The enderman gaze guard also counts an enderman behind the bot in a clear line from its eye, so turning
+  round can't stare at one.
 
 ## [1.10.0-bedrock.1.11.0] - 2026-11-20
 

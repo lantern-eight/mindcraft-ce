@@ -183,7 +183,9 @@ test('the recorder keeps a Bedrock door, bed, chest, sign and field as the thing
         const memory = openMemory({ baseDir: mkdtempSync(path.join(tmpdir(), 'bedrock-memory-')), scope: 'test/overworld', now,
             canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
         recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
-        const perception = createPerception({ bot, policy: resolvePolicy({ fair_play: 'strict' }), memory: recorder.view,
+        // Seeing all around: the things are on every side of the bot.
+        const allAround = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } });
+        const perception = createPerception({ bot, policy: allAround, memory: recorder.view,
             now, searchBudgetMs: Infinity });
         recorder.attach(perception);
         recorder.tick();

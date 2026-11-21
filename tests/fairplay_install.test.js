@@ -103,7 +103,9 @@ test('L4: becoming an operator or leaving survival is noticed, and cleared when 
     assert.deepEqual(events.map(e => e[0]), ['bad', 'bad', 'bad', 'ok']);
 });
 
-function fairAgent(build, config = { fair_play: 'strict', host: 'localhost', port: 1 }, prepare = () => {}) {
+// Strict, but seeing all around: the scenes put things on every side of the bot.
+const ALL_AROUND = { fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } };
+function fairAgent(build, config = { ...ALL_AROUND, host: 'localhost', port: 1 }, prepare = () => {}) {
     const w = fixtureWorld({ min: [-16, -4, -16], max: [16, 16, 16] });
     w.fill('stone', [-16, 0, -16], [16, 0, 16]);
     build(w);
@@ -136,7 +138,7 @@ test('installing with fair_play off changes nothing', () => {
     assert.equal(agent.fairPlay, undefined);
 });
 
-test('installing strict on a spawned bot makes world.js fair', () => {
+test('installing fair play on a spawned bot makes world.js fair', () => {
     const { agent, bot, handle } = fairAgent(w => {
         w.fill('stone', [4, 1, -2], [8, 5, 2]);
         w.set('diamond_ore', 6, 3, 0); // buried

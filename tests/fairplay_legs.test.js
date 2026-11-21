@@ -48,7 +48,8 @@ function setup(build = () => {}, { memory = true, legs = true, position = [0.5, 
     world.fill('stone', [-64, 0, -64], [64, 0, 64]);
     build(world);
     const bot = walkerBot(world, { position });
-    const policy = resolvePolicy({ fair_play: 'custom', fair_play_custom: rules });
+    // Seeing all around: these scenes are about planning over what was seen, from every side.
+    const policy = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360, ...rules } });
     const now = clock();
     let perception, recorder = null, store = null;
     if (memory) {

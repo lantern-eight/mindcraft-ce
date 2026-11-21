@@ -18,8 +18,9 @@ export const STRICT_RULES = Object.freeze({
     stations_through_walls: false,
     mobs_through_walls: false,
     players_through_walls: 'nametag', // 'nametag' | true | false
-    fov_degrees: 360,               // the game's field-of-view number: the screen's height in degrees, 30 to
-                                    // 110 (Java's default is 70, about 102 across on a 16:9 screen), or 360 for all around
+    fov_degrees: 70,                // the game's field-of-view number: the screen's height in degrees, 30 to
+                                    // 110, or 360 for all around. 70 is Java's default, about 102 across on a
+                                    // 16:9 screen, and is used on Bedrock too, whose own default is 60
     sight_distance: 'server',       // 'server' (whatever is loaded) or a number of blocks
     entity_distance: 64,
     hearing_radius: 16,
@@ -43,6 +44,7 @@ export const OFF_RULES = Object.freeze({
     stations_through_walls: true,
     mobs_through_walls: true,
     players_through_walls: true,
+    fov_degrees: 360,
     route_planning: 'all',
     interact_through_walls: true,
     slash_commands: true,
