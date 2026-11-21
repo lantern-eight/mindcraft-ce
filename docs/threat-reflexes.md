@@ -327,8 +327,10 @@ An enderman turns on a player who looks at its head, within an angle that narrow
 degrees at 10 blocks), and the bot looks around all the time: the idle look-around, a dash away from a
 creeper, the pathfinder facing the way it walks. So every look the bot makes goes through a guard: a look
 that would come within twice that angle of an enderman's eyes is lowered until it doesn't, and every other
-look is left alone. The endermen are the ones world.js hands out: under fair play only those in view, as only
-those can see the bot stare. On a real server an unguarded look at an enderman's head angered it in about a
+look is left alone. Under fair play the endermen that count are those in a clear line from the bot's eye,
+whichever way it faces: with a narrowed field of view, one behind the bot is off screen until it turns, but a
+look that would stare at it puts its eyes in the middle of the screen, so the bot sees it the moment it
+looks. One behind a wall can't see the bot stare, and doesn't count. On a real server an unguarded look at an enderman's head angered it in about a
 third of a second; with the guard it never did.
 
 ## Danger Zones

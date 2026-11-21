@@ -259,6 +259,15 @@ test('a narrow view: a name tag shows through walls only on screen', () => {
     assert.deepEqual(all.perception.entities().map(e => e.username).sort(), ['Alex', 'Sam'], 'all around, both');
 });
 
+test('entitiesInSightAnyWay: a mob in a clear line from the eye, whichever way the bot faces; not one behind a wall', () => {
+    const open = { id: 7, type: 'hostile', name: 'enderman', position: at(0.5, 1, 10.5), height: 2.9 };
+    const walled = { id: 8, type: 'hostile', name: 'enderman', position: at(10.5, 1, 0.5), height: 2.9 };
+    const { perception } = setup(w => w.fill('stone', [5, 1, -3], [5, 8, 3]), { policy: NARROW, entities: [open, walled] });
+    assert.deepEqual(perception.entities(), [], 'neither is in view facing north');
+    assert.deepEqual(perception.entitiesInSightAnyWay(64).map(e => e.id), [7]);
+    assert.deepEqual(perception.entitiesInSightAnyWay(5).map(e => e.id), [], 'too far');
+});
+
 test('open_face sight sees ore in a sealed cave; ray sight does not', () => {
     const build = w => {
         w.fill('stone', [4, 1, -3], [14, 6, 3]);

@@ -10,9 +10,15 @@
 // So every look the bot makes goes through a guard (bot.look, which bot.lookAt also calls). When the look
 // would come within twice the game's angle of an enderman's eyes, its pitch is lowered until it doesn't:
 // the bot looks at the enderman's feet, or the ground before it. A look that is nowhere near one is let
-// through untouched. Endermen are the ones world.js hands out, so under fair play only those in view count,
-// as only those can see the bot stare.
+// through untouched.
+//
+// Which endermen count: those in a clear line from the bot's eye, whichever way it faces now. Under a
+// narrowed field of view, one behind the bot is not in view before the look, but a look that would stare
+// at it puts its eyes at the middle of the screen: the moment the bot looks, it sees it, so it must count
+// already. One behind a wall can't see the bot's stare, and doesn't. Without fair play, world.js hands out
+// every enderman near, walls or not.
 import * as world from '../library/world.js';
+import { fairPlayOf } from '../fairplay/fair_queries.js';
 
 const ENDERMAN_EYE = 2.55;
 const MARGIN = 2;          // twice the game's angle
@@ -58,8 +64,11 @@ export function guardGaze(bot) {
     const endermenEyes = () => {
         if (Date.now() - askedAt < EYES_KEPT_MS) return eyes;
         askedAt = Date.now();
-        eyes = world.getNearbyEntities(bot, NOTICE_WITHIN)
-            .filter(entity => entity.name === 'enderman')
+        const isEnderman = entity => entity.name === 'enderman';
+        const endermen = new Map(world.getNearbyEntities(bot, NOTICE_WITHIN).filter(isEnderman).map(e => [e.id, e]));
+        for (const entity of fairPlayOf(bot)?.perception?.entitiesInSightAnyWay?.(NOTICE_WITHIN, isEnderman) ?? [])
+            endermen.set(entity.id, entity);
+        eyes = [...endermen.values()]
             .map(entity => ({ x: entity.position.x, y: entity.position.y + ENDERMAN_EYE, z: entity.position.z }));
         return eyes;
     };

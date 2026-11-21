@@ -642,6 +642,21 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             beginLook();
             return screen;
         },
+        /**
+         * Entities a turn of the head would show: within `maxDistance` and in a clear line from the eye,
+         * whichever way the bot faces now. Only for the gaze guard (reflexes/gaze.js), which must not let a
+         * turn sweep over an enderman's eyes. That is fair: an enderman's eyes are at the middle of the
+         * screen of any look that would stare at them, so the moment the bot looks, it sees it. Nothing
+         * may use this to know what is behind the bot.
+         */
+        entitiesInSightAnyWay: (maxDistance, filter = () => true) => {
+            if (!bot.entity?.position) return [];
+            beginLook();
+            const all = { maxDistance };
+            return Object.values(bot.entities).filter(entity => entity !== bot.entity && entity.position && filter(entity)
+                && (policy.sight === 'all' ? entity.position.distanceTo(bot.entity.position) <= maxDistance
+                    : sight.canSeeEntity(eyeNow, entity, all)));
+        },
         knowsCell: pos => blockAt(pos) !== null,
         /** Counts for live runs: `searchesCut` is how many block searches ran out of their time budget. */
         stats: () => ({ searchesCut }),

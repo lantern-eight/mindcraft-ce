@@ -21,6 +21,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   it looks, and looks again when the bot turns. It used to record all around whatever the view.
 - With a narrowed view, the bot turns to face a block within reach before digging, opening, using or placing
   against it, then checks that it can see it. It used to refuse anything not already in front of it.
+- With a narrowed view, the enderman gaze guard also counts an enderman behind the bot in a clear line from its
+  eye, so turning round can't stare at one. It used to count only those already on screen.
 
 ## [1.10.0-bedrock.1.11.0] - 2026-11-20
 
