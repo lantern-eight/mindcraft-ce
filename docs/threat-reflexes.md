@@ -95,8 +95,9 @@ comes round (back, or a diagonal), onto the cells beside it it can feel are open
 on trust as a player backing off would, and sprints once it faces the way out. Walled in on every side away from
 the creeper (a dead end), it doesn't turn its back for a way out that isn't there: it stays facing the creeper
 and has its shield up at once. To hit a creeper it turns to it from 4 blocks off, outside the 3 that light it,
-and goes in once it faces it; and once it has backed off far enough it turns to face the creeper again, as a
-player keeps an eye on one. Seeing through a player's screen, it then sees whether the creeper is still lit.
+and goes in once it faces it; and once it has backed off far enough from one it means to hit, it turns to face
+it again, as a player squaring up does. Seeing through a player's screen, it then sees whether the creeper is
+still lit. A bot that will leave the creeper (on Bedrock, or with no weapon) doesn't stand and turn.
 
 **It reacts to a hiss the moment it is heard.** The reflexes run every 300 ms or so, and a fuse is 1.5 s, so
 the reflex doesn't wait for its next round when a hiss arrives.

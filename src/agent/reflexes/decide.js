@@ -118,7 +118,7 @@ function backOff(creeper, why) {
 
 // Whether the bot can hit a creeper and step back: Java's rules, a weapon that kills it in 4 hits, and half
 // health, or the order's own minimum (orders.js gives no order under it).
-function fitToHit(self, order) {
+export function fitToHit(self, order) {
     const health = order?.stance === 'fight' ? 0 : MIN_HEALTH;
     return self.edition !== 'bedrock' && self.hitsNeeded <= MAX_HITS && self.health >= health;
 }

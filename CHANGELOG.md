@@ -23,8 +23,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   the bot backs away on the keys while its head comes round, and sprints once it faces the way out; a creeper lit
   2 blocks off had gone off while it was still turning. Walled in with no way out, it keeps facing the creeper
   and has its shield up at once, instead of turning its back to look for a way. To hit a creeper it turns to it
-  from outside the range that lights it and goes in once it faces it; and after backing off it turns to face
-  the creeper again.
+  from outside the range that lights it and goes in once it faces it; and after backing off from one it means to
+  hit, it turns to face it again.
 - A creeper's hiss from near where the bot sees one, or saw one lately, is taken for that creeper lighting, not
   a second creeper. Seeing through a player's screen, a creeper the bot had stepped back from was soon behind it,
   and its hiss had the bot back off again from a creeper that wasn't there.

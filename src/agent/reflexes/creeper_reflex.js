@@ -37,7 +37,7 @@ import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
 import { fairPlayOf } from '../fairplay/fair_queries.js';
 import { createThreatPicture } from './picture.js';
-import { bestWeapon, blockTheBlast, decideThreat, hitsNeeded } from './decide.js';
+import { bestWeapon, blockTheBlast, decideThreat, fitToHit, hitsNeeded } from './decide.js';
 import { backOffFrom, hitAndStepBack } from './moves.js';
 
 export const MODE_NAME = 'creeper_safety';
@@ -264,12 +264,13 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
         };
     }
 
-    // Backed off far enough from a creeper still about, the bot turns to face it again, as a player keeps an
-    // eye on one they stepped back from. It ran facing away; at a player's turning speed a hit when the
-    // creeper comes on again would otherwise start with a half turn, the creeper lighting meanwhile. Seeing
-    // through a player's screen, it also sees the creeper again rather than only hearing it.
+    // Backed off far enough from a creeper still about, a bot that means to hit it when it comes on again
+    // turns to face it, as a player squaring up does. It ran facing away; at a player's turning speed the
+    // hit would otherwise start with a half turn, the creeper lighting meanwhile. Seeing through a player's
+    // screen, it also sees whether the creeper is still lit. A bot that will leave it (on Bedrock, or with
+    // no weapon) doesn't stand and turn: that is only time for the creeper to close in.
     async function faceIt(bot, key, ended) {
-        if (ended !== 'far enough' || bot.interrupt_code) return;
+        if (ended !== 'far enough' || bot.interrupt_code || !fitToHit(selfOf(bot), orders?.orderFor('creeper', selfOf(bot)) ?? null)) return;
         const track = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(key));
         if (!track?.position) return;
         await bot.lookAt(new Vec3(track.position.x, track.position.y + 1.2, track.position.z), true);
