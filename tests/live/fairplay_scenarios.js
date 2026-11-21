@@ -200,6 +200,7 @@ try {
         const report = getCommand('!entities').perform(agent);
         assert.doesNotMatch(report, /entities: \d+ zombie/, report);
         await cmd('fill -1 70 -6 1 71 -6 air'); // a gap in the wall
+        await bot.lookAt(new Vec3(0.5, 71, -8.5), true); // looking through it
         await delay(800);
         assert.match(getCommand('!entities').perform(agent), /entities: 1 zombie/, 'now it is seen');
         // CE's first reflex to a hostile mob in view is "cowardice": back away from it.
