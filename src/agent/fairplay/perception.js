@@ -34,7 +34,7 @@
 //   start() / stop()        start listening for sounds; end the service for good and remove its listeners
 // The looking around that fills memory is world memory's recorder (memory/recorder.js), not perception's.
 import Vec3 from 'vec3';
-import { buildStopsSightTable, createSight, viewDirection } from './sight.js';
+import { buildStopsSightTable, createSight, screenOf } from './sight.js';
 import { lazyStateTable, scanSection, sectionsInRange } from './block_scan.js';
 import { stateOfProps } from '../memory/block_state.js';
 import { editionOf } from '../edition/index.js';
@@ -170,6 +170,7 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     let feetX = 0, feetY = 0, feetZ = 0;
     let cacheX = 0, cacheY = 0, cacheZ = 0;
     let cacheEye = null, cacheYaw = NaN, cachePitch = NaN, cacheStale = true;
+    let screen = null, screenYaw = NaN, screenPitch = NaN; // the view, under a narrowed field of view
     const invalidate = () => { cacheStale = true; };
 
     function eye() {
@@ -187,9 +188,12 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             cacheX = Math.floor(e.x); cacheY = Math.floor(e.y); cacheZ = Math.floor(e.z);
         }
         eyeNow = e;
-        viewOpts = narrowView
-            ? { maxDistance: blockSightDistance, fovDegrees: policy.fov_degrees, viewDir: viewDirection(yaw, pitch) }
-            : { maxDistance: blockSightDistance };
+        // The screen is worked out once per facing, not per question.
+        if (narrowView && (yaw !== screenYaw || pitch !== screenPitch || !screen)) {
+            screen = screenOf(yaw, pitch, policy.fov_degrees);
+            screenYaw = yaw; screenPitch = pitch;
+        }
+        viewOpts = narrowView ? { maxDistance: blockSightDistance, screen } : { maxDistance: blockSightDistance };
         const p = bot.entity.position;
         feetX = Math.floor(p.x); feetY = Math.floor(p.y); feetZ = Math.floor(p.z);
     }

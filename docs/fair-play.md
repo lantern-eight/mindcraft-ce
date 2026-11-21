@@ -48,8 +48,13 @@ Details that matter:
   stairs, fences, chests, doors, torches, and a piston that has pushed its head out. That is slightly
   generous (a slab does hide a little). A shulker box is a wall, as it looks.
 - **Chunks the client hasn't been sent count as walls,** so the bot can't see into them.
-- **The view is all around (360°)** and light is ignored, as if the bot glances around constantly with
-  brightness turned up. Both can be tightened later.
+- **The view is all around (360°) by default,** and light is ignored, as if the bot glances around
+  constantly with brightness turned up. `fov_degrees` narrows the view to a player's screen: the number is
+  the game's own field of view, the screen's height in degrees (Java's default is 70, Bedrock's 60), on a
+  16:9 screen, so 70 is about 102° across. A point is in view when it is on that screen, not in a cone:
+  a cone as wide would show things above and below that a player can't see. Looking straight ahead, the
+  ground closer than about 2.3 blocks is below the screen, as it is for a player; touch still covers the
+  cells around the feet. Touch and hearing don't depend on the view.
 - **A mob that steps out of view stays known for 3 seconds,** so reflexes don't flicker when something
   walks behind a tree. It is known where it was last seen, standing still: the bot can't follow it
   behind the wall.
@@ -163,7 +168,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `stations_through_walls` | `false` | `true` (crafting tables, beds, doors, anvils) |
 | `mobs_through_walls` | `false` | `true` |
 | `players_through_walls` | `"nametag"` | `true`, `false` |
-| `fov_degrees` | `360` | a narrower field of view, such as `110` (above 0, up to 360) |
+| `fov_degrees` | `360` (all around) | the game's field of view, the screen's height in degrees on a 16:9 screen: `30` to `110`, such as `70` (Java's default, about 102° across) |
 | `sight_distance` | `"server"` (whatever is loaded) | a number of blocks |
 | `entity_distance` | `64` | blocks |
 | `hearing_radius` | `16` | blocks |
@@ -176,7 +181,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `generated_code` | `"wrapped"` | `"off"` (refuse to write code), `"raw"` (stock behavior, for measuring only) |
 
 A misspelled switch is an error at startup, not a rule silently left on, and so is a number out of range: a
-negative hearing radius, or a field of view of 0 or over 360 degrees.
+negative hearing radius, or a field of view outside the game's 30 to 110 degrees (other than 360).
 
 **Why switches:** to measure what a "cheat" is worth. Run a task under strict, then again with one switch
 flipped, and compare. When a strict run fails, flipping switches one at a time shows which limit caused it.

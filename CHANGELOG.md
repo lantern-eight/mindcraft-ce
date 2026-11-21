@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- `fov_degrees` is now the game's own field-of-view number: the height of the screen in degrees, `30` to
+  `110` as on the game's slider, on a 16:9 screen, so `70` (Java's default) is about 102° across. What the
+  bot sees is shaped like that screen, not a cone. `360`, the default, still means all around; any other
+  number is refused at startup. It used to be the width of a cone, which nobody had set.
+
 ## [1.10.0-bedrock.1.11.0] - 2026-11-20
 
 A release for both editions. The bot uses a shield the way a player does: it keeps one in its off-hand, holds

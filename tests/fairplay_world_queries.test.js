@@ -68,10 +68,12 @@ test('policy: custom starts from strict, and typos or bad values are errors rath
 test('policy: the numeric switches take only numbers that make sense', () => {
     const custom = rules => resolvePolicy({ fair_play: 'custom', fair_play_custom: rules });
     assert.equal(custom({ fov_degrees: 110 }).fov_degrees, 110);
-    assert.equal(custom({ fov_degrees: 360 }).fov_degrees, 360);
+    assert.equal(custom({ fov_degrees: 30 }).fov_degrees, 30);
+    assert.equal(custom({ fov_degrees: 70 }).fov_degrees, 70);
+    assert.equal(custom({ fov_degrees: 360 }).fov_degrees, 360, 'all around');
     assert.equal(custom({ hearing_radius: 0 }).hearing_radius, 0, 'deaf is a choice');
     assert.equal(custom({ entity_distance: 32 }).entity_distance, 32);
-    for (const fov of [0, -10, 361, NaN, Infinity]) assert.throws(() => custom({ fov_degrees: fov }), /fov_degrees must be/);
+    for (const fov of [0, -10, 29, 111, 180, 361, NaN, Infinity]) assert.throws(() => custom({ fov_degrees: fov }), /fov_degrees must be/);
     for (const radius of [-1, NaN, Infinity]) {
         assert.throws(() => custom({ hearing_radius: radius }), /hearing_radius must be/);
         assert.throws(() => custom({ entity_distance: radius }), /entity_distance must be/);

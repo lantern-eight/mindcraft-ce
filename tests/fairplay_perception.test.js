@@ -229,6 +229,21 @@ test('E3: name tags show standing players through walls within 64 blocks, but no
     assert.deepEqual(perception.entities().map(e => e.username), ['Alex']);
 });
 
+const NARROW = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 70 } });
+
+test('a narrow view: what is behind the bot is unknown until it turns', () => {
+    const zombie = { id: 7, type: 'hostile', name: 'zombie', position: at(0.5, 1, 8.5), height: 1.95 }; // south, behind
+    const { bot, perception, world } = setup(w => w.set('diamond_ore', 0, 1, 6), { policy: NARROW, entities: [zombie] });
+    // The stub bot faces north (yaw 0), so +z is behind it.
+    assert.equal(perception.blockAt(at(0, 1, 6)), null, 'the ore behind');
+    assert.deepEqual(perception.entities(), [], 'the zombie behind');
+    assert.equal(perception.findBlocks({ matching: diamond(world), maxDistance: 16 }).length, 0);
+    bot.entity.yaw = Math.PI; // turn round to face south
+    bot.entity.pitch = -0.3;
+    assert.equal(perception.blockAt(at(0, 1, 6))?.name, 'diamond_ore');
+    assert.deepEqual(perception.entities().map(e => e.name), ['zombie']);
+});
+
 test('open_face sight sees ore in a sealed cave; ray sight does not', () => {
     const build = w => {
         w.fill('stone', [4, 1, -3], [14, 6, 3]);

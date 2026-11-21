@@ -18,7 +18,8 @@ export const STRICT_RULES = Object.freeze({
     stations_through_walls: false,
     mobs_through_walls: false,
     players_through_walls: 'nametag', // 'nametag' | true | false
-    fov_degrees: 360,
+    fov_degrees: 360,               // the game's field-of-view number: the screen's height in degrees, 30 to
+                                    // 110 (Java's default is 70, about 102 across on a 16:9 screen), or 360 for all around
     sight_distance: 'server',       // 'server' (whatever is loaded) or a number of blocks
     entity_distance: 64,
     hearing_radius: 16,
@@ -58,7 +59,8 @@ const CHOICES = {
 
 // The numeric switches, and the numbers each may take.
 const RANGES = {
-    fov_degrees: { min: 0, max: 360, minInclusive: false, text: 'a number of degrees above 0, up to 360' },
+    // The game's own slider runs from 30 to 110. 360 is not a screen: it means the bot sees all around.
+    fov_degrees: { min: 30, max: 110, minInclusive: true, also: [360], text: 'the game\'s field of view, 30 to 110 degrees, or 360 for all around' },
     entity_distance: { min: 0, max: Infinity, minInclusive: true, text: 'a number of blocks, 0 or more' },
     hearing_radius: { min: 0, max: Infinity, minInclusive: true, text: 'a number of blocks, 0 or more' },
 };
@@ -80,8 +82,9 @@ function validate(rules) {
         } else if (RANGES[key]) {
             // A number out of range doesn't fail loudly where it is used: a negative hearing radius just
             // hears nothing, and an infinite one hears the whole server. Catch it here, at startup.
-            const { min, max, minInclusive, text } = RANGES[key];
-            const inRange = Number.isFinite(value) && (minInclusive ? value >= min : value > min) && value <= max;
+            const { min, max, minInclusive, also = [], text } = RANGES[key];
+            const inRange = also.includes(value)
+                || (Number.isFinite(value) && (minInclusive ? value >= min : value > min) && value <= max);
             if (!inRange) throw new Error(`fair_play_custom.${key} must be ${text}`);
         } else if (key === 'slash_allowlist') {
             if (!Array.isArray(value) || !value.every(v => typeof v === 'string' && /^[a-z0-9_:-]+$/i.test(v)))
