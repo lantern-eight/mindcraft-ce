@@ -23,7 +23,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, LIVE_VIEW } from '../helpers/live_view.js';
 
 const NAME = 'BedrockWary';
 const report = createReport();
@@ -272,7 +272,10 @@ try {
         const stances = events.filter(e => e.event === 'decided').map(e => e.stance);
         assert.ok(!stances.includes('hit_and_step_back'), 'never goes back in on Bedrock');
         const endings = events.filter(e => e.event === 'done').map(e => e.ended);
-        assert.ok(rounds <= 3, `${rounds} rounds: ${JSON.stringify(stances)}, ended ${JSON.stringify(endings)}, times ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => Math.round(e.at / 100) / 10))}`);
+        // Through a player's screen the bot can't see whether the creeper has lost it, so it leaves by distance
+        // each time, and the creeper may take up the chase once more: one round more.
+        const most = LIVE_VIEW === 'all' ? 3 : 4;
+        assert.ok(rounds <= most, `${rounds} rounds: ${JSON.stringify(stances)}, ended ${JSON.stringify(endings)}, times ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => Math.round(e.at / 100) / 10))}`);
         assert.ok(messages.length <= 1, messages.join('\n---\n'));
         assert.equal(lowestHealth, 20, 'no damage');
         return { rounds, stances, creeperLeft: Boolean(rawCreeper()) };
