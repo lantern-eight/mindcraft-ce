@@ -68,6 +68,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   the bot has seen and remembers as open. They took everything out of view for unknown, so a bot facing a
   skeleton found no cover behind it, beside a wall it had just looked at. Cover the bot can't find a way to
   ends the move at once, so it backs out of range instead of waiting there while the skeleton shoots.
+- A dash away from a threat checks every cell the body sweeps, along both its sides, not only the middle of
+  its line each whole block. At 45 degrees from the middle of a block it could aim between two walls that
+  meet at a corner, and stall there with a lit creeper behind it instead of raising its shield.
 - Through a player's screen, backing away from mobs goes on to its distance. It stopped once the mobs had been
   out of view for 2 s, as if they had lost the bot, but the bot runs facing away from them, so it stopped
   short.

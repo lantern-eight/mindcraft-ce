@@ -50,9 +50,25 @@ export function safeCell(blockAt, cell) {
     return false;                               // a drop of more than 2
 }
 
+// The cells the body sweeps in its first two blocks along a straight line from the feet, less the one it
+// stands in: the line of its middle and of each side, sampled each half block. Whole blocks along the middle
+// alone would skip from a cell to the corner one at 45 degrees, past the side cells the body has to go
+// through, and a body can't slip between two walls that meet at a corner.
+const SIDE = 0.29; // just under half a player's width (0.6), so a wall the bot stands against isn't counted
+function cellsAhead(position, way) {
+    const here = floorOf(position);
+    const cells = [];
+    for (const side of [0, SIDE, -SIDE]) for (const k of [0.5, 1, 1.5, 2]) {
+        const cell = floorOf({ x: position.x + way.x * k - way.z * side, y: position.y, z: position.z + way.z * k + way.x * side });
+        if ((cell.x !== here.x || cell.z !== here.z) && !cells.some(c => c.x === cell.x && c.z === cell.z)) cells.push(cell);
+    }
+    return cells;
+}
+
 /**
  * The direction of a safe straight first step away from `from`, as a unit {x, z}, or null when none is
- * safe. Tries straight away first, then 45 and 90 degrees to either side. Two cells along it must be safe.
+ * safe. Tries straight away first, then 45 and 90 degrees to either side. Every cell the body sweeps in its
+ * first two blocks must be safe (cellsAhead).
  * @param {(pos: object) => object|null} blockAt - reads blocks the fair way (through world.js's provider)
  * @param {{x:number, y:number, z:number}} position - the bot's feet
  * @param {{x:number, z:number}} from - the threat
@@ -63,8 +79,7 @@ export function firstStep(blockAt, position, from) {
     if (length < 0.01) { dx = 1; dz = 0; } else { dx /= length; dz /= length; }
     for (const turn of TURNS) {
         const x = dx * Math.cos(turn) - dz * Math.sin(turn), z = dx * Math.sin(turn) + dz * Math.cos(turn);
-        const cells = [1, 2].map(k => floorOf({ x: position.x + x * k, y: position.y, z: position.z + z * k }));
-        if (cells.every(cell => safeCell(blockAt, cell))) return { x, z };
+        if (cellsAhead(position, { x, z }).every(cell => safeCell(blockAt, cell))) return { x, z };
     }
     return null;
 }
@@ -199,9 +214,8 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
             bot.setControlState('forward', true);
             report({ event: 'step', at: performance.now(), how: 'dash' });
             while (!(ended = finished())) {
-                // Two cells ahead, as for the first step: one more block is all a sprint covers between checks.
-                const next = [1, 2].map(k => floorOf({ x: bot.entity.position.x + step.x * k, y: bot.entity.position.y, z: bot.entity.position.z + step.z * k }));
-                if (!next.every(cell => safeCell(blockAt, cell))) break; // something in the way: the pathfinder picks
+                // Two blocks ahead, as for the first step: one more block is all a sprint covers between checks.
+                if (!cellsAhead(bot.entity.position, step).every(cell => safeCell(blockAt, cell))) break; // something in the way: the pathfinder picks
                 if (guard && await guarding()) break; // behind the shield; the pathfinder goes on after
                 await wait(STEP_MS);
             }

@@ -52,6 +52,23 @@ test('a wall or an unknown cell is no step', () => {
     assert.equal(safeCell(world({ '1,64,0': null }), { x: 1, y: 64, z: 0 }), false);
 });
 
+test('in a dead end whose corners the bot believes open, no diagonal step slips between the walls', () => {
+    // From inside a one-wide dead end the corner blocks show no face, so memory may still hold the open
+    // ground from before they were built. A step at 45 degrees passes through a side wall first.
+    const cells = {};
+    for (const [x, z] of [[1, 0], [0, 1], [0, -1]]) cells[`${x},64,${z}`] = 'stone';
+    for (const [x, z] of [[1, 1], [1, -1]]) cells[`${x},64,${z}`] = 'air';
+    for (const at of [{ x: 0.7, y: 64, z: 0.5 }, { x: 0.5, y: 64, z: 0.5 }]) // from the middle the line runs through the corner
+        assert.equal(firstStep(world(cells), at, creeperWest), null, JSON.stringify(at));
+});
+
+test('a straight run along a wall the bot stands against is still a step', () => {
+    const cells = {};
+    for (let x = -3; x <= 4; x++) cells[`${x},64,1`] = 'stone'; // a wall along z = 1, the bot's side touching it
+    const step = firstStep(world(cells), { x: 0.5, y: 64, z: 0.7 }, { x: -2.5, y: 64, z: 0.7 });
+    assert.ok(step && step.x > 0.99, JSON.stringify(step));
+});
+
 test('walled in on every side away from the threat: no first step, the pathfinder decides', () => {
     const cells = {};
     for (const [x, z] of [[1, 0], [1, 1], [1, -1], [0, 1], [0, -1]]) cells[`${x},64,${z}`] = 'stone';
