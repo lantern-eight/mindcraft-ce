@@ -348,6 +348,8 @@ enderman's eyes, and seen by perception and world memory. The idle look-around g
   the bot stood, and the same sound from the same way doesn't turn the bot again while the note holds: a
   minute and a half, until the bot moves four blocks, until the sound comes closer or from another way, and
   never past a hit.
+- **Not away from a mob in front.** While a hostile mob is in view nearby, a sound waits: turning to it would
+  turn that mob off the screen, and the reflexes judge by what is in view. A hit or a shot doesn't wait.
 - **Busy too, at a break in the work.** Not while the bot walks (the walk steers the head, and turning it
   would turn the walk) or while a reflex moves it. A sound waits for a block being dug to break, and is let go
   after three seconds; a hit or a shot doesn't wait.

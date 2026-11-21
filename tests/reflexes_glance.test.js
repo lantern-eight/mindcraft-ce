@@ -16,6 +16,7 @@ function scene({ narrow = true } = {}) {
     Object.assign(bot, {
         registry: { entitiesByName: { zombie: { type: 'hostile' }, cow: { type: 'passive' }, skeleton: { type: 'hostile' } } },
         entity: { position: new Vec3(0.5, 64, 0.5), yaw: 0, pitch: 0 },
+        entities: {}, nearestEntity: () => null,
         pathfinder: { isMoving: () => false },
         targetDigBlock: null,
         look: async (yaw, pitch) => { looks.push(Math.round(yaw * 100) / 100); },
@@ -80,6 +81,15 @@ test('a sound waits for a dig to finish and for a walk to stop; a hit doesn\'t w
     bot.targetDigBlock = { name: 'stone' };
     glance.felt(agent, { x: -1, z: 0 });
     assert.equal(looks.length, 2, 'a hit turns the bot mid-dig');
+});
+
+test('a sound waits while a hostile mob in view has the bot\'s eyes; a hit doesn\'t', () => {
+    const { bot, agent, glance, looks } = scene();
+    bot.entities = { 7: { id: 7, name: 'zombie', type: 'hostile', position: new Vec3(0.5, 64, -5.5) } };
+    glance.hear(agent, heard('zombie', 'south', 'close'));
+    assert.deepEqual(looks, [], 'a zombie in front: the groan behind waits');
+    glance.felt(agent, { x: 0, z: 1 });
+    assert.deepEqual(looks.map(Math.abs), [SOUTH], 'a hit from behind does not');
 });
 
 test('a back-off ended: a look back the way the bot came; seeing all around, nothing ever turns it', () => {

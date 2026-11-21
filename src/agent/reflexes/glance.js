@@ -21,12 +21,14 @@
 // walk) or while a reflex is moving it, and a sound waits for a dig in progress to finish. A hit or a shot
 // doesn't wait. Only through a player's screen: seeing all around, there is nothing to turn for.
 import { describeDirection } from '../fairplay/perception.js';
+import * as world from '../library/world.js';
 
 const HOLD_MS = 1000;            // how long a glance holds the head
 const NOTE_MS = 90_000;          // how long "looked, saw nothing" is trusted
 const NOTE_MOVED = 4;            // blocks: past this from where it looked, the wall may not be between them
 const WAIT_MS = 3000;            // a sound waits this long for a break in the work, then is let go
 const CLOSE = new Set(['very close', 'close']);
+const IN_VIEW_WITHIN = 16;       // blocks: a hostile mob in view this near keeps the bot's eyes
 const BANDS = ['very close', 'close', 'near', 'far'];
 // The compass names hearing uses, as the yaw that faces them (mineflayer: 0 faces north, -z; west is +pi/2).
 const YAW_OF = {
@@ -79,6 +81,10 @@ export function createGlance({ now = Date.now } = {}) {
         const reflexMoving = label.startsWith('mode:') && !pending.afterReflex;
         if (walking || reflexMoving) return false;
         if (bot.targetDigBlock && !pending.urgent) return false; // a sound waits for the block to be dug
+        // A hostile mob in view nearby has the bot's eyes: turning to a sound would turn it off the screen,
+        // and the reflexes judge by what is in view. A sound waits; a hit or a shot doesn't.
+        if (!pending.urgent && world.getNearbyEntities(bot, IN_VIEW_WITHIN).some(e => e.lastSeenAt === undefined
+            && bot.registry?.entitiesByName?.[e.name]?.type === 'hostile')) return false;
         const glance = pending;
         pending = null;
         const looks = agent.fairPlay.looks;
