@@ -41,6 +41,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   when the bot turns.
 - The bot turns to face a block within reach before digging, opening, using or placing against it, then
   checks that it can see it, as a player turns to click something behind them.
+- Through a player's screen, what the bot heard says which side of it the sound came from as well as which way:
+  `heard: zombie (behind you, south, close)`.
 - Through a player's screen, with the threat reflexes on, the bot glances toward a hit from something it can't
   see, a hostile mob heard close by, a shot heard, and back the way it came when it has backed off from a
   threat, holding the look about a second. A glance at a sound that showed nothing is remembered, so a zombie

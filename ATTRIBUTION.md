@@ -89,6 +89,9 @@ No code was copied for these. They are credited because the work builds on them.
   Planning for Partially-Known Environments*, 1994; S. Koenig and M. Likhachev, *D\* Lite*, 2002). Used by
   the route planning in `src/agent/fairplay/fair_legs.js`, which searches afresh each time where those
   repair the last search.
+- **Telling a sound by which side of the bot it came from** (front, behind, left, right) comes from
+  [`benpham3206/Agent37`](https://github.com/benpham3206/Agent37) (`bridge/sounds.js`). Used by perception's
+  heard lines in `src/agent/fairplay/perception.js`, through a player's screen.
 - **A gaze with a shape, a budget of looks per mob and a floor on how often the head turns** come from the idle
   look-around in the [`winnerspiros/mindcraft`](https://github.com/winnerspiros/mindcraft) fork
   (`src/agent/modes.js`). Used by `src/agent/fairplay/idle_look.js`.

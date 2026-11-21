@@ -124,7 +124,8 @@ player's legs do.
 
 - `!nearbyBlocks` and `!entities` (and the state summary built from them) list only what the bot perceives.
 - `!entities` adds lines such as `heard: zombie (east, close)` for sounds whose source isn't in view. A
-  creeper's hiss and an explosion are listed even in plain view.
+  creeper's hiss and an explosion are listed even in plain view. Through a player's screen the line also
+  says which side of the bot it came from: `heard: zombie (behind you, south, close)`.
 - A creeper's hiss or an explosion close by also reaches the [creeper reflex](threat-reflexes.md) the
   moment it is heard, with the same direction and distance band and nothing more.
 - Through a player's screen, `!entities` says that only what is in front is listed, and `!lookAround`

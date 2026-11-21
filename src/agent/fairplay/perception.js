@@ -515,6 +515,20 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         }
     }
 
+    /** Where a point is from the bot's facing: in front, to its left or right, or behind it. Null overhead. */
+    function sideOf(here, point) {
+        const dx = point.x - here.x, dz = point.z - here.z;
+        if (Math.hypot(dx, dz) < 1.5) return null;
+        const yaw = bot.entity.yaw ?? 0;
+        // The angle from the facing round to the sound; mineflayer's yaw grows toward the west (the left).
+        const toward = Math.atan2(-dx, -dz);
+        const off = ((toward - yaw) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
+        const halfWidth = (screen?.widthDegrees ?? 102) / 2 * Math.PI / 180;
+        if (Math.abs(off) <= halfWidth) return 'in front of you';
+        if (Math.abs(off) >= 3 * Math.PI / 4) return 'behind you';
+        return off > 0 ? 'to your left' : 'to your right';
+    }
+
     /**
      * Calls `listener(sound)` the moment each sound is heard, with what heard() would list for it:
      * subject, direction, distance band, `seen`, `news`, `text`. Never where it came from. A reflex that
@@ -529,6 +543,11 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
     // One sound as heard() reports it. `inView` gives the entities in view, asked for only when needed.
     function describeSound(sound, here, inView) {
         const where = describeDirection(here, sound.position);
+        // Through a player's screen, which side of the bot it came from as well: "behind you" is what a player
+        // makes of a sound, and what tells the model to turn. The compass way stays: it is fair (the debug
+        // screen shows the facing), and the glance turns by it.
+        const side = narrowView ? sideOf(here, sound.position) : null;
+        if (side) where.text = `${side}, ${where.text}`;
         const kind = sound.subject.replace(/ \(.*$/, '');
         const near = (p, range) => Math.hypot(p.x - sound.position.x, p.y - sound.position.y, p.z - sound.position.z) <= range;
         let seen = null;

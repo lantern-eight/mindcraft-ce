@@ -247,6 +247,25 @@ test('a narrow view: what is behind the bot is unknown until it turns', () => {
     assert.ok(perception.screenNow(), 'a screen while the view is narrow');
 });
 
+test('a narrow view: what is heard says which side of the bot it came from, as well as which way', () => {
+    const { bot, perception } = setup(() => {}, { policy: NARROW });
+    perception.hearSound('minecraft:entity.zombie.ambient', at(0.5, 1, 8.5));   // south: behind the bot, facing north
+    perception.hearSound('minecraft:entity.skeleton.ambient', at(-8.5, 1, 0.5)); // west: to its left
+    perception.hearSound('minecraft:entity.spider.ambient', at(8.5, 1, 0.5));    // east: to its right
+    perception.hearSound('minecraft:entity.cow.ambient', at(0.5, 1, -8.5));      // north: in front
+    const said = Object.fromEntries(perception.heard().map(h => [h.subject, h.text]));
+    assert.equal(said.zombie, 'behind you, south, close');
+    assert.equal(said.skeleton, 'to your left, west, close');
+    assert.equal(said.spider, 'to your right, east, close');
+    assert.equal(said.cow, 'in front of you, north, close');
+    assert.equal(perception.heard().find(h => h.subject === 'zombie').direction, 'south', 'the compass way is kept apart');
+    bot.entity.yaw = Math.PI; // turned round
+    assert.match(perception.heard().find(h => h.subject === 'zombie').text, /^in front of you/);
+    const wide = setup(() => {});
+    wide.perception.hearSound('minecraft:entity.zombie.ambient', at(0.5, 1, 8.5));
+    assert.equal(wide.perception.heard()[0].text, 'south, close', 'seeing all around, the compass alone');
+});
+
 test('a narrow view: a name tag shows through walls only on screen', () => {
     const ahead = { id: 9, type: 'player', username: 'Alex', position: at(0.5, 1, -10.5), height: 1.8, eyeHeight: 1.62 };
     const behind = { id: 10, type: 'player', username: 'Sam', position: at(0.5, 1, 10.5), height: 1.8, eyeHeight: 1.62 };
