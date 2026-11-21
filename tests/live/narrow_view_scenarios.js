@@ -46,6 +46,8 @@ try {
     const { guardGaze, stares } = await import('../../src/agent/reflexes/gaze.js');
     const { editionOf } = await import('../../src/agent/edition/index.js');
     const world = await import('../../src/agent/library/world.js');
+    const skills = await import('../../src/agent/library/skills.js');
+    const { getCommand } = await import('../../src/agent/commands/index.js');
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -165,6 +167,34 @@ try {
         assert.match(result.text, /can't see the block at 0, 70, 3/);
         assert.ok(Math.cos(bot.entity.yaw - SOUTH) > 0.9, 'it turned to look');
         return { text: result.text.trim() };
+    });
+
+    await step('a search with nothing in view looks round first, and finds the log behind the bot', async () => {
+        await reset();
+        // Somewhere the bot has not looked round from lately: the scenes before turned it every way at the middle.
+        await cmd(`tp ${NAME} 8.5 70 -6.5 180 0`);
+        await cmd('setblock 8 70 1 oak_log');
+        await cmd(`give ${NAME} iron_axe`);
+        await waitFor(() => rawName(8, 70, 1) === 'oak_log', 5000);
+        await delay(1500);
+        await bot.look(NORTH, 0, true);
+        assert.equal(sees(at(8, 70, 1)), null, 'behind the bot');
+        const result = await act('test:collect', () => skills.collectBlock(bot, 'oak_log', 1));
+        assert.equal(result.status, 'ok', result.text);
+        await waitFor(() => rawName(8, 70, 1) === 'air', 5000, () => `the log is still there: ${result.text}`);
+        return { text: result.text.trim().split('\n').slice(-1)[0] };
+    });
+
+    await step('!lookAround turns the bot round, and what was behind it is known after', async () => {
+        await reset();
+        await cmd('setblock 2 70 6 gold_block');
+        await waitFor(() => rawName(2, 70, 6) === 'gold_block', 5000);
+        await delay(1000);
+        assert.equal(sees(at(2, 70, 6)), null);
+        const said = await getCommand('!lookAround').perform(agent);
+        assert.match(String(said), /Looked around \(\d looks\)/);
+        assert.equal(remembers(2, 70, 6), 'gold_block', 'world memory saw it as the bot turned');
+        return { said: String(said).trim() };
     });
 
     await step('an enderman behind the bot: turning round toward its eyes never stares, and it never turns on the bot', async () => {
