@@ -26,7 +26,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward } from '../helpers/live_view.js';
 
 const NAME = 'BedrockFair';
 const { step, summary } = createReport();
@@ -162,6 +162,7 @@ try {
 
     await step('V3: with one diamond in view it mines that one, and the buried ones stay untouched', async () => {
         await set(IN_VIEW, 'diamond_ore');
+        await faceToward(bot, at(...IN_VIEW).offset(0.5, 0.5, 0.5)); // in view: facing it
         await delay(800);
         const result = await act('test:collect', () => skills.collectBlockResult(bot, 'diamond_ore', 3));
         assert.equal(result.broken, 1, result.text);
@@ -257,6 +258,8 @@ try {
         const report = getCommand('!entities').perform(agent);
         assert.doesNotMatch(report, /entities: \d+ zombie/, report);
         await fill([low[0], 1, low[2]], [high[0], 1, high[2]], 'air');
+        // The bot looks down into the opened pit, as a player who heard the lid go would.
+        await faceToward(bot, bottom.offset(0.5, 1, 0.5));
         await delay(800);
         assert.match(getCommand('!entities').perform(agent), /entities: 1 zombie/, 'now it is seen');
         // Mindcraft's first reflex to a hostile mob in view is "cowardice": back away from it.

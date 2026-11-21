@@ -132,6 +132,7 @@ try {
 
     await step('V3: with one diamond in view it mines that one, and the buried ones stay untouched', async () => {
         await cmd('setblock 5 71 0 diamond_ore'); // on the face of the lump, in plain view
+        await bot.lookAt(new Vec3(5.5, 71.5, 0.5), true); // and the bot facing it
         await delay(800);
         const result = await act('test:collect', () => skills.collectBlockResult(bot, 'diamond_ore', 3));
         assert.equal(result.broken, 1, result.text);

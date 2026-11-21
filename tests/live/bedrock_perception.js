@@ -15,7 +15,7 @@ import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward } from '../helpers/live_view.js';
 
 const NAME = 'BedrockSight';
 const { step, summary } = createReport();
@@ -102,22 +102,29 @@ try {
         assert.equal(bot.blockAt(at(0, -1, 0))?.name, 'dirt');
     });
 
-    await step('the buried diamond and the sealed chest are hidden; the diamond in the open is known', () => {
+    // Through a player's screen the bot turns to each thing a step asks about, as a player would.
+    const face = (x, y, z) => faceToward(bot, at(x, y, z).offset(0.5, 0.5, 0.5));
+    await step('the buried diamond and the sealed chest are hidden; the diamond in the open is known', async () => {
+        await face(6, 3, 0);
         assert.equal(perception.blockAt(at(6, 3, 0)), null);
+        await face(0, 2, 8);
         assert.equal(perception.blockAt(at(0, 2, 8)), null);
+        await face(-6, 1, 0);
         assert.equal(perception.blockAt(at(-6, 1, 0))?.name, 'diamond_ore');
         const found = perception.findBlocks({ matching: [id('diamond_ore'), id('chest')], maxDistance: 32, count: 10 });
         assert.deepEqual(coords(found), [[-6, 1, 0]]);
     });
 
-    await step('the floor is known and the dirt under it is not', () => {
+    await step('the floor is known and the dirt under it is not', async () => {
+        await face(3, 0, 3);
         assert.equal(perception.blockAt(at(3, 0, 3))?.name, 'stone');
         assert.equal(perception.blockAt(at(3, -1, 3)), null);
         assert.equal(perception.findBlocks({ matching: id('dirt'), maxDistance: 16, count: 100 }).length, 0);
         assert.ok(perception.findBlocks({ matching: id('stone'), maxDistance: 8, count: 1000 }).length > 50);
     });
 
-    await step('the cow in the sealed pen is not perceived; the one behind glass is', () => {
+    await step('the cow in the sealed pen is not perceived; the one behind glass is', async () => {
+        await face(-5, 2, -8); // north-west, with both pens on screen
         const cows = perception.entities().filter(e => e.name === 'cow');
         const raw = Object.values(bot.entities).filter(e => e.name === 'cow' && e.position.distanceTo(bot.entity.position) < 20);
         assert.equal(raw.length, 2, `the server sent ${raw.length} cows nearby`);
@@ -125,7 +132,8 @@ try {
         assert.ok(cows[0].position.x < origin.x - 5, 'the one perceived is the one behind glass');
     });
 
-    await step('world.js answers fairly once the provider is installed', () => {
+    await step('world.js answers fairly once the provider is installed', async () => {
+        await face(-8, 1, -2); // west, with the diamond and the glass pen on screen
         registerFairPlay(bot, { perception, policy });
         setWorldQueries(fairQueries);
         try {

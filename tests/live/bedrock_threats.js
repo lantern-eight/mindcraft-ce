@@ -77,7 +77,7 @@ try {
     // A stone floor 40 blocks above the bot's spawn, 61 wide, with nothing above it.
     // A console line can't name a mob to remove (it would need a selector a shell could change), so peaceful
     // difficulty, which removes every hostile mob, clears the creepers, and normal difficulty comes back.
-    async function reset() {
+    async function reset({ facing = -90 } = {}) {
         await cmd('difficulty peaceful', 1000);
         await cmd('difficulty normal');
         await waitFor(() => !agent?.actions.executing, 15000, () => 'the reflex is still moving');
@@ -88,7 +88,10 @@ try {
         // standing orders let it fight.
         await cmd(`clear ${NAME}`);
         await cmd(`effect ${NAME} instant_health 1 5`);
-        await tpTo([0, 1, 0], -90, 2500);
+        await tpTo([0, 1, 0], facing, 2500);
+        // Facing the way the scene asks again: the idle look-around may have turned the bot meanwhile, and
+        // through a player's screen which way it faces decides what it sees.
+        await bot.look((180 - facing) * Math.PI / 180, 0, true);
         events.length = 0; messages.length = 0;
         reflexes?.creeper.picture.clear();
         reflexes?.zones.clear(); // as on Java: no danger remembered from the last scene bends this one's escape
@@ -213,7 +216,7 @@ try {
     // as on Java, so a bot without a shield lives to be measured.
     for (const shield of [false, true]) {
         await step(`cornered by a lit creeper${shield ? ', with a shield it is given: it goes in the off-hand, and the bot faces the blast sneaking behind it, no damage' : ', no shield: the damage it takes'}`, async () => {
-            await reset();
+            await reset({ facing: 90 }); // facing west, where the creeper will be
             await cmd('difficulty easy');
             await fill([-3, 1, -1], [1, 2, -1], 'stone');
             await fill([-3, 1, 1], [1, 2, 1], 'stone');
@@ -381,7 +384,7 @@ try {
     });
 
     await step('two zombies coming: the mob reflex backs away from both, even from a fight just taken on', async () => {
-        await reset();
+        await reset({ facing: 135 }); // facing north-west, between the two zombies
         await cmd(`effect ${NAME} resistance 30 2 true`);
         for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`); }
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
@@ -395,7 +398,7 @@ try {
     });
 
     await step('a lone zombie, the bot with a stone sword: the fight takes it on', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword 1`, 700);
         const spot = at(-6, 1, 0);
         await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
@@ -407,7 +410,7 @@ try {
     // ---- Standing orders ----
 
     await step('armed with a stone sword, two zombies coming: the built-in order fights them instead of backing away, while health holds', async () => {
-        await reset();
+        await reset({ facing: 135 }); // facing north-west, between the two zombies
         await cmd(`give ${NAME} stone_sword 1`, 700);
         const healthAt = [];
         const note = event => { if (event.event === 'decided') healthAt.push({ mode: event.mode, key: event.key, health: bot.health }); };

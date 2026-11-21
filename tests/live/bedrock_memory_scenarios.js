@@ -21,7 +21,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, lookRound } from '../helpers/live_view.js';
 
 const NAME = 'BedrockRecall';
 const { step, summary } = createReport();
@@ -129,6 +129,8 @@ try {
         assert.ok(handle?.memory, 'world memory is on');
         await delay(1500);
         await settled();
+        // Through a player's screen the bot looks round the platform, as a player arriving would.
+        await lookRound(bot, settled);
     });
 
     await step('what is in view is remembered from real chunk data, and what is under the platform is not', () => {

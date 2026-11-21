@@ -76,10 +76,11 @@ try {
     };
     agent.actions = new ActionManager(agent);
     initModes(agent);
+    // The bot's own look, before anything wraps it (fair play paces turns, and a paced turn's steps go
+    // through the gaze guard), for the enderman scene's comparison.
+    const unguardedLook = bot.look;
     const fair = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'mob-memory-')) });
     assert.ok(fair, 'fair play installed');
-    // The bot's own look, before the gaze guard goes on it, for the enderman scene's comparison.
-    const unguardedLook = bot.look;
     // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
     const reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'mob-orders-')) });
     assert.ok(STOCK ? !reflexes : reflexes, 'threat reflexes installed, unless --stock');
