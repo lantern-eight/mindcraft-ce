@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- `turn_speed`, a fair-play switch for how fast the bot turns its head, in degrees a second. Every turn, the
+  fight's and the reflexes' included, is then made a step each game tick, as a player turns, instead of at once.
+  `180` is a player on a controller; the default stays `"instant"` for now.
+
 ### Fixed
 
 - A walk whose route ended short of its goal, on ground the bot had not seen and that turned out not to be

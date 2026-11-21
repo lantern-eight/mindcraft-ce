@@ -173,6 +173,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `mobs_through_walls` | `false` | `true` |
 | `players_through_walls` | `"nametag"` | `true`, `false` |
 | `fov_degrees` | `70` (Java's default: a 16:9 screen 70° tall, about 102° across) | the game's field of view, the screen's height in degrees: `30` to `110`; or `360` to see all around |
+| `turn_speed` | `"instant"` (mineflayer's own: the facing changes at once) | degrees a second, `30` to `3600`: `180` is a player on a controller, a half turn in a second. Every turn is made a step each game tick at that speed, the fight's and the reflexes' too, so no look is a free look round |
 | `sight_distance` | `"server"` (whatever is loaded) | a number of blocks |
 | `entity_distance` | `64` | blocks |
 | `hearing_radius` | `16` | blocks |

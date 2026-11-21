@@ -34,6 +34,7 @@ import { checkFairWiring } from './wiring_check.js';
 import { createCodeRunner } from './code_runner.js';
 import { createReachGuard, installReachGuard } from './reach_guard.js';
 import { installWalkingGaze } from './walking_gaze.js';
+import { installTurnSpeed } from './turn_speed.js';
 import { setAttackReach } from '../library/attack_reach.js';
 import { setDigDownWay } from '../library/dig_down_way.js';
 import { digStairsDown } from '../library/stairs_down.js';
@@ -292,6 +293,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         // Through a player's screen the bot looks a little down as it walks, at the ground it is about to
         // step on, instead of level over it.
         installWalkingGaze(bot, { getScreen: () => handle.perception?.screenNow?.() ?? null });
+        // Every turn of the head at the policy's speed, a step each game tick, so no look is a free look round.
+        installTurnSpeed(bot, { getSpeed: () => policy.turn_speed });
         // A single hit walks within the reach the guard allows first, instead of swinging from where the
         // stock skill would and being refused.
         setAttackReach(bot, entity => handle.reach.withinReach(entity));

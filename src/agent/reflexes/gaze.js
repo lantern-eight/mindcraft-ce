@@ -56,8 +56,15 @@ export function safePitch(eye, yaw, pitch, eyes) {
  * @param {object} bot
  */
 export function guardGaze(bot) {
-    if (!bot || typeof bot.look !== 'function' || bot.look.gazeGuarded) return;
-    const look = bot.look;
+    if (!bot || typeof bot.look !== 'function' || bot.look.gazeGuarded || bot.gazeGuarded) return;
+    bot.gazeGuarded = true;
+    // Under fair play's turn speed (fairplay/turn_speed.js) a turn is made in steps, and each step must be
+    // judged, not only where the turn ends: a sweep round can pass over an enderman's eyes on the way.
+    if (bot.lookPacer) bot.lookPacer.stepThrough(look => guarded(bot, look));
+    else bot.look = guarded(bot, bot.look);
+}
+
+function guarded(bot, look) {
     // The pathfinder looks the way it walks every tick, and asking what is in view costs a look around; the
     // endermen in view are asked for at most every 250 ms.
     let eyes = [], askedAt = -Infinity;
@@ -72,7 +79,7 @@ export function guardGaze(bot) {
             .map(entity => ({ x: entity.position.x, y: entity.position.y + ENDERMAN_EYE, z: entity.position.z }));
         return eyes;
     };
-    const guarded = async (yaw, pitch, force) => {
+    const guard = async (yaw, pitch, force) => {
         const position = bot.entity?.position;
         if (!position) return look(yaw, pitch, force);
         const eyes = endermenEyes();
@@ -84,6 +91,6 @@ export function guardGaze(bot) {
         const safe = safePitch(eye, yaw, intended, eyes);
         return look(yaw, safe === intended ? pitch : safe, force);
     };
-    guarded.gazeGuarded = true;
-    bot.look = guarded;
+    guard.gazeGuarded = true;
+    return guard;
 }

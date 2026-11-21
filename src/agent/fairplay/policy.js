@@ -21,6 +21,8 @@ export const STRICT_RULES = Object.freeze({
     fov_degrees: 70,                // the game's field-of-view number: the screen's height in degrees, 30 to
                                     // 110, or 360 for all around. 70 is Java's default, about 102 across on a
                                     // 16:9 screen, and is used on Bedrock too, whose own default is 60
+    turn_speed: 'instant',          // how fast the head turns, in degrees a second (180 is a player on a
+                                    // controller, a half turn in a second), or 'instant', as mineflayer turns
     sight_distance: 'server',       // 'server' (whatever is loaded) or a number of blocks
     entity_distance: 64,
     hearing_radius: 16,
@@ -79,6 +81,9 @@ function validate(rules) {
             if (!CHOICES[key].includes(value)) throw new Error(`fair_play_custom.${key} must be one of ${CHOICES[key].join(', ')}`);
         } else if (key === 'sight_distance') {
             if (value !== 'server' && !(Number.isFinite(value) && value > 0)) throw new Error('fair_play_custom.sight_distance must be "server" or a positive number');
+        } else if (key === 'turn_speed') {
+            if (value !== 'instant' && !(Number.isFinite(value) && value >= 30 && value <= 3600))
+                throw new Error('fair_play_custom.turn_speed must be "instant" or a number of degrees a second, 30 to 3600');
         } else if (key === 'reach_blocks' || key === 'reach_entities') {
             if (value !== 'survival' && !(Number.isFinite(value) && value > 0)) throw new Error(`fair_play_custom.${key} must be "survival" or a positive number`);
         } else if (RANGES[key]) {
