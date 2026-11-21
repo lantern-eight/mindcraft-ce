@@ -151,6 +151,7 @@ node tests/live/fairplay_scenarios.js
 | `memory_scenarios.js` | World memory: what the bot is told it saw, and what changed while it was away (one step waits a minute) |
 | `navigator_scenarios.js` | Travel back along the trail the bot walked |
 | `legs_scenarios.js` | Route planning over only what the bot has seen |
+| `narrow_view_scenarios.js` | A player's field of view (`fov_degrees` 70): what is behind the bot unknown to perception and memory until it turns, turning to dig, open and build against a block behind it, refused behind a wall, and turning round toward an enderman without staring |
 | `look_first_scenarios.js` | Skills given a spot by its coordinates look before they decide; `digDown`'s staircase; `goToSurface` |
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
 | `mining_scenarios.js` | Mining and digging |
