@@ -23,6 +23,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55922);
 const worldMemory = !process.argv.includes('--no-world-memory');
@@ -39,7 +40,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', fair_play: 'strict', world_memory: worldMemory });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(), world_memory: worldMemory });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -131,6 +132,7 @@ try {
 
     await step('V3: with one diamond in view it mines that one, and the buried ones stay untouched', async () => {
         await cmd('setblock 5 71 0 diamond_ore'); // on the face of the lump, in plain view
+        await bot.lookAt(new Vec3(5.5, 71.5, 0.5), true); // and the bot facing it
         await delay(800);
         const result = await act('test:collect', () => skills.collectBlockResult(bot, 'diamond_ore', 3));
         assert.equal(result.broken, 1, result.text);
@@ -198,6 +200,7 @@ try {
         const report = getCommand('!entities').perform(agent);
         assert.doesNotMatch(report, /entities: \d+ zombie/, report);
         await cmd('fill -1 70 -6 1 71 -6 air'); // a gap in the wall
+        await bot.lookAt(new Vec3(0.5, 71, -8.5), true); // looking through it
         await delay(800);
         assert.match(getCommand('!entities').perform(agent), /entities: 1 zombie/, 'now it is seen');
         // CE's first reflex to a hostile mob in view is "cowardice": back away from it.

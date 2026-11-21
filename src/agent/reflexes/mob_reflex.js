@@ -26,7 +26,7 @@ import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
 import { couldHaveHit, decideMobThreat, ordersAfterGivingUp } from './mob_decide.js';
-import { retreatFrom, takeCover } from './moves.js';
+import { backAwayFacing, retreatFrom, takeCover } from './moves.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
 import { shotComing, shotWindow } from './shield.js';
@@ -120,13 +120,30 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
                     };
                     let outcome = await takeCover(bot, { eye, report, done: () => !aimingNow(bot, id) && lostSight() });
                     report({ event: 'cover', at: performance.now(), ended: outcome.ended });
-                    if (outcome.ended === 'no cover' || outcome.ended === 'no way there')
-                        outcome = await retreatFrom(bot, { from, to: decision.distance, report, done: lostSight, guard: archerGuard(bot) });
+                    if (outcome.ended === 'no cover' || outcome.ended === 'no way there') {
+                        // With a shield, the bot backs out facing the archer, as a player does. A shield covers only
+                        // the side the bot faces: running faces away, so each shot meant a turn to raise it, too late
+                        // as often as not, and through a player's screen the bot couldn't even see the archer draw
+                        // or tell its next shot was due. Facing it, it sees the archer, so losing sight means
+                        // something, whichever way the bot sees.
+                        const archer = () => {
+                            const mob = mobInView(bot, id) ?? mobsAround(bot, dying).find(m => m.id === id);
+                            const at = mob?.position ?? known[0];
+                            return at ? { x: at.x, y: at.y + (mob?.height ?? 1.8) * 0.8, z: at.z } : null;
+                        };
+                        outcome = shield?.has()
+                            ? await backAwayFacing(bot, { from, face: archer, to: decision.distance, report, done: lostSight, guard: archerGuard(bot) })
+                            : await retreatFrom(bot, { from, to: decision.distance, report, done: () => !narrowView(agent) && lostSight(), guard: archerGuard(bot) });
+                    }
                     ended = outcome.ended;
                     log(bot, `Took cover from the ${decision.name} (${ended}).`);
                     return;
                 }
-                const outcome = await retreatFrom(bot, { from, to: decision.distance, report, maxMs: decision.stance === 'flee' ? 10000 : 8000, done: lostSight });
+                // Out of the bot's view means out of the mobs' only when the bot sees all around: through a
+                // player's screen it backs away facing the way out, so it goes by distance, and looks back when
+                // it stops (the glance). The same for backing out of an archer's range with no cover, above.
+                const outcome = await retreatFrom(bot, { from, to: decision.distance, report, maxMs: decision.stance === 'flee' ? 10000 : 8000,
+                    done: () => !narrowView(agent) && lostSight() });
                 ended = outcome.ended;
                 log(bot, `${decision.stance === 'flee' ? 'Ran' : 'Backed away'} from ${whatOf(decision)} (${ended}).`);
             }, { timeout: 1 });
@@ -139,6 +156,9 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
         report({ event: 'done', at: performance.now(), ended, interrupted: Boolean(result?.interrupted) });
         tellModel(agent, decision, interrupted, result, line);
     }
+
+    // Whether the bot sees through a player's screen (fair play's narrow view), not all around.
+    const narrowView = agent => Boolean(agent.fairPlay?.looks?.getScreen?.());
 
     // Backing out of range with no cover near: the shield up toward an archer while it draws, and until its
     // arrow lands, when every archer aiming is on one side (shield.js).
@@ -181,7 +201,7 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
             // a zombie is right there, and remembers it after the zombie falls.
             const explained = Boolean(bot.entity) && mobsAround(bot, dying).some(mob => mob.seenNow && couldHaveHit(mob));
             hits.push({ at: now(), direction, explained });
-            bot.emit?.('threat_reflex', { event: 'felt', at: performance.now(), direction, mode: MODE_NAME });
+            bot.emit?.('threat_reflex', { event: 'felt', at: performance.now(), direction, unseen: !explained, mode: MODE_NAME });
         });
         bot.on?.('entityDead', entity => dying.add(entity.id));
         bot.on?.('entityGone', entity => dying.delete(entity.id));

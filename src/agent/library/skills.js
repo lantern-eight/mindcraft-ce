@@ -3,6 +3,8 @@ import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
 import { followKnownWay } from './travel_guide.js';
 import { withinAttackReach } from './attack_reach.js';
+// Fork hook (docs/core-hooks.md, 27): a skill that searches may look around first.
+import { lookBeforeSearch } from './search_look.js';
 import { lookFirst, knownBlockAt, sideToPlaceAgainst, climbToSurface } from './look_first.js';
 import { digDownWayOf } from './dig_down_way.js';
 import { assertActionOwner, actionContext, onActionCleanup, cancellable } from '../action_context.js';
@@ -354,6 +356,8 @@ export async function attackNearest(bot, mobType, kill=true) {
     bot.modes.pause('cowardice');
     if (mobType === 'drowned' || mobType === 'cod' || mobType === 'salmon' || mobType === 'tropical_fish' || mobType === 'squid')
         bot.modes.pause('self_preservation'); // so it can go underwater. TODO: have an drowning mode so we don't turn off all self_preservation
+    // Fork hook (docs/core-hooks.md, 27): look around first when nothing is near.
+    await lookBeforeSearch(bot, world.getNearbyEntities(bot, 24).find(entity => entity.name === mobType)?.position);
     const mob = world.getNearbyEntities(bot, 24).find(entity => entity.name === mobType);
     if (mob) {
         return await attackEntity(bot, mob, kill);
@@ -1374,6 +1378,8 @@ export async function goToNearestBlock(bot, blockType,  min_distance=2, range=64
         log(bot, `Maximum search range capped at ${MAX_RANGE}. `);
         range = MAX_RANGE;
     }
+    // Fork hook (docs/core-hooks.md, 27): look around first when nothing is near.
+    await lookBeforeSearch(bot, world.getNearestBlock(bot, blockType, range)?.position);
     let block = null;
     if (blockType === 'water' || blockType === 'lava') {
         let blocks = world.getNearestBlocksWhere(bot, block => block.name === blockType && block.metadata === 0, range, 1);
@@ -1405,6 +1411,8 @@ export async function goToNearestEntity(bot, entityType, min_distance=2, range=6
      * @param {number} range, the range to look for the entity. Defaults to 64.
      * @returns {Promise<boolean>} true if the entity was reached, false otherwise.
      **/
+    // Fork hook (docs/core-hooks.md, 27): look around first when nothing is near.
+    await lookBeforeSearch(bot, world.getNearestEntityWhere(bot, entity => entity.name === entityType, range)?.position);
     let entity = world.getNearestEntityWhere(bot, entity => entity.name === entityType, range);
     if (!entity) {
         log(bot, `Could not find any ${entityType} in ${range} blocks.`);

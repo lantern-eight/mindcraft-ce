@@ -1,6 +1,8 @@
 import pf from 'mineflayer-pathfinder';
 import { actionContext, assertActionOwner, cancellable } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
+// Fork hook (docs/core-hooks.md, 27): a skill that searches may look around first.
+import { lookBeforeSearch } from './search_look.js';
 
 const failures = new WeakMap();
 const counts = bot => Object.fromEntries(bot.inventory.items().map(i => [i.name,
@@ -44,6 +46,8 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
     };
     bot.on('action_dig_target', onDigTarget);
     try {
+    // Fork hook (docs/core-hooks.md, 27): look around first when none is near.
+    await lookBeforeSearch(bot, find(block => types.has(block.name)).find(block => block.position)?.position);
     while (broken < requested && attempts++ < Math.max(6, requested * 4)) {
         if (interrupt()) break;
         assertActionOwner(bot);

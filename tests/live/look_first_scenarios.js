@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live scenarios for skills that are given a block by its coordinates (no model calls, free to run).
-//   node tests/live/look_first_scenarios.js [--port=55923]
+//   node tests/live/look_first_scenarios.js [--port=55923] [--only=<regex>]
 // Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // Under fair play these skills look at a block before they decide anything from it (look_first.js):
@@ -18,11 +18,14 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55923);
 const NAME = 'LookFirst';
 const results = [];
+const ONLY = process.argv.find(a => a.startsWith('--only='))?.split('=')[1];
 const step = async (name, fn) => {
+    if (ONLY && !new RegExp(ONLY).test(name)) return;
     const started = Date.now();
     const details = await fn();
     const result = { name, status: 'passed', durationMs: Date.now() - started, ...(details || {}) };
@@ -33,7 +36,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', fair_play: 'strict', world_memory: true });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(), world_memory: true });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

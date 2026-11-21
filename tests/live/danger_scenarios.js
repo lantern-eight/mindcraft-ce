@@ -21,6 +21,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55933);
@@ -44,7 +45,7 @@ const server = await vanillaFixture(port);
 let bot, running = true;
 try {
     setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline',
-        fair_play: 'strict', world_memory: true, threat_reflexes: true, narrate_behavior: false });
+        ...fairPlaySettings(), world_memory: true, threat_reflexes: true, narrate_behavior: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -115,6 +116,9 @@ try {
         await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
         await agent.actions.stop();
         await delay(2000);
+        // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
+        // and through a player's screen which way it faces decides what it sees.
+        await bot.look((180 - facing) * Math.PI / 180, 0, true);
         if (clearZones) zones.clear();
         messages.length = 0;
         bot.modes.behavior_log = '';

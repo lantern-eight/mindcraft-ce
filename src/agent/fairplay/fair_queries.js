@@ -76,6 +76,18 @@ export const fairQueries = Object.freeze({
         return null;
     },
 
+    // For planning a move (the reflexes' escapes and cover): open space the bot looked through and remembers
+    // is known to be open, which blockAt doesn't say. Through a player's screen most of the open ground
+    // around the bot is out of view at any moment, and a move planned with blockAt alone took it all for
+    // unknown, and so for unsafe.
+    believedAt(bot, position) {
+        const reg = registrations.get(bot);
+        if (!reg || reg.policy.sight === 'all') return bot.blockAt(position);
+        const known = reg.perception.believedAt(Math.floor(position.x), Math.floor(position.y), Math.floor(position.z));
+        if (known) return known;
+        return fairQueries.blockAt(bot, position); // a block the policy lets through walls
+    },
+
     entities(bot) {
         const reg = registrations.get(bot);
         if (!reg) return Object.values(bot.entities);

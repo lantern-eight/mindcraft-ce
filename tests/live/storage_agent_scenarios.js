@@ -21,6 +21,7 @@ import { io } from 'socket.io-client';
 import { planSort } from '../../src/agent/storage/sort_plan.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const live = process.argv.includes('--live-model');
 const runs = live ? Number(process.argv.find(a => a.startsWith('--runs='))?.split('=')[1] || 3) : 1;
@@ -109,7 +110,7 @@ async function converse(run) {
     child = spawn(process.execPath, ['main.js', '--profiles', profilePath], { env: { ...process.env, SETTINGS_JSON: JSON.stringify({
         host: '127.0.0.1', port: fixture.port, mindserver_port: MIND_PORT, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', init_message: '',
         num_examples: 0, max_messages: 100, load_memory: false, agent_max_steps: 20, agent_max_tool_calls: 40,
-        fair_play: 'strict', world_memory: true, chest_sorting: true,
+        ...fairPlaySettings(), world_memory: true, chest_sorting: true,
     }) }, stdio: ['pipe', 'pipe', 'pipe'] });
     const capture = data => { log += data; };
     child.stdout.on('data', capture); child.stderr.on('data', capture);

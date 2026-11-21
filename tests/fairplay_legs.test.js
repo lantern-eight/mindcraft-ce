@@ -48,7 +48,8 @@ function setup(build = () => {}, { memory = true, legs = true, position = [0.5, 
     world.fill('stone', [-64, 0, -64], [64, 0, 64]);
     build(world);
     const bot = walkerBot(world, { position });
-    const policy = resolvePolicy({ fair_play: 'custom', fair_play_custom: rules });
+    // Seeing all around: these scenes are about planning over what was seen, from every side.
+    const policy = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 360, ...rules } });
     const now = clock();
     let perception, recorder = null, store = null;
     if (memory) {
@@ -213,6 +214,30 @@ test('air seen while planning is not forgotten when the bot steps back from it',
         lookAround();
         assert.equal(movesFrom(movements, 1, 1, 0)['2,1,0'], undefined, `still known from far away (world memory ${memory ? 'on' : 'off'})`);
     }
+});
+
+test('a route that runs out short of the goal is planned again, once; one that ends at the goal is not', () => {
+    const { bot, legs, now } = setup();
+    let replans = 0;
+    const setMovements = bot.pathfinder.setMovements;
+    bot.pathfinder.setMovements = movements => { replans++; return setMovements(movements); };
+    const route = planRoute(bot, bot.pathfinder.movements, near(6, 1, 0));
+    bot.pathfinder.setGoal(near(30, 1, 0));                // farther than the route goes
+    bot.emit('path_update', route);
+    route.path.length = 0;                                 // walked to its end
+    assert.equal(legs.check(), true);
+    assert.equal(replans, 1);
+    now.advance(1000);
+    assert.equal(legs.check(), false, 'once: the next route is the pathfinder\'s to take up');
+    assert.equal(replans, 1);
+
+    bot.pathfinder.setGoal(near(0, 1, 0));                 // where the bot stands
+    const done = planRoute(bot, bot.pathfinder.movements, near(6, 1, 0));
+    bot.emit('path_update', done);
+    done.path.length = 0;
+    now.advance(1000);
+    assert.equal(legs.check(), false, 'at the goal: nothing to do');
+    assert.equal(replans, 1);
 });
 
 test('the route is planned again when the way ahead turns out not to be as believed', () => {

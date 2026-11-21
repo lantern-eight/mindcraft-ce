@@ -189,6 +189,17 @@ test('a creeper seen dying is not backed off from, though it is still swollen', 
     bot.stopWalking();
 });
 
+test('a lit creeper already known, seen dying, is forgotten at once: no round backs off from it', async () => {
+    const { agent, bot, installed } = makeAgent();
+    bot.entities[7] = creeper(-1.5, true);
+    installed.creeper.picture.see([{ id: 7, position: bot.entities[7].position, lit: true }], { position: bot.entity.position });
+    bot.emit('entityDead', bot.entities[7]); // the fourth hit lands: it dies where the bot can see it
+    installed.creeper.round(agent);
+    assert.equal(agent.actions.executing, false, 'no back-off from it');
+    assert.deepEqual(installed.creeper.picture.creepers({ position: bot.entity.position }), []);
+    bot.stopWalking();
+});
+
 test('an unlit creeper close by: errands start nothing and one under way stops; commands and the fight go on', async () => {
     const { agent, bot, installed } = makeAgent();
     agent.actions.runAction('mode:item_collecting', () => new Promise(() => {}));
@@ -222,3 +233,11 @@ async function waitUntil(check, ms) {
         await delay(20);
     }
 }
+
+test('a creeper following the bot out of view is taken to come on at a walk, never closer than a block', async () => {
+    const { comingOn } = await import('../src/agent/reflexes/creeper_reflex.js');
+    const from = { x: 0, y: 64, z: 0 }, bot = { x: 20, y: 64, z: 0 };
+    assert.deepEqual(comingOn(from, bot, 0), from);
+    assert.deepEqual(comingOn(from, bot, 2000), { x: 6, y: 64, z: 0 }, 'three blocks a second');
+    assert.deepEqual(comingOn(from, bot, 60000), { x: 19, y: 64, z: 0 }, 'it never passes the bot');
+});

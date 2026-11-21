@@ -142,7 +142,11 @@ A double chest, a bed or a door counts once, though it fills two cells.
 World memory holds only what a player in the bot's place could know:
 
 - **Blocks and things** are recorded only when in view, by the same sight test as the rest of
-  [fair play](fair-play.md). Buried ore is never recorded.
+  [fair play](fair-play.md). Buried ore is never recorded. That is what was on screen, the way the bot
+  faced at the time: what is behind it is not recorded until it turns. A turn of more than a quarter of the
+  screen starts a new look, as a step does. A look takes a few seconds, done a few milliseconds at a time;
+  a turn while one is under way looks again first at the cubes already gone over that the new screen shows,
+  so a turn of a second to look at something records it.
 - **Container contents** are only what the bot saw by opening the container.
 - **The trail** is the bot's own past positions, and a route is made only of spots it has stood on.
   Ordinary travel is held to what the bot has seen as well, but has to guess at what it has not
@@ -157,7 +161,8 @@ write things down; the bot's notes are just more thorough.
 World memory is built so it never slows the game.
 
 - **Looking around is spread out.** The bot looks over everything within 24 blocks in slices of a few
-  milliseconds, and does nothing while it stands still in an unchanged world.
+  milliseconds, and does nothing while it stands still in an unchanged world. It skips the cubes wholly
+  off screen, and looks again when it turns.
 - **No model calls.** Recording, routing and noticing changes are plain code.
 - **Reading and writing a remembered block** take tens of nanoseconds.
 - **Saving** happens once a minute, only for what changed, a few milliseconds at a time.

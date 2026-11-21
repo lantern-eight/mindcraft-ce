@@ -106,6 +106,7 @@ const OPEN = new Set(['air', 'cave_air', 'void_air']);
 // One round goes up to the highest ground the bot knows of; from there it looks again. Underground with
 // nothing remembered that is only the ceiling, so the climb goes a few blocks at a time.
 const MAX_ROUNDS = 16;
+const LOOK_UP = 1.45; // radians: nearly straight up (the game stops a look at 90 degrees)
 
 /**
  * What the bot knows of the column above its head: the highest block in it, and whether every cell up to
@@ -163,6 +164,9 @@ function pitExit(bot) {
 export async function climbToSurface(bot, { goToPosition, log }) {
     for (let round = 0; round < MAX_ROUNDS; round++) {
         const feetY = Math.floor(bot.entity.position.y);
+        // Looking up the column, as a player climbing out does. Through a player's screen the cells straight
+        // overhead are out of a level look.
+        await bot.look?.(bot.entity.yaw, LOOK_UP, true);
         const { highest, open } = columnAbove(bot);
         if (open) {
             const exitY = pitExit(bot);

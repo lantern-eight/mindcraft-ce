@@ -26,6 +26,11 @@ export const HEARD_MEMORY_MS = 10000;  // a hiss with nothing new is forgotten a
 const TICK_MS = 50;
 const SIGHT_GRACE_MS = 500;            // a sighting this soon after a hiss may not show the fuse yet
 const EXPLOSION_MEMORY_MS = 1500;
+const BLEW_UP_WITHIN = 6;              // blocks between a lit creeper and a blast heard, for the blast to be it
+const FROM_ITS_SIDE = Math.cos(Math.PI / 3); // a hit within 60 degrees of a creeper's side came from it
+const VANISHED_MS = 250;              // a lit creeper missing this long from a spot in view went off
+const DEATH_MEMORY_MS = 2000;          // a hiss from where a creeper died this lately is that creeper,
+const DIED_WITHIN = 3;                 // and from this near where it fell
 const SAME_CREEPER = 6;                // a creeper seen this close to where a hiss was placed is the one that hissed
 
 // The middle of each of hearing's distance bands (perception.js describeDirection), and how much nearer
@@ -67,6 +72,7 @@ export function createThreatPicture({ now = Date.now } = {}) {
     const mergedInto = new Map(); // a heard entry's key -> the key of the creeper seen that it turned out to be
     const resolve = key => { while (mergedInto.has(key)) key = mergedInto.get(key); return key; };
     let explosion = null;     // { position, at }: the last explosion heard
+    const deaths = [];        // { position, at }: creepers seen to die lately, oldest first
 
     const makeTrack = (key, fields) => ({
         key, id: null, position: null, slack: 0, source: 'seen', seenNow: false, lit: false, litByHiss: false,
@@ -89,8 +95,11 @@ export function createThreatPicture({ now = Date.now } = {}) {
          * The creepers in view this round. Any creeper of the picture not listed is out of view now.
          * @param {{id: number, position: object, lit: boolean}[]} creepers
          * @param {{position: object}} self
+         * @param {object} [options]
+         * @param {(position: object) => boolean} [options.spotInView] - can the bot see this spot right now? Told
+         *   by perception; without it, no creeper is taken to have gone off unheard
          */
-        see(creepers, self) {
+        see(creepers, self, { spotInView } = {}) {
             const t = now();
             const inView = new Set();
             for (const creeper of creepers) {
@@ -114,10 +123,19 @@ export function createThreatPicture({ now = Date.now } = {}) {
                     mergedInto.set(heard.key, key);
                 }
             }
-            for (const track of tracks.values()) {
+            for (const track of [...tracks.values()]) {
                 if (track.source !== 'seen' || inView.has(track.key)) continue;
                 advance(track, self, t);
                 track.seenNow = false;
+                // Last seen lit, and not there now where the bot can see it stood: it went off. A swelling
+                // creeper stands still (the game stops its walking while the fuse burns), so it hasn't stepped
+                // aside. A silent creeper's blast makes no sound (the game sends it with its sound turned off),
+                // so only the eyes can tell; without this it stayed in the picture, still lit, and the bot got
+                // away from it again when it next came near the spot. An unlit one is kept: it walked somewhere.
+                if (track.lit && t - track.lastSeenAt >= VANISHED_MS && track.position && spotInView?.(track.position)) {
+                    tracks.delete(track.key);
+                    for (const [from, to] of mergedInto) if (to === track.key) mergedInto.delete(from);
+                }
             }
         },
 
@@ -131,8 +149,24 @@ export function createThreatPicture({ now = Date.now } = {}) {
             const t = now();
             const position = pointFromSound(sound, self.position);
             if (!position) return;
-            if (sound.subject === 'explosion') { explosion = { position, slack: BAND_SLACK[sound.distance] ?? 0, at: t }; return; }
+            if (sound.subject === 'explosion') {
+                explosion = { position, slack: BAND_SLACK[sound.distance] ?? 0, at: t };
+                // A lit creeper the bot knows of near where the blast sounded is the one that went off: it is
+                // gone. Without this a creeper that blew up out of view stayed in the picture, still lit, and
+                // the bot went on getting away from it.
+                for (const track of [...tracks.values()]) {
+                    if (!(track.lit || track.fuse > 0) || !track.position) continue;
+                    if (dist(track.position, position) - track.slack - explosion.slack > BLEW_UP_WITHIN) continue;
+                    tracks.delete(track.key);
+                    for (const [from, to] of mergedInto) if (to === track.key) mergedInto.delete(from);
+                }
+                return;
+            }
             if (!/^creeper \(hissing\)$/.test(sound.subject)) return;
+            // From where a creeper was just seen to die: that one, already gone.
+            while (deaths.length && t - deaths[0].at > DEATH_MEMORY_MS) deaths.shift();
+            const slack = BAND_SLACK[sound.distance] ?? 0;
+            if (deaths.some(death => dist(death.position, position) - slack <= DIED_WITHIN)) return;
             // One heard creeper per direction: a second hiss from there is the same one lighting again.
             const key = `heard:${sound.direction}`;
             mergedInto.delete(key); // a new hiss from there is a creeper of its own until seen
@@ -171,6 +205,42 @@ export function createThreatPicture({ now = Date.now } = {}) {
                 });
             }
             return out.sort((a, b) => a.distance - b.distance);
+        },
+
+        /**
+         * A hit felt, from the side `direction` points to ({x, z}, a unit step toward it). A lit creeper out of
+         * view, close, on that side, whose fuse has burned through by now, is what hit: its blast. It is
+         * gone. A silent creeper's blast makes no sound, and one that went off behind the bot as it ran is
+         * neither heard nor seen, only felt; without this it stayed in the picture, still lit.
+         * @param {{x: number, z: number}} direction
+         * @param {{position: object}} self
+         */
+        felt(direction, self) {
+            const t = now();
+            for (const track of [...tracks.values()]) {
+                if (track.seenNow || !(track.lit || track.fuse > 0) || !track.position) continue;
+                advance(track, self, t);
+                if (track.fuse < FUSE_TICKS) continue;
+                const dx = track.position.x - self.position.x, dz = track.position.z - self.position.z;
+                const d = Math.hypot(dx, dz);
+                if (d - track.slack > BLEW_UP_WITHIN) continue;
+                if (d > 0.5 && (dx * direction.x + dz * direction.z) / d < FROM_ITS_SIDE) continue;
+                tracks.delete(track.key);
+                for (const [from, to] of mergedInto) if (to === track.key) mergedInto.delete(from);
+            }
+        },
+
+        /**
+         * A creeper seen to die: it is gone. Where it fell is kept a moment: the game may still play its hiss
+         * there, and a hiss from that spot is the creeper the bot saw die, not a new one.
+         * @param {number} id
+         * @param {object} [position] - where it died
+         */
+        forget(id, position = null) {
+            const key = `id:${id}`;
+            tracks.delete(key);
+            for (const [from, to] of mergedInto) if (to === key) mergedInto.delete(from);
+            if (position) deaths.push({ position: { x: position.x, y: position.y, z: position.z }, at: now() });
         },
 
         /** An explosion heard within the last moment, as {position, distance}, or null. */

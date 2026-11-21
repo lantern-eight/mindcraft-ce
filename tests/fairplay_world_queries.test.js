@@ -67,11 +67,18 @@ test('policy: custom starts from strict, and typos or bad values are errors rath
 
 test('policy: the numeric switches take only numbers that make sense', () => {
     const custom = rules => resolvePolicy({ fair_play: 'custom', fair_play_custom: rules });
+    assert.equal(resolvePolicy({ fair_play: 'strict' }).fov_degrees, 70, 'strict sees through a player\'s screen, the game\'s default');
+    assert.equal(resolvePolicy({ fair_play: 'off' }).fov_degrees, 360, 'off sees all around');
     assert.equal(custom({ fov_degrees: 110 }).fov_degrees, 110);
-    assert.equal(custom({ fov_degrees: 360 }).fov_degrees, 360);
+    assert.equal(resolvePolicy({ fair_play: 'strict' }).turn_speed, 'instant');
+    assert.equal(custom({ turn_speed: 180 }).turn_speed, 180, 'a player on a controller');
+    for (const speed of [0, 10, 'fast', Infinity, 5000]) assert.throws(() => custom({ turn_speed: speed }), /turn_speed must be/);
+    assert.equal(custom({ fov_degrees: 30 }).fov_degrees, 30);
+    assert.equal(custom({ fov_degrees: 70 }).fov_degrees, 70);
+    assert.equal(custom({ fov_degrees: 360 }).fov_degrees, 360, 'all around');
     assert.equal(custom({ hearing_radius: 0 }).hearing_radius, 0, 'deaf is a choice');
     assert.equal(custom({ entity_distance: 32 }).entity_distance, 32);
-    for (const fov of [0, -10, 361, NaN, Infinity]) assert.throws(() => custom({ fov_degrees: fov }), /fov_degrees must be/);
+    for (const fov of [0, -10, 29, 111, 180, 361, NaN, Infinity]) assert.throws(() => custom({ fov_degrees: fov }), /fov_degrees must be/);
     for (const radius of [-1, NaN, Infinity]) {
         assert.throws(() => custom({ hearing_radius: radius }), /hearing_radius must be/);
         assert.throws(() => custom({ entity_distance: radius }), /entity_distance must be/);
@@ -164,4 +171,23 @@ test('which side of a block is in view comes from perception, and only the polic
     // Clicking through walls allowed: the reach guard doesn't ask about sides, so neither does this.
     registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'custom', fair_play_custom: { interact_through_walls: true } }) });
     assert.equal(fairQueries.seesFace(bot, new Vec3(1, 63, 0), face(1, 0, 0)), true);
+});
+
+test('for planning a move, remembered open space is known to be open; unseen space stays unknown', () => {
+    const { bot, perception, rawCalls } = scene();
+    const air = { name: 'air', boundingBox: 'empty' };
+    // Perception's believedAt: the seen stone, a cell it remembers open, nothing else.
+    perception.believedAt = (x, y, z) => (x === 1 && y === 63 && z === 0 ? { name: 'stone', boundingBox: 'block' }
+        : x === 1 && y === 64 && z === 0 ? air : null);
+    // Not under fair play: the live block, as stock Mindcraft reads it.
+    assert.equal(fairQueries.believedAt(bot, new Vec3(2, 64, 0)).name, 'oak_log');
+    registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'strict' }) });
+    rawCalls.length = 0;
+    assert.equal(fairQueries.believedAt(bot, new Vec3(1.5, 64.2, 0.5)), air, 'remembered open');
+    assert.equal(fairQueries.blockAt(bot, new Vec3(1, 64, 0)), null, 'which blockAt does not say');
+    assert.equal(fairQueries.believedAt(bot, new Vec3(-6, 60, 2)), null, 'the chest in the sealed room is unknown');
+    assert.deepEqual(rawCalls, []);
+    // Containers known through walls: that switch still lets the chest through.
+    registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'custom', fair_play_custom: { containers_through_walls: true } }) });
+    assert.equal(fairQueries.believedAt(bot, new Vec3(-6, 60, 2)).name, 'chest');
 });

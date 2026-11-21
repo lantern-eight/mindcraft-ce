@@ -4,6 +4,7 @@
 //
 //   backOffFrom(bot, options)     sprint away from a point until far enough, out of time, or told to stop
 //   retreatFrom(bot, options)     the same, away from several threats at once
+//   backAwayFacing(bot, options)  walk backwards away from threats, facing one of them (an archer)
 //   hitAndStepBack(bot, options)  one sprint-hit at a creeper, which knocks it back, then back off
 //   takeCover(bot, options)       walk to the nearest spot a mob's line of sight doesn't reach
 //
@@ -50,9 +51,25 @@ export function safeCell(blockAt, cell) {
     return false;                               // a drop of more than 2
 }
 
+// The cells the body sweeps in its first two blocks along a straight line from the feet, less the one it
+// stands in: the line of its middle and of each side, sampled each half block. Whole blocks along the middle
+// alone would skip from a cell to the corner one at 45 degrees, past the side cells the body has to go
+// through, and a body can't slip between two walls that meet at a corner.
+const SIDE = 0.29; // just under half a player's width (0.6), so a wall the bot stands against isn't counted
+function cellsAhead(position, way) {
+    const here = floorOf(position);
+    const cells = [];
+    for (const side of [0, SIDE, -SIDE]) for (const k of [0.5, 1, 1.5, 2]) {
+        const cell = floorOf({ x: position.x + way.x * k - way.z * side, y: position.y, z: position.z + way.z * k + way.x * side });
+        if ((cell.x !== here.x || cell.z !== here.z) && !cells.some(c => c.x === cell.x && c.z === cell.z)) cells.push(cell);
+    }
+    return cells;
+}
+
 /**
  * The direction of a safe straight first step away from `from`, as a unit {x, z}, or null when none is
- * safe. Tries straight away first, then 45 and 90 degrees to either side. Two cells along it must be safe.
+ * safe. Tries straight away first, then 45 and 90 degrees to either side. Every cell the body sweeps in its
+ * first two blocks must be safe (cellsAhead).
  * @param {(pos: object) => object|null} blockAt - reads blocks the fair way (through world.js's provider)
  * @param {{x:number, y:number, z:number}} position - the bot's feet
  * @param {{x:number, z:number}} from - the threat
@@ -63,8 +80,7 @@ export function firstStep(blockAt, position, from) {
     if (length < 0.01) { dx = 1; dz = 0; } else { dx /= length; dz /= length; }
     for (const turn of TURNS) {
         const x = dx * Math.cos(turn) - dz * Math.sin(turn), z = dx * Math.sin(turn) + dz * Math.cos(turn);
-        const cells = [1, 2].map(k => floorOf({ x: position.x + x * k, y: position.y, z: position.z + z * k }));
-        if (cells.every(cell => safeCell(blockAt, cell))) return { x, z };
+        if (cellsAhead(position, { x, z }).every(cell => safeCell(blockAt, cell))) return { x, z };
     }
     return null;
 }
@@ -157,7 +173,7 @@ export function awayFrom(position, points) {
  */
 export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () => false, report = () => {}, guard = null }) {
     const started = Date.now();
-    const blockAt = pos => worldQueries().blockAt(bot, pos);
+    const blockAt = pos => worldQueries().believedAt(bot, pos);
     let threats = from();
     const distance = () => (threats?.length ? Math.min(...threats.map(point => flat(bot.entity.position, point))) : null);
     const finished = () => {
@@ -182,19 +198,25 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         // The dash: straight away at once, if that way is safe, and on for as long as it stays safe. A
         // sprint in a straight line is the fastest way out; the pathfinder walks more than it sprints.
         const away = ended ? null : awayFrom(bot.entity.position, threats);
+        // Behind the shield first, when there is no getting clear: turning to run would turn the bot's back
+        // to the blast.
+        const shielded = !ended && Boolean(guard) && await guarding();
+        // Otherwise turn to the way out, looking at the ground there, as a player turning to run does: the
+        // cells the first steps go onto are then in view, even through a player's screen, and can be judged.
+        if (away && !shielded) await bot.lookAt(bot.entity.position.offset(away.x * 3, 0, away.z * 3), true);
         const position = bot.entity.position;
         const step = away ? firstStep(blockAt, position, { x: position.x - away.x, z: position.z - away.z })
             : ended ? null : firstStep(blockAt, position, threats[0]);
-        if (step && !(guard && await guarding())) {
-            const ahead = () => bot.entity.position.offset(step.x * 3, 1.6, step.z * 3);
+        if (step && !shielded && !(guard && await guarding())) {
+            // At the ground three blocks ahead, not level: the two cells checked before each stride stay on screen.
+            const ahead = () => bot.entity.position.offset(step.x * 3, 0, step.z * 3);
             await bot.lookAt(ahead(), true);
             bot.setControlState('sprint', true);
             bot.setControlState('forward', true);
             report({ event: 'step', at: performance.now(), how: 'dash' });
             while (!(ended = finished())) {
-                // Two cells ahead, as for the first step: one more block is all a sprint covers between checks.
-                const next = [1, 2].map(k => floorOf({ x: bot.entity.position.x + step.x * k, y: bot.entity.position.y, z: bot.entity.position.z + step.z * k }));
-                if (!next.every(cell => safeCell(blockAt, cell))) break; // something in the way: the pathfinder picks
+                // Two blocks ahead, as for the first step: one more block is all a sprint covers between checks.
+                if (!cellsAhead(bot.entity.position, step).every(cell => safeCell(blockAt, cell))) break; // something in the way: the pathfinder picks
                 if (guard && await guarding()) break; // behind the shield; the pathfinder goes on after
                 await wait(STEP_MS);
             }
@@ -215,6 +237,61 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
     } finally {
         guard?.shield?.lower();
         bot.pathfinder.setGoal(null);
+        bot.clearControlStates();
+    }
+    return { distance: distance(), ended, blocks };
+}
+
+/**
+ * Walks backwards away from threats, facing one of them, as a player backs out of an archer's range behind a
+ * shield. Running faces away from the archer, and through a player's screen the bot then can't see it draw,
+ * or tell its next shot is due, so the shield never went up. Facing it, the guard raises the shield for each
+ * shot. Slower than a sprint, and no path: it steps back while the cells behind are safe, and otherwise stands
+ * where it is, facing the archer. Ends as retreatFrom does.
+ * @param {object} bot
+ * @param {object} options
+ * @param {() => object[]|null} options.from - the threats' positions now, as the bot knows them
+ * @param {() => object|null} options.face - the point to face (the archer's chest), or null to keep the facing
+ * @returns {Promise<{distance: number|null, ended: string, blocks: number}>}
+ */
+export async function backAwayFacing(bot, { from, face, to = 16, maxMs = 8000, done = () => false, report = () => {}, guard = null }) {
+    const started = Date.now();
+    const blockAt = pos => worldQueries().believedAt(bot, pos);
+    let threats = from();
+    const distance = () => (threats?.length ? Math.min(...threats.map(point => flat(bot.entity.position, point))) : null);
+    const finished = () => {
+        if (bot.interrupt_code) return 'stopped';
+        const now = from();
+        if (now?.length) threats = now;
+        if (!threats?.length) return 'gone';
+        if (distance() >= to) return 'far enough';
+        if (done()) return 'done';
+        if (Date.now() - started > maxMs) return 'out of time';
+        return null;
+    };
+    let ended = finished(), blocks = 0;
+    const halt = () => bot.setControlState('back', false);
+    try {
+        if (!ended) report({ event: 'step', at: performance.now(), how: 'back away facing' });
+        while (!ended && !(ended = finished())) {
+            const wasUp = guard?.shield?.up;
+            if (await guardStep(bot, guard, halt)) {
+                if (!wasUp) { blocks++; report({ event: 'shield', at: performance.now() }); }
+                await wait(STEP_MS);
+                continue;
+            }
+            const point = face();
+            const here = bot.entity.position;
+            if (point) await bot.lookAt(here.offset(point.x - here.x, point.y - here.y, point.z - here.z), true);
+            // The back key moves the bot straight away from where it faces.
+            const yaw = bot.entity.yaw;
+            const back = point ? awayFrom(here, [point]) : (yaw === undefined ? null : { x: Math.sin(yaw), z: Math.cos(yaw) });
+            const open = Boolean(back) && cellsAhead(here, back).every(cell => safeCell(blockAt, cell));
+            bot.setControlState('back', open);
+            await wait(STEP_MS);
+        }
+    } finally {
+        guard?.shield?.lower();
         bot.clearControlStates();
     }
     return { distance: distance(), ended, blocks };
@@ -343,7 +420,7 @@ export function coverSpots(blockAt, position, eye, { radius = 6, limit = 5 } = {
  */
 export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, report = () => {} }) {
     const started = Date.now();
-    const blockAt = pos => worldQueries().blockAt(bot, pos);
+    const blockAt = pos => worldQueries().believedAt(bot, pos);
     let from = eye();
     const finished = () => {
         if (bot.interrupt_code) return 'stopped';
@@ -365,17 +442,25 @@ export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, re
         bot.pathfinder.setGoal(new pf.goals.GoalCompositeAny(spots.map(cell => new pf.goals.GoalBlock(cell.x, cell.y, cell.z))), false);
         return true;
     };
-    if (!goTo()) return { ended: 'no cover' };
+    // The pathfinder says when none of the spots can be reached, and keeps its goal: a spot behind a wall the
+    // bot knows, with no way round to it (the far side of a pen wall). That ends the move, for the caller to
+    // back out of range instead, rather than waiting out its time while the mob shoots.
+    let noPath = false;
+    const onPath = update => { if (update?.status === 'noPath') noPath = true; };
+    bot.on?.('path_update', onPath);
+    if (!goTo()) { bot.off?.('path_update', onPath); return { ended: 'no cover' }; }
     try {
         report({ event: 'step', at: performance.now(), how: 'cover' });
         let tries = 1;
         while (!(ended = finished())) {
+            if (noPath) { ended = 'no way there'; break; }
             if (!bot.pathfinder.isMoving?.() && !bot.pathfinder.goal) {
                 if (tries++ >= 4 || !goTo()) { ended = 'no way there'; break; }
             }
             await wait(STEP_MS);
         }
     } finally {
+        bot.off?.('path_update', onPath);
         bot.pathfinder.setGoal(null);
         bot.clearControlStates();
     }

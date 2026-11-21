@@ -173,7 +173,7 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
     shield = null, shotComing = () => null, use = null, now = Date.now }) {
     const edition = editionOf(bot.registry);
     const { entities: reach } = edition.survivalReach(); // to a mob, from the eye
-    const blockAt = pos => worldQueries().blockAt(bot, pos);
+    const blockAt = pos => worldQueries().believedAt(bot, pos);
     const startedAt = now();
     const home = bot.entity.position.clone();
     let target = see(first), ended = null;

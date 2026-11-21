@@ -21,6 +21,7 @@ import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
 import { readFileSync } from 'node:fs';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55931);
@@ -46,7 +47,7 @@ const server = await vanillaFixture(port);
 let bot, other, running = true;
 try {
     setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline',
-        fair_play: 'strict', world_memory: true, threat_reflexes: true, narrate_behavior: false });
+        ...fairPlaySettings(), world_memory: true, threat_reflexes: true, narrate_behavior: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -114,6 +115,12 @@ try {
     await cmd('forceload add -40 -40 40 40');
 
     // A flat stone floor with its top at y 69, open air above, nothing alive but the two players.
+    // A look all round, recorded: through a player's screen world memory would otherwise keep what was
+    // there before a scene built something behind the bot, open ground where a wall now stands, and the
+    // reflexes would plan by it. Seeing all around, the bot sees it all at once anyway.
+    const lookAbout = async () => {
+        if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
+    };
     async function reset({ x = 0.5, z = 0.5, facing = -90 } = {}) {
         await cmd('kill @e[type=!player]');
         // Again, for the loot the mobs just killed dropped. Left lying, a creeper's gunpowder drew the bot over
@@ -133,9 +140,13 @@ try {
         await cmd(`tp ${OTHER} 30.5 70 30.5`);
         await waitFor(() => !agent.actions.executing, 15000, () => `still running ${agent.actions.currentActionLabel}`);
         await delay(2000); // the hold from the last scene has ended, and the bot has looked around
+        // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
+        // and through a player's screen which way it faces decides what it sees.
+        await bot.look((180 - facing) * Math.PI / 180, 0, true);
         events.length = 0; explosions.length = 0; creeperSpawns.length = 0; messages.length = 0;
         reflexes.creeper.picture.clear();
         reflexes.zones?.clear(); // each scene starts with no danger remembered from the last one's blast
+        reflexes.glance?.clear(); // nor a look back from the last one's back-off, which would turn the bot
         lowestHealth = bot.health;
     }
     // Waits for the reflex to finish, and then for 2 s more in which it starts nothing new.
@@ -169,12 +180,12 @@ try {
 
     for (let run = 1; run <= RUNS; run++) {
         await step(`seen only by sight (a silent creeper, normal fuse) lit 2 blocks away, run ${run}: first step within 600 ms, 7 or more blocks off when it goes off, no damage`, async () => {
-            await reset();
+            await reset({ facing: 90 }); // facing west, at where the creeper will be
             await cmd('summon creeper -1.5 70 0.5 {Fuse:30s,ignited:1b,ExplosionRadius:0b,NoAI:1b,Silent:1b}');
             await waitFor(() => explosions.length > 0, 6000, () => JSON.stringify(events));
             const spawned = creeperSpawns[0].at;
             const first = firstStepAfter(spawned, 'sight');
-            assert.ok(first, 'it stepped away');
+            assert.ok(first, `it stepped away: it stood at ${bot.entity.position}, events ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
             // Its hiss isn't heard. The blast is the world's sound, not the creeper's, and is heard.
             assert.ok(!events.some(e => e.event === 'heard' && e.subject !== 'explosion'), 'a silent creeper is not heard');
             const off = flat(explosions[0].bot, explosions[0].creeper ?? { x: -1.5, z: 0.5 });
@@ -261,7 +272,7 @@ try {
     });
 
     await step('during !stay: the bot still backs off', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         act('action:stay', () => skills.stay(bot, -1));
         await delay(500);
         await cmd('summon creeper -1.5 70 0.5 {Fuse:200s,ignited:1b,ExplosionRadius:0b,NoAI:1b,Silent:1b}');
@@ -272,7 +283,7 @@ try {
     });
 
     await step('a command during a back-off: the back-off finishes first, then the command runs', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         await cmd('summon creeper -1.5 70 0.5 {Fuse:200s,ignited:1b,ExplosionRadius:0b,NoAI:1b,Silent:1b}');
         await waitFor(() => events.some(e => e.event === 'decided'), 4000);
         await delay(100);
@@ -289,7 +300,7 @@ try {
     });
 
     await step('a creeper not lit yet, 5 blocks away, with self_defense on: the bot does not walk toward it', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         assert.equal(bot.modes.isOn('self_defense'), true);
         await cmd('summon creeper -4.5 70 0.5 {NoAI:1b}');
         const watch = watchDistance({ x: -4.5, z: 0.5 });
@@ -302,9 +313,15 @@ try {
     });
 
     await step('backing off with lava straight behind: it turns aside, never stands in lava, takes no damage', async () => {
-        await reset();
+        await reset({ facing: 90 }); // facing west, at where the creeper will be
         await cmd('fill 1 69 -1 4 69 1 lava');
+        // The bot has seen the lava and the ground round it: it looks round, recorded (through a player's
+        // screen the ground to either side is otherwise unknown, and no step aside is safe), looks at the lava,
+        // and back to where the creeper will be.
+        await lookAbout();
+        await bot.look(-Math.PI / 2, -0.5, true);
         await delay(1000);
+        await bot.look(Math.PI / 2, 0, true);
         let inLava = false;
         const check = () => { if (/lava/.test(bot.blockAt(bot.entity.position.floored())?.name ?? '')) inLava = true; };
         bot.on('move', check);
@@ -324,17 +341,22 @@ try {
     // (a shield faced at an explosion stops it), without one the damage is what cornering costs.
     for (const shield of [false, true]) {
         await step(`cornered in a dead end by a lit creeper${shield ? ', with a shield it is given: it faces the blast behind the shield, no damage' : ', no shield: the damage it takes'}`, async () => {
-            await reset();
+            await reset({ facing: 90 }); // facing west, at where the creeper will be
             for (const wall of ['-2 70 -1 1 71 -1', '-2 70 1 1 71 1', '1 70 0 1 71 0']) await cmd(`fill ${wall} stone`);
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
+            await lookAbout(); // the bot sees the dead end it stands in
+            // Facing the mouth again: the idle look-around may have turned the bot to the walls meanwhile, and
+            // through a player's screen a silent creeper behind it is neither seen nor heard.
+            await faceToward(bot, { x: -1.5, y: 71.6, z: 0.5 });
             await cmd('summon creeper -1.5 70 0.5 {Fuse:30s,ignited:1b,NoAI:1b,Silent:1b}');
+            const facingAtSummon = [Math.round(bot.entity.yaw * 180 / Math.PI), Math.round(bot.entity.pitch * 180 / Math.PI)];
             await waitFor(() => explosions.length > 0, 6000, () => JSON.stringify(events));
             await delay(1000);
             const raised = events.filter(e => e.event === 'shield').length;
             const offHand = bot.inventory.slots[bot.getEquipmentDestSlot('off-hand')]?.name ?? null;
             if (shield) {
-                assert.equal(offHand, 'shield', 'the shield was put in the off-hand');
+                assert.equal(offHand, 'shield', `the shield was put in the off-hand: it stood at ${bot.entity.position}, facing ${facingAtSummon} at the summon, events ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
                 assert.ok(raised > 0, `the shield went up: ${JSON.stringify(events)}`);
                 assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth})`);
             } else {
@@ -355,6 +377,9 @@ try {
         const restart = event => { if (event.event === 'done') setTimeout(busy, 1700); };
         bot.on('threat_reflex', restart);
         busy();
+        // Facing east again, where the creeper will come from: in the moment before the bot was set to work, the
+        // idle look-around may have turned it, and through a player's screen it then meets the creeper unseen.
+        await bot.look(-Math.PI / 2, 0, true);
         await cmd('summon creeper 30.5 70 0.5 {ExplosionRadius:0b}');
         const started = Date.now();
         // Over when the creeper is dead, or when it has stopped coming for 10 s with the bot idle.
@@ -377,7 +402,7 @@ try {
         const outcome = await chase({ sword: true });
         assert.equal(outcome.exploded, 0, 'it never went off');
         assert.equal(outcome.killed, true, JSON.stringify(outcome));
-        assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds`);
+        assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event === 'decided' || e.event === 'done').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
         assert.equal(messages.length, 1, messages.join('\n---\n'));
         assert.equal(lowestHealth, 20, 'no damage');
         return outcome;
@@ -401,7 +426,7 @@ try {
             const outcome = await chase({ sword: true });
             assert.equal(outcome.exploded, 0, 'it never went off');
             assert.equal(outcome.killed, true, JSON.stringify(outcome));
-            assert.equal(outcome.stances[0], 'hit_and_step_back', `met at once: ${JSON.stringify(outcome.stances)}`);
+            assert.equal(outcome.stances[0], 'hit_and_step_back', `met at once: ${JSON.stringify(outcome.stances)}, ${JSON.stringify(events.filter(e => e.event !== 'step').slice(0, 6).map(e => ({ ...e, at: Math.round(e.at) })))}`);
             assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds: ${JSON.stringify(outcome.stances)}`);
             assert.equal(lowestHealth, 20, 'no damage');
             return outcome;
@@ -414,7 +439,7 @@ try {
         assert.equal(reflexes.orders.give('creepers', 'flee').ok, true);
         try {
             const outcome = await chase({ sword: true });
-            assert.equal(outcome.exploded, 0, 'it never went off');
+            assert.equal(outcome.exploded, 0, `it never went off: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at) })))}, blast at ${JSON.stringify(explosions.map(x => ({ at: Math.round(x.at), bot: x.bot, creeper: x.creeper })))}`);
             assert.equal(outcome.stances[0], 'leave', `left at once: ${JSON.stringify(outcome.stances)}`);
             assert.ok(!outcome.stances.includes('hit_and_step_back'), 'never went back in');
             assert.ok(outcome.rounds <= 2, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);

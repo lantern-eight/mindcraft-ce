@@ -89,6 +89,12 @@ No code was copied for these. They are credited because the work builds on them.
   Planning for Partially-Known Environments*, 1994; S. Koenig and M. Likhachev, *D\* Lite*, 2002). Used by
   the route planning in `src/agent/fairplay/fair_legs.js`, which searches afresh each time where those
   repair the last search.
+- **Telling a sound by which side of the bot it came from** (front, behind, left, right) comes from
+  [`benpham3206/Agent37`](https://github.com/benpham3206/Agent37) (`bridge/sounds.js`). Used by perception's
+  heard lines in `src/agent/fairplay/perception.js`, through a player's screen.
+- **A gaze with a shape, a budget of looks per mob and a floor on how often the head turns** come from the idle
+  look-around in the [`winnerspiros/mindcraft`](https://github.com/winnerspiros/mindcraft) fork
+  (`src/agent/modes.js`). Used by `src/agent/fairplay/idle_look.js`.
 - **Keeping what a player told the bot apart from what the bot has seen** comes from the place registry in
   the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by world memory's
   things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw.
@@ -164,7 +170,8 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/reflexes/` (all files)
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`,
-  `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/action_hold.js`
+  `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`,
+  `src/agent/action_hold.js`
 - `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
@@ -182,10 +189,10 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
-  `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`
+  `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/bedrock_*.js`,
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`
