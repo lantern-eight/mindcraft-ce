@@ -37,6 +37,8 @@ import { installWalkingGaze } from './walking_gaze.js';
 import { installTurnSpeed } from './turn_speed.js';
 import { lookAroundCommand, lookBeforeSearching, watchLooks } from './look_around.js';
 import { setSearchLook } from '../library/search_look.js';
+import { createIdleLook } from './idle_look.js';
+import { registerMode } from '../modes.js';
 import { setAttackReach } from '../library/attack_reach.js';
 import { setDigDownWay } from '../library/dig_down_way.js';
 import { digStairsDown } from '../library/stairs_down.js';
@@ -347,6 +349,15 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
 
     // Through a player's screen, a way for the model to have the bot turn round and look.
     if (narrowView) registerCommand(lookAroundCommandSpec, { action: true });
+
+    // The idle look-around in place of the stock one, in the same place and under the same name, keeping its
+    // switch: it looks about the whole circle in turn, and at mobs as a person does, not at one forever.
+    if (bot.modes?.exists?.('idle_staring')) {
+        const idle = createIdleLook();
+        idle.mode.on = bot.modes.isOn('idle_staring');
+        const names = Object.keys(bot.modes.getJson());
+        registerMode(idle.mode, { before: names[names.indexOf('idle_staring') + 1] ?? null });
+    }
 
     // The model's ways to ask what the bot remembers.
     if (worldMemory) {

@@ -134,6 +134,7 @@ export async function lookAroundCommand(bot) {
 export function stalestHeading(bot) {
     const memory = looksOf(bot);
     if (!memory) return null;
+    memory.note(); // what is on screen now is looked at now
     let best = 0;
     for (let h = 1; h < HEADINGS; h++) if (memory.lastSeen(h) < memory.lastSeen(best)) best = h;
     return { heading: best, yaw: yawOf(best) };

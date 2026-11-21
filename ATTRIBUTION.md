@@ -89,6 +89,9 @@ No code was copied for these. They are credited because the work builds on them.
   Planning for Partially-Known Environments*, 1994; S. Koenig and M. Likhachev, *D\* Lite*, 2002). Used by
   the route planning in `src/agent/fairplay/fair_legs.js`, which searches afresh each time where those
   repair the last search.
+- **A gaze with a shape, a budget of looks per mob and a floor on how often the head turns** come from the idle
+  look-around in the [`winnerspiros/mindcraft`](https://github.com/winnerspiros/mindcraft) fork
+  (`src/agent/modes.js`). Used by `src/agent/fairplay/idle_look.js`.
 - **Keeping what a player told the bot apart from what the bot has seen** comes from the place registry in
   the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by world memory's
   things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw.
