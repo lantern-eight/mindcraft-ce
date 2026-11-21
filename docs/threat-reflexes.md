@@ -419,6 +419,9 @@ server tracks without it.
   hiss. It is settled when the creeper is seen with its fuse out, when the bot has been away long enough for
   any fuse to run down, or after 10 s with nothing new. When the creeper that hissed comes into view, its
   entry carries over, and a back-off that started on the sound follows the creeper seen.
+- **Leaving through a player's screen,** the bot runs facing away, so it can't see whether the creeper has
+  lost it. It goes by distance, taking the creeper to come on at a walk while out of view, and looks back
+  when it stops.
 - **A creeper that went off is forgotten:** one lit near where a blast was heard; one last seen lit when the
   bot can see where it stood and it isn't there (a swelling creeper stands still, so it hasn't stepped
   aside); and one out of view whose fuse has run out by now, when a hit comes from its side: the blast. A

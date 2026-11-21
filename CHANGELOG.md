@@ -71,6 +71,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - A dash away from a threat checks every cell the body sweeps, along both its sides, not only the middle of
   its line each whole block. At 45 degrees from the middle of a block it could aim between two walls that
   meet at a corner, and stall there with a lit creeper behind it instead of raising its shield.
+- Through a player's screen, leaving a creeper that follows, the bot takes it to be coming on at a walk while
+  it runs facing away. Measured from where it last saw the creeper, it stopped inside the creeper's reach,
+  looked back, and left again, for as long as the creeper kept up.
 - Through a player's screen, backing away from mobs goes on to its distance. It stopped once the mobs had been
   out of view for 2 s, as if they had lost the bot, but the bot runs facing away from them, so it stopped
   short.

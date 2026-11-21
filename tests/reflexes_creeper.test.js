@@ -222,3 +222,11 @@ async function waitUntil(check, ms) {
         await delay(20);
     }
 }
+
+test('a creeper following the bot out of view is taken to come on at a walk, never closer than a block', async () => {
+    const { comingOn } = await import('../src/agent/reflexes/creeper_reflex.js');
+    const from = { x: 0, y: 64, z: 0 }, bot = { x: 20, y: 64, z: 0 };
+    assert.deepEqual(comingOn(from, bot, 0), from);
+    assert.deepEqual(comingOn(from, bot, 2000), { x: 6, y: 64, z: 0 }, 'three blocks a second');
+    assert.deepEqual(comingOn(from, bot, 60000), { x: 19, y: 64, z: 0 }, 'it never passes the bot');
+});

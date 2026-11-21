@@ -40,6 +40,22 @@ import { bestWeapon, blockTheBlast, decideThreat, hitsNeeded } from './decide.js
 import { backOffFrom, hitAndStepBack } from './moves.js';
 
 export const MODE_NAME = 'creeper_safety';
+const FOLLOW_SPEED = 3;       // blocks a second: about as fast as a creeper walks after its target
+
+/**
+ * Where a creeper that is following the bot has likely got to, out of view for `ms`: from where it was last
+ * known, that much nearer the bot at a creeper's walking pace, never closer than a block. Leaving through a
+ * player's screen the bot runs facing away; a player knows the creeper behind is still coming, and a leave
+ * measured from where it was last seen ended inside its reach, every time.
+ * @returns {{x: number, y: number, z: number}}
+ */
+export function comingOn(position, toward, ms) {
+    const dx = toward.x - position.x, dz = toward.z - position.z;
+    const d = Math.hypot(dx, dz);
+    const step = Math.min(Math.max(0, d - 1), FOLLOW_SPEED * ms / 1000);
+    if (d === 0 || step === 0) return { ...position };
+    return { x: position.x + dx / d * step, y: position.y, z: position.z + dz / d * step };
+}
 const MOVES = new Set(['back_off', 'hit_and_step_back', 'leave']);
 const HOLD_AFTER_MS = 1500;   // after a move, how long other starts still wait
 const ROOF_CHECK = 8;         // blocks above the head that make the bot "underground" for the decision
@@ -167,11 +183,12 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
 
         // Where the creeper is now, as the bot knows it, while it moves.
         let last = decision.from;
+        const leavingBlind = decision.stance === 'leave' && narrowView(agent);
         const from = () => {
             look(bot);
             const key = picture.resolve(decision.key);
             const track = picture.creepers(selfOf(bot)).find(c => c.key === key);
-            if (track) last = track.position;
+            if (track) last = leavingBlind && !track.seenNow && track.unseenMs ? comingOn(track.position, bot.entity.position, track.unseenMs) : track.position;
             return last;
         };
         let result, ended = null;
