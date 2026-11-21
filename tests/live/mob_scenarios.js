@@ -19,7 +19,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
-import { fairPlaySettings, faceToward, LIVE_VIEW } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55932);
@@ -124,6 +124,12 @@ try {
     await cmd('forceload add -40 -40 40 40');
 
     // A flat stone floor with its top at y 69, a wall round the edge, open air above, nothing alive but the bot.
+    // A look all round, recorded: through a player's screen world memory would otherwise keep what was
+    // there before a scene built or cleared something behind the bot, a wall that is gone or one that is new,
+    // and the reflexes would plan by it. Seeing all around, the bot sees it all at once anyway.
+    const lookAbout = async () => {
+        if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
+    };
     async function reset({ x = 0.5, z = 0.5, facing = -90 } = {}) {
         await cmd('kill @e[type=!player]');
         await cmd('kill @e[type=!player]');
@@ -141,6 +147,7 @@ try {
         await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
         await agent.actions.stop();
         await delay(2000);
+        await lookAbout();
         // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
         // and through a player's screen which way it faces decides what it sees.
         await bot.look((180 - facing) * Math.PI / 180, 0, true);
@@ -289,6 +296,7 @@ try {
                 await cmd(`fill ${a} ${b} stone`);
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
+            await lookAbout(); // the bot sees its pen
             const blocksBefore = blocked;
             await cmd('summon skeleton 5.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
