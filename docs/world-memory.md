@@ -144,7 +144,9 @@ World memory holds only what a player in the bot's place could know:
 - **Blocks and things** are recorded only when in view, by the same sight test as the rest of
   [fair play](fair-play.md). Buried ore is never recorded. That is what was on screen, the way the bot
   faced at the time: what is behind it is not recorded until it turns. A turn of more than a quarter of the
-  screen starts a new look, as a step does.
+  screen starts a new look, as a step does. A look takes a few seconds, done a few milliseconds at a time;
+  a turn while one is under way looks again first at the cubes already gone over that the new screen shows,
+  so a turn of a second to look at something records it.
 - **Container contents** are only what the bot saw by opening the container.
 - **The trail** is the bot's own past positions, and a route is made only of spots it has stood on.
   Ordinary travel is held to what the bot has seen as well, but has to guess at what it has not

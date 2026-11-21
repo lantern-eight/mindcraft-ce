@@ -272,7 +272,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const minY = bot.game?.minY ?? -64;
         const maxY = minY + (bot.game?.height ?? 384) - 1;
         pass = { sections: sectionsInRange(feet, radius, minY, maxY), next: 0, queue: [], cube: null, minY,
-            crumb: trail.current, fresh: new Map(), appeared: [] };
+            crumb: trail.current, fresh: new Map(), appeared: [], facing: looking.screen };
         lastPassEye = eye;
         lastPassFacing = looking.screen;
         worldChanged = false;
@@ -281,6 +281,22 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
             const biome = registry.biomes?.[bot.world.getBiome(p)]?.name;
             if (biome) things.recordBiome(p, biome);
         } catch { /* biome data is missing in some test worlds */ }
+    }
+
+    /**
+     * The bot turned while a look-around is under way. The cubes it already went over showed only what the old
+     * screen showed, and a look takes seconds, a few milliseconds at a time: a player who turns to look at
+     * something for a second sees it, and without this the bot could turn back before the look-around was
+     * done and never record it. So the cubes gone over that the new screen shows are looked at again next,
+     * before the rest. The rest are kept, so a bot that turns often still gets round to the far cubes.
+     */
+    function lookAgain() {
+        pass.facing = lastPassFacing = looking.screen;
+        // Each cube is in the list once: those looked at again come only from the part already gone over.
+        const again = pass.sections.slice(0, pass.next)
+            .filter(({ cx, sy, cz }) => boxInView(eye, cx * 16, sy * 16, cz * 16, cx * 16 + 16, sy * 16 + 16, cz * 16 + 16, looking) !== 'none');
+        pass.sections = [...again, ...pass.sections.slice(pass.next)];
+        pass.next = 0;
     }
 
     // Gathers the cells of one cube that could be in view: blocks with an open side, and remembered
@@ -382,6 +398,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         } else if (Math.abs(Math.floor(p.x) - feet.x) + Math.abs(Math.floor(p.y) - feet.y) + Math.abs(Math.floor(p.z) - feet.z) > 16) {
             startPass(); // the bot has left the area this look was covering
         } else {
+            if (turnedFrom(pass.facing, looking.screen)) lookAgain();
             confirmed = now();
         }
         const deadline = clock() + budgetMs;

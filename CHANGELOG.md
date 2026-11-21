@@ -43,7 +43,7 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - A player's name tag shows through walls only when it is on screen, as in the game. A player standing
   behind the bot is no longer known from their name tag.
 - World memory records only what is on screen, the way the bot faces at the moment it looks, and looks again
-  when the bot turns.
+  when the bot turns, even in the middle of a look, so a turn of a second to look at something records it.
 - The bot turns to face a block within reach before digging, opening, using or placing against it, then
   checks that it can see it, as a player turns to click something behind them.
 - Through a player's screen, what the bot heard says which side of it the sound came from as well as which way:

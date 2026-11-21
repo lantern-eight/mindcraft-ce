@@ -32,7 +32,7 @@ function clock(start = 1_000_000) {
 }
 
 /** A flat stone floor at y 0, the bot standing on it at the origin, and whatever `build` adds. */
-function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [], prepare = () => {}, policy = ALL_AROUND } = {}) {
+function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [], prepare = () => {}, policy = ALL_AROUND, tickClock } = {}) {
     const world = fixtureWorld({ min: [-40, -4, -40], max: [40, 24, 40] });
     world.fill('stone', [-40, 0, -40], [40, 0, 40]);
     build(world);
@@ -41,7 +41,7 @@ function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'me
     prepare(bot);
     let recorder = null;
     const memory = openMemory({ baseDir, scope: SCOPE, now, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
-    recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
+    recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity, ...(tickClock ? { clock: tickClock } : {}) });
     // Perception is handed world memory as its memory, and leaves the looking around to the recorder.
     const perception = createPerception({ bot, policy, memory: recorder.view, now, ...NO_BUDGETS });
     recorder.attach(perception);
@@ -213,6 +213,22 @@ test('a narrow view: only what is on screen is written, and turning round starts
     bot.entity.yaw = Math.PI; // and round to face south
     recorder.tick();
     assert.equal(memory.cells.read(0, 1, 8), 'gold_ore');
+});
+
+test('a narrow view: a turn while a look is under way looks again at what the new screen shows', () => {
+    // A clock that moves a millisecond each time it is read: a tick with a budget of 1 does one step of work.
+    let ms = 0;
+    const { memory, recorder, bot } = setup(w => w.set('gold_ore', 0, 1, 8), { policy: NARROW, tickClock: () => ms++ });
+    bot.entity.pitch = -0.4;
+    // Facing north, through the cube the bot stands in (the gold's), with the rest of the look still to go.
+    recorder.tick({ budgetMs: 1 });
+    while (!memory.cells.lookedAt(0, 0, 0)) recorder.tick({ budgetMs: 1 });
+    assert.equal(recorder.busy, true, 'the look is under way');
+    assert.equal(memory.cells.read(0, 1, 8), null, 'the gold is behind');
+    // It turns round while the look goes on: the cube it already went over is looked at again, facing south.
+    bot.entity.yaw = Math.PI;
+    while (recorder.busy && memory.cells.read(0, 1, 8) === null) recorder.tick({ budgetMs: 1 });
+    assert.equal(memory.cells.read(0, 1, 8), 'gold_ore', 'seen before the look ended');
 });
 
 test('A1 and A2: a wall of planks replaced by glass while the bot was away is one note; no change, no note', () => {
