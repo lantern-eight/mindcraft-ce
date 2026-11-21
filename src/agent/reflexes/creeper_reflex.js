@@ -220,7 +220,10 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                 const track = picture.creepers(selfOf(bot)).find(c => c.key === picture.resolve(key));
                 if (!blockTheBlast(track, { stuck: shield.up || barelyMoved })) return null;
                 const creeper = creeperInView(bot, track.id);
-                return creeper ? { x: creeper.position.x, y: creeper.position.y + (creeper.height ?? 1.7) * 0.5, z: creeper.position.z } : null;
+                if (creeper) return { x: creeper.position.x, y: creeper.position.y + (creeper.height ?? 1.7) * 0.5, z: creeper.position.z };
+                // Out of view (behind the bot, through a player's screen): where the bot knows it to be, seen
+                // or heard. Turning the shield there turns the bot to face it, as a player would.
+                return track.position ? { x: track.position.x, y: track.position.y + 0.85, z: track.position.z } : null;
             },
         };
     }
