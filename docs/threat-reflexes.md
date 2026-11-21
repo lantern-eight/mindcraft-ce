@@ -215,7 +215,7 @@ off-hand is empty (whatever else is there was put there on purpose). Then it goe
 | Where | When | Why |
 |---|---|---|
 | In the fight | An archer in view is drawing its bow at the bot, and the mob the bot fights is out of reach | A player closing on a skeleton blocks while the bow is drawn and runs in between |
-| Backing out of an archer's range, with no cover near | The same | Out in the open the bot outruns a skeleton's first shot and nothing needs blocking; where it can't get out of range, the shield stops the shots |
+| Backing out of an archer's range, with no cover near | The same. With a shield the bot backs out walking backwards, facing the archer, so the shield is on the right side and the bot sees the draw | Out in the open the bot outruns a skeleton's first shot and nothing needs blocking; where it can't get out of range, the shield stops the shots |
 | Backing off from a lit creeper | The bot won't get past the blast's reach before the fuse runs out, or is stuck | A shield faced at a blast stops it |
 
 Measured on real servers: cornered in a dead end by a lit creeper (on easy), the bot took no damage behind its

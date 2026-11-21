@@ -80,9 +80,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Through a player's screen, leaving a creeper that follows, the bot takes it to be coming on at a walk while
   it runs facing away. Measured from where it last saw the creeper, it stopped inside the creeper's reach,
   looked back, and left again, for as long as the creeper kept up.
-- Through a player's screen, with a shield and no cover near, the bot backs out of an archer's range walking
-  backwards, facing it, as a player does. Running, it faced away, couldn't see the archer draw or tell its
-  next shot was due, and never raised the shield; in a walled pen on Bedrock it took every arrow.
+- With a shield and no cover near, the bot backs out of an archer's range walking backwards, facing it, as a
+  player does. Running, it faced away from the archer, and a shield covers only the side the bot faces: through
+  a player's screen it couldn't see the archer draw or tell its next shot was due, and never raised the shield;
+  seeing all around, it turned to raise it too late as often as not. In a walled pen on Bedrock it took every
+  arrow.
 - Through a player's screen, backing away from mobs, or out of an archer's range with no cover near, goes on
   to its distance. It stopped once the mobs had been out of view for 2 s, as if they had lost the bot, but the
   bot runs facing away from them, so it stopped short.

@@ -121,15 +121,17 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
                     let outcome = await takeCover(bot, { eye, report, done: () => !aimingNow(bot, id) && lostSight() });
                     report({ event: 'cover', at: performance.now(), ended: outcome.ended });
                     if (outcome.ended === 'no cover' || outcome.ended === 'no way there') {
-                        // Through a player's screen, with a shield, the bot backs out facing the archer: running
-                        // faces away from it, and then it can't see it draw, or tell its next shot is due, and the
-                        // shield never goes up. Facing it, it sees the archer, so losing sight means something.
+                        // With a shield, the bot backs out facing the archer, as a player does. A shield covers only
+                        // the side the bot faces: running faces away, so each shot meant a turn to raise it, too late
+                        // as often as not, and through a player's screen the bot couldn't even see the archer draw
+                        // or tell its next shot was due. Facing it, it sees the archer, so losing sight means
+                        // something, whichever way the bot sees.
                         const archer = () => {
                             const mob = mobInView(bot, id) ?? mobsAround(bot, dying).find(m => m.id === id);
                             const at = mob?.position ?? known[0];
                             return at ? { x: at.x, y: at.y + (mob?.height ?? 1.8) * 0.8, z: at.z } : null;
                         };
-                        outcome = narrowView(agent) && shield?.has()
+                        outcome = shield?.has()
                             ? await backAwayFacing(bot, { from, face: archer, to: decision.distance, report, done: lostSight, guard: archerGuard(bot) })
                             : await retreatFrom(bot, { from, to: decision.distance, report, done: () => !narrowView(agent) && lostSight(), guard: archerGuard(bot) });
                     }
