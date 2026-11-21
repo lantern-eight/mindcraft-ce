@@ -6,15 +6,26 @@
 // all around, which shows whether a failure comes from the view or from the thing the scene is about.
 //   MC_TEST_VIEW=all   (or --view=all)    all around: strict with fov_degrees 360
 //   anything else                         strict, the narrow view
-// An environment variable, so that bedrock_all.js passes it on to every script it starts.
-const chosen = process.argv.find(a => a.startsWith('--view='))?.split('=')[1] ?? process.env.MC_TEST_VIEW;
+// And how fast the bot turns, to measure what a player's turning costs a scene:
+//   MC_TEST_TURN=instant   (or --turn=instant)   the facing changes at once, as mineflayer turns
+//   anything else                                strict's, a player on a controller
+// Environment variables, so that java_all.js and bedrock_all.js pass them on to every script they start.
+const option = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
+const chosen = option('view') ?? process.env.MC_TEST_VIEW;
+const turn = option('turn') ?? process.env.MC_TEST_TURN;
 
 /** 'all' or 'narrow'. */
 export const LIVE_VIEW = chosen === 'all' ? 'all' : 'narrow';
+/** 'instant' or 'strict'. */
+export const LIVE_TURN = turn === 'instant' ? 'instant' : 'strict';
 
-/** The fair-play settings for that view, to spread into setSettings or resolvePolicy. */
+/** The fair-play settings for that view and turn, to spread into setSettings or resolvePolicy. */
 export function fairPlaySettings() {
-    return LIVE_VIEW === 'all' ? { fair_play: 'custom', fair_play_custom: { fov_degrees: 360 } } : { fair_play: 'strict' };
+    const custom = {
+        ...(LIVE_VIEW === 'all' ? { fov_degrees: 360 } : {}),
+        ...(LIVE_TURN === 'instant' ? { turn_speed: 'instant' } : {}),
+    };
+    return Object.keys(custom).length ? { fair_play: 'custom', fair_play_custom: custom } : { fair_play: 'strict' };
 }
 
 /**
