@@ -60,6 +60,7 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   first, wherever it knows the creeper to be, seen or heard.
 - Digging down as a staircase, the bot looks at each block before it digs it and at the floor before it steps
   down, as a player does. Through a player's screen it stopped at the first step, which was below its view.
+- Going up to the surface, the bot looks up the column above it before deciding where to climb to.
 - The enderman gaze guard also counts an enderman behind the bot in a clear line from its eye, so turning
   round can't stare at one.
 
