@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- With `turn_speed` set, a walk goes the way its route heads while the head is still turning, on the keys a
+  player would hold (left, back, a diagonal), instead of the way the bot happens to face. Round a corner it
+  swung wide: off a narrow bridge, into a trench beside the path, or stuck in a tight spot.
+
 ## [1.11.0-bedrock.1.12.0] - 2026-11-21
 
 A release for both editions. Under strict fair play the bot sees through a player's screen instead of all
