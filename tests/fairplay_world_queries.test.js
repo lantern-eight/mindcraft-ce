@@ -172,3 +172,22 @@ test('which side of a block is in view comes from perception, and only the polic
     registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'custom', fair_play_custom: { interact_through_walls: true } }) });
     assert.equal(fairQueries.seesFace(bot, new Vec3(1, 63, 0), face(1, 0, 0)), true);
 });
+
+test('for planning a move, remembered open space is known to be open; unseen space stays unknown', () => {
+    const { bot, perception, rawCalls } = scene();
+    const air = { name: 'air', boundingBox: 'empty' };
+    // Perception's believedAt: the seen stone, a cell it remembers open, nothing else.
+    perception.believedAt = (x, y, z) => (x === 1 && y === 63 && z === 0 ? { name: 'stone', boundingBox: 'block' }
+        : x === 1 && y === 64 && z === 0 ? air : null);
+    // Not under fair play: the live block, as stock Mindcraft reads it.
+    assert.equal(fairQueries.believedAt(bot, new Vec3(2, 64, 0)).name, 'oak_log');
+    registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'strict' }) });
+    rawCalls.length = 0;
+    assert.equal(fairQueries.believedAt(bot, new Vec3(1.5, 64.2, 0.5)), air, 'remembered open');
+    assert.equal(fairQueries.blockAt(bot, new Vec3(1, 64, 0)), null, 'which blockAt does not say');
+    assert.equal(fairQueries.believedAt(bot, new Vec3(-6, 60, 2)), null, 'the chest in the sealed room is unknown');
+    assert.deepEqual(rawCalls, []);
+    // Containers known through walls: that switch still lets the chest through.
+    registerFairPlay(bot, { perception, policy: resolvePolicy({ fair_play: 'custom', fair_play_custom: { containers_through_walls: true } }) });
+    assert.equal(fairQueries.believedAt(bot, new Vec3(-6, 60, 2)).name, 'chest');
+});

@@ -157,7 +157,7 @@ export function awayFrom(position, points) {
  */
 export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () => false, report = () => {}, guard = null }) {
     const started = Date.now();
-    const blockAt = pos => worldQueries().blockAt(bot, pos);
+    const blockAt = pos => worldQueries().believedAt(bot, pos);
     let threats = from();
     const distance = () => (threats?.length ? Math.min(...threats.map(point => flat(bot.entity.position, point))) : null);
     const finished = () => {
@@ -350,7 +350,7 @@ export function coverSpots(blockAt, position, eye, { radius = 6, limit = 5 } = {
  */
 export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, report = () => {} }) {
     const started = Date.now();
-    const blockAt = pos => worldQueries().blockAt(bot, pos);
+    const blockAt = pos => worldQueries().believedAt(bot, pos);
     let from = eye();
     const finished = () => {
         if (bot.interrupt_code) return 'stopped';

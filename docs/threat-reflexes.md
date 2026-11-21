@@ -423,6 +423,9 @@ server tracks without it.
   the bot can see where it stood and it isn't there (a swelling creeper stands still, so it hasn't stepped
   aside). A silent creeper's blast makes no sound, so only the eyes can tell.
 - **Cover** is only cover where the bot has seen the wall: a cell it never saw counts as open.
+- **Where to step** (a dash, a cover spot, a step back in a fight) is judged by what the bot knows: ground in
+  view, and ground and open space it has seen and remembers (world memory). Through a player's screen most
+  of the ground round the bot is out of view at any moment; a cell never seen is not stepped into.
 - **Danger zones** are noted from the same sight, hearing and touch, never from a stand-in out of view.
 
 ## Holding Other Work
