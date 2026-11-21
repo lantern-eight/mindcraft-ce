@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Fixed
+
+- A walk whose route ended short of its goal, on ground the bot had not seen and that turned out not to be
+  there, left the bot standing at the end of it until its action timed out. The route is now planned again
+  from there.
+
 ### Changed
 
 - Under strict fair play the bot sees through a player's screen instead of all around: 70° tall on a 16:9

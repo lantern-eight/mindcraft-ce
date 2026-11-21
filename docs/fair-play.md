@@ -104,6 +104,8 @@ walk there, and look when I get to it."
 - **It looks as it goes.** A few times a second the next steps of the route are checked against what is
   now in view. When a step turns out to be a drop or a rock face, the route is planned again from where
   the bot stands. It waits for the bot to land or to finish a block it is digging first.
+  A route that ends short of the goal, because its last steps were on ground the bot had not seen and
+  turned out not to be there, is planned again too, instead of leaving the bot standing at its end.
 - **What it has seen, it plans round from the first step.** A wall it met yesterday is walked round today,
   not walked up to.
 - **A wall is believed to be as thick as what the bot has seen of it.** Digging in can look cheaper than
