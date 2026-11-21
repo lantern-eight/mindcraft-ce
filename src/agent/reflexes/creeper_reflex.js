@@ -186,8 +186,10 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
                 shield?.ready().catch(() => {});
                 const outcome = await backOffFrom(bot, {
                     from, to: decision.distance, report, maxMs: leaving ? 10000 : 3000,
-                    // Leaving also ends when the creeper has lost sight of the bot for good.
-                    done: () => leaving && outOfSight(bot, decision.key),
+                    // Leaving also ends when the creeper has lost sight of the bot for good. Out of the bot's view
+                    // means out of the creeper's only when the bot sees all around: through a player's screen
+                    // the bot runs facing away, so it leaves by distance, and looks back when it stops.
+                    done: () => leaving && !narrowView(agent) && outOfSight(bot, decision.key),
                     guard: blastGuard(bot, decision.key),
                 });
                 ended = outcome.ended;
@@ -227,6 +229,9 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
             },
         };
     }
+
+    // Whether the bot sees through a player's screen (fair play's look memory knows).
+    const narrowView = agent => Boolean(agent.fairPlay?.looks?.getScreen?.());
 
     // Out of view for a while: the creeper no longer sees the bot either, and loses it.
     function outOfSight(bot, key) {
