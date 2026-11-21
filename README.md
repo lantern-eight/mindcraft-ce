@@ -167,7 +167,8 @@ node tests/live/fairplay_scenarios.js
 The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VIEW=all` (or `--view=all`)
 runs them seeing all around instead, which tells a failure that comes from the view apart from one in what
 the scene is about; a release runs them both ways. `narrow_view_scenarios.js` is about the view itself and
-always uses the screen.
+always uses the screen. `java_all.js` runs every script here both ways, one after another, with a line for each
+and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts).
 
 The last three replay recorded model replies, so they cost nothing; `--live-model` makes them call the
 configured model instead. Each run leaves its server's folder under `server_data/`, which can be deleted.
