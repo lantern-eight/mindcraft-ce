@@ -53,6 +53,14 @@ test('with two mobs in view it looks between them, so neither is turned off the 
     assert.deepEqual(did.at(-1), ['at', -2, 66], 'at the middle of the two (x -2.5)');
 });
 
+test('through a player\'s screen, a hostile mob in view holds the gaze where it is', () => {
+    const zombie = { id: 5, name: 'zombie', type: 'hostile', height: 1.95, position: new Vec3(3.5, 64, -6.5) };
+    const { bot, did, step } = idler({ mobs: [zombie] });
+    bot.registry.entitiesByName = { zombie: { type: 'hostile' } };
+    for (let i = 0; i < 10; i++) step(1000);
+    assert.deepEqual(did, []);
+});
+
 test('with nothing in view, it turns to the way it has looked at least lately, and covers the circle', () => {
     const { bot, did, step } = idler();
     const headings = new Set();

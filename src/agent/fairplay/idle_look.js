@@ -15,13 +15,15 @@
 //     every few seconds;
 //   - turns its head at most once every 600 ms, and never stares at an enderman (the gaze guard keeps every
 //     look off their eyes in any case);
-//   - gives way to a glance (reflexes/glance.js), which holds the head for a moment.
+//   - gives way to a glance (reflexes/glance.js), which holds the head for a moment, and, through a player's
+//     screen, holds still while a hostile mob is in view: the reflexes judge by what is on the screen.
 // The shape of the gaze, the budget of looks and the floor on head turns are ideas from winnerspiros's
 // mindcraft fork (ATTRIBUTION.md); the code is this fork's own.
 import * as world from '../library/world.js';
 import { editionOf } from '../edition/index.js';
 import { looksOf, stalestHeading } from './look_around.js';
 
+const HOSTILE_WITHIN = 24;          // a hostile mob in view this near holds the gaze where it is
 const WITHIN = 10;                  // mobs farther than this aren't looked at, as in the stock mode
 const HOLD_MS = [1500, 3500];       // how long a look at a mob is held
 const AWAY_MS = [2500, 7000];       // and how long the bot looks elsewhere before looking back
@@ -92,6 +94,10 @@ export function createIdleLook({ now = Date.now, random = Math.random, narrow = 
             // Mobs in view, live (not one that just slipped out of sight), never an enderman.
             const mobs = world.getNearbyEntities(bot, WITHIN)
                 .filter(e => e !== bot.entity && e.name !== 'enderman' && e.lastSeenAt === undefined);
+            // A hostile mob in view: the reflexes have the bot's eyes. Through a player's screen any turn, even
+            // toward it, can turn another off the screen that they need to see.
+            if (narrow(bot) && world.getNearbyEntities(bot, HOSTILE_WITHIN).some(e => e.lastSeenAt === undefined
+                && bot.registry?.entitiesByName?.[e.name]?.type === 'hostile')) return;
             for (const id of budgets.keys()) if (!mobs.some(m => m.id === id) && t >= (budgets.get(id).restUntil || 0)) budgets.delete(id);
 
             if (target?.phase === 'hold') {
