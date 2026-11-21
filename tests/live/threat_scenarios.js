@@ -146,6 +146,7 @@ try {
         events.length = 0; explosions.length = 0; creeperSpawns.length = 0; messages.length = 0;
         reflexes.creeper.picture.clear();
         reflexes.zones?.clear(); // each scene starts with no danger remembered from the last one's blast
+        reflexes.glance?.clear(); // nor a look back from the last one's back-off, which would turn the bot
         lowestHealth = bot.health;
     }
     // Waits for the reflex to finish, and then for 2 s more in which it starts nothing new.
@@ -419,7 +420,7 @@ try {
             const outcome = await chase({ sword: true });
             assert.equal(outcome.exploded, 0, 'it never went off');
             assert.equal(outcome.killed, true, JSON.stringify(outcome));
-            assert.equal(outcome.stances[0], 'hit_and_step_back', `met at once: ${JSON.stringify(outcome.stances)}`);
+            assert.equal(outcome.stances[0], 'hit_and_step_back', `met at once: ${JSON.stringify(outcome.stances)}, ${JSON.stringify(events.filter(e => e.event !== 'step').slice(0, 6).map(e => ({ ...e, at: Math.round(e.at) })))}`);
             assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds: ${JSON.stringify(outcome.stances)}`);
             assert.equal(lowestHealth, 20, 'no damage');
             return outcome;

@@ -95,6 +95,7 @@ try {
         events.length = 0; messages.length = 0;
         reflexes?.creeper.picture.clear();
         reflexes?.zones.clear(); // as on Java: no danger remembered from the last scene bends this one's escape
+        reflexes?.glance?.clear(); // nor a look back from the last one's back-off, which would turn the bot
         lowestHealth = bot.health;
     }
     // A creeper lit where it stands, penned in glass so it can't walk.

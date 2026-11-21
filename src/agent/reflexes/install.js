@@ -115,7 +115,7 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     // are as dangerous as they were. The watch forgets them when the dimension changes.
     watch.watch(agent);
     addPlaceCosts(agent.bot, zones);
-    const handle = { creeper, mob, fight, claims, zones, watch, orders, shield, use, beat };
+    const handle = { creeper, mob, fight, claims, zones, watch, orders, shield, use, beat, glance };
     agent.threatReflexes = handle;
     return handle;
 }

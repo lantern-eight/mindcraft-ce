@@ -152,7 +152,7 @@ try {
         // and through a player's screen which way it faces decides what it sees.
         await bot.look((180 - facing) * Math.PI / 180, 0, true);
         events.length = 0; messages.length = 0;
-        if (reflexes) { reflexes.mob.clear(); reflexes.fight.clear(); reflexes.claims.clear(); reflexes.creeper.picture.clear(); }
+        if (reflexes) { reflexes.mob.clear(); reflexes.fight.clear(); reflexes.claims.clear(); reflexes.creeper.picture.clear(); reflexes.glance?.clear(); }
         lowestHealth = lastHealth = bot.health; damage = 0;
     }
     const firstStepAfter = from => events.find(e => e.event === 'step' && e.at >= from);
