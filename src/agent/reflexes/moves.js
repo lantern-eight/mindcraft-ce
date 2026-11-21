@@ -4,6 +4,7 @@
 //
 //   backOffFrom(bot, options)     sprint away from a point until far enough, out of time, or told to stop
 //   retreatFrom(bot, options)     the same, away from several threats at once
+//   backAwayFacing(bot, options)  walk backwards away from threats, facing one of them (an archer)
 //   hitAndStepBack(bot, options)  one sprint-hit at a creeper, which knocks it back, then back off
 //   takeCover(bot, options)       walk to the nearest spot a mob's line of sight doesn't reach
 //
@@ -236,6 +237,61 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
     } finally {
         guard?.shield?.lower();
         bot.pathfinder.setGoal(null);
+        bot.clearControlStates();
+    }
+    return { distance: distance(), ended, blocks };
+}
+
+/**
+ * Walks backwards away from threats, facing one of them, as a player backs out of an archer's range behind a
+ * shield. Running faces away from the archer, and through a player's screen the bot then can't see it draw,
+ * or tell its next shot is due, so the shield never went up. Facing it, the guard raises the shield for each
+ * shot. Slower than a sprint, and no path: it steps back while the cells behind are safe, and otherwise stands
+ * where it is, facing the archer. Ends as retreatFrom does.
+ * @param {object} bot
+ * @param {object} options
+ * @param {() => object[]|null} options.from - the threats' positions now, as the bot knows them
+ * @param {() => object|null} options.face - the point to face (the archer's chest), or null to keep the facing
+ * @returns {Promise<{distance: number|null, ended: string, blocks: number}>}
+ */
+export async function backAwayFacing(bot, { from, face, to = 16, maxMs = 8000, done = () => false, report = () => {}, guard = null }) {
+    const started = Date.now();
+    const blockAt = pos => worldQueries().believedAt(bot, pos);
+    let threats = from();
+    const distance = () => (threats?.length ? Math.min(...threats.map(point => flat(bot.entity.position, point))) : null);
+    const finished = () => {
+        if (bot.interrupt_code) return 'stopped';
+        const now = from();
+        if (now?.length) threats = now;
+        if (!threats?.length) return 'gone';
+        if (distance() >= to) return 'far enough';
+        if (done()) return 'done';
+        if (Date.now() - started > maxMs) return 'out of time';
+        return null;
+    };
+    let ended = finished(), blocks = 0;
+    const halt = () => bot.setControlState('back', false);
+    try {
+        if (!ended) report({ event: 'step', at: performance.now(), how: 'back away facing' });
+        while (!ended && !(ended = finished())) {
+            const wasUp = guard?.shield?.up;
+            if (await guardStep(bot, guard, halt)) {
+                if (!wasUp) { blocks++; report({ event: 'shield', at: performance.now() }); }
+                await wait(STEP_MS);
+                continue;
+            }
+            const point = face();
+            const here = bot.entity.position;
+            if (point) await bot.lookAt(here.offset(point.x - here.x, point.y - here.y, point.z - here.z), true);
+            // The back key moves the bot straight away from where it faces.
+            const yaw = bot.entity.yaw;
+            const back = point ? awayFrom(here, [point]) : (yaw === undefined ? null : { x: Math.sin(yaw), z: Math.cos(yaw) });
+            const open = Boolean(back) && cellsAhead(here, back).every(cell => safeCell(blockAt, cell));
+            bot.setControlState('back', open);
+            await wait(STEP_MS);
+        }
+    } finally {
+        guard?.shield?.lower();
         bot.clearControlStates();
     }
     return { distance: distance(), ended, blocks };

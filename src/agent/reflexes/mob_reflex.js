@@ -26,7 +26,7 @@ import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
 import { couldHaveHit, decideMobThreat, ordersAfterGivingUp } from './mob_decide.js';
-import { retreatFrom, takeCover } from './moves.js';
+import { backAwayFacing, retreatFrom, takeCover } from './moves.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
 import { shotComing, shotWindow } from './shield.js';
@@ -120,8 +120,19 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
                     };
                     let outcome = await takeCover(bot, { eye, report, done: () => !aimingNow(bot, id) && lostSight() });
                     report({ event: 'cover', at: performance.now(), ended: outcome.ended });
-                    if (outcome.ended === 'no cover' || outcome.ended === 'no way there')
-                        outcome = await retreatFrom(bot, { from, to: decision.distance, report, done: () => !narrowView(agent) && lostSight(), guard: archerGuard(bot) });
+                    if (outcome.ended === 'no cover' || outcome.ended === 'no way there') {
+                        // Through a player's screen, with a shield, the bot backs out facing the archer: running
+                        // faces away from it, and then it can't see it draw, or tell its next shot is due, and the
+                        // shield never goes up. Facing it, it sees the archer, so losing sight means something.
+                        const archer = () => {
+                            const mob = mobInView(bot, id) ?? mobsAround(bot, dying).find(m => m.id === id);
+                            const at = mob?.position ?? known[0];
+                            return at ? { x: at.x, y: at.y + (mob?.height ?? 1.8) * 0.8, z: at.z } : null;
+                        };
+                        outcome = narrowView(agent) && shield?.has()
+                            ? await backAwayFacing(bot, { from, face: archer, to: decision.distance, report, done: lostSight, guard: archerGuard(bot) })
+                            : await retreatFrom(bot, { from, to: decision.distance, report, done: () => !narrowView(agent) && lostSight(), guard: archerGuard(bot) });
+                    }
                     ended = outcome.ended;
                     log(bot, `Took cover from the ${decision.name} (${ended}).`);
                     return;
