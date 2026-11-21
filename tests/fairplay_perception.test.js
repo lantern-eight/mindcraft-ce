@@ -242,6 +242,7 @@ test('a narrow view: what is behind the bot is unknown until it turns', () => {
     bot.entity.pitch = -0.3;
     assert.equal(perception.blockAt(at(0, 1, 6))?.name, 'diamond_ore');
     assert.deepEqual(perception.entities().map(e => e.name), ['zombie']);
+    assert.ok(perception.screenNow(), 'a screen while the view is narrow');
 });
 
 test('a narrow view: a name tag shows through walls only on screen', () => {
@@ -254,6 +255,7 @@ test('a narrow view: a name tag shows through walls only on screen', () => {
     assert.deepEqual(perception.entities().map(e => e.username).sort(), ['Alex', 'Sam'],
         'facing south: Sam\'s tag is on screen, and Alex is remembered a moment where last seen');
     const all = setup(walls, { entities: [ahead, behind] });
+    assert.equal(all.perception.screenNow(), null, 'all around: no screen');
     assert.deepEqual(all.perception.entities().map(e => e.username).sort(), ['Alex', 'Sam'], 'all around, both');
 });
 

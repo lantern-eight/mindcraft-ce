@@ -5,7 +5,8 @@
 // what the bot does. Its jobs:
 //   1. Look around. For every cube within reach, test each block that could be seen for a line of sight
 //      from the bot's eyes, and write the ones in view to the store. Only what is in view is written:
-//      memory is what the bot saw, whatever the fair-play setting.
+//      memory is what the bot saw, whatever the fair-play setting. Under a narrowed field of view that
+//      means what was on screen, with the bot facing the way it faced at that moment.
 //   2. Notice differences. A cell that is in view and no longer holds what memory says is corrected,
 //      and reported to the change notes.
 //   3. Keep things up to date: chests, doors, beds and the rest, the crops per cube, the animals in view.
@@ -16,13 +17,14 @@
 // The look-around is spread over many short slices (a few milliseconds each), so it never holds up the
 // bot's own movement. Nothing runs while the bot stands still and no block near it changes.
 import Vec3 from 'vec3';
-import { buildStopsSightTable } from '../fairplay/sight.js';
+import { boxInView, buildStopsSightTable } from '../fairplay/sight.js';
 import { scanSection, sectionsInRange } from '../fairplay/block_scan.js';
 import { editionOf } from '../edition/index.js';
 import { propsOfState } from './block_state.js';
 import { AIR, OTHER_NAME } from './cells.js';
 import { isCrop, isHerdAnimal, isRipe, kindOf, moveKindOf, partnerOffset, startsPlace } from './kinds.js';
 
+const TAU = 2 * Math.PI;
 const WATCHING_MS = 60_000; // a cell seen this recently was being watched: a change to it is no surprise
 const containerWatch = new WeakMap(); // bot -> the one wrapper around its openBlock
 const cubeKey = (cx, cy, cz) => `${cx},${cy},${cz}`;
@@ -50,7 +52,11 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     if (perception) attach(perception);
     const edition = editionOf(registry);
     const stopsSight = buildStopsSightTable(registry);
-    const VIEW = { maxDistance: radius + 2 };
+    // What the bot sees with: how far, and the screen it faces right now (none when it sees all around).
+    // Asked afresh for every slice of a look-around, so a look spread over slices while the bot turns
+    // sees what each slice faced.
+    let looking = { maxDistance: radius + 2, screen: null };
+    const lookingNow = () => { looking = { maxDistance: radius + 2, screen: perception.screenNow?.() ?? null }; };
 
     // What the recorder needs to know about each block state, worked out once. Each is a table with a 1
     // for the states that are so (see src/agent/edition/).
@@ -123,6 +129,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     let feet = { x: 0, y: 0, z: 0 };
     let pass = null;                // the look-around in progress
     let lastPassEye = null;
+    let lastPassFacing = null;      // the screen the last look-around began with, under a narrowed view
     let worldChanged = true;        // a block changed nearby since the last look began
     let opened = null;              // the container window the bot has open, and where the container is
     let timer = null;
@@ -140,8 +147,8 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     /** Is this cell in view? Gives the face it was seen through when there is one, else true, else null. */
     function look(x, y, z, stateId) {
         if (touching(x, y, z)) return true;
-        if (!stopsSight.get(stateId) && sight.canSeePoint(eye, { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, VIEW)) return true;
-        return sight.canSeeBlock(eye, x, y, z, VIEW)?.face ?? null;
+        if (!stopsSight.get(stateId) && sight.canSeePoint(eye, { x: x + 0.5, y: y + 0.5, z: z + 0.5 }, looking)) return true;
+        return sight.canSeeBlock(eye, x, y, z, looking)?.face ?? null;
     }
 
     /**
@@ -267,6 +274,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         pass = { sections: sectionsInRange(feet, radius, minY, maxY), next: 0, queue: [], cube: null, minY,
             crumb: trail.current, fresh: new Map(), appeared: [] };
         lastPassEye = eye;
+        lastPassFacing = looking.screen;
         worldChanged = false;
         nextLook(now());
         try {
@@ -282,8 +290,14 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const column = columnAt(cx, cz);
         if (!column) return; // not loaded: nothing can be said about it
         // The cube counts as looked over from here only if all of it is within reach.
+        // Under a narrowed view it must also be all on screen; a cube wholly off screen is not looked at at
+        // all, unless the bot is touching it. Touch doesn't need the eyes.
+        const onScreen = boxInView(eye, cx * 16, cy * 16, cz * 16, cx * 16 + 16, cy * 16 + 16, cz * 16 + 16, looking);
+        const touched = feet.x + 1 >= cx * 16 && feet.x - 1 < cx * 16 + 16 && feet.z + 1 >= cz * 16 && feet.z - 1 < cz * 16 + 16
+            && feet.y + 2 >= cy * 16 && feet.y - 1 < cy * 16 + 16;
+        if (onScreen === 'none' && !touched) return;
         const reach = (lo, at) => Math.max(Math.abs(lo - at), Math.abs(lo + 15 - at));
-        const whole = Math.hypot(reach(cx * 16, feet.x), reach(cy * 16, feet.y), reach(cz * 16, feet.z)) <= radius;
+        const whole = onScreen === 'all' && Math.hypot(reach(cx * 16, feet.x), reach(cy * 16, feet.y), reach(cz * 16, feet.z)) <= radius;
         pass.cube = { cx, cy, cz, whole, crops: new Set(), ripe: new Map() };
         const remembered = cells.hasCells(cx, cy, cz);
         if (edition.sectionSummary(column, cy, pass.minY)?.empty && !remembered) return; // open air, and nothing to check
@@ -330,7 +344,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const how = { from: pass.crumb, day: bot.time?.day ?? null };
         for (const herd of things.herdsNear(feet, { maxDistance: radius })) {
             const key = cubeKey(herd.x >> 4, herd.y >> 4, herd.z >> 4);
-            if (groups.has(key) || !sight.canSeePoint(eye, { x: herd.x + 0.5, y: herd.y + 0.5, z: herd.z + 0.5 }, VIEW)) continue;
+            if (groups.has(key) || !sight.canSeePoint(eye, { x: herd.x + 0.5, y: herd.y + 0.5, z: herd.z + 0.5 }, looking)) continue;
             things.setHerds(herd.x >> 4, herd.y >> 4, herd.z >> 4, [], how);
         }
         for (const [key, group] of groups) {
@@ -341,15 +355,29 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         forgetOldLooks(now());
     }
 
+    /**
+     * Has the bot turned far enough since a look-around began that it sees much it didn't then? More than
+     * a quarter of the screen's width or height. Under a view all around, turning shows nothing new.
+     */
+    function turnedFrom(before, after) {
+        if (!after) return false;
+        if (!before) return true;
+        const yawTurn = Math.abs(((after.yaw - before.yaw) % TAU + TAU + Math.PI) % TAU - Math.PI);
+        const pitchTurn = Math.abs(after.pitch - before.pitch);
+        return yawTurn * 180 / Math.PI > after.widthDegrees / 4 || pitchTurn * 180 / Math.PI > after.heightDegrees / 4;
+    }
+
     /** One slice of work. Call it often; it returns as soon as its time is used up or nothing is left to do. */
     function tick({ budgetMs = tickBudgetMs } = {}) {
         if (!bot.entity?.position) return;
         changes.settle();
         const p = bot.entity.position;
+        lookingNow();
         if (!pass) {
             const e = perception.eye();
             const moved = !lastPassEye || Math.hypot(e.x - lastPassEye.x, e.y - lastPassEye.y, e.z - lastPassEye.z) >= 1;
-            if (!moved && !worldChanged) { confirmed = now(); return; } // standing still in an unchanged world: still seeing the same
+            // Standing still in an unchanged world, facing the same way: still seeing the same.
+            if (!moved && !worldChanged && !turnedFrom(lastPassFacing, looking.screen)) { confirmed = now(); return; }
             startPass();
         } else if (Math.abs(Math.floor(p.x) - feet.x) + Math.abs(Math.floor(p.y) - feet.y) + Math.abs(Math.floor(p.z) - feet.z) > 16) {
             startPass(); // the bot has left the area this look was covering

@@ -30,7 +30,7 @@ function clock(start = 1_000_000) {
 }
 
 /** A flat stone floor at y 0, the bot standing on it at the origin, and whatever `build` adds. */
-function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [], prepare = () => {} } = {}) {
+function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'memory-')), now = clock(), entities = [], prepare = () => {}, policy = STRICT } = {}) {
     const world = fixtureWorld({ min: [-40, -4, -40], max: [40, 24, 40] });
     world.fill('stone', [-40, 0, -40], [40, 0, 40]);
     build(world);
@@ -41,7 +41,7 @@ function setup(build = () => {}, { baseDir = mkdtempSync(path.join(tmpdir(), 'me
     const memory = openMemory({ baseDir, scope: SCOPE, now, canWalkStraight: (a, b) => recorder.canWalkStraight(a, b) });
     recorder = createRecorder({ bot, memory, now, tickBudgetMs: Infinity });
     // Perception is handed world memory as its memory, and leaves the looking around to the recorder.
-    const perception = createPerception({ bot, policy: STRICT, memory: recorder.view, now, ...NO_BUDGETS });
+    const perception = createPerception({ bot, policy, memory: recorder.view, now, ...NO_BUDGETS });
     recorder.attach(perception);
     recorder.listen(); // hear the bot move, dig, place and open things; the tests call tick() themselves
     const lookAround = () => { bot.emit('blockUpdate', null, { position: bot.entity.position }); recorder.tick(); };
@@ -181,6 +181,36 @@ test('nothing runs while the bot stands still in an unchanged world', () => {
     bot.emit('chunkColumnLoad', new Vec3(1600, 0, 1600));   // a chunk far away is no reason to look
     recorder.tick();
     assert.equal(memory.cells.read(4, 1, 4), 'air');
+});
+
+const NARROW = resolvePolicy({ fair_play: 'custom', fair_play_custom: { fov_degrees: 70 } });
+
+test('a narrow view: only what is on screen is written, and turning round starts a new look', () => {
+    const { memory, recorder, bot } = setup(w => {
+        w.set('diamond_ore', 0, 1, -8);                // ahead: the bot faces north (-z)
+        w.set('gold_ore', 0, 1, 8);                    // behind
+        w.set('chest', 8, 1, 0, { facing: 'west' });   // off to the right, past the screen's edge
+    }, { policy: NARROW });
+    bot.entity.pitch = -0.4; // looking a little down, as a player walking does
+    recorder.tick();
+    assert.equal(memory.cells.read(0, 1, -8), 'diamond_ore');
+    assert.equal(memory.cells.read(0, 1, 8), null, 'the ore behind was not on screen');
+    assert.equal(memory.things.get(8, 1, 0), null, 'nor the chest to the side');
+    assert.equal(memory.cells.read(0, 0, 0), 'stone', 'the ground under its feet is known by touch');
+    assert.equal(memory.cells.lookedAt(0, 0, 0), 1_000_000, 'the cube it stands in was looked at');
+    assert.equal(memory.cells.lookedAt(0, 0, -1), 1_000_000, 'and the one ahead');
+    assert.equal(memory.cells.lookedAt(-2, 0, 1), 0, 'one wholly behind it was not');
+
+    bot.entity.yaw = -0.3; // a small turn, about 17 degrees: no new look
+    recorder.tick();
+    assert.equal(memory.things.get(8, 1, 0), null);
+    bot.entity.yaw = -Math.PI / 2; // a quarter turn right, to face east
+    recorder.tick();
+    assert.equal(memory.things.get(8, 1, 0)?.name, 'chest', 'facing it now');
+    assert.equal(memory.cells.read(0, 1, 8), null, 'the gold is still behind');
+    bot.entity.yaw = Math.PI; // and round to face south
+    recorder.tick();
+    assert.equal(memory.cells.read(0, 1, 8), 'gold_ore');
 });
 
 test('A1 and A2: a wall of planks replaced by glass while the bot was away is one note; no change, no note', () => {

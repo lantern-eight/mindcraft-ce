@@ -117,8 +117,8 @@ const SCREEN_ASPECT = 16 / 9;
  * Worked out once per facing, so a check is a few multiplications. Yaw and pitch follow mineflayer: yaw 0
  * faces north (-z), positive pitch looks up, and the screen is never rolled.
  *
- * @returns {{ahead:object, right:object, up:object, tanHalfWidth:number, tanHalfHeight:number}|null} null for
- *   360, which means all around
+ * @returns {{ahead:object, right:object, up:object, tanHalfWidth:number, tanHalfHeight:number, yaw:number,
+ *   pitch:number, widthDegrees:number, heightDegrees:number}|null} null for 360, which means all around
  */
 export function screenOf(yaw, pitch, fovDegrees) {
     if (!(fovDegrees < 360)) return null;
@@ -130,6 +130,9 @@ export function screenOf(yaw, pitch, fovDegrees) {
         up: { x: sy * sp, y: cp, z: cy * sp },
         tanHalfWidth: tanHalfHeight * SCREEN_ASPECT,
         tanHalfHeight,
+        yaw, pitch,
+        widthDegrees: screenWidthDegrees(fovDegrees),
+        heightDegrees: fovDegrees,
     };
 }
 

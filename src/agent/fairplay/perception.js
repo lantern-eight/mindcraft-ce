@@ -633,6 +633,15 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             beginLook();
             return policy.sight === 'all' || sight.canSeeEntity(eyeNow, entity, { ...viewOpts, maxDistance: policy.entity_distance });
         },
+        /**
+         * The screen the bot sees through right now (sight.js `screenOf`), or null when it sees all around.
+         * World memory's recorder looks with it, so memory holds only what was in view.
+         */
+        screenNow: () => {
+            if (!narrowView || !bot.entity?.position) return null;
+            beginLook();
+            return screen;
+        },
         knowsCell: pos => blockAt(pos) !== null,
         /** Counts for live runs: `searchesCut` is how many block searches ran out of their time budget. */
         stats: () => ({ searchesCut }),

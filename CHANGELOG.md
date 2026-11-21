@@ -17,6 +17,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   number is refused at startup. It used to be the width of a cone, which nobody had set.
 - With a narrowed view, a player's name tag shows through walls only when it is on screen, as in the game. A
   player standing behind the bot is no longer known from their name tag.
+- With a narrowed view, world memory records only what is on screen, the way the bot faces at the moment
+  it looks, and looks again when the bot turns. It used to record all around whatever the view.
 
 ## [1.10.0-bedrock.1.11.0] - 2026-11-20
 
