@@ -150,3 +150,29 @@ test('a blast heard where a lit creeper was is that creeper going off: it is for
     assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:8'], 'the one east went off; the one west is still about');
     assert.ok(picture.explosion(at(0)), 'and the blast itself is remembered a moment');
 });
+
+test('a creeper seen lit, gone from a spot in view, went off: it is forgotten', () => {
+    // A silent creeper's blast makes no sound, but a player looking at where it stood sees it go. A swelling
+    // creeper stands still, so it hasn't stepped aside.
+    const { picture, wait } = setup();
+    picture.see([{ id: 7, position: { x: 2, y: 64, z: 0 }, lit: true }], at(0));
+    wait(100);
+    // Gone from view a moment ago: it may only be a ray that missed it this once.
+    picture.see([], at(0), { spotInView: () => true });
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:7'], 'too soon');
+    wait(400);
+    // The bot faces away from its spot: still thought to be there.
+    picture.see([], at(0), { spotInView: () => false });
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:7'], 'not looked at');
+    // The bot looks at where it was and nothing is there.
+    picture.see([], at(0), { spotInView: spot => spot.x === 2 });
+    assert.deepEqual(picture.creepers(at(0)), []);
+});
+
+test('an unlit creeper gone from a spot in view is kept: it walked somewhere', () => {
+    const { picture, wait } = setup();
+    picture.see([{ id: 7, position: { x: 2, y: 64, z: 0 }, lit: false }], at(0));
+    wait(5000);
+    picture.see([], at(0), { spotInView: () => true });
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:7']);
+});

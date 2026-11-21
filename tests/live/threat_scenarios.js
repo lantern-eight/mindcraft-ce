@@ -178,7 +178,7 @@ try {
             await waitFor(() => explosions.length > 0, 6000, () => JSON.stringify(events));
             const spawned = creeperSpawns[0].at;
             const first = firstStepAfter(spawned, 'sight');
-            assert.ok(first, 'it stepped away');
+            assert.ok(first, `it stepped away: it stood at ${bot.entity.position}, events ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
             // Its hiss isn't heard. The blast is the world's sound, not the creeper's, and is heard.
             assert.ok(!events.some(e => e.event === 'heard' && e.subject !== 'explosion'), 'a silent creeper is not heard');
             const off = flat(explosions[0].bot, explosions[0].creeper ?? { x: -1.5, z: 0.5 });

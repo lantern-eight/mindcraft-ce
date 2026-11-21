@@ -34,6 +34,7 @@ import { holdActions, holdKind } from '../action_hold.js';
 import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
+import { fairPlayOf } from '../fairplay/fair_queries.js';
 import { createThreatPicture } from './picture.js';
 import { bestWeapon, blockTheBlast, decideThreat, hitsNeeded } from './decide.js';
 import { backOffFrom, hitAndStepBack } from './moves.js';
@@ -103,7 +104,13 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
             .filter(entity => entity.name === 'creeper' && entity.lastSeenAt === undefined && !dying.has(entity.id)) // not a stand-in
             .map(entity => ({ id: entity.id, position: entity.position, lit: edition.isFusing(bot.registry, entity) }));
         const self = selfOf(bot);
-        picture.see(inView, self);
+        // Whether the bot can see where a creeper stood, by the middle of its body, within the distance it
+        // follows creepers at: one lit there that isn't there any more went off. Fair play's eyes only;
+        // without them, the picture never guesses.
+        const perception = fairPlayOf(bot)?.perception;
+        const spotInView = perception?.seesCell ? spot => Math.hypot(spot.x - self.position.x, spot.y - self.position.y, spot.z - self.position.z) <= LOOK_WITHIN
+            && perception.seesCell({ x: spot.x, y: spot.y + 0.85, z: spot.z }) : undefined;
+        picture.see(inView, self, { spotInView });
         return self;
     }
 

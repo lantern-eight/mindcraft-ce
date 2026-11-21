@@ -417,6 +417,9 @@ server tracks without it.
   hiss. It is settled when the creeper is seen with its fuse out, when the bot has been away long enough for
   any fuse to run down, or after 10 s with nothing new. When the creeper that hissed comes into view, its
   entry carries over, and a back-off that started on the sound follows the creeper seen.
+- **A creeper that went off is forgotten:** one lit near where a blast was heard, or one last seen lit when
+  the bot can see where it stood and it isn't there (a swelling creeper stands still, so it hasn't stepped
+  aside). A silent creeper's blast makes no sound, so only the eyes can tell.
 - **Cover** is only cover where the bot has seen the wall: a cell it never saw counts as open.
 - **Danger zones** are noted from the same sight, hearing and touch, never from a stand-in out of view.
 

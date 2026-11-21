@@ -27,6 +27,7 @@ const TICK_MS = 50;
 const SIGHT_GRACE_MS = 500;            // a sighting this soon after a hiss may not show the fuse yet
 const EXPLOSION_MEMORY_MS = 1500;
 const BLEW_UP_WITHIN = 6;              // blocks between a lit creeper and a blast heard, for the blast to be it
+const VANISHED_MS = 250;              // a lit creeper missing this long from a spot in view went off
 const SAME_CREEPER = 6;                // a creeper seen this close to where a hiss was placed is the one that hissed
 
 // The middle of each of hearing's distance bands (perception.js describeDirection), and how much nearer
@@ -90,8 +91,11 @@ export function createThreatPicture({ now = Date.now } = {}) {
          * The creepers in view this round. Any creeper of the picture not listed is out of view now.
          * @param {{id: number, position: object, lit: boolean}[]} creepers
          * @param {{position: object}} self
+         * @param {object} [options]
+         * @param {(position: object) => boolean} [options.spotInView] - can the bot see this spot right now? Told
+         *   by perception; without it, no creeper is taken to have gone off unheard
          */
-        see(creepers, self) {
+        see(creepers, self, { spotInView } = {}) {
             const t = now();
             const inView = new Set();
             for (const creeper of creepers) {
@@ -115,10 +119,19 @@ export function createThreatPicture({ now = Date.now } = {}) {
                     mergedInto.set(heard.key, key);
                 }
             }
-            for (const track of tracks.values()) {
+            for (const track of [...tracks.values()]) {
                 if (track.source !== 'seen' || inView.has(track.key)) continue;
                 advance(track, self, t);
                 track.seenNow = false;
+                // Last seen lit, and not there now where the bot can see it stood: it went off. A swelling
+                // creeper stands still (the game stops its walking while the fuse burns), so it hasn't stepped
+                // aside. A silent creeper's blast makes no sound (the game sends it with its sound turned off),
+                // so only the eyes can tell; without this it stayed in the picture, still lit, and the bot got
+                // away from it again when it next came near the spot. An unlit one is kept: it walked somewhere.
+                if (track.lit && t - track.lastSeenAt >= VANISHED_MS && track.position && spotInView?.(track.position)) {
+                    tracks.delete(track.key);
+                    for (const [from, to] of mergedInto) if (to === track.key) mergedInto.delete(from);
+                }
             }
         },
 
