@@ -71,6 +71,9 @@ function liquidBeside(bot, cell, sides = SIDES) {
  */
 async function clearCell(bot, cell, breakBlockAt, sides) {
     for (let digs = 0; digs < MAX_DIGS_PER_CELL; digs++) {
+        // A player digging looks at the block first. Through a player's screen the cell under the edge of
+        // a level look is out of view until the bot looks down at it.
+        await bot.lookAt?.(cell.offset(0.5, 0.5, 0.5), true);
         const block = knownBlockAt(bot, cell);
         if (!inViewNow(block)) return `you can't see the block at ${where(cell)}`;
         const liquid = liquidOf(block);
@@ -86,9 +89,10 @@ async function clearCell(bot, cell, breakBlockAt, sides) {
  * Where the bot will stand after stepping down onto the cell below `ahead`: the cell above the first
  * block it can stand on, within the allowed fall. Returns { stand } or { problem } with words for the model.
  */
-function landingBelow(bot, ahead) {
+async function landingBelow(bot, ahead) {
     for (let fall = 0; fall <= MAX_FALL; fall++) {
         const floor = ahead.offset(0, -2 - fall, 0);
+        await bot.lookAt?.(floor.offset(0.5, 1, 0.5), true); // its top, the face the bot will stand on
         const block = knownBlockAt(bot, floor);
         if (!block) return { problem: `you can't see what is under the next step, at ${where(floor)}` };
         const liquid = liquidOf(block);
@@ -136,7 +140,7 @@ export async function digStairsDown(bot, distance, { breakBlockAt, log }) {
             }
         }
         // The block under the next step has its top uncovered now, so the bot can see it.
-        const { stand, problem } = landingBelow(bot, ahead);
+        const { stand, problem } = await landingBelow(bot, ahead);
         if (problem) return stop(problem);
         bot.pathfinder.setMovements(walking);
         try {
