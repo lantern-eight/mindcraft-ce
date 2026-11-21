@@ -432,7 +432,7 @@ try {
         assert.equal(reflexes.orders.give('creepers', 'flee').ok, true);
         try {
             const outcome = await chase({ sword: true });
-            assert.equal(outcome.exploded, 0, 'it never went off');
+            assert.equal(outcome.exploded, 0, `it never went off: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at) })))}, blast at ${JSON.stringify(explosions.map(x => ({ at: Math.round(x.at), bot: x.bot, creeper: x.creeper })))}`);
             assert.equal(outcome.stances[0], 'leave', `left at once: ${JSON.stringify(outcome.stances)}`);
             assert.ok(!outcome.stances.includes('hit_and_step_back'), 'never went back in');
             assert.ok(outcome.rounds <= 2, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
