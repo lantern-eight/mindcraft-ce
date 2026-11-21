@@ -376,7 +376,8 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
 const lookAroundCommandSpec = {
     name: '!lookAround',
     description: 'Turn round and look every way. You see only what is in front of you; this looks at the rest, so it is known in !entities, !nearbyBlocks and searches.',
-    perform: asAction('lookAround', agent => lookAroundCommand(agent.bot)),
+    // What an action says is what it logs.
+    perform: asAction('lookAround', async agent => skills.log(agent.bot, await lookAroundCommand(agent.bot))),
 };
 
 /** Runs a command's work as one of the bot's actions, as the built-in action commands do. */
