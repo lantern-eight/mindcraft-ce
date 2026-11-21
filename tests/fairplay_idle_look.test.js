@@ -45,6 +45,14 @@ test('a mob in view is looked at, held, looked away from, and after a few looks 
     assert.equal(starts(), 4, 'and after a rest, it is looked at again');
 });
 
+test('with two mobs in view it looks between them, so neither is turned off the screen', () => {
+    const west = { id: 5, name: 'zombie', type: 'hostile', height: 1.95, position: new Vec3(-5.5, 64, 0.5) };
+    const north = { id: 6, name: 'zombie', type: 'hostile', height: 1.95, position: new Vec3(0.5, 64, -5.5) };
+    const { did, step } = idler({ mobs: [west, north] });
+    step(0);
+    assert.deepEqual(did.at(-1), ['at', -2, 66], 'at the middle of the two (x -2.5)');
+});
+
 test('with nothing in view, it turns to the way it has looked at least lately, and covers the circle', () => {
     const { bot, did, step } = idler();
     const headings = new Set();

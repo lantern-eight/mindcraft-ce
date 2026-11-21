@@ -9,7 +9,8 @@
 // This one, registered under the same name and in the same place (so the switch, the profiles and whatever
 // pauses it by name keep their meaning):
 //   - looks at mobs and players in view the way a person does: holds the look a moment, looks away, looks
-//     back, and after a few looks leaves that one alone for a while;
+//     back, and after a few looks leaves that one alone for a while. With several in view it looks at the
+//     middle of them, so none is turned off the screen by a look at another;
 //   - otherwise turns toward the way it has looked at least lately, so an idle bot covers the whole circle
 //     every few seconds;
 //   - turns its head at most once every 600 ms, and never stares at an enderman (the gaze guard keeps every
@@ -43,11 +44,17 @@ export function createIdleLook({ now = Date.now, random = Math.random, narrow = 
     const budgets = new Map(); // mob id -> { looks, restUntil }
     let nextTurn = 0, nextWander = 0;
 
-    function lookAtMob(bot, mob) {
-        // A baby is looked in the eye, half as high (the edition seam knows a baby).
+    // Where a mob's eyes are: a baby's are half as high (the edition seam knows a baby).
+    function eyesOf(bot, mob) {
         const baby = mob.type !== 'player' && editionOf(bot.registry).isBaby(mob);
-        const height = baby ? mob.height / 2 : mob.height;
-        bot.lookAt(mob.position.offset(0, height, 0));
+        return mob.position.offset(0, baby ? mob.height / 2 : mob.height, 0);
+    }
+    // The one looked at, or the middle of all those in view, so a look at one never turns another away.
+    function lookAtMob(bot, mob, mobs) {
+        if (mobs.length < 2) { bot.lookAt(eyesOf(bot, mob)); return; }
+        const points = mobs.map(m => eyesOf(bot, m));
+        const middle = points.reduce((sum, p) => sum.plus(p), points[0].scaled(0)).scaled(1 / points.length);
+        bot.lookAt(middle);
     }
 
     function lookAbout(bot) {
@@ -89,7 +96,7 @@ export function createIdleLook({ now = Date.now, random = Math.random, narrow = 
 
             if (target?.phase === 'hold') {
                 const mob = mobs.find(m => m.id === target.id);
-                if (mob && t < target.until) { lookAtMob(bot, mob); return; } // following it with the eyes
+                if (mob && t < target.until) { lookAtMob(bot, mob, mobs); return; } // following it with the eyes
                 // Held long enough, or gone: look away for a while.
                 target = mob ? { id: target.id, phase: 'away', until: t + between(AWAY_MS) } : null;
                 if (t >= nextTurn) { lookAbout(bot); nextTurn = t + TURN_FLOOR_MS; nextWander = t + between(narrow(bot) ? WANDER_NARROW_MS : WANDER_WIDE_MS); }
@@ -102,7 +109,7 @@ export function createIdleLook({ now = Date.now, random = Math.random, narrow = 
             if (mob) {
                 spendLook(mob.id, t);
                 target = { id: mob.id, phase: 'hold', until: t + between(HOLD_MS) };
-                lookAtMob(bot, mob);
+                lookAtMob(bot, mob, mobs);
                 nextTurn = t + TURN_FLOOR_MS;
                 return;
             }
