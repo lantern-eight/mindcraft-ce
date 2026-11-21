@@ -20,7 +20,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, LIVE_VIEW } from '../helpers/live_view.js';
 
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55926);
 const NAME = 'Wayfinder';
@@ -158,7 +158,11 @@ try {
         await delay(800);
         const walled = (x, y, z) => x === 20 && z === 2 && (y === 70 || y === 71);
         const text = await walkTo(START);
-        assert.match(text, /The way you walked before is blocked near \d+, 70, 2\./);
+        // Seeing all around, the bot sees the new wall down the corridor before it sets off, and says where it
+        // is. Through a player's screen it faces away from it, walks on, and learns of it when it comes on
+        // screen: it says the way is blocked, and may then take the short way through the dirt instead.
+        if (LIVE_VIEW === 'all') assert.match(text, /The way you walked before is blocked near \d+, 70, 2\./);
+        else assert.match(text, /The way you walked before is blocked near -?\d+, 70, -?\d+\./);
         assert.ok(distanceTo(START) <= 1.5, `it stopped ${distanceTo(START).toFixed(1)} blocks short: ${text}`);
         const dug = changed(walled);
         return { said: text.split('\n').filter(line => /blocked|Going around/.test(line)), dug, trip: trips.at(-1), wallStillThere: rawName(20, 70, 2) === 'stone' && rawName(20, 71, 2) === 'stone' };

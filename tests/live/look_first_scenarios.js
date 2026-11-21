@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live scenarios for skills that are given a block by its coordinates (no model calls, free to run).
-//   node tests/live/look_first_scenarios.js [--port=55923]
+//   node tests/live/look_first_scenarios.js [--port=55923] [--only=<regex>]
 // Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // Under fair play these skills look at a block before they decide anything from it (look_first.js):
@@ -23,7 +23,9 @@ import { fairPlaySettings } from '../helpers/live_view.js';
 const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55923);
 const NAME = 'LookFirst';
 const results = [];
+const ONLY = process.argv.find(a => a.startsWith('--only='))?.split('=')[1];
 const step = async (name, fn) => {
+    if (ONLY && !new RegExp(ONLY).test(name)) return;
     const started = Date.now();
     const details = await fn();
     const result = { name, status: 'passed', durationMs: Date.now() - started, ...(details || {}) };
