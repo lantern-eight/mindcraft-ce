@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: CC0-1.0
 // The mob reflex's moves that need no bot: the way away from several mobs at once, whether a wall the bot
 // has seen hides it from a mob's eye, and where the nearest such cover is. Blocks come from a map, as they
-// would from world.js's provider.
+// would from world.js's provider. Taking cover runs on a stand-in bot whose pathfinder is told what to say.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { awayFrom, lineBlocked, hiddenFrom, coverSpots } from '../src/agent/reflexes/moves.js';
+import { EventEmitter } from 'node:events';
+import { Vec3 } from 'vec3';
+import minecraftData from 'minecraft-data';
+import { awayFrom, lineBlocked, hiddenFrom, coverSpots, takeCover } from '../src/agent/reflexes/moves.js';
+import { GAME_VERSION } from './helpers/game_version.js';
 
 // A flat stone floor with its top at y 63, air above, and whatever `cells` changes. "x,y,z" -> name;
 // null in `cells` means the bot doesn't know that cell.
@@ -52,4 +56,25 @@ test('cover is never a spot over lava', () => {
     for (let z = -1; z <= 1; z++) for (let x = -3; x <= 2; x++) lava[`${x},63,${z}`] = 'lava';
     const spots = coverSpots(world(lava), { x: 4.5, y: 64, z: 3.5 }, skeletonEye);
     assert.ok(spots.every(cell => !(cell.x <= 2 && cell.x >= -3 && Math.abs(cell.z) <= 1)), JSON.stringify(spots));
+});
+
+test('cover the pathfinder finds no way to ends the move at once, for the caller to back out instead', async () => {
+    // Behind the wall, as the bot knows it, but with no way there (the far side of a pen wall, say): the
+    // pathfinder says so and keeps its goal. Waiting on it ran the move out of time while a skeleton shot.
+    const blocks = world(wall);
+    const bot = Object.assign(new EventEmitter(), {
+        registry: minecraftData(GAME_VERSION), entity: { position: new Vec3(4.5, 64, 3.5), height: 1.8 },
+        blockAt: pos => blocks({ x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z) }),
+        world: { getBlock: () => null }, inventory: { items: () => [] }, interrupt_code: false,
+        clearControlStates() {},
+        pathfinder: {
+            goal: null, isMoving: () => false, setMovements() {},
+            setGoal(goal) { this.goal = goal; if (goal) setImmediate(() => bot.emit('path_update', { status: 'noPath', path: [] })); },
+        },
+    });
+    const started = Date.now();
+    const { ended } = await takeCover(bot, { eye: () => skeletonEye, maxMs: 6000 });
+    assert.equal(ended, 'no way there');
+    assert.ok(Date.now() - started < 1000, `it gave up in ${Date.now() - started} ms`);
+    assert.equal(bot.pathfinder.goal, null, 'and left the pathfinder with no goal');
 });

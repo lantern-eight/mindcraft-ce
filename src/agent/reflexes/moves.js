@@ -372,17 +372,25 @@ export async function takeCover(bot, { eye, maxMs = 6000, done = () => false, re
         bot.pathfinder.setGoal(new pf.goals.GoalCompositeAny(spots.map(cell => new pf.goals.GoalBlock(cell.x, cell.y, cell.z))), false);
         return true;
     };
-    if (!goTo()) return { ended: 'no cover' };
+    // The pathfinder says when none of the spots can be reached, and keeps its goal: a spot behind a wall the
+    // bot knows, with no way round to it (the far side of a pen wall). That ends the move, for the caller to
+    // back out of range instead, rather than waiting out its time while the mob shoots.
+    let noPath = false;
+    const onPath = update => { if (update?.status === 'noPath') noPath = true; };
+    bot.on?.('path_update', onPath);
+    if (!goTo()) { bot.off?.('path_update', onPath); return { ended: 'no cover' }; }
     try {
         report({ event: 'step', at: performance.now(), how: 'cover' });
         let tries = 1;
         while (!(ended = finished())) {
+            if (noPath) { ended = 'no way there'; break; }
             if (!bot.pathfinder.isMoving?.() && !bot.pathfinder.goal) {
                 if (tries++ >= 4 || !goTo()) { ended = 'no way there'; break; }
             }
             await wait(STEP_MS);
         }
     } finally {
+        bot.off?.('path_update', onPath);
         bot.pathfinder.setGoal(null);
         bot.clearControlStates();
     }
