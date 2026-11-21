@@ -244,6 +244,19 @@ test('a narrow view: what is behind the bot is unknown until it turns', () => {
     assert.deepEqual(perception.entities().map(e => e.name), ['zombie']);
 });
 
+test('a narrow view: a name tag shows through walls only on screen', () => {
+    const ahead = { id: 9, type: 'player', username: 'Alex', position: at(0.5, 1, -10.5), height: 1.8, eyeHeight: 1.62 };
+    const behind = { id: 10, type: 'player', username: 'Sam', position: at(0.5, 1, 10.5), height: 1.8, eyeHeight: 1.62 };
+    const walls = w => { w.fill('stone', [-6, 1, -5], [6, 8, -5]); w.fill('stone', [-6, 1, 5], [6, 8, 5]); };
+    const { bot, perception } = setup(walls, { policy: NARROW, entities: [ahead, behind] });
+    assert.deepEqual(perception.entities().map(e => e.username), ['Alex'], 'north, through the wall');
+    bot.entity.yaw = Math.PI;
+    assert.deepEqual(perception.entities().map(e => e.username).sort(), ['Alex', 'Sam'],
+        'facing south: Sam\'s tag is on screen, and Alex is remembered a moment where last seen');
+    const all = setup(walls, { entities: [ahead, behind] });
+    assert.deepEqual(all.perception.entities().map(e => e.username).sort(), ['Alex', 'Sam'], 'all around, both');
+});
+
 test('open_face sight sees ore in a sealed cave; ray sight does not', () => {
     const build = w => {
         w.fill('stone', [4, 1, -3], [14, 6, 3]);

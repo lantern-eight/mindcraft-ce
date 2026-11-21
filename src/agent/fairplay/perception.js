@@ -10,7 +10,7 @@
 //   - memory:   blocks it saw before (world memory, src/agent/memory/), exactly as it remembers them.
 //               With world memory off it remembers nothing out of view;
 //   - hearing:  sounds the server actually sent, as "zombie, north-east, close" (never coordinates);
-//   - players:  name tags show through walls within 64 blocks unless the player is sneaking.
+//   - players:  name tags show through walls within 64 blocks unless the player is sneaking, when on screen.
 // The fair query provider (world.js), the fair bot facade (generated code), and the guards all ask here.
 //
 // How it answers "what block is there?":
@@ -34,7 +34,7 @@
 //   start() / stop()        start listening for sounds; end the service for good and remove its listeners
 // The looking around that fills memory is world memory's recorder (memory/recorder.js), not perception's.
 import Vec3 from 'vec3';
-import { buildStopsSightTable, createSight, screenOf } from './sight.js';
+import { buildStopsSightTable, createSight, inView, screenOf } from './sight.js';
 import { lazyStateTable, scanSection, sectionsInRange } from './block_scan.js';
 import { stateOfProps } from '../memory/block_state.js';
 import { editionOf } from '../edition/index.js';
@@ -42,6 +42,7 @@ import { editionOf } from '../edition/index.js';
 const PLAYER_EYE_HEIGHT = 1.62;
 const NAMETAG_RANGE = 64; // vanilla name tags render through walls up to about this far
 const CROUCH_EYE_HEIGHT = 1.27; // mineflayer sets this on players who are sneaking
+const NAMETAG_ABOVE = 0.5; // the tag floats about this far above the player's head
 
 /** 8-way compass direction and a rough distance, the way a player hears a sound. Never coordinates. */
 export function describeDirection(from, to) {
@@ -428,8 +429,8 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
             const distance = entity.position.distanceTo(here);
             let known = false;
             if (entity.type === 'player' && policy.players_through_walls === 'nametag'
-                && distance <= NAMETAG_RANGE && entity.eyeHeight !== CROUCH_EYE_HEIGHT) {
-                known = true; // a standing player's name tag shows through walls
+                && distance <= NAMETAG_RANGE && entity.eyeHeight !== CROUCH_EYE_HEIGHT && nameTagOnScreen(entity)) {
+                known = true; // a standing player's name tag shows through walls, when it is on screen
             } else if (policy.sight === 'all' && distance <= policy.entity_distance) {
                 known = true;
             } else if (distance <= policy.entity_distance && sight.canSeeEntity(eyeNow, entity, entityView)) {
@@ -448,6 +449,18 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         for (const id of standIns.keys()) if (!stillOut.has(id)) standIns.delete(id);
         stillOut.clear();
         return out;
+    }
+
+    /**
+     * Is a player's name tag, or the player under it, on screen? The game draws the tag through walls, but
+     * only where the screen shows: one behind the bot is not seen. Walls don't matter here, so this is the
+     * screen alone, no ray. Under a view all around, it always is.
+     */
+    function nameTagOnScreen(entity) {
+        if (!narrowView) return true;
+        const { x, y, z } = entity.position;
+        const height = entity.height ?? 1.8;
+        return [height + NAMETAG_ABOVE, height * 0.9, height * 0.5].some(up => inView(eyeNow, { x, y: y + up, z }, viewOpts));
     }
 
     /**

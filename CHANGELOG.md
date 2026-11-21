@@ -15,6 +15,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   `110` as on the game's slider, on a 16:9 screen, so `70` (Java's default) is about 102° across. What the
   bot sees is shaped like that screen, not a cone. `360`, the default, still means all around; any other
   number is refused at startup. It used to be the width of a cone, which nobody had set.
+- With a narrowed view, a player's name tag shows through walls only when it is on screen, as in the game. A
+  player standing behind the bot is no longer known from their name tag.
 
 ## [1.10.0-bedrock.1.11.0] - 2026-11-20
 
