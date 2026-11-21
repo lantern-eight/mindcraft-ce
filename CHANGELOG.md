@@ -71,6 +71,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Through a player's screen, a lit creeper the bot has just run past, now behind it, still counts for the
   shield: it stands where it was, and the bot turns the shield to it. The shield went up only at one in view,
   and a creeper touched but out of sight was taken to have gone off.
+- A creeper the bot sees die is gone from what it knows at once, and a hiss the game still plays where it fell
+  is taken for that creeper. The kill went on being a lit creeper out of view, or a new one heard, and the
+  bot backed off from it a moment after the hit that killed it.
 - A dash away from a threat checks every cell the body sweeps, along both its sides, not only the middle of
   its line each whole block. At 45 degrees from the middle of a block it could aim between two walls that
   meet at a corner, and stall there with a lit creeper behind it instead of raising its shield.

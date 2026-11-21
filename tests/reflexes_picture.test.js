@@ -192,3 +192,17 @@ test('a hit from the side of a lit creeper whose fuse has burned through is its 
     picture.felt(east, at(0));
     assert.deepEqual(picture.creepers(at(0)), [], 'the blast');
 });
+
+test('a hiss from where a creeper was just seen to die is that creeper, not a new one', () => {
+    const { picture, wait } = setup();
+    picture.see([{ id: 7, position: { x: 3, y: 64, z: 0 }, lit: true }], at(0));
+    picture.forget(7, { x: 3, y: 64, z: 0 });
+    wait(800);
+    picture.hear(hiss('east', 'very close'), at(0));
+    assert.deepEqual(picture.creepers(at(0)), [], 'passed over');
+    picture.hear(hiss('west', 'close'), at(0));
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['heard:west'], 'one from elsewhere counts');
+    wait(2500);
+    picture.hear(hiss('east', 'very close'), at(0));
+    assert.ok(picture.creepers(at(0)).some(c => c.key === 'heard:east'), 'and a while later, from there too');
+});

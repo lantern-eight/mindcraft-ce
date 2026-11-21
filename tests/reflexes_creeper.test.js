@@ -189,6 +189,17 @@ test('a creeper seen dying is not backed off from, though it is still swollen', 
     bot.stopWalking();
 });
 
+test('a lit creeper already known, seen dying, is forgotten at once: no round backs off from it', async () => {
+    const { agent, bot, installed } = makeAgent();
+    bot.entities[7] = creeper(-1.5, true);
+    installed.creeper.picture.see([{ id: 7, position: bot.entities[7].position, lit: true }], { position: bot.entity.position });
+    bot.emit('entityDead', bot.entities[7]); // the fourth hit lands: it dies where the bot can see it
+    installed.creeper.round(agent);
+    assert.equal(agent.actions.executing, false, 'no back-off from it');
+    assert.deepEqual(installed.creeper.picture.creepers({ position: bot.entity.position }), []);
+    bot.stopWalking();
+});
+
 test('an unlit creeper close by: errands start nothing and one under way stops; commands and the fight go on', async () => {
     const { agent, bot, installed } = makeAgent();
     agent.actions.runAction('mode:item_collecting', () => new Promise(() => {}));

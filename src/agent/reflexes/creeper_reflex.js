@@ -116,8 +116,12 @@ export function createCreeperReflex({ now = Date.now, orders = null, shield = nu
     // Tells the picture which creepers are in view right now, and whether each one's fuse is lit.
     function look(bot) {
         const edition = editionOf(bot.registry);
-        const inView = world.getNearbyEntities(bot, LOOK_WITHIN)
-            .filter(entity => entity.name === 'creeper' && entity.lastSeenAt === undefined && !dying.has(entity.id)) // not a stand-in
+        const seen = world.getNearbyEntities(bot, LOOK_WITHIN)
+            .filter(entity => entity.name === 'creeper' && entity.lastSeenAt === undefined); // not a stand-in
+        // One seen dying is gone: a player sees it fall. Left in the picture it was a lit creeper out of view,
+        // and the next round backed off from it, a moment after the hit that killed it.
+        for (const entity of seen) if (dying.has(entity.id)) picture.forget(entity.id, entity.position);
+        const inView = seen.filter(entity => !dying.has(entity.id))
             .map(entity => ({ id: entity.id, position: entity.position, lit: edition.isFusing(bot.registry, entity) }));
         const self = selfOf(bot);
         // Whether the bot can see where a creeper stood, by the middle of its body, within the distance it

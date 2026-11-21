@@ -29,6 +29,8 @@ const EXPLOSION_MEMORY_MS = 1500;
 const BLEW_UP_WITHIN = 6;              // blocks between a lit creeper and a blast heard, for the blast to be it
 const FROM_ITS_SIDE = Math.cos(Math.PI / 3); // a hit within 60 degrees of a creeper's side came from it
 const VANISHED_MS = 250;              // a lit creeper missing this long from a spot in view went off
+const DEATH_MEMORY_MS = 2000;          // a hiss from where a creeper died this lately is that creeper,
+const DIED_WITHIN = 3;                 // and from this near where it fell
 const SAME_CREEPER = 6;                // a creeper seen this close to where a hiss was placed is the one that hissed
 
 // The middle of each of hearing's distance bands (perception.js describeDirection), and how much nearer
@@ -70,6 +72,7 @@ export function createThreatPicture({ now = Date.now } = {}) {
     const mergedInto = new Map(); // a heard entry's key -> the key of the creeper seen that it turned out to be
     const resolve = key => { while (mergedInto.has(key)) key = mergedInto.get(key); return key; };
     let explosion = null;     // { position, at }: the last explosion heard
+    const deaths = [];        // { position, at }: creepers seen to die lately, oldest first
 
     const makeTrack = (key, fields) => ({
         key, id: null, position: null, slack: 0, source: 'seen', seenNow: false, lit: false, litByHiss: false,
@@ -160,6 +163,10 @@ export function createThreatPicture({ now = Date.now } = {}) {
                 return;
             }
             if (!/^creeper \(hissing\)$/.test(sound.subject)) return;
+            // From where a creeper was just seen to die: that one, already gone.
+            while (deaths.length && t - deaths[0].at > DEATH_MEMORY_MS) deaths.shift();
+            const slack = BAND_SLACK[sound.distance] ?? 0;
+            if (deaths.some(death => dist(death.position, position) - slack <= DIED_WITHIN)) return;
             // One heard creeper per direction: a second hiss from there is the same one lighting again.
             const key = `heard:${sound.direction}`;
             mergedInto.delete(key); // a new hiss from there is a creeper of its own until seen
@@ -221,6 +228,19 @@ export function createThreatPicture({ now = Date.now } = {}) {
                 tracks.delete(track.key);
                 for (const [from, to] of mergedInto) if (to === track.key) mergedInto.delete(from);
             }
+        },
+
+        /**
+         * A creeper seen to die: it is gone. Where it fell is kept a moment: the game may still play its hiss
+         * there, and a hiss from that spot is the creeper the bot saw die, not a new one.
+         * @param {number} id
+         * @param {object} [position] - where it died
+         */
+        forget(id, position = null) {
+            const key = `id:${id}`;
+            tracks.delete(key);
+            for (const [from, to] of mergedInto) if (to === key) mergedInto.delete(from);
+            if (position) deaths.push({ position: { x: position.x, y: position.y, z: position.z }, at: now() });
         },
 
         /** An explosion heard within the last moment, as {position, distance}, or null. */
