@@ -27,6 +27,7 @@ const TICK_MS = 50;
 const SIGHT_GRACE_MS = 500;            // a sighting this soon after a hiss may not show the fuse yet
 const EXPLOSION_MEMORY_MS = 1500;
 const BLEW_UP_WITHIN = 6;              // blocks between a lit creeper and a blast heard, for the blast to be it
+const FROM_ITS_SIDE = Math.cos(Math.PI / 3); // a hit within 60 degrees of a creeper's side came from it
 const VANISHED_MS = 250;              // a lit creeper missing this long from a spot in view went off
 const SAME_CREEPER = 6;                // a creeper seen this close to where a hiss was placed is the one that hissed
 
@@ -197,6 +198,29 @@ export function createThreatPicture({ now = Date.now } = {}) {
                 });
             }
             return out.sort((a, b) => a.distance - b.distance);
+        },
+
+        /**
+         * A hit felt, from the side `direction` points to ({x, z}, a unit step toward it). A lit creeper out of
+         * view, close, on that side, whose fuse has burned through by now, is what hit: its blast. It is
+         * gone. A silent creeper's blast makes no sound, and one that went off behind the bot as it ran is
+         * neither heard nor seen, only felt; without this it stayed in the picture, still lit.
+         * @param {{x: number, z: number}} direction
+         * @param {{position: object}} self
+         */
+        felt(direction, self) {
+            const t = now();
+            for (const track of [...tracks.values()]) {
+                if (track.seenNow || !(track.lit || track.fuse > 0) || !track.position) continue;
+                advance(track, self, t);
+                if (track.fuse < FUSE_TICKS) continue;
+                const dx = track.position.x - self.position.x, dz = track.position.z - self.position.z;
+                const d = Math.hypot(dx, dz);
+                if (d - track.slack > BLEW_UP_WITHIN) continue;
+                if (d > 0.5 && (dx * direction.x + dz * direction.z) / d < FROM_ITS_SIDE) continue;
+                tracks.delete(track.key);
+                for (const [from, to] of mergedInto) if (to === track.key) mergedInto.delete(from);
+            }
         },
 
         /** An explosion heard within the last moment, as {position, distance}, or null. */

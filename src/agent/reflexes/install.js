@@ -100,6 +100,8 @@ export function installThreatReflexes(agent, { config = settings, ordersDir = nu
     let ranFromStart = null;
     agent.bot.on?.('threat_reflex', event => {
         if (event.event === 'felt' && event.unseen) glance.felt(agent, event.direction);
+        // A hit from where a lit creeper was, its fuse run out: the blast. The creeper is gone.
+        if (event.event === 'felt' && event.direction && agent.bot?.entity) creeper.picture.felt(event.direction, { position: agent.bot.entity.position });
         if (event.event === 'decided' && /flee|retreat|cover|back|leave/.test(String(event.stance))) ranFromStart = agent.bot.entity?.position?.clone?.() ?? null;
         if (event.event === 'done' && ranFromStart) { glance.ranFrom(agent, ranFromStart); ranFromStart = null; }
     });

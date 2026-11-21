@@ -24,8 +24,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 - A lit creeper that blew up out of the bot's view stayed in what the creeper reflex knew, still lit, and the
   bot could go on getting away from it, missing a real creeper meanwhile. A blast heard where a lit creeper
-  was now settles it, and so does looking at where a creeper stood lit and seeing nothing there: a silent
-  creeper's blast makes no sound.
+  was now settles it, and so does looking at where a creeper stood lit and seeing nothing there, or a hit
+  from its side once its fuse has run out: a silent creeper's blast makes no sound.
 
 - A walk whose route ended short of its goal, on ground the bot had not seen and that turned out not to be
   there, left the bot standing at the end of it until its action timed out. The route is now planned again

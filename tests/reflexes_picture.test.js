@@ -176,3 +176,19 @@ test('an unlit creeper gone from a spot in view is kept: it walked somewhere', (
     picture.see([], at(0), { spotInView: () => true });
     assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:7']);
 });
+
+test('a hit from the side of a lit creeper whose fuse has burned through is its blast: it is forgotten', () => {
+    // A silent creeper's blast makes no sound; one that went off behind the bot is felt, not seen.
+    const { picture, wait } = setup();
+    picture.see([{ id: 7, position: { x: 2, y: 64, z: 0 }, lit: true }], at(0));
+    wait(200);
+    picture.see([], at(0)); // the bot turned away to run
+    const east = { x: 1, z: 0 }, west = { x: -1, z: 0 };
+    picture.felt(east, at(0));
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:7'], 'too soon for its fuse: something else hit');
+    wait(FUSE_TICKS * 50);
+    picture.felt(west, at(0));
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:7'], 'a hit from the other side');
+    picture.felt(east, at(0));
+    assert.deepEqual(picture.creepers(at(0)), [], 'the blast');
+});

@@ -419,9 +419,10 @@ server tracks without it.
   hiss. It is settled when the creeper is seen with its fuse out, when the bot has been away long enough for
   any fuse to run down, or after 10 s with nothing new. When the creeper that hissed comes into view, its
   entry carries over, and a back-off that started on the sound follows the creeper seen.
-- **A creeper that went off is forgotten:** one lit near where a blast was heard, or one last seen lit when
-  the bot can see where it stood and it isn't there (a swelling creeper stands still, so it hasn't stepped
-  aside). A silent creeper's blast makes no sound, so only the eyes can tell.
+- **A creeper that went off is forgotten:** one lit near where a blast was heard; one last seen lit when the
+  bot can see where it stood and it isn't there (a swelling creeper stands still, so it hasn't stepped
+  aside); and one out of view whose fuse has run out by now, when a hit comes from its side: the blast. A
+  silent creeper's blast makes no sound, so only the eyes and the body can tell.
 - **Cover** is only cover where the bot has seen the wall: a cell it never saw counts as open.
 - **Where to step** (a dash, a cover spot, a step back in a fight) is judged by what the bot knows: ground in
   view, and ground and open space it has seen and remembers (world memory). Through a player's screen most
