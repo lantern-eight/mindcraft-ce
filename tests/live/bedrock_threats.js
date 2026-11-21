@@ -23,7 +23,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
-import { fairPlaySettings, LIVE_VIEW } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
 
 const NAME = 'BedrockWary';
 const report = createReport();
@@ -68,7 +68,7 @@ try {
     const { heldFrom } = await import('../../src/agent/action_hold.js');
     const skills = await import('../../src/agent/library/skills.js');
 
-    let agent, reflexes;
+    let agent, reflexes, fair;
     const messages = [], events = [];
     let lowestHealth = 20, blocked = 0;
     const rawCreeper = () => Object.values(bot.entities).find(e => e.name === 'creeper') ?? null;
@@ -137,8 +137,8 @@ try {
         };
         agent.actions = new ActionManager(agent);
         initModes(agent);
-        const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-memory-')) });
-        assert.ok(handle, 'fair play installed');
+        fair = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-memory-')) });
+        assert.ok(fair, 'fair play installed');
         // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
         reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-orders-')) });
         assert.ok(reflexes, 'the threat reflexes installed');
@@ -223,6 +223,11 @@ try {
             await fill([1, 1, 0], [1, 2, 0], 'stone');
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
+            // The bot sees the dead end it stands in, a look all round, recorded, and faces the mouth again: the
+            // idle look-around may have turned it to the walls, and through a player's screen the creeper would
+            // then be only heard, and a shield goes up only at one seen.
+            if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
+            await faceToward(bot, at(-2, 1, 0).offset(0.5, 1.6, 0.5));
             let gone = null;
             const onGone = entity => { if (entity.name === 'creeper') gone = performance.now(); };
             bot.on('entityGone', onGone);
@@ -346,6 +351,9 @@ try {
                 await fill(a, b, 'stone');
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
+            // The bot sees its pen, a look all round, recorded: through a player's screen memory would otherwise
+            // still hold the open ground from before the walls went up, and the reflexes would plan by it.
+            if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
             const blocksBefore = blocked;
             const spot = at(5, 1, 0);
             await cmd(`summon skeleton ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
