@@ -402,7 +402,7 @@ try {
         const outcome = await chase({ sword: true });
         assert.equal(outcome.exploded, 0, 'it never went off');
         assert.equal(outcome.killed, true, JSON.stringify(outcome));
-        assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds`);
+        assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event === 'decided' || e.event === 'done').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
         assert.equal(messages.length, 1, messages.join('\n---\n'));
         assert.equal(lowestHealth, 20, 'no damage');
         return outcome;
