@@ -26,6 +26,7 @@ export const HEARD_MEMORY_MS = 10000;  // a hiss with nothing new is forgotten a
 const TICK_MS = 50;
 const SIGHT_GRACE_MS = 500;            // a sighting this soon after a hiss may not show the fuse yet
 const EXPLOSION_MEMORY_MS = 1500;
+const BLEW_UP_WITHIN = 6;              // blocks between a lit creeper and a blast heard, for the blast to be it
 const SAME_CREEPER = 6;                // a creeper seen this close to where a hiss was placed is the one that hissed
 
 // The middle of each of hearing's distance bands (perception.js describeDirection), and how much nearer
@@ -131,7 +132,19 @@ export function createThreatPicture({ now = Date.now } = {}) {
             const t = now();
             const position = pointFromSound(sound, self.position);
             if (!position) return;
-            if (sound.subject === 'explosion') { explosion = { position, slack: BAND_SLACK[sound.distance] ?? 0, at: t }; return; }
+            if (sound.subject === 'explosion') {
+                explosion = { position, slack: BAND_SLACK[sound.distance] ?? 0, at: t };
+                // A lit creeper the bot knows of near where the blast sounded is the one that went off: it is
+                // gone. Without this a creeper that blew up out of view stayed in the picture, still lit, and
+                // the bot went on getting away from it.
+                for (const track of [...tracks.values()]) {
+                    if (!(track.lit || track.fuse > 0) || !track.position) continue;
+                    if (dist(track.position, position) - track.slack - explosion.slack > BLEW_UP_WITHIN) continue;
+                    tracks.delete(track.key);
+                    for (const [from, to] of mergedInto) if (to === track.key) mergedInto.delete(from);
+                }
+                return;
+            }
             if (!/^creeper \(hissing\)$/.test(sound.subject)) return;
             // One heard creeper per direction: a second hiss from there is the same one lighting again.
             const key = `heard:${sound.direction}`;

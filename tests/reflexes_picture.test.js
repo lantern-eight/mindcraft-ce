@@ -140,3 +140,13 @@ test('an explosion heard is remembered for a moment', () => {
     wait(2000);
     assert.equal(picture.explosion(at(0)), null);
 });
+
+test('a blast heard where a lit creeper was is that creeper going off: it is forgotten; one far from the blast is not', () => {
+    const { picture, wait } = setup();
+    picture.see([{ id: 7, position: { x: 5, y: 64, z: 0 }, lit: true }, { id: 8, position: { x: -20, y: 64, z: 0 }, lit: true }], at(0));
+    wait(500);
+    picture.see([], at(0)); // both out of view now, through a player's screen say
+    picture.hear({ subject: 'explosion', direction: 'east', distance: 'close', text: 'east, close' }, at(0));
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key), ['id:8'], 'the one east went off; the one west is still about');
+    assert.ok(picture.explosion(at(0)), 'and the blast itself is remembered a moment');
+});
