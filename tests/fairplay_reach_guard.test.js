@@ -190,3 +190,63 @@ test('a mob known only from where it was last seen is hit, or not, by where it i
     assert.throws(() => guard.checkEntity(standIn), /can't reach the zombie/);
     assert.deepEqual(sent, []);
 });
+
+// A narrowed view, as a player's screen (70 tall). The stub bot faces north (-z); its lookAt turns it the
+// way mineflayer's does, at once, and counts the looks.
+function narrow(build, options = {}) {
+    const scene = setup(build, { custom: { fov_degrees: 70 }, ...options });
+    scene.looks = [];
+    scene.bot.lookAt = async point => {
+        const eye = scene.bot.entity.position.offset(0, scene.bot.entity.eyeHeight, 0);
+        const d = point.minus(eye);
+        scene.bot.entity.yaw = Math.atan2(-d.x, -d.z);
+        scene.bot.entity.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
+        scene.looks.push(point);
+    };
+    return scene;
+}
+
+test('a narrow view: a block within reach behind the bot is turned to, then dug, opened or built on', async () => {
+    const { bot, block, sent, looks } = narrow(w => { w.set('chest', 0, 1, 3); w.set('oak_log', 3, 1, 0); w.set('stone', -3, 1, 0); });
+    await bot.openContainer(block(0, 1, 3)); // south: behind
+    assert.equal(looks.length, 1, 'it turned first');
+    assert.ok(Math.abs(Math.abs(bot.entity.yaw) - Math.PI) < 0.01, 'to face south');
+    await bot.dig(block(3, 1, 0)); // east
+    assert.ok(Math.abs(bot.entity.yaw + Math.PI / 2) < 0.01, 'to face east');
+    await bot.placeBlock(block(-3, 1, 0), new Vec3(1, 0, 0)); // the east side of a stone to the west
+    assert.deepEqual(looks.at(-1).toArray(), [-2, 1.5, 0.5], 'at the middle of the side to be clicked');
+    assert.deepEqual(sent.map(s => s[0]), ['openContainer', 'dig', 'placeBlock']);
+    await bot.dig(block(-3, 1, 0)); // in front now: no turn
+    assert.equal(looks.length, 3);
+});
+
+test('a narrow view: a block behind a wall is still refused once faced, and one out of reach is not turned to', async () => {
+    const { bot, block, sent, looks } = narrow(w => {
+        w.fill('stone', [-2, 1, 2], [2, 4, 2]); // a wall to the south
+        w.set('chest', 0, 1, 3);                 // a chest behind it
+        w.set('oak_log', 0, 1, 9);               // a log too far away
+    });
+    await assert.rejects(bot.openContainer(block(0, 1, 3)), /can't see the block at 0, 1, 3/);
+    assert.equal(looks.length, 1, 'it looked, as a player would, and saw the wall');
+    bot.entity.yaw = 0;
+    await assert.rejects(bot.dig(block(0, 1, 9)), /can't reach/);
+    assert.equal(looks.length, 1, 'no turn toward what is out of reach');
+    assert.deepEqual(sent, []);
+});
+
+test('a narrow view: a hit at a mob behind is refused, not turned to; the view all around never turns', async () => {
+    const pig = { id: 7, type: 'animal', name: 'pig', position: new Vec3(0.5, 1, 2.5), height: 0.9, width: 0.9 };
+    const { bot, sent, looks } = narrow(() => {}, { entities: [pig] });
+    assert.throws(() => bot.attack(pig), /can't see the pig/);
+    assert.equal(bot.entity.yaw, 0);
+    assert.deepEqual(looks, []);
+    bot.entity.yaw = Math.PI; // the caller looks first, as the fight does
+    bot.attack(pig);
+    assert.deepEqual(sent, [['attack', 'pig']]);
+
+    const all = setup(w => w.set('chest', 0, 1, 3));
+    let turned = false;
+    all.bot.lookAt = async () => { turned = true; };
+    await all.bot.openContainer(all.block(0, 1, 3));
+    assert.equal(turned, false);
+});

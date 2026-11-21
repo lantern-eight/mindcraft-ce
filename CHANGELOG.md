@@ -19,6 +19,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   player standing behind the bot is no longer known from their name tag.
 - With a narrowed view, world memory records only what is on screen, the way the bot faces at the moment
   it looks, and looks again when the bot turns. It used to record all around whatever the view.
+- With a narrowed view, the bot turns to face a block within reach before digging, opening, using or placing
+  against it, then checks that it can see it. It used to refuse anything not already in front of it.
 
 ## [1.10.0-bedrock.1.11.0] - 2026-11-20
 

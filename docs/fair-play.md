@@ -73,7 +73,7 @@ the bot plans to get somewhere.
 
 | Rule | What happens |
 |---|---|
-| **Reach** | Clicking, digging, placing against or hitting something needs it within a survival player's reach of the bot's eye (on Java 4.5 blocks for a block and 3 for a mob, on Bedrock 5 and 3) **and in view right now**. To place a block, the side being clicked must be in view |
+| **Reach** | Clicking, digging, placing against or hitting something needs it within a survival player's reach of the bot's eye (on Java 4.5 blocks for a block and 3 for a mob, on Bedrock 5 and 3) **and in view right now**. To place a block, the side being clicked must be in view. Under a narrowed field of view the bot turns to face a block within reach before clicking, digging or placing against it, as a player does; one behind a wall is still refused. It doesn't turn to hit a mob: what swings at one looks at it first |
 | **No slash commands** | A chat message starting with `/` is dropped before it reaches the server, except whispers (`/tell`, `/msg`, `/w`) |
 | **No cheat mode** | Mindcraft's `cheat` mode stays off whoever asks: the model, a player typing `!setMode("cheat", true)`, a profile, or generated code |
 | **Never an operator** | If the server makes the bot an operator, or puts it outside survival, it stops acting and says why until that is undone |
