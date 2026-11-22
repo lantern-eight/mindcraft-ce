@@ -14,7 +14,7 @@
 // The bot fights through its own reflexes, as it would in a game: standing orders tell it to fight every
 // kind in the arena down to 6 health, the floor no order goes under, so the fight is what is measured and not
 // the choice to start one. Under 6 the mob reflex runs, which counts as "ran". The bot plays under strict
-// fair play unless --fair=off. The test reads raw world data to measure; the bot never may.
+// fair play unless --fair=off, with the view and the turn speed live_view.js reads (MC_TEST_VIEW, MC_TEST_TURN). The test reads raw world data to measure; the bot never may.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -25,6 +25,7 @@ import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
 import { ROUNDS, createMeter, summarize, printSummary } from './arena_meter.js';
+import { fairPlaySettings } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55934);
@@ -66,7 +67,7 @@ const results = [];
 let bot, running = true;
 try {
     setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline',
-        fair_play: FAIR ? 'strict' : 'off', world_memory: FAIR, threat_reflexes: true, narrate_behavior: false });
+        ...(FAIR ? fairPlaySettings() : { fair_play: 'off' }), world_memory: FAIR, threat_reflexes: true, narrate_behavior: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');

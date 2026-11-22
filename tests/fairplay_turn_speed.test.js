@@ -4,9 +4,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vec3 } from 'vec3';
-import { installTurnSpeed, stepToward, angleBetween, CONTROLLER_DEGREES_PER_SECOND } from '../src/agent/fairplay/turn_speed.js';
+import { installTurnSpeed, stepToward, angleBetween, keysToward, CONTROLLER_DEGREES_PER_SECOND } from '../src/agent/fairplay/turn_speed.js';
 import { installWalkingGaze, WALKING_PITCH } from '../src/agent/fairplay/walking_gaze.js';
 import { guardGaze, stares } from '../src/agent/reflexes/gaze.js';
+import { EventEmitter } from 'node:events';
 
 const DEG = Math.PI / 180;
 
@@ -99,4 +100,133 @@ test('a walk\'s level look heads for the walking gaze\'s pitch, though its steps
     installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => Promise.resolve() });
     await bot.look(0.5, 0);
     assert.ok(Math.abs(bot.entity.pitch - WALKING_PITCH) < 1e-9, `${bot.entity.pitch}`);
+});
+
+test('building a pillar, the bot looks down before it jumps, as a player does, and jumps once it does', async () => {
+    const { bot } = turner();
+    const events = new EventEmitter();
+    bot.on = events.on.bind(events);
+    bot.off = events.off.bind(events);
+    // installTurnSpeed listens for game ticks when it is put on: put it on again over this bot's look.
+    delete bot.lookPacer;
+    const plain = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.look = plain;
+    const waiting = [];
+    installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => new Promise(resolve => waiting.push(resolve)) });
+    const gameTick = () => { const next = waiting.splice(0); for (const resolve of next) resolve(); return new Promise(r => setImmediate(r)); };
+    bot.entity.onGround = true;
+    bot.entity.pitch = 60 * DEG; // looking up, at the block it just dug overhead
+    bot.controlState = { jump: false };
+    // As mineflayer's: asking for the jump queues one as well.
+    bot.setControlState = (state, on) => { bot.controlState[state] = on; if (state === 'jump' && on) bot.jumpQueued = true; };
+    bot.pathfinder = { isBuilding: () => true };
+
+    // The pathfinder asks for the jump each tick; the hold takes it back while the head turns down.
+    let ticks = 0;
+    for (; ticks < 40; ticks++) {
+        bot.setControlState('jump', true);
+        events.emit('physicsTick');
+        if (bot.controlState.jump) break;
+        assert.equal(bot.jumpQueued, false, 'no jump left queued either');
+        await gameTick();
+    }
+    assert.ok(bot.entity.pitch <= -65 * DEG, `it jumped looking down (pitch ${(bot.entity.pitch / DEG).toFixed(0)})`);
+    assert.ok(ticks >= 12 && ticks <= 30, `after turning down for ${ticks} ticks, from looking up`);
+
+    // Not building, or already looking down, or at instant turns: the jump is left alone.
+    bot.entity.pitch = 0;
+    bot.pathfinder = { isBuilding: () => false };
+    bot.setControlState('jump', true);
+    events.emit('physicsTick');
+    assert.equal(bot.controlState.jump, true, 'an ordinary jump up a step');
+});
+
+test('the keys for a heading: ahead is forward, a quarter turn left is left, behind is back, between is both', () => {
+    const on = keys => Object.entries(keys).filter(([, v]) => v).map(([k]) => k).sort().join('+');
+    assert.equal(on(keysToward(0)), 'forward');
+    assert.equal(on(keysToward(10 * DEG)), 'forward', 'nearly ahead: forward alone');
+    assert.equal(on(keysToward(45 * DEG)), 'forward+left', 'greater yaw is to the left');
+    assert.equal(on(keysToward(90 * DEG)), 'left');
+    assert.equal(on(keysToward(-90 * DEG)), 'right');
+    assert.equal(on(keysToward(180 * DEG)), 'back');
+    assert.equal(on(keysToward(-135 * DEG)), 'back+right');
+});
+
+test('walking while the head turns, the bot goes the way the walk heads, with the keys, not the way it faces', async () => {
+    const { bot } = turner();
+    const events = new EventEmitter();
+    bot.on = events.on.bind(events);
+    bot.off = events.off.bind(events);
+    delete bot.lookPacer;
+    bot.look = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.controlState = {};
+    bot.setControlState = (state, on) => { bot.controlState[state] = on; };
+    const waiting = [];
+    installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => new Promise(resolve => waiting.push(resolve)) });
+    const gameTick = () => { const next = waiting.splice(0); for (const resolve of next) resolve(); return new Promise(r => setImmediate(r)); };
+    const pressed = () => ['forward', 'back', 'left', 'right', 'sprint'].filter(k => bot.controlState[k]).join('+');
+
+    // The walk turns a quarter left (greater yaw) and asks for forward and sprint, every tick, as the pathfinder does.
+    const walkTick = async () => {
+        void bot.look(Math.PI / 2, 0);
+        bot.setControlState('forward', true);
+        bot.setControlState('sprint', true);
+        events.emit('physicsTick');
+        const keys = pressed();
+        await gameTick();
+        return keys;
+    };
+    const first = await walkTick();
+    assert.equal(first, 'left', 'at first, facing ahead, it walks left: no forward, so no sprint either');
+    const seen = [first];
+    for (let i = 0; i < 12; i++) seen.push(await walkTick());
+    assert.ok(seen.includes('forward+left+sprint'), `then forward and left as it turns: ${seen.join(', ')}`);
+    assert.equal(seen.at(-1), 'forward+sprint', 'and forward alone, sprinting, once it faces the way it goes');
+
+    // Stopped (forward let go), the keys are what was asked for.
+    bot.setControlState('forward', false);
+    events.emit('physicsTick');
+    assert.equal(pressed(), 'sprint', 'nothing it did not ask for is left held');
+});
+
+test('a heading asked for outright (a reflex backing away as it turns) is walked on the keys until let go', async () => {
+    const { bot } = turner();
+    const events = new EventEmitter();
+    bot.on = events.on.bind(events);
+    bot.off = events.off.bind(events);
+    delete bot.lookPacer;
+    bot.look = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.controlState = {};
+    bot.setControlState = (state, on) => { bot.controlState[state] = on; };
+    const pacer = installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => new Promise(() => {}) });
+    const pressed = () => ['forward', 'back', 'left', 'right', 'sprint'].filter(k => bot.controlState[k]).join('+');
+    // Facing a creeper to the north (yaw 0), the way out is south (yaw pi).
+    pacer.walkToward(Math.PI);
+    bot.setControlState('forward', true);
+    bot.setControlState('sprint', true);
+    await new Promise(r => setTimeout(r, 200)); // longer than a pathfinder heading stays fresh
+    events.emit('physicsTick');
+    assert.equal(pressed(), 'back', 'it backs away, no sprint going backwards');
+    pacer.walkToward(null);
+    events.emit('physicsTick');
+    assert.equal(pressed(), 'forward+sprint', 'let go, the keys are what was asked for');
+});
+
+test('a move key asked for between ticks while the walk is steered is steered at once: never forward and back together', async () => {
+    const { bot } = turner();
+    const events = new EventEmitter();
+    bot.on = events.on.bind(events);
+    bot.off = events.off.bind(events);
+    delete bot.lookPacer;
+    bot.look = async (yaw, pitch) => { bot.entity.yaw = yaw; bot.entity.pitch = pitch; };
+    bot.controlState = {};
+    bot.setControlState = (state, on) => { bot.controlState[state] = on; };
+    const pacer = installTurnSpeed(bot, { getSpeed: () => CONTROLLER_DEGREES_PER_SECOND, wait: () => new Promise(() => {}) });
+    pacer.walkToward(Math.PI); // behind
+    bot.setControlState('forward', true);
+    events.emit('physicsTick');
+    assert.equal(bot.controlState.back, true);
+    bot.setControlState('forward', true); // a reflex presses it again on its own clock
+    assert.equal(bot.controlState.forward, false, 'steered at once, not left held with back');
+    assert.equal(bot.controlState.back, true);
 });

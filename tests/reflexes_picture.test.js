@@ -206,3 +206,31 @@ test('a hiss from where a creeper was just seen to die is that creeper, not a ne
     picture.hear(hiss('east', 'very close'), at(0));
     assert.ok(picture.creepers(at(0)).some(c => c.key === 'heard:east'), 'and a while later, from there too');
 });
+
+test('a hiss from near where a creeper was seen, out of view now, is that creeper lighting: no second one', () => {
+    const { picture, wait } = setup();
+    picture.see([{ id: 9, position: { x: 4, y: 64, z: 0 }, lit: false }], at(0));
+    wait(200);
+    picture.see([], at(0)); // it is behind the bot now
+    picture.hear(hiss('east', 'close'), at(0));
+    const list = picture.creepers(at(0));
+    assert.deepEqual(list.map(c => c.key), ['id:9'], 'the one it saw, not a heard one beside it');
+    assert.equal(list[0].lit, true, 'and it is lit now');
+    // One from the other side is a creeper of its own.
+    picture.hear(hiss('west', 'close'), at(0));
+    assert.deepEqual(picture.creepers(at(0)).map(c => c.key).sort(), ['heard:west', 'id:9']);
+});
+
+test('a hiss from a creeper in view is that creeper: it counts as lit until its fuse can show, and no second one is made', () => {
+    const { picture, wait } = setup();
+    picture.see([{ id: 3, position: { x: 5, y: 64, z: 0 }, lit: false }], at(0));
+    picture.hear(hiss('east', 'close'), at(0));
+    wait(100);
+    picture.see([{ id: 3, position: { x: 5, y: 64, z: 0 }, lit: false }], at(0));
+    const list = picture.creepers(at(0));
+    assert.deepEqual(list.map(c => c.key), ['id:3']);
+    assert.equal(list[0].lit, true, 'too soon for the fuse to show: the hiss counts');
+    wait(600);
+    picture.see([{ id: 3, position: { x: 5, y: 64, z: 0 }, lit: false }], at(0));
+    assert.equal(picture.creepers(at(0))[0].lit, false, 'its fuse shows out now');
+});

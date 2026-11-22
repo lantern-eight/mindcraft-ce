@@ -21,7 +21,7 @@ import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
 import { readFileSync } from 'node:fs';
-import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW, LIVE_TURN, faceExactly } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55931);
@@ -142,7 +142,7 @@ try {
         await delay(2000); // the hold from the last scene has ended, and the bot has looked around
         // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
         // and through a player's screen which way it faces decides what it sees.
-        await bot.look((180 - facing) * Math.PI / 180, 0, true);
+        await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);
         events.length = 0; explosions.length = 0; creeperSpawns.length = 0; messages.length = 0;
         reflexes.creeper.picture.clear();
         reflexes.zones?.clear(); // each scene starts with no danger remembered from the last one's blast
@@ -178,8 +178,13 @@ try {
 
     const sightTimes = [], hissTimes = [];
 
+    // How far off the bot is when a creeper lit 2 blocks away goes off. A creeper's blast hurts up to 6 blocks
+    // off. Turning at once, the bot sprints away at once, and ends 8 or 9 off. At a player's turning speed it
+    // backs away while its head comes round (a second, most of the fuse) and sprints after: 7 to 8 off, and
+    // now and then a little under 7.
+    const LIT_CLEAR = LIVE_TURN === 'instant' ? 7 : 6.5;
     for (let run = 1; run <= RUNS; run++) {
-        await step(`seen only by sight (a silent creeper, normal fuse) lit 2 blocks away, run ${run}: first step within 600 ms, 7 or more blocks off when it goes off, no damage`, async () => {
+        await step(`seen only by sight (a silent creeper, normal fuse) lit 2 blocks away, run ${run}: first step within 600 ms, ${LIT_CLEAR} or more blocks off when it goes off, no damage`, async () => {
             await reset({ facing: 90 }); // facing west, at where the creeper will be
             await cmd('summon creeper -1.5 70 0.5 {Fuse:30s,ignited:1b,ExplosionRadius:0b,NoAI:1b,Silent:1b}');
             await waitFor(() => explosions.length > 0, 6000, () => JSON.stringify(events));
@@ -189,7 +194,7 @@ try {
             // Its hiss isn't heard. The blast is the world's sound, not the creeper's, and is heard.
             assert.ok(!events.some(e => e.event === 'heard' && e.subject !== 'explosion'), 'a silent creeper is not heard');
             const off = flat(explosions[0].bot, explosions[0].creeper ?? { x: -1.5, z: 0.5 });
-            assert.ok(off >= 7, `it was ${off.toFixed(1)} blocks off when it went off`);
+            assert.ok(off >= LIT_CLEAR, `it was ${off.toFixed(1)} blocks off when it went off`);
             assert.equal(lowestHealth, 20, 'no damage');
             sightTimes.push(first.ms);
             return { firstStepMs: first.ms, how: first.how, blocksOffAtBlast: Number(off.toFixed(1)) };
@@ -358,7 +363,7 @@ try {
             if (shield) {
                 assert.equal(offHand, 'shield', `the shield was put in the off-hand: it stood at ${bot.entity.position}, facing ${facingAtSummon} at the summon, events ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
                 assert.ok(raised > 0, `the shield went up: ${JSON.stringify(events)}`);
-                assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth})`);
+                assert.equal(lowestHealth, 20, `no damage behind the shield (lowest health ${lowestHealth}): ${JSON.stringify(events.map(e => ({ ...e, at: Math.round(e.at) })))}`);
             } else {
                 assert.equal(raised, 0);
             }
@@ -398,11 +403,15 @@ try {
             stances: events.filter(e => e.event === 'decided').map(e => e.stance) };
     }
 
-    await step('a following creeper, with a stone sword (4 hits): finished within 5 rounds, the model told once, no blast, no damage', async () => {
+    // At a player's turning speed a hit takes a turn back to the creeper, and the creeper, coming on meanwhile,
+    // is often lit by the time the hit lands: the bot then backs off again until its fuse is out. So a kill of
+    // 4 hits takes about a back-off a hit (8 rounds); turning at once, as mineflayer does, it took 5.
+    const SWORD_ROUNDS = LIVE_TURN === 'instant' ? 5 : 9;
+    await step(`a following creeper, with a stone sword (4 hits): finished within ${SWORD_ROUNDS} rounds, the model told once, no blast, no damage`, async () => {
         const outcome = await chase({ sword: true });
-        assert.equal(outcome.exploded, 0, 'it never went off');
+        assert.equal(outcome.exploded, 0, `it never went off: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
         assert.equal(outcome.killed, true, JSON.stringify(outcome));
-        assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event === 'decided' || e.event === 'done').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
+        assert.ok(outcome.rounds <= SWORD_ROUNDS, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event === 'decided' || e.event === 'done').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
         assert.equal(messages.length, 1, messages.join('\n---\n'));
         assert.equal(lowestHealth, 20, 'no damage');
         return outcome;
@@ -410,7 +419,7 @@ try {
 
     await step('a following creeper, no weapon: left behind within 3 rounds, the model told once, no blast, no damage', async () => {
         const outcome = await chase({ sword: false });
-        assert.equal(outcome.exploded, 0, 'it never went off');
+        assert.equal(outcome.exploded, 0, `it never went off: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
         assert.ok(outcome.rounds <= 3, `${outcome.rounds} rounds: ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
         assert.ok(outcome.stances.includes('leave'), JSON.stringify(outcome.stances));
         assert.equal(messages.length, 1, messages.join('\n---\n'));
@@ -420,14 +429,15 @@ try {
 
     // ---- Standing orders about creepers ----
 
-    await step('told to fight creepers, with a stone sword: one coming is met with a hit at the first meeting, killed, no blast, no damage', async () => {
+    await step(`told to fight creepers, with a stone sword: one coming is met with a hit at the first meeting, killed within ${SWORD_ROUNDS} rounds, no blast, no damage`, async () => {
         assert.equal(reflexes.orders.give('creepers', 'fight').ok, true);
         try {
             const outcome = await chase({ sword: true });
             assert.equal(outcome.exploded, 0, 'it never went off');
             assert.equal(outcome.killed, true, JSON.stringify(outcome));
             assert.equal(outcome.stances[0], 'hit_and_step_back', `met at once: ${JSON.stringify(outcome.stances)}, ${JSON.stringify(events.filter(e => e.event !== 'step').slice(0, 6).map(e => ({ ...e, at: Math.round(e.at) })))}`);
-            assert.ok(outcome.rounds <= 5, `${outcome.rounds} rounds: ${JSON.stringify(outcome.stances)}`);
+            // As in the chase: at a player's turning speed, about a back-off a hit.
+            assert.ok(outcome.rounds <= SWORD_ROUNDS, `${outcome.rounds} rounds: ${JSON.stringify(outcome.stances)}`);
             assert.equal(lowestHealth, 20, 'no damage');
             return outcome;
         } finally {

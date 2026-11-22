@@ -392,9 +392,19 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         if (memory) {
             const names = byType ? ids.map(id => bot.registry.blocks[id]?.name).filter(Boolean) : null;
             // Memory holds every block the bot has seen, so it is asked for the nearest few that could
-            // match; for a predicate, "could match" is judged per block name on a stand-in block.
+            // match; for a predicate, "could match" is judged per block name on a stand-in block with no
+            // position, as mayMatch judges a state. Placing it anywhere would let a predicate that turns a
+            // cell away answer for every block of that name: gathering excludes the logs it has broken, and
+            // the bot often stands on one, so a stand-in at the bot's feet turned away every tree it
+            // remembered. Each remembered block is then shown to the predicate where it really is.
+            const couldMatch = name => {
+                const block = standIn({ name, x: ox, y: oy, z: oz, lastSeen: 0 });
+                if (!block) return false;
+                block.position = null;
+                try { return accepts(block); } catch { return true; }
+            };
             const entries = memory.recall({ names, point: { x: ox, y: oy, z: oz }, maxDistance, count: count + found.length,
-                accepts: name => accepts(standIn({ name, x: ox, y: oy, z: oz, lastSeen: 0 })) });
+                accepts: couldMatch });
             const have = entries.length ? new Set(found.map(f => `${f.x},${f.y},${f.z}`)) : null;
             for (const entry of entries) {
                 const d2 = (entry.x - ox) ** 2 + (entry.y - oy) ** 2 + (entry.z - oz) ** 2;

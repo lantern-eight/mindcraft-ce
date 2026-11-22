@@ -129,6 +129,20 @@ test('memory: a block seen earlier stays known out of view, exactly as it was se
     assert.deepEqual(perception.findBlocks({ matching: chest, maxDistance: 32, count: 3 }), []);
 });
 
+test('memory: a predicate that turns away the cell the bot stands on still finds what it remembers elsewhere', () => {
+    // Gathering excludes each block it has broken, and the bot often stands where one was. Whether a
+    // remembered name could match at all must not be judged at the bot's own cell.
+    const { bot, perception } = setup(w => {
+        w.set('chest', 6, 1, 0);
+        w.fill('stone', [6, 1, 3], [6, 5, 8]);
+    });
+    perception.findBlocks({ matching: () => true, maxDistance: 32, count: 100 }); // sees the chest
+    bot.moveTo(6.5, 1, 10.5); // behind the wall: the chest is only remembered now
+    const here = bot.entity.position.floored().toString();
+    const matching = block => block.name === 'chest' && (!block.position || block.position.toString() !== here);
+    assert.deepEqual(perception.findBlocks({ matching, maxDistance: 32, count: 3 }).map(p => [p.x, p.y, p.z]), [[6, 1, 0]]);
+});
+
 test('memory never peeks at the live world: a crop that grew out of sight is remembered as it was', () => {
     const { world, bot, perception } = setup(w => {
         w.set('wheat', 6, 1, 0, { age: 0 });

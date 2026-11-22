@@ -111,7 +111,8 @@ export function createThreatPicture({ now = Date.now } = {}) {
                 track.position = { x: creeper.position.x, y: creeper.position.y, z: creeper.position.z };
                 track.seenNow = true;
                 track.lastSeenAt = t;
-                track.lit = Boolean(creeper.lit);
+                // A hiss just heard from it counts until its fuse can show (hear, below).
+                track.lit = Boolean(creeper.lit) || (track.heardAt !== null && t - track.heardAt < SIGHT_GRACE_MS);
                 // A hiss placed near it was this creeper: what was heard settles into what is seen.
                 for (const heard of tracks.values()) {
                     if (heard.source !== 'heard' || dist(heard.position, track.position) > SAME_CREEPER) continue;
@@ -167,6 +168,20 @@ export function createThreatPicture({ now = Date.now } = {}) {
             while (deaths.length && t - deaths[0].at > DEATH_MEMORY_MS) deaths.shift();
             const slack = BAND_SLACK[sound.distance] ?? 0;
             if (deaths.some(death => dist(death.position, position) - slack <= DIED_WITHIN)) return;
+            // From near where a creeper the bot sees, or saw lately, is: that one lighting, not a new one.
+            // Through a player's screen a creeper the bot steps back from is soon behind it, and its hiss
+            // made a creeper of its own, which the bot then backed off from again. One in view may not show
+            // its fuse yet (SIGHT_GRACE_MS): the hiss counts for it until it does.
+            let same = null, nearest = Infinity;
+            for (const track of tracks.values()) {
+                if (track.source !== 'seen' || !track.position) continue;
+                const d = dist(track.position, position) - slack - track.slack;
+                if (d <= SAME_CREEPER && d < nearest) { same = track; nearest = d; }
+            }
+            if (same) {
+                Object.assign(same, { lit: true, updatedAt: t, heardAt: t });
+                return;
+            }
             // One heard creeper per direction: a second hiss from there is the same one lighting again.
             const key = `heard:${sound.direction}`;
             mergedInto.delete(key); // a new hiss from there is a creeper of its own until seen

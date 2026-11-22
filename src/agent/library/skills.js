@@ -2,7 +2,7 @@ import * as mc from "../../utils/mcdata.js";
 import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
 import { followKnownWay } from './travel_guide.js';
-import { withinAttackReach } from './attack_reach.js';
+import { withinAttackReach, faceBeforeHit } from './attack_reach.js';
 // Fork hook (docs/core-hooks.md, 27): a skill that searches may look around first.
 import { lookBeforeSearch } from './search_look.js';
 import { lookFirst, knownBlockAt, sideToPlaceAgainst, climbToSurface } from './look_first.js';
@@ -386,6 +386,7 @@ export async function attackEntity(bot, entity, kill=true) {
             await goToPosition(bot, pos.x, pos.y, pos.z);
         }
         console.log('attacking mob...')
+        await faceBeforeHit(bot, entity);
         await bot.attack(entity);
     }
     else {

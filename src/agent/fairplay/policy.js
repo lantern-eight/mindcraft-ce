@@ -21,8 +21,8 @@ export const STRICT_RULES = Object.freeze({
     fov_degrees: 70,                // the game's field-of-view number: the screen's height in degrees, 30 to
                                     // 110, or 360 for all around. 70 is Java's default, about 102 across on a
                                     // 16:9 screen, and is used on Bedrock too, whose own default is 60
-    turn_speed: 'instant',          // how fast the head turns, in degrees a second (180 is a player on a
-                                    // controller, a half turn in a second), or 'instant', as mineflayer turns
+    turn_speed: 180,                // how fast the head turns, in degrees a second: 180 is a player on a
+                                    // controller, a half turn in a second. 'instant' turns as mineflayer does
     sight_distance: 'server',       // 'server' (whatever is loaded) or a number of blocks
     entity_distance: 64,
     hearing_radius: 16,
@@ -47,6 +47,7 @@ export const OFF_RULES = Object.freeze({
     mobs_through_walls: true,
     players_through_walls: true,
     fov_degrees: 360,
+    turn_speed: 'instant',
     route_planning: 'all',
     interact_through_walls: true,
     slash_commands: true,

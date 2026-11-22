@@ -70,8 +70,10 @@ function patchMovements() {
     };
     proto.getNeighbors = function (node) {
         const neighbors = libraryGetNeighbors.call(this, node);
-        legsOf.get(this.bot)?.addUnseenDiagonals(this, node, neighbors);
-        return neighbors;
+        const legs = legsOf.get(this.bot);
+        if (!legs) return neighbors;
+        legs.addUnseenDiagonals(this, node, neighbors);
+        return legs.withoutBlindDrops(this, node, neighbors);
     };
     proto.updateCollisionIndex = function () {
         const legs = legsOf.get(this.bot);
@@ -243,6 +245,18 @@ export function installFairLegs(bot, { getPerception, getEntities = () => getPer
         }
     }
 
+    // Open ground is fine to walk on at the bot's own level: a step there is looked at before it is taken. A
+    // drop is another matter. Off an edge the landing is below the edge, and the cells just under a lip are
+    // hidden by the ground the bot stands on, so they are never seen until the bot stands at the edge and
+    // looks down. Taken for open ground, they had routes drop off ledges and cliffs onto ground that wasn't
+    // there: a bot leaving a creeper behind ran off a floor 40 blocks up. A player looks before they drop.
+    // So a step down to the side, whichever move the library made it with, is kept only when the ground it
+    // lands on has been seen. Straight down is digging down where the bot stands, and is left alone.
+    function withoutBlindDrops(movements, node, neighbors) {
+        return neighbors.filter(move => move.y >= node.y || (move.x === node.x && move.z === node.z)
+            || !movements.getBlock(move, 0, -1, 0).unseen);
+    }
+
     // A route costs more through a cell a mob stands in. The library notes where every mob the server
     // has told the client about stands, behind walls or not. Here it is shown only the ones the bot knows of.
     function updateCollisionIndex(movements, libraryUpdateCollisionIndex) {
@@ -327,7 +341,7 @@ export function installFairLegs(bot, { getPerception, getEntities = () => getPer
     }
 
     const legs = {
-        believed, getBlock, addUnseenDiagonals, updateCollisionIndex, check,
+        believed, getBlock, addUnseenDiagonals, updateCollisionIndex, check, withoutBlindDrops,
         /** How many times a route was planned again because the way ahead was not as believed. */
         get replans() { return replans; },
         /** Takes the bot's fair legs off again: it plans as stock Mindcraft does, and nothing is left listening. */

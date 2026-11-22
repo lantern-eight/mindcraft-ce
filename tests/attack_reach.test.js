@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import Vec3 from 'vec3';
 import { attackEntity } from '../src/agent/library/skills.js';
-import { setAttackReach, withinAttackReach } from '../src/agent/library/attack_reach.js';
+import { setAttackReach, withinAttackReach, setFaceBeforeHit } from '../src/agent/library/attack_reach.js';
 
 // Cheat mode stands in for the walk: goToPosition then teleports, which the test can see in chat.
 function botNear(target) {
@@ -43,4 +43,17 @@ test('with a reach installed, a mob beyond it is walked to first, and one within
     assert.deepEqual(hits, [3, 4]);
     setAttackReach(bot, null);
     assert.equal(withinAttackReach(bot, { position: new Vec3(4, 64, 0) }), true, 'removed: stock again');
+});
+
+test('with a look installed, the bot faces the mob before the single hit; with none, it just swings', async () => {
+    const { bot, hits } = botNear();
+    const order = [];
+    bot.attack = async entity => { order.push(`hit ${entity.id}`); hits.push(entity.id); };
+    const cow = { id: 4, name: 'cow', position: new Vec3(2, 64, 0) };
+    await attackEntity(bot, cow, false);
+    assert.deepEqual(order, ['hit 4'], 'stock: no look');
+    setFaceBeforeHit(bot, async entity => { order.push(`look ${entity.id}`); });
+    await attackEntity(bot, cow, false);
+    assert.deepEqual(order, ['hit 4', 'look 4', 'hit 4'], 'faced it, then hit it');
+    setFaceBeforeHit(bot, null);
 });

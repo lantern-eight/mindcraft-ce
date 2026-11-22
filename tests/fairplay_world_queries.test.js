@@ -70,7 +70,8 @@ test('policy: the numeric switches take only numbers that make sense', () => {
     assert.equal(resolvePolicy({ fair_play: 'strict' }).fov_degrees, 70, 'strict sees through a player\'s screen, the game\'s default');
     assert.equal(resolvePolicy({ fair_play: 'off' }).fov_degrees, 360, 'off sees all around');
     assert.equal(custom({ fov_degrees: 110 }).fov_degrees, 110);
-    assert.equal(resolvePolicy({ fair_play: 'strict' }).turn_speed, 'instant');
+    assert.equal(resolvePolicy({ fair_play: 'strict' }).turn_speed, 180, 'a player on a controller');
+    assert.equal(custom({ turn_speed: 'instant' }).turn_speed, 'instant');
     assert.equal(custom({ turn_speed: 180 }).turn_speed, 180, 'a player on a controller');
     for (const speed of [0, 10, 'fast', Infinity, 5000]) assert.throws(() => custom({ turn_speed: speed }), /turn_speed must be/);
     assert.equal(custom({ fov_degrees: 30 }).fov_degrees, 30);

@@ -21,6 +21,29 @@ const TICK_MS = 50;
 const TAU = 2 * Math.PI;
 // Closer than this to the facing asked for counts as there. The game's own mouse step is 0.15 degrees.
 const THERE = 0.002;
+// Building a pillar under itself, the bot jumps and places the block below its feet at the top of the jump.
+// A jump is up and down in about 0.6 s, and from a level look turning to face straight down takes half of
+// that, from looking up (just after digging the block overhead) all of it. So a player looks down first, and
+// jumps once looking down. This far down the block below is on screen, and the last bit of the turn, as the
+// place looks at the very face, is a tick or two.
+const TOWER_PITCH = -65 * Math.PI / 180;
+// The walk's heading counts as current for this long after its last look: the pathfinder looks every tick.
+const HEADING_FRESH_MS = 120;
+// The movement keys a player holds for a heading this far round from the facing (cos and sin of 67.5
+// degrees): eight ways, as a keyboard gives, each within 22.5 degrees of the way it means to go.
+const KEY_SHARE = Math.cos(67.5 * Math.PI / 180);
+const MOVES = ['forward', 'back', 'left', 'right', 'sprint'];
+
+/**
+ * The movement keys that carry the bot toward a heading while it faces another way, as a player walks with
+ * the keys (or the stick) while the camera turns. `relative` is the heading less the facing, in radians,
+ * positive toward greater yaw, which is the bot's left. Sprinting needs the forward key, as in the game.
+ * @returns {{forward:boolean, back:boolean, left:boolean, right:boolean}}
+ */
+export function keysToward(relative) {
+    const ahead = Math.cos(relative), left = Math.sin(relative);
+    return { forward: ahead > KEY_SHARE, back: ahead < -KEY_SHARE, left: left > KEY_SHARE, right: left < -KEY_SHARE };
+}
 
 /** The smallest signed angle from a to b, in radians: positive is a turn toward greater yaw. */
 export function angleBetween(a, b) {
@@ -55,10 +78,13 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
     let step = bot.look;              // one step of a turn: the look as it was before this, guards and all
     let turn = 0;                     // the number of the newest turn; an older one stops when it sees a newer
     let stopped = false;
+    let heading = null;               // where the walk is going: the newest unforced look, {yaw, at}
 
     async function paced(yaw, pitch, force) {
         const speed = getSpeed();
         const entity = bot.entity;
+        // The pathfinder alone looks unforced, every tick it walks, along the way it is going.
+        if (!force) heading = { yaw, at: Date.now() };
         if (stopped || speed === 'instant' || !(speed > 0) || !entity || !Number.isFinite(entity.yaw)) return step(yaw, pitch, force);
         // The steps are sent forced, so the walking gaze (walking_gaze.js), which tilts only the pathfinder's
         // unforced level look, is asked here for the pitch the turn is really headed for.
@@ -75,11 +101,78 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
         }
     }
 
+    // The pathfinder builds a pillar by holding jump while it waits for the bot to rise, and places when it
+    // is high enough. It sets jump each game tick, after the physics has moved the bot; this runs after it
+    // (it was put on later) and before the next move. So, until the bot looks down, it takes the jump back
+    // and turns the head down instead: the jump starts once the look is there, as a player's would.
+    let lookingDown = false;
+    const holdTowerJump = () => {
+        const entity = bot.entity;
+        if (stopped || !bot.controlState?.jump || !bot.pathfinder?.isBuilding?.() || !entity?.onGround) return;
+        const speed = getSpeed();
+        if (speed === 'instant' || !(speed > 0) || !(entity.pitch > TOWER_PITCH)) return;
+        // Asking for the jump also queued one (mineflayer's physics jumps on either), so both are taken back.
+        bot.setControlState('jump', false);
+        bot.jumpQueued = false;
+        if (lookingDown) return;
+        lookingDown = true;
+        Promise.resolve(bot.look(entity.yaw, -Math.PI / 2, true)).catch(() => {}).finally(() => { lookingDown = false; });
+    };
+    bot.on?.('physicsTick', holdTowerJump);
+
+    // The pathfinder walks by looking the way it is going and holding forward. At a player's turning speed
+    // the facing lags behind that look, and forward then carries the bot the way it faces: round a corner it
+    // swings wide, off a bridge or into a trench beside the path. A player walks the way they mean to go with
+    // the keys, whichever way the camera has got to. So, after the pathfinder has set the keys each tick,
+    // its forward is swapped for the keys that go toward its heading from the facing the bot has now. What it
+    // asked for is kept, to put back when the facing catches up or it stops walking.
+    const asked = {};
+    const setControl = typeof bot.setControlState === 'function' ? bot.setControlState : null;
+    let steering = false;
+    if (setControl) {
+        bot.setControlState = function (control, state) {
+            asked[control] = state;
+            // While it steers, a movement key asked for between ticks (a reflex's walk sets its keys on its
+            // own clock) is steered at once too, or it would hold forward and back together until the tick.
+            if (steering && MOVES.includes(control)) return steer();
+            return setControl.call(this, control, state);
+        };
+    }
+    const putBack = () => {
+        if (!steering) return;
+        steering = false;
+        for (const control of MOVES) setControl.call(bot, control, Boolean(asked[control]));
+    };
+    const steer = () => {
+        if (!setControl) return;
+        const entity = bot.entity;
+        const speed = getSpeed();
+        const walking = asked.forward && !asked.back && !asked.left && !asked.right && heading && (heading.held || Date.now() - heading.at <= HEADING_FRESH_MS);
+        if (stopped || speed === 'instant' || !(speed > 0) || !walking || !entity || !Number.isFinite(entity.yaw)) return putBack();
+        const keys = keysToward(angleBetween(entity.yaw, heading.yaw));
+        if (keys.forward && !keys.left && !keys.right) return putBack();
+        steering = true;
+        for (const control of ['forward', 'back', 'left', 'right']) setControl.call(bot, control, keys[control]);
+        setControl.call(bot, 'sprint', Boolean(asked.sprint) && keys.forward);
+    };
+    bot.on?.('physicsTick', steer);
+
     const pacer = {
+        /**
+         * Walks toward a heading (a yaw) on the keys, while forward is held, whichever way the bot faces:
+         * for a move that walks without the pathfinder, as a reflex backing away while it turns to run does.
+         * Held until called with null, or until the pathfinder walks somewhere and looks its own way.
+         */
+        walkToward(yaw) { heading = Number.isFinite(yaw) ? { yaw, at: Date.now(), held: true } : null; },
         /** A guard put on bot.look after this wraps each step instead of the whole turn. */
         stepThrough(wrap) { step = wrap(step); },
         /** Every look goes straight through from now on. */
-        stop() { stopped = true; },
+        stop() {
+            stopped = true;
+            bot.off?.('physicsTick', holdTowerJump);
+            bot.off?.('physicsTick', steer);
+            if (setControl) putBack();
+        },
     };
     const look = (yaw, pitch, force) => paced(yaw, pitch, force);
     // Kept on the function too, so that a wrapper that copies the marks of what it wraps keeps them.
