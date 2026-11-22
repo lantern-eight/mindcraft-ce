@@ -449,13 +449,16 @@ try {
         try {
             act('action:stay', () => skills.stay(bot, -1));
             await delay(500);
+            // East again, where the creeper comes from: through a player's screen the idle look may have turned
+            // the bot in the wait, and a creeper unseen until it is close is another scene.
+            await faceExactly(bot, 3 * Math.PI / 2, 0);
             const start = at(10, 1, 0);
             await cmd(`summon creeper ${start.x + 0.5} ${start.y} ${start.z + 0.5}`);
             await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'creeper_safety'), 30000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
             const stances = events.filter(e => e.event === 'decided').map(e => e.stance);
             assert.equal(stances[0], 'leave', JSON.stringify(stances));
             assert.match(messages[0] ?? '', /leaving it behind, as I was told to\./);
-            assert.equal(lowestHealth, 20, 'no damage');
+            assert.equal(lowestHealth, 20, `no damage: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
             const creeper = rawCreeper();
             return { stances, endedAway: creeper ? Number(flat(bot.entity.position, creeper.position).toFixed(1)) : null };
         } finally {
