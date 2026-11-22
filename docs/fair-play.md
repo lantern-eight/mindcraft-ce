@@ -54,6 +54,11 @@ Details that matter:
   as `fair_play: "off"` does. A point is in view when it is on that screen, not in a cone: a cone as wide
   would show things above and below that a player can't see. Touch and hearing don't depend on the view,
   and light is ignored, as if brightness were turned up.
+- **It turns its head as a player on a controller does,** a half turn in a second (`turn_speed`), a step
+  each game tick: looking round, turning to a block it is about to dig, the fight and the reflexes alike. So a
+  look behind takes time, and what it passes over on the way is what it sees. While its head comes round it
+  walks the way it means to go on the keys (a step back, aside, a diagonal), as a player does, rather than
+  the way it faces; and it looks down before it jumps to build a pillar under itself.
 - **While it walks, it looks a little down,** 25° below level, at the ground a few steps ahead, as a player
   does. Looking level, the ground closer than about 2.3 blocks is below the screen, and the bot would step
   onto ground it had never seen. Touch covers the cells around its feet either way.
@@ -179,7 +184,7 @@ place in the code, so flipping one changes that rule and nothing else.
 | `mobs_through_walls` | `false` | `true` |
 | `players_through_walls` | `"nametag"` | `true`, `false` |
 | `fov_degrees` | `70` (Java's default: a 16:9 screen 70° tall, about 102° across) | the game's field of view, the screen's height in degrees: `30` to `110`; or `360` to see all around |
-| `turn_speed` | `"instant"` (mineflayer's own: the facing changes at once) | degrees a second, `30` to `3600`: `180` is a player on a controller, a half turn in a second. Every turn is made a step each game tick at that speed, the fight's and the reflexes' too, so no look is a free look round |
+| `turn_speed` | `180` (a player on a controller: a half turn in a second) | degrees a second, `30` to `3600`, or `"instant"` (mineflayer's own: the facing changes at once). Every turn is made a step each game tick at that speed, the fight's and the reflexes' too, so no look is a free look round |
 | `sight_distance` | `"server"` (whatever is loaded) | a number of blocks |
 | `entity_distance` | `64` | blocks |
 | `hearing_radius` | `16` | blocks |
@@ -225,6 +230,9 @@ Fair play is honest about what it doesn't cover yet:
 - **Told a spot by its coordinates, the bot looks from at most three blocks away.** A block still hidden
   from there (buried a little deeper) is refused as unseen; the bot doesn't dig its way down to look.
 - **`!digDown` digs its staircase the way the bot happens to face,** not a way it chose for being safe.
+- **The vision camera (`allow_vision`) is Mindcraft's own:** 75° tall on an 800 by 512 picture, about 100°
+  across, against fair play's screen of 70° tall at 16:9, about 102° across. Across it is the same; it shows a
+  few degrees more above and below.
 - **Good-neighbor rules** (don't break players' builds, loot their chests, or hurt their animals) are
   planned and not built yet. The `good_neighbor` setting is reserved for them.
 - **The code runner isn't a CPU sandbox.** Model-written code that loops forever without waiting stalls

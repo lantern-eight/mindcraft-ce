@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- Strict fair play turns the bot's head as a player on a controller does, a half turn in a second
+  (`turn_speed` 180), instead of at once. Looking round, turning to a block or a mob, and the reflexes all
+  take that time; work that turns a lot is a little slower (gathering from two trees and a boulder, about a
+  tenth). `turn_speed: "instant"` turns at once as before.
+
 ### Fixed
 
 - With `turn_speed` set, a walk goes the way its route heads while the head is still turning, on the keys a
