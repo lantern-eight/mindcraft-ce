@@ -9,6 +9,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.12.0-bedrock.1.13.0] - 2026-11-21
+
 ### Changed
 
 - Strict fair play turns the bot's head as a player on a controller does, a half turn in a second
@@ -1125,7 +1127,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...HEAD
+[1.12.0-bedrock.1.13.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...v1.12.0-bedrock.1.13.0
 [1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0
 [1.10.0-bedrock.1.11.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.10.0-bedrock.1.11.0
 [1.9.0-bedrock.1.10.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...v1.9.0-bedrock.1.10.1
