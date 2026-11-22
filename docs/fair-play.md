@@ -106,6 +106,11 @@ round lava that was still behind rock. With fair play on, it plans over what the
 Open ground is the optimism a person walks with: "I have not been over that ridge, so I will assume I can
 walk there, and look when I get to it."
 
+- **But it doesn't drop onto ground it hasn't seen.** A step down to the side is planned only when the ground
+  it lands on has been seen. The cells just under an edge are hidden by the ground the bot stands on, so a
+  person looks over before they step off; taken for open ground, they had the bot step off ledges and
+  cliffs. Level ground and climbing up stay optimistic, and digging straight down is left as it was.
+
 - **A trip into country the bot has not seen is planned straight at the goal,** at once, even to beyond
   the chunks the server has sent.
 - **It looks as it goes.** A few times a second the next steps of the route are checked against what is

@@ -43,6 +43,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Under fair play, a fresh drop the server reports a little sunk into the block under it is seen, as the item
   drawn bobbing on top of that block is. It had counted as hidden inside the block, and gathering could leave
   such a drop behind.
+- Under fair play, a route drops off an edge only onto ground the bot has seen. The cells just under an edge,
+  hidden by the ground the bot stands on, counted as ground, so a route could step off a ledge or a cliff:
+  leaving a creeper behind, the bot ran off a floor 40 blocks up.
 
 ## [1.11.0-bedrock.1.12.0] - 2026-11-21
 

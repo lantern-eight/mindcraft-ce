@@ -127,9 +127,11 @@ test('a cell never seen counts as open ground: fit to walk through and fit to st
     for (const [cell, cost] of [['31,6,30', 1], ['29,6,30', 1], ['30,6,31', 1], ['30,6,29', 1],          // straight on
         ['31,6,31', flat], ['29,6,29', flat], ['31,6,29', flat], ['29,6,31', flat],                     // slantwise
         ['31,7,30', 2], ['30,7,29', 2],                                                                 // a step up
-        ['31,5,30', 1], ['30,5,30', 1]]) {                                                              // a step down
+        ['30,5,30', 1]]) {                                                                              // straight down
         assert.deepEqual(moves[cell], { cost, dig: 0, place: 0 }, `to ${cell}`);
     }
+    // A drop to the side lands where the bot can't see, and it looks before it drops (the next test).
+    assert.equal(moves['31,5,30'], undefined, 'no drop onto ground never seen');
     // goToGoal squares its corners. That must not take the slantwise steps over unseen ground away, or a
     // long trip through the unknown would be searched as a staircase of right angles.
     const squared = movesFrom(squareCorners(new pf.Movements(bot)), 30, 6, 30);
@@ -139,6 +141,31 @@ test('a cell never seen counts as open ground: fit to walk through and fit to st
     const stock = setup(w => w.fill('stone', [20, 1, 20], [40, 12, 40]), { legs: false });
     const stockMoves = movesFrom(new pf.Movements(stock.bot), 30, 6, 30);
     assert.ok(Object.values(stockMoves).every(move => move.dig > 0), 'stock planning knows it is stone');
+});
+
+test('a drop is planned only onto ground the bot has seen: off a ledge whose foot is hidden, it is not', () => {
+    // The floor ends at x 3, and the ground below is 20 blocks down. Standing back from the edge the bot sees
+    // the air past it, but not the cells just under the lip, which the floor hides. Taken for open ground,
+    // those had the route drop two blocks onto ground that isn't there: off a ledge, as a player never would.
+    const { bot, lookAround, standAt } = setup(w => {
+        w.fill('air', [4, -12, -64], [64, 0, 64]);
+        w.fill('stone', [4, -12, -64], [64, -12, 64]);
+    });
+    standAt(1.5, 1, 0.5);
+    lookAround();
+    const movements = new pf.Movements(bot);
+    movements.maxDropDown = 2;
+    const moves = movesFrom(movements, 3, 1, 0);
+    assert.equal(moves['4,1,0'], undefined, 'no walking onto the air it sees past the edge');
+    for (const cell of Object.keys(moves)) assert.ok(Number(cell.split(',')[0]) <= 3, `no step off the edge, to ${cell}`);
+
+    // A ledge a block high whose foot it has seen, looking down from the edge, is dropped off as before.
+    const low = setup(w => { w.fill('air', [4, 0, -64], [64, 0, 64]); w.fill('stone', [4, -1, -64], [64, -1, 64]); });
+    low.standAt(3.5, 1, 0.5);
+    low.lookAround();
+    const lowMoves = new pf.Movements(low.bot);
+    lowMoves.maxDropDown = 2;
+    assert.deepEqual(movesFrom(lowMoves, 3, 1, 0)['4,0,0'], { cost: 1, dig: 0, place: 0 }, 'down onto the ground it sees');
 });
 
 test('a long trip through the unknown is searched straight at the goal, not all around', () => {
