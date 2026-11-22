@@ -9,6 +9,46 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.12.0-bedrock.1.13.0] - 2026-11-21
+
+### Changed
+
+- Strict fair play turns the bot's head as a player on a controller does, a half turn in a second
+  (`turn_speed` 180), instead of at once. Looking round, turning to a block or a mob, and the reflexes all
+  take that time; work that turns a lot is a little slower (gathering from two trees and a boulder, about a
+  tenth). `turn_speed: "instant"` turns at once as before.
+
+### Fixed
+
+- With `turn_speed` set, a walk goes the way its route heads while the head is still turning, on the keys a
+  player would hold (left, back, a diagonal), instead of the way the bot happens to face. Round a corner it
+  swung wide: off a narrow bridge, into a trench beside the path, or stuck in a tight spot.
+- With `turn_speed` set, building a pillar under itself the bot looks down before it jumps, as a player does;
+  it had jumped first and landed again before its head came round to place the block. And `goToSurface`
+  climbs out more surely at any turning speed: it waits to land before judging where it got to, looks up
+  again when a newer look cut the first short, climbs again when the pillar's last block didn't go down,
+  and steps up out of a hole a block deep at the top instead of calling the hole the surface.
+- With `turn_speed` set, the threat reflexes no longer stand still through a turn. Turning to run from a creeper,
+  the bot backs away on the keys while its head comes round, and sprints once it faces the way out; a creeper lit
+  2 blocks off had gone off while it was still turning. Walled in with no way out, it keeps facing the creeper
+  and has its shield up at once, instead of turning its back to look for a way. To hit a creeper it turns to it
+  from outside the range that lights it and goes in once it faces it; and after backing off from one it means to
+  hit, it turns to face it again.
+- Under fair play, `attackEntity` told to land one hit turns the bot to face the mob first, as a player does;
+  turning at a player's speed, the walk up could end facing away, and a hit at a mob out of view is refused.
+- A creeper's hiss from near where the bot sees one, or saw one lately, is taken for that creeper lighting, not
+  a second creeper. Seeing through a player's screen, a creeper the bot had stepped back from was soon behind it,
+  and its hiss had the bot back off again from a creeper that wasn't there.
+- With world memory on, gathering goes on to blocks it remembers out of sight, such as a tree behind it, after
+  breaking the ones in view. A block it had just broken under its own feet turned away every remembered block
+  of that kind, so it stopped with "No reachable oak_log found nearby".
+- Under fair play, a fresh drop the server reports a little sunk into the block under it is seen, as the item
+  drawn bobbing on top of that block is. It had counted as hidden inside the block, and gathering could leave
+  such a drop behind.
+- Under fair play, a route drops off an edge only onto ground the bot has seen. The cells just under an edge,
+  hidden by the ground the bot stands on, counted as ground, so a route could step off a ledge or a cliff:
+  leaving a creeper behind, the bot ran off a floor 40 blocks up.
+
 ## [1.11.0-bedrock.1.12.0] - 2026-11-21
 
 A release for both editions. Under strict fair play the bot sees through a player's screen instead of all
@@ -1087,7 +1127,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...HEAD
+[1.12.0-bedrock.1.13.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...v1.12.0-bedrock.1.13.0
 [1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0
 [1.10.0-bedrock.1.11.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.10.0-bedrock.1.11.0
 [1.9.0-bedrock.1.10.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.0...v1.9.0-bedrock.1.10.1

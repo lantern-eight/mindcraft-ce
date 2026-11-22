@@ -89,6 +89,16 @@ takes over. Choosing the way is a decision, so it reads blocks through world.js,
 what the bot has seen. It never steps into lava or fire or off a drop of more than 2 blocks, and the
 pathfinder's part of the escape is held to the same drop. Nothing it does pauses `self_preservation`.
 
+**Turning at a player's speed** (fair play's `turn_speed`), the turn to run takes up to a second, most of a
+fuse. A player doesn't stand still for it, and nor does the bot: it backs away on the keys while its head
+comes round (back, or a diagonal), onto the cells beside it it can feel are open, taking the ground under them
+on trust as a player backing off would, and sprints once it faces the way out. Walled in on every side away from
+the creeper (a dead end), it doesn't turn its back for a way out that isn't there: it stays facing the creeper
+and has its shield up at once. To hit a creeper it turns to it from 4 blocks off, outside the 3 that light it,
+and goes in once it faces it; and once it has backed off far enough from one it means to hit, it turns to face
+it again, as a player squaring up does. Seeing through a player's screen, it then sees whether the creeper is
+still lit. A bot that will leave the creeper (on Bedrock, or with no weapon) doesn't stand and turn.
+
 **It reacts to a hiss the moment it is heard.** The reflexes run every 300 ms or so, and a fuse is 1.5 s, so
 the reflex doesn't wait for its next round when a hiss arrives.
 
@@ -174,7 +184,23 @@ kit: rounds won, then swings per kill, then the damage the bot took in a round o
 | Iron sword and armor | 21 won, 6.0 swings, 4 damage | 21 won, 3.8 swings, 2 damage | not run | 21 won, 3.0 swings, 0.4 damage |
 
 On Java almost every swing now lands (99 in 100, from about half). Bare hands lose most rounds either way,
-which is why the bot's own judgment takes on one mob without a weapon. The Bedrock run of the old fight
+which is why the bot's own judgment takes on one mob without a weapon.
+
+Those numbers were taken seeing all around and turning at once. **Through a player's screen and turning at a
+controller player's speed**, strict's defaults from 1.12.0-bedrock.1.13.0, the same arenas gave (rounds won of 21, swings per
+kill, average damage a round; with instant turns through the same screen after the slash):
+
+| Kit | Java | Bedrock |
+|---|---|---|
+| Bare hands | 13 won, 39 swings, 20 damage / 14, 37, 19 | 8 won, 43 swings, 13 damage / not finished (see below) |
+| Stone sword | 20 won, 4.4 swings, 8 damage / 21, 4.5, 7 | 18 won, 4.0 swings, 5 damage / 20, 3.8, 5 |
+| Copper sword | 21 won, 4.3 swings, 7 damage / 21, 4.5, 6 | 19 won, 3.9 swings, 5 damage / 20, 3.8, 6 |
+| Iron sword and armor | 21 won, 3.9 swings, 3.5 damage / 21, 3.8, 2.4 | 21 won, 3.1 swings, 1.7 damage / 21, 3.1, 1.9 |
+
+Turning at a player's speed costs little: a round lost here and there, a point of damage, the same time. What
+costs more is the screen: a mob out of view isn't fought until the bot turns to it, so the bot takes a few
+more hits than seeing all around, and the rounds lost are the mixed ones, four mobs coming from every side. The
+Bedrock run of bare hands with instant turns stopped twice when a bot that died didn't come back. The Bedrock run of the old fight
 stopped after two kits: a bot that died there didn't always come back (see [Known Gaps](bedrock.md#known-gaps)).
 
 **With a shield** (the same arenas, three runs of each round, the bot told to fight every kind; median damage

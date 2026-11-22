@@ -154,6 +154,7 @@ node tests/live/fairplay_scenarios.js
 | `narrow_view_scenarios.js` | A player's field of view (`fov_degrees` 70): what is behind the bot unknown to perception and memory until it turns, turning to dig, open and build against a block behind it, refused behind a wall, and turning round toward an enderman without staring |
 | `look_first_scenarios.js` | Skills given a spot by its coordinates look before they decide; `digDown`'s staircase; `goToSurface` |
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
+| `turning_scenarios.js` | Work that turns a lot, timed at the bot's turning speed: gathering from a tree ahead, one behind and a boulder beside, a bridge one block wide, a ladder, and a gap to jump; a fall or a stall fails it |
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
 | `threat_scenarios.js` | The creeper reflex: how fast it steps away from a creeper seen lit or only heard, how far off it is at the blast, a following creeper finished or left behind, standing orders to fight or flee creepers, a bot cornered by a lit creeper with a shield and without, and no false alarms among other mobs (`--runs=` sets the timing runs, 5 by default) |
@@ -169,6 +170,8 @@ runs them seeing all around instead, which tells a failure that comes from the v
 the scene is about; a release runs them both ways. `narrow_view_scenarios.js` is about the view itself and
 always uses the screen. `java_all.js` runs every script here both ways, one after another, with a line for each
 and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts).
+`MC_TEST_TURN=instant` (or `--turn=instant`) has the bot turn its head at once, as mineflayer does, instead of
+at strict's speed, to measure what a player's turning costs a scene; the fight arena takes both switches too.
 
 The last three replay recorded model replies, so they cost nothing; `--live-model` makes them call the
 configured model instead. Each run leaves its server's folder under `server_data/`, which can be deleted.

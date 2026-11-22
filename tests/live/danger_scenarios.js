@@ -21,7 +21,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
-import { fairPlaySettings } from '../helpers/live_view.js';
+import { fairPlaySettings, faceExactly } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55933);
@@ -118,7 +118,7 @@ try {
         await delay(2000);
         // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
         // and through a player's screen which way it faces decides what it sees.
-        await bot.look((180 - facing) * Math.PI / 180, 0, true);
+        await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);
         if (clearZones) zones.clear();
         messages.length = 0;
         bot.modes.behavior_log = '';
