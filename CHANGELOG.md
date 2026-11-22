@@ -30,6 +30,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - A creeper's hiss from near where the bot sees one, or saw one lately, is taken for that creeper lighting, not
   a second creeper. Seeing through a player's screen, a creeper the bot had stepped back from was soon behind it,
   and its hiss had the bot back off again from a creeper that wasn't there.
+- With world memory on, gathering goes on to blocks it remembers out of sight, such as a tree behind it, after
+  breaking the ones in view. A block it had just broken under its own feet turned away every remembered block
+  of that kind, so it stopped with "No reachable oak_log found nearby".
 
 ## [1.11.0-bedrock.1.12.0] - 2026-11-21
 
