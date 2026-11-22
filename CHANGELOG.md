@@ -33,6 +33,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - With world memory on, gathering goes on to blocks it remembers out of sight, such as a tree behind it, after
   breaking the ones in view. A block it had just broken under its own feet turned away every remembered block
   of that kind, so it stopped with "No reachable oak_log found nearby".
+- Under fair play, a fresh drop the server reports a little sunk into the block under it is seen, as the item
+  drawn bobbing on top of that block is. It had counted as hidden inside the block, and gathering could leave
+  such a drop behind.
 
 ## [1.11.0-bedrock.1.12.0] - 2026-11-21
 

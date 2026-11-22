@@ -51,6 +51,11 @@ const ENTITY_EDGE_HEIGHTS = [0.5, 0.9];
 const ENTITY_EDGE_INSET = 0.9;
 const ENTITY_EDGES = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
 
+// A dropped item's box is a quarter of a block tall, but the game draws the item over it, bobbing up to a
+// fifth of a block above the ground, about half a block tall in all. Sight looks for what is drawn: a fresh
+// drop the server reports a little sunk into the block under it is still plain to see on top of it.
+const ITEM_DRAWN_HEIGHT = 0.5;
+
 // A collision shape that fills its whole cell.
 const isFullCube = shape => Array.isArray(shape) && shape.length === 1 && shape[0].join(',') === '0,0,0,1,1,1';
 
@@ -364,7 +369,7 @@ export function createSight({ getStateId, stopsSight }) {
      * @param {{position:{x:number,y:number,z:number}, height:number, width?:number}} entity - position is at the feet
      */
     function canSeeEntity(eye, entity, opts) {
-        const height = entity.height ?? 1.8;
+        const height = entity.name === 'item' ? Math.max(entity.height ?? 0, ITEM_DRAWN_HEIGHT) : entity.height ?? 1.8;
         const { x, y, z } = entity.position;
         for (const fraction of ENTITY_SAMPLE_HEIGHTS) {
             if (canSeePoint(eye, { x, y: y + height * fraction, z }, opts)) return true;
