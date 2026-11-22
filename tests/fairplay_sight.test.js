@@ -217,6 +217,17 @@ test('E1: a mob behind a wall is not seen; a window at head height is enough to 
     assert.equal(open.sight.canSeeEntity(EYE, zombie, { maxDistance: 4 }), false);
 });
 
+test('a dropped item is seen by the model the game draws, which bobs above its small box', () => {
+    // The server can report a fresh drop a little sunk into the block under it, the top of its box level
+    // with that block's top. A player still sees the item, drawn bobbing over the ground; one buried deep
+    // in a block shows nothing.
+    const { sight } = setup(() => {});
+    const sunk = { name: 'item', position: { x: 4.5, y: 0.75, z: 0.5 }, height: 0.25, width: 0.25 };
+    assert.equal(sight.canSeeEntity(EYE, sunk), true, 'sunk a quarter into the floor, it shows above it');
+    assert.equal(sight.canSeeEntity(EYE, { ...sunk, name: 'arrow' }), false, 'a thing drawn as its box would not');
+    assert.equal(sight.canSeeEntity(EYE, { ...sunk, position: { x: 4.5, y: 0.2, z: 0.5 } }), false, 'buried deep, it is hidden');
+});
+
 test('a mob half out from behind a corner is seen by the side of its body', () => {
     // A wall runs east from the bot's line of sight, ending at z 0. The mob's middle is just behind the
     // wall's end; its west side sticks out past it.

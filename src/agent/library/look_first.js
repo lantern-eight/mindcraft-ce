@@ -148,6 +148,58 @@ function pitExit(bot) {
 }
 
 /**
+ * Waits for the bot to be on its feet. The walk counts a cell reached as soon as the bot is in it, which on
+ * a pillar can be the top of a jump; judged from there, the pit it is about to drop back into looks like
+ * open ground. A bot with no physics (a test's) has no onGround, and is taken as standing.
+ */
+async function landed(bot, timeoutMs = 2000) {
+    const started = Date.now();
+    while (bot.entity?.onGround === false && Date.now() - started < timeoutMs) await new Promise(resolve => setTimeout(resolve, 50));
+}
+
+/**
+ * Walks up to a height over the column, and stands there. A pillar's last block can fail to go down at the
+ * top of a jump, and the bot drops back a block short; then it tries again, as a player would.
+ */
+async function climbTo(bot, goToPosition, x, y, z) {
+    for (let tries = 0; tries < 3; tries++) {
+        const before = Math.floor(bot.entity.position.y);
+        await goToPosition(bot, x, y, z, 0);
+        await landed(bot);
+        const now = Math.floor(bot.entity.position.y);
+        if (now >= y || (tries > 0 && now <= before)) return;
+    }
+}
+
+/**
+ * Looks up the column. At a player's turning speed (fairplay/turn_speed.js) the turn takes a moment, and a
+ * newer look, the walk's last step say, ends it part way; so it is asked again until the bot faces up.
+ */
+async function lookUp(bot) {
+    for (let tries = 0; tries < 3 && bot.look; tries++) {
+        await bot.look(bot.entity.yaw, LOOK_UP, true);
+        if (!(Math.abs(bot.entity.pitch - LOOK_UP) > 0.05)) return;
+    }
+}
+
+/**
+ * A bot standing in a hole one block deep, walled in at its feet but not at its head, can step up and out.
+ * Returns the cell to step up to, on ground the bot knows of with room to stand, or null when it isn't in
+ * such a hole or knows of no way out.
+ */
+function stepOut(bot) {
+    const feet = cellOf(bot.entity.position);
+    const sides = SIDEWAYS.map(([dx, dz]) => new Vec3(feet.x + dx, feet.y, feet.z + dz));
+    if (!sides.every(side => solid(knownBlockAt(bot, side)))) return null;
+    const room = side => [1, 2].every(up => {
+        const block = knownBlockAt(bot, side.offset(0, up, 0));
+        return block && !solid(block) && block.boundingBox === 'empty';
+    });
+    const way = sides.find(room);
+    return way ? way.offset(0, 1, 0) : null;
+}
+
+/**
  * Goes up to the surface over the bot's own column. Mindcraft's version read the whole column from the
  * world data and went straight to the top of it, which told the model the height of the surface above a
  * sealed cave. This one goes to the highest block the bot knows of above it (the ceiling, or ground it
@@ -163,20 +215,31 @@ function pitExit(bot) {
  */
 export async function climbToSurface(bot, { goToPosition, log }) {
     for (let round = 0; round < MAX_ROUNDS; round++) {
+        await landed(bot);
         const feetY = Math.floor(bot.entity.position.y);
         // Looking up the column, as a player climbing out does. Through a player's screen the cells straight
         // overhead are out of a level look.
-        await bot.look?.(bot.entity.yaw, LOOK_UP, true);
+        await lookUp(bot);
         const { highest, open } = columnAbove(bot);
         if (open) {
             const exitY = pitExit(bot);
             if (exitY === null) {
+                // In a hole a block deep (a pillar whose last block didn't go down leaves one), it steps up
+                // and out onto the ground beside it, as a player would, rather than stand in the hole.
+                const out = stepOut(bot);
+                if (out) {
+                    await climbTo(bot, goToPosition, out.x, out.y, out.z);
+                    if (Math.floor(bot.entity.position.y) > feetY) {
+                        log(bot, `Reached the surface at y=${Math.floor(bot.entity.position.y)}.`);
+                        return true;
+                    }
+                }
                 log(bot, round === 0 ? `Already at the surface, with open sky above, at y=${feetY}.` : `Reached the surface at y=${feetY}.`);
                 return true;
             }
             const feet = cellOf(bot.entity.position);
             log(bot, `Open sky above, but walls all round: climbing to y=${exitY} to step out.`);
-            await goToPosition(bot, feet.x, exitY, feet.z, 0);
+            await climbTo(bot, goToPosition, feet.x, exitY, feet.z);
             if (Math.floor(bot.entity.position.y) <= feetY) {
                 log(bot, `Could not climb out of the pit at y=${Math.floor(bot.entity.position.y)}.`);
                 return false;
@@ -189,7 +252,7 @@ export async function climbToSurface(bot, { goToPosition, log }) {
         }
         const goal = highest.position.offset(0, 1, 0);
         log(bot, `Going up to the highest ground you know of above you, at y=${goal.y}.`);
-        await goToPosition(bot, goal.x, goal.y, goal.z, 0);
+        await climbTo(bot, goToPosition, goal.x, goal.y, goal.z);
         if (Math.floor(bot.entity.position.y) <= feetY) {
             log(bot, `Could not get any higher than y=${Math.floor(bot.entity.position.y)}.`);
             return false;

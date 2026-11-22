@@ -23,7 +23,7 @@ import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
-import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW, faceExactly } from '../helpers/live_view.js';
 
 const NAME = 'BedrockWary';
 const report = createReport();
@@ -91,7 +91,7 @@ try {
         await tpTo([0, 1, 0], facing, 2500);
         // Facing the way the scene asks again: the idle look-around may have turned the bot meanwhile, and
         // through a player's screen which way it faces decides what it sees.
-        await bot.look((180 - facing) * Math.PI / 180, 0, true);
+        await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);
         events.length = 0; messages.length = 0;
         reflexes?.creeper.picture.clear();
         reflexes?.zones.clear(); // as on Java: no danger remembered from the last scene bends this one's escape
@@ -256,13 +256,17 @@ try {
 
     await step('a creeper following the bot, which has a stone sword: on Bedrock it is left behind, within 3 rounds, the model told once, no damage', async () => {
         await reset();
+        // Near the east edge, with room to the west to leave it behind, as on Java: leaving by distance, through a
+        // player's screen, can take the bot 30 blocks, and from the middle it reached the floor's edge.
+        await tpTo([18, 1, 0], -90, 2500);
+        await faceExactly(bot, 3 * Math.PI / 2, 0); // east, where the creeper will come from
         await cmd(`give ${NAME} stone_sword 1`, 700);
         let keepBusy = true;
         const busy = () => { if (keepBusy && !agent.actions.executing) act('action:stay', () => skills.stay(bot, -1)); };
         const restart = event => { if (event.event === 'done') setTimeout(busy, 1700); };
         bot.on('threat_reflex', restart);
         busy();
-        const start = at(10, 1, 0);
+        const start = at(28, 1, 0);
         await cmd(`summon creeper ${start.x + 0.5} ${start.y} ${start.z + 0.5}`);
         let quietSince = Date.now();
         await waitFor(() => {
@@ -282,8 +286,8 @@ try {
         // each time, and the creeper may take up the chase once more: one round more.
         const most = LIVE_VIEW === 'all' ? 3 : 4;
         assert.ok(rounds <= most, `${rounds} rounds: ${JSON.stringify(stances)}, ended ${JSON.stringify(endings)}, times ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => Math.round(e.at / 100) / 10))}`);
-        assert.ok(messages.length <= 1, messages.join('\n---\n'));
-        assert.equal(lowestHealth, 20, 'no damage');
+        assert.ok(messages.length <= 1, `${messages.join('\n---\n')} ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
+        assert.equal(lowestHealth, 20, `no damage: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
         return { rounds, stances, creeperLeft: Boolean(rawCreeper()) };
     });
 
@@ -445,13 +449,16 @@ try {
         try {
             act('action:stay', () => skills.stay(bot, -1));
             await delay(500);
+            // East again, where the creeper comes from: through a player's screen the idle look may have turned
+            // the bot in the wait, and a creeper unseen until it is close is another scene.
+            await faceExactly(bot, 3 * Math.PI / 2, 0);
             const start = at(10, 1, 0);
             await cmd(`summon creeper ${start.x + 0.5} ${start.y} ${start.z + 0.5}`);
             await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'creeper_safety'), 30000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
             const stances = events.filter(e => e.event === 'decided').map(e => e.stance);
             assert.equal(stances[0], 'leave', JSON.stringify(stances));
             assert.match(messages[0] ?? '', /leaving it behind, as I was told to\./);
-            assert.equal(lowestHealth, 20, 'no damage');
+            assert.equal(lowestHealth, 20, `no damage: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => [Math.round(e.at), e.event, e.stance, e.ended, e.key]))}`);
             const creeper = rawCreeper();
             return { stances, endedAway: creeper ? Number(flat(bot.entity.position, creeper.position).toFixed(1)) : null };
         } finally {

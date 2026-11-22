@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vec3 } from 'vec3';
-import { firstStep, safeCell, guardStep, retreatFrom, backAwayFacing } from '../src/agent/reflexes/moves.js';
+import { firstStep, safeCell, guardStep, retreatFrom, backAwayFacing, wayOut } from '../src/agent/reflexes/moves.js';
 import { createShield } from '../src/agent/reflexes/shield.js';
 import { createItemUse } from '../src/agent/reflexes/item_use.js';
 import '../src/agent/bedrock/edition.js';
@@ -192,4 +192,54 @@ test('backing away facing an archer into a wall: it stands there facing it, and 
         assert.equal(outcome.blocks, 1, 'the shield went up for the shot');
         assert.ok(did.includes('shield up'));
     } finally { stop(); }
+});
+
+test('a way out: on open ground there is one; in a dead end, walled on every side away from the threat, none', () => {
+    const away = { x: 1, z: 0 };
+    assert.equal(wayOut(world(), feet, away), true);
+    const cells = {};
+    for (const [x, z] of [[1, 0], [1, 1], [1, -1], [0, 1], [0, -1]]) for (const y of [64, 65]) cells[`${x},${y},${z}`] = 'stone';
+    assert.equal(wayOut(world(cells), feet, away), false);
+    // A corner cell believed open (remembered from before the walls went up) is no way out between two walls.
+    cells['1,64,1'] = 'air'; cells['1,65,1'] = 'air';
+    assert.equal(wayOut(world(cells), feet, away), false, 'no slipping between the walls at a corner');
+    delete cells['0,64,1']; delete cells['0,65,1'];
+    assert.equal(wayOut(world(cells), feet, away), true, 'a side open is a way out');
+});
+
+test('turning to run at a player\'s speed, the bot backs away on the keys at once, before the turn is done', async () => {
+    const { bot } = guardedBot();
+    const keys = {}, headings = [], reports = [];
+    bot.setControlState = (key, on) => { keys[key] = on; };
+    bot.clearControlStates = () => { for (const key in keys) keys[key] = false; };
+    let turned = null;
+    // A turn that takes a while, as at controller speed (the first; later looks are small), and a pacer
+    // that walks a heading on the keys.
+    bot.lookAt = () => (turned ? Promise.resolve() : new Promise(resolve => { turned = resolve; }));
+    bot.lookPacer = { walkToward: yaw => headings.push(yaw) };
+    let checks = 0, keysDuringTurn = null;
+    const run = retreatFrom(bot, {
+        from: () => [creeperWest], to: 16, report: event => reports.push(event),
+        done: () => { if (++checks === 4) { keysDuringTurn = { ...keys }; turned?.(); } return checks > 8; },
+    });
+    await run;
+    assert.ok(keysDuringTurn?.forward && keysDuringTurn.sprint, `walking before the turn was over: ${JSON.stringify(keysDuringTurn)}`);
+    assert.ok(Math.abs(headings[0] - (-Math.PI / 2)) < 1e-9, `toward the east, away from the creeper: ${headings}`);
+    assert.equal(headings.at(-1), null, 'and the heading let go after');
+    assert.equal(reports[0]?.how, 'back', 'its first step is the step back');
+});
+
+test('walled in on every side away from the threat, the retreat tells its guard at once, and never turns its back', async () => {
+    const { bot, did, shield } = guardedBot();
+    const cells = {};
+    for (const [x, z] of [[1, 0], [1, 1], [1, -1], [0, 1], [0, -1]]) for (const y of [64, 65]) cells[`${x},${y},${z}`] = 'stone';
+    bot.blockAt = world(cells);
+    let cornered = false, steps = 0;
+    const outcome = await retreatFrom(bot, {
+        from: () => [creeperWest], to: 16, done: () => ++steps > 3,
+        guard: { shield, cornered: () => { cornered = true; }, against: () => (cornered ? { x: -2.5, y: 65, z: 0.5 } : null) },
+    });
+    assert.equal(cornered, true, 'the guard was told');
+    assert.equal(outcome.blocks, 1, 'the shield went up');
+    assert.ok(!did.some(d => /^look 3,/.test(d) || /^look 4,/.test(d)), `it never looked away to the east: ${did}`);
 });

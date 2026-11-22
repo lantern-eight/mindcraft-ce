@@ -19,7 +19,7 @@ import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
-import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW } from '../helpers/live_view.js';
+import { fairPlaySettings, faceToward, lookRound, LIVE_VIEW, faceExactly } from '../helpers/live_view.js';
 
 const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
 const port = Number(arg('port') || 55932);
@@ -150,7 +150,7 @@ try {
         await lookAbout();
         // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
         // and through a player's screen which way it faces decides what it sees.
-        await bot.look((180 - facing) * Math.PI / 180, 0, true);
+        await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);
         events.length = 0; messages.length = 0;
         if (reflexes) { reflexes.mob.clear(); reflexes.fight.clear(); reflexes.claims.clear(); reflexes.creeper.picture.clear(); reflexes.glance?.clear(); }
         lowestHealth = lastHealth = bot.health; damage = 0;
@@ -232,7 +232,7 @@ try {
         const zombies = raw('zombie');
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
         assert.equal(decided('mob_safety')[0].key, 'crowd', JSON.stringify(decided()));
-        assert.equal(decided('self_defense').length, 0, 'it did not fight two');
+        assert.equal(decided('self_defense').length, 0, `it did not fight two: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - spawned) })))}`);
         // Through a player's screen the bot backs away facing the way out and goes by where it last saw them,
         // while they come on: it ends nearer than it knows, looks back, and backs away again if they come
         // within the crowd's 8 blocks. All around it sees them the whole way.
@@ -330,6 +330,9 @@ try {
         await cmd(`give ${NAME} stone_sword`);
         await cmd(`damage ${NAME} 15 minecraft:generic`);
         await waitFor(() => bot.health <= 5, 3000);
+        // West again: through a player's screen the idle look turns the bot every second or two, and the wait
+        // above is long enough for it to face away. Once the zombie is on screen, the idle look holds still.
+        await faceExactly(bot, Math.PI / 2, 0);
         await cmd('summon zombie -8.5 70 0.5 {PersistenceRequired:1b}');
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
         assert.ok(['flee', 'retreat'].includes(decided('mob_safety')[0].stance), JSON.stringify(decided()));
