@@ -158,7 +158,7 @@ one line of JSON for each step:
 export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
 export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 
-node tests/live/bedrock_all.js                         # all eight below, one after another
+node tests/live/bedrock_all.js                         # all nine below, one after another
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
@@ -167,6 +167,7 @@ node tests/live/bedrock_memory.js                      # world memory's look-aro
 node tests/live/bedrock_memory_scenarios.js            # world memory as the agent runs it (about 3 minutes)
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
+node tests/live/bedrock_turning.js                     # work that turns a lot, timed
 node tests/live/bedrock_threats.js                     # the threat reflexes
 node tests/live/bedrock_fight_arena.js                 # how well the bot fights, measured (not in bedrock_all.js)
 ```
@@ -197,6 +198,11 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   seen, can't open the chest through the wall, flees the zombie only once it sees it, runs model-written
   code that sees no more than it does, refuses to act while an operator or in creative mode, and never
   sends a command. The Bedrock twin of `fairplay_scenarios.js`.
+- **`bedrock_turning.js`** times work that turns a lot on a floor of stone high up: gathering logs from a
+  tree ahead and one behind and stone from a boulder beside, a bridge one block wide over a pit, and a gap
+  of two blocks to jump. Each must succeed at any turning speed and in either view; slower is fine, a fall
+  or a stall is not. The Bedrock twin of `turning_scenarios.js`, less its ladder, which the console can't
+  set facing a way.
 - **`bedrock_threats.js`** installs fair play and the creeper reflex, lights creepers with Bedrock's own
   start-exploding event, penned in glass where the bot can see them, and checks that the bot reads the fuse
   from the `ignited` flag, steps away the moment the hiss arrives, is 7 or more blocks off at each blast and
