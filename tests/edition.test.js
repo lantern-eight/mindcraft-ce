@@ -339,3 +339,15 @@ test('a Java block\'s name in Java\'s terms is its own', () => {
     const registry = minecraftData(GAME_VERSION);
     for (const name of ['snow', 'water', 'powered_rail', 'not_a_block']) assert.equal(javaEdition.javaNameOf(registry, name), name);
 });
+
+test('leaves a player placed are told from grown ones by their state', () => {
+    const registry = minecraftData(GAME_VERSION);
+    const leaves = registry.blocksByName.oak_leaves;
+    const persistent = [], grown = [];
+    for (let id = leaves.minStateId; id <= leaves.maxStateId; id++)
+        (javaEdition.propsOfState(registry, id).persistent === 'true' ? persistent : grown).push(id);
+    assert.ok(persistent.length && grown.length);
+    for (const id of persistent) assert.equal(javaEdition.leavesPersist(registry, id), true);
+    for (const id of grown) assert.equal(javaEdition.leavesPersist(registry, id), false);
+    assert.equal(javaEdition.leavesPersist(registry, leaves.defaultState), false, 'leaves start out grown');
+});

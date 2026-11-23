@@ -276,6 +276,14 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
+     * Whether leaves were placed by a player and so never fall away, as on Java. Bedrock keeps it as the
+     * `persistent_bit` of the leaves' state, a byte: 1 for placed leaves.
+     */
+    leavesPersist(registry, stateId) {
+        return bedrockEdition.propsOfState(registry, stateId)?.persistent_bit === '1';
+    },
+
+    /**
      * The state for a block name with these properties: the block's default state with each property
      * given replaced, as on Java. A property the block doesn't have, a value it can't take, or a mix of
      * values no state has, keeps the default.

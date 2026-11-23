@@ -360,3 +360,13 @@ test('the operator level comes from the permissions a Bedrock server gives', () 
     stop();
     assert.equal(bot.listenerCount('abilities'), 0);
 });
+
+test('Bedrock leaves a player placed are told from grown ones by their persistent bit', { skip: needsBedrockLibraries }, () => {
+    const registry = bedrockRegistry();
+    const placed = [], grown = [];
+    for (const stateId of bedrockEdition.stateIdsOf(registry.blocksByName.oak_leaves))
+        (bedrockEdition.propsOfState(registry, stateId).persistent_bit === '1' ? placed : grown).push(stateId);
+    assert.ok(placed.length && grown.length);
+    for (const stateId of placed) assert.equal(bedrockEdition.leavesPersist(registry, stateId), true);
+    for (const stateId of grown) assert.equal(bedrockEdition.leavesPersist(registry, stateId), false);
+});
