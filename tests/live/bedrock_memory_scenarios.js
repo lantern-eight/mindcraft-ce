@@ -240,6 +240,34 @@ try {
         return { notes: text.split('\n').filter(line => line.startsWith('Noticed')) };
     });
 
+    await step('a place a player told it of stays told until it walks there and sees it; a buried one it walks over stays told', async () => {
+        // A walkway south to ground it has never been near, with a chest at the far end, and a block of
+        // stone under the walkway's middle. The player gives the lookout as x and z only, as players do,
+        // and a cellar inside that stone.
+        await fill([-6, 0, 21], [6, 0, 60], 'stone');
+        await fill([-6, 1, 21], [6, 8, 60], 'air');
+        await fill([-3, -14, 27], [3, -6, 33], 'stone');
+        await set([1, 1, 52], 'chest');
+        await delay(1500);
+        const tell = (name, where) => getCommand('!rememberToldPlace').perform(agent, name, where);
+        const lookout = at(0, 1, 50), cellar = at(0, -10, 30);
+        assert.match(tell('lookout', `${lookout.x}, ${lookout.z}`), /^Saved "lookout", as you were told: .*, \?, .*, 5\d blocks south\./);
+        assert.match(tell('cellar', xyz(cellar)), /^Saved "cellar"/);
+        assert.match(getCommand('!places').perform(agent), /- "lookout" \(told just now, not seen yet\)/);
+        assert.equal(memory().places.at(at(1, 1, 52)), null, 'nothing is filed under the told spot');
+
+        const result = await getCommand('!goToPlace').perform(agent, 'lookout');
+        const p = bot.entity.position;
+        assert.ok(Math.hypot(p.x - lookout.x, p.z - lookout.z) <= 3, `it walked there: ${p}`);
+        assert.match(result, new RegExp(`Seen "lookout", which you were told of, at ${lookout.x}, ${lookout.y}, ${lookout.z}\\. It is the site where you saw chest 1\\.`), result);
+        const place = memory().places.byName('lookout');
+        assert.equal(place.kind, 'found', 'seen, the told name went to the site the chest started');
+        assert.ok(place.told?.seenAt);
+        assert.equal(memory().places.byName('cellar').kind, 'told', 'walking over a buried spot is not seeing it');
+        assert.match(recall('cellar'), /not seen yet/);
+        return { answer: result.split('\n').filter(line => /lookout/.test(line)) };
+    });
+
     await step('memory is saved, in small files', () => {
         assert.equal(memory().save(), 0);
         const dir = memory().dir;
@@ -257,7 +285,12 @@ try {
     console.error(error);
     process.exitCode = 1;
 } finally {
-    try { if (origin) await fill([-20, 0, -20], [20, 8, 20], 'air'); } catch (error) { console.error('Tear-down failed:', error.message); }
+    try {
+        if (origin) {
+            await fill([-20, 0, -20], [20, 8, 20], 'air');
+            await fill([-6, -14, 21], [6, 8, 60], 'air'); // the walkway and the cellar's stone
+        }
+    } catch (error) { console.error('Tear-down failed:', error.message); }
     bot?.quit();
     const result = summary();
     console.log(JSON.stringify(result));
