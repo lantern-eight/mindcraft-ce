@@ -67,6 +67,16 @@ export async function putAway(chests, { items, hands, from, stackSize = () => 64
         items[name] = (items[name] ?? 0) + n;
     };
 
+    // First, a look into the chests it has never seen inside, nearest first, as a player in a storage room
+    // they don't know opens the chests before deciding where things go. Without that, every chest would
+    // look alike to the plan and everything would land in the first.
+    for (const chest of walkOrder(from, [...beliefs.values()].filter(c => !c.items))) {
+        if (looked >= lookLimit) break;
+        looked++;
+        const result = await visit(hands, chest, checkpoint, async opened => Object.assign(chest, beliefOf(opened.slots())));
+        if (!result.ok) { skipped.push({ chest, reason: result.reason }); out.add(chest.id); }
+    }
+
     // One chest a round. Each round either moves something, or rules a chest out, so this ends.
     for (let round = 0; remaining.size && round < chests.length * 3 + 3; round++) {
         const usable = [...beliefs.values()].filter(chest => !out.has(chest.id) && (chest.items || looked < lookLimit));
@@ -151,7 +161,9 @@ export async function fetchItem(chests, { name, count, hands, from, checkpoint =
             // the nearest of those is worth a look, as a player opens the chests of a room they don't know.
             const unseen = open.filter(c => !c.items);
             if (!unseen.length || looked >= lookLimit) break;
-            chest = walkOrder(from, unseen)[0];
+            // The bot's own and shared chests before a player's, then the nearest.
+            const best = Math.min(...unseen.map(c => c.rank ?? 0));
+            chest = walkOrder(from, unseen.filter(c => (c.rank ?? 0) === best))[0];
             looked++;
         }
         done.add(chest.id);

@@ -99,8 +99,10 @@ function mealOf(foods, name) {
     if (NOT_A_MEAL.includes(name)) return null;
     if (isObject(foods)) {
         const entry = own(foods, name) ? foods[name] : null;
-        return isObject(entry) && isNumber(entry.foodPoints)
-            ? { points: entry.foodPoints, saturation: isNumber(entry.saturation) ? entry.saturation : 0 } : null;
+        if (isObject(entry) && isNumber(entry.foodPoints)) return { points: entry.foodPoints, saturation: isNumber(entry.saturation) ? entry.saturation : 0 };
+        // Food by the game's word, with no points given: the built-in table may know how good it is.
+        if (isObject(entry)) return { points: FOOD_POINTS[name] ?? 1, saturation: 0 };
+        return null;
     }
     return own(FOOD_POINTS, name) ? { points: FOOD_POINTS[name], saturation: 0 } : null;
 }
