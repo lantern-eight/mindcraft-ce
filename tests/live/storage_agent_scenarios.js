@@ -26,7 +26,9 @@ import { fairPlaySettings } from '../helpers/live_view.js';
 const live = process.argv.includes('--live-model');
 const runs = live ? Number(process.argv.find(a => a.startsWith('--runs='))?.split('=')[1] || 3) : 1;
 const NAME = live ? 'ChestLiveModel' : 'ChestReplay';
-const MIND_PORT = 8084;
+// --port and --mind-port let a second checkout run this at the same time (java_all.js passes them).
+const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
+const MIND_PORT = Number(arg('mind-port') || 8084);
 const patience = live ? 180000 : 45000;     // how long one thing a player says gets to take effect
 
 // The room: four chests in a row east of the bot, all in view. Two will be Alice's, one Bob's, and
@@ -59,7 +61,7 @@ const RECORDED = [
     { text: 'I will keep your chests tidy.' },
 ];
 
-const fixture = await vanillaFixture(55938);
+const fixture = await vanillaFixture(Number(arg('port') || 55938));
 const outcomes = [];        // one per run: { step name: true | false }
 let child, socket, log = '';
 

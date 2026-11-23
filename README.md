@@ -170,6 +170,8 @@ runs them seeing all around instead, which tells a failure that comes from the v
 the scene is about; a release runs them both ways. `narrow_view_scenarios.js` is about the view itself and
 always uses the screen. `java_all.js` runs every script here both ways, one after another, with a line for each
 and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts).
+`--port=N` runs every script's server on port N, and a MindServer on N + 1, so two checkouts can each run the
+suite at once; give each its own `MC_TEST_JAR_CACHE` folder as well.
 `MC_TEST_TURN=instant` (or `--turn=instant`) has the bot turn its head at once, as mineflayer does, instead of
 at strict's speed, to measure what a player's turning costs a scene; the fight arena takes both switches too.
 
