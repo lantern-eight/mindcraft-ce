@@ -320,6 +320,11 @@
         "default": true,
         "description": "Threat reflexes: the bot backs off from a creeper about to explode, even in the middle of another action, and deals with one that keeps following it. Works with fair play on or off. See docs/threat-reflexes.md."
     },
+    "farming": {
+        "type": "boolean",
+        "default": true,
+        "description": "Farming: adds !tendField, which harvests the ripe crops of the field nearest the bot, replants them and sows the empty farmland, and !markField, which says whose a field is. Works with fair play on or off. See docs/farming.md."
+    },
     "good_neighbor": {
         "type": "object",
         "default": {

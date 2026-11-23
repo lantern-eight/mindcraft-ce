@@ -26,6 +26,7 @@ says what works, what doesn't and how to try it.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
+| **Farming** | On by default. The bot tends a field: cuts what it sees is ripe, replants, sows, never tramples the farmland, and leaves other people's fields alone unless asked. `farming: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
@@ -65,6 +66,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
 | Route planning | The pathfinder plans over every loaded block, seen or not | It plans over what the bot has seen, takes what it has not seen for open ground, and plans again as the way ahead comes into view |
 | Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
+| Farming | `tillAndSow` in generated code; `!collectBlocks` breaks any wheat it finds, ripe or not | `!tendField` cuts only crops it sees are ripe, replants and sows, never jumps onto the farmland, and keeps whose each field is. See [docs/farming.md](docs/farming.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
@@ -162,6 +164,7 @@ node tests/live/fairplay_scenarios.js
 | `danger_scenarios.js` | Danger zones: a walk across an arena going round where illagers were seen, against the same walk with no zone; a walk out of the middle of a zone; the zones a skeleton aiming and an explosion heard leave |
 | `fight_arena.js` | How well the bot fights, measured rather than checked: rounds of zombies, skeletons and spiders against kits from bare hands to iron and shield, each run several times, recording wins, time, damage, swings, swings per kill and hits the shield stopped (`--runs`, `--only`, `--kit`, `--fair=off`, `--orders=none`, `--shield=between`, `--out`). A yardstick for changes to how the bot fights; `arena_meter.js` holds the measures it shares with its Bedrock twin, `bedrock_fight_arena.js` |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
+| `farming_scenarios.js` | Tending a field: only ripe crops cut, every cell replanted, nothing trampled, a field behind the bot found by looking, a stranger's field left alone |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
@@ -201,6 +204,7 @@ all, to look into a world after a run.
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
 | [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
+| [docs/farming.md](docs/farming.md) | What a round of tending a field does, whose fields the bot tends, and what the model can ask |
 | [docs/threat-reflexes.md](docs/threat-reflexes.md) | The threat reflexes: when the bot backs off from a creeper or other mobs, when it fights, what it knows, how it holds other work, and the danger zones its walks go round |
 | [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |

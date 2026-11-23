@@ -147,6 +147,10 @@ const settings = {
     // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
     // the reflex out. See docs/threat-reflexes.md.
     "threat_reflexes": true,
+    // Farming: adds !tendField, which harvests the ripe crops of the field nearest the bot, replants them
+    // and sows the empty farmland, and !markField, which says whose a field is. Works with fair play on or
+    // off; false leaves the commands out. See docs/farming.md.
+    "farming": true,
     "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
 
     // Allows generated executable code (newAction/executeCode/augments) with host access.

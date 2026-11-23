@@ -9,6 +9,16 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Farming: `!tendField` tends the field nearest the bot. It cuts only the crops it sees are ripe (wheat,
+  carrots, potatoes, beetroot), picks up the drops, replants each cell, sows empty farmland with the seed asked
+  for or with what grows beside it, and says what reached its inventory and what is left. Among the crops it
+  never jumps, steps down onto the farmland or into its water, so nothing is trampled. With world memory and no
+  field in sight, it walks to the field it remembers. `!markField` says whose a field is and whether the bot
+  may tend it unasked; on its own idea it tends only its own, shared, and "always" fields, and a player asking
+  is never refused. `farming: false` leaves the commands out. See `docs/farming.md`.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed
