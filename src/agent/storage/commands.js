@@ -190,7 +190,7 @@ function sightOf(bot) {
 
 // How the chests are found and reached on a real bot. Everything goes through world.js, so with fair
 // play on the bot knows only chests it has seen, and opens one only from where it can see and reach it.
-const real = {
+export const real = {
     /** The chest blocks the bot knows of around it, nearest first. */
     nearestBlocks(bot, distance) {
         const ids = SORTABLE.map(name => bot.registry.blocksByName[name]?.id).filter(id => id !== undefined);
@@ -236,7 +236,7 @@ const real = {
 const halvesOn = bot => ({ otherHalfOf: block => editionOf(bot.registry).otherHalfOf(block) });
 
 /** The chests the bot knows of within `distance`, nearest first, each marked with whether it is in view now. */
-function chestsAround(bot, distance, env) {
+export function chestsAround(bot, distance, env) {
     return chestsFrom(env.nearestBlocks(bot, distance), halvesOn(bot)).map(chest => ({ ...chest, inView: Boolean(env.inView(bot, chest)) }));
 }
 
@@ -254,7 +254,7 @@ function chestAt(bot, pos, env) {
  * Forgets what was said about chests the bot can see are gone. An entry stays while its spot is out
  * of sight: the bot cannot know, and a chest it merely cannot see is still someone's.
  */
-function forgetGone(bot, env) {
+export function forgetGone(bot, env) {
     const feet = bot.entity?.position;
     for (const entry of env.book.list()) {
         for (const cell of [{ x: entry.x, y: entry.y, z: entry.z }, entry.also].filter(Boolean)) {
@@ -520,7 +520,7 @@ export async function putInChestAt(bot, pos, itemName, num, deps = {}) {
  * do: it takes over from whatever the bot was doing, can be interrupted, and gives a result the model
  * can read (with `.structured` for native tool calls).
  */
-function asAction(label, fn) {
+export function asAction(label, fn) {
     const run = async (agent, args, structured) => {
         const result = await agent.actions.runAction(`action:${label}`, () => fn(agent, ...args), { timeout: -1 });
         if (structured) return result;

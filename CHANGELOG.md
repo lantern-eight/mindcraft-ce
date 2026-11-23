@@ -9,6 +9,16 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Putting away and fetching (`store_and_fetch`, on by default with chest sorting). `!putAway("all", "any", 16)`
+  puts what the bot carries into the chests where those things belong: each kind with its own kind, else with
+  related things, else into an empty chest, keeping what it needs out in the world (its best tools and a spare
+  pickaxe, armour, food, torches, a few blocks). `!fetchItem("iron_ingot", 10)` takes an item out of the chests
+  it remembers holding it, from several if one is not enough. Both use the bot's own and shared chests, and
+  players' chests when a player asks; a chest nobody has said is anyone's is left alone and named, so the bot
+  asks. Each chest is checked on opening, so a chest someone changed since the bot looked is no surprise.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed
