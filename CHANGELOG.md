@@ -13,6 +13,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 - With native tools on (the default), the system prompt no longer holds a second copy of the whole tool list,
   which already reaches the model as its tools: about 7,000 tokens less on every model call.
+- With native tools on, Claude and Gemini read the conversation's system notes (tool results, deaths, mode
+  changes) where they happened, as the other providers do, instead of all of them at the end of the system
+  prompt, out of order.
 
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
