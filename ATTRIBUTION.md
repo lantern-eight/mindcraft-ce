@@ -39,6 +39,15 @@ adapted here with its own test, and stays under the inherited code's MIT License
 |---|---|---|
 | [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`). Listing an agent on the MindServer only after the server check, in `src/mindcraft/mindcraft.js` (`f18b8f6`). `attackNearest` refusing an empty mob type, in `src/agent/library/skills.js` (`6533ada`), and `attackEntity` naming a player it killed (`e16fc01`). The removal of a dead method and unused imports from `src/models/vllm.js` (`f18b8f6`) | MIT |
 
+## Code Ported From Other Forks
+
+Code taken from another fork's own work, adapted here with its tests. It stays under that fork's license,
+which is the inherited code's MIT License; the file says where it came from.
+
+| Fork | What was taken | License |
+|---|---|---|
+| [akarkin1/mindcraft-fk](https://github.com/akarkin1/mindcraft-fk) | The keep plan (`keepPlan` in its `packs/storage/storage_logic.js`, release `v0.1.4.17-rc`), which decides what the bot keeps on itself when it puts things away: `src/agent/storage/keep_plan.js`, with its test cases in `tests/storage_keep_plan.test.js` | MIT |
+
 ## Libraries
 
 Libraries are installed by `npm install` and are not copied into this repository. Each keeps its own
@@ -164,7 +173,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 
 - `src/agent/fairplay/` (all files)
 - `src/agent/memory/` (all files)
-- `src/agent/storage/` (all files)
+- `src/agent/storage/` (all files but `keep_plan.js`, which is MIT: see above)
 - `src/agent/edition/` (all files)
 - `src/agent/bedrock/` (all files)
 - `src/agent/reflexes/` (all files)
@@ -172,7 +181,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`,
   `src/agent/action_hold.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/edition.test.js`,
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/goto_path_search.test.js`,
