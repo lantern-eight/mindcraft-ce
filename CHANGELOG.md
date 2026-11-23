@@ -24,6 +24,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - `!collectBlocks` of a crop (`wheat`, `carrots`, `potatoes`, `beetroots`, `nether_wart`) takes only fully grown
   plants. It broke young ones too, flattening a field that was still growing for a seed apiece, and now says the
   crop is not grown yet when that is all there is.
+- Under fair play a crop the bot remembers but can't see no longer reads as freshly planted. Memory keeps its
+  name, not its growth, and searches took the missing growth for a seedling, so a field out of view looked all
+  young.
 
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
