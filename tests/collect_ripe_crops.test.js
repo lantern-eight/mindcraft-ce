@@ -35,9 +35,9 @@ test('a plant whose stage could not be read is walked to, and left when it turns
     const unread = Object.assign(crop('wheat', 3, new Vec3(1, 0, 0)), { getProperties: undefined });
     let digs = 0, walks = 0;
     const bot = {
-        registry, game: { gameMode: 'survival' }, inventory: { items: () => [] }, world: {},
+        registry, version: VERSION, game: { gameMode: 'survival' }, inventory: { items: () => [] }, world: {},
         on() {}, off() {}, emit() {},
-        pathfinder: { goto: () => { walks++; return Promise.resolve(); }, setGoal() {} },
+        pathfinder: { goto: () => { walks++; return Promise.resolve(); }, setGoal() {}, setMovements() {} },
         blockAt: () => crop('wheat', 3, new Vec3(1, 0, 0)),
         dig: () => { digs++; return Promise.resolve(); },
     };

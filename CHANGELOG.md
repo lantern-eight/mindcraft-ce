@@ -24,6 +24,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - `!collectBlocks` of a crop (`wheat`, `carrots`, `potatoes`, `beetroots`, `nether_wart`) takes only fully grown
   plants. It broke young ones too, flattening a field that was still growing for a seed apiece, and now says the
   crop is not grown yet when that is all there is.
+- `!collectBlocks` of a plant (a crop, a flower, grass) walks up to it. The walk aimed for a line of sight to
+  the block's collision box, and a plant has none, so every walk timed out and nothing was collected. The
+  walk to a plant, and to its drops, neither digs nor places blocks, and the walk to it doesn't leap, so it no
+  longer breaks young crops or digs up farmland on its way across a field.
 - Under fair play a crop the bot remembers but can't see no longer reads as freshly planted. Memory keeps its
   name, not its growth, and searches took the missing growth for a seedling, so a field out of view looked all
   young.
