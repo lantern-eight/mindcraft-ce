@@ -15,6 +15,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   system prompt and the conversation so far for Claude's prompt cache, so each step of a task reads all but
   its newest turn at a tenth of the input price or less. `"1h"` keeps the cache an hour, `"off"` sends no
   markers. See docs/prompt-caching.md.
+- Model usage counts the input tokens written to a prompt cache per role (`written`, beside `cached`), and
+  `model_pricing` takes a `cache_write_per_million` rate for them.
 
 ### Fixed
 

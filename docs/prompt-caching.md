@@ -53,12 +53,16 @@ the one-hour lifetime), and a read a tenth or less, so a cached start pays for i
 ## Checking That It Works
 
 Usage is counted per role (conversation, task, brain, and so on) and shown with the bot's state on the
-MindServer: `cached` is the input tokens read from the cache. In a task of
+MindServer: `cached` is the input tokens read from the cache, `written` those written to it. In a task of
 several steps, `cached` should soon be most of `input`. If it stays at zero:
 
 - The request may be shorter than the model's minimum for caching (512 tokens on the newest Claude models,
   up to 4,096 on some older ones). The API ignores the markers then, with no error.
 - Something early in the request changes on every call. Set `log_all_prompts` and compare two prompts.
+
+To have a model's own rates count cache writes, add `cache_write_per_million` to `model_pricing` (for
+Claude, 1.25 times the input price with `"5m"`, twice it with `"1h"`). Without it, writes are priced as plain
+input.
 
 ## Known Limits
 

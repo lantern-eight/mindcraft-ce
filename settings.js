@@ -103,6 +103,8 @@ const settings = {
     },
     // Optional USD rates when the provider reports tokens but no cost:
     // {"input_per_million":1, "output_per_million":2, "cached_input_per_million":0.5}
+    // Add "cache_write_per_million" for a model that charges more to write its prompt cache (Claude: 1.25x
+    // the input price, 2x with prompt_caching "1h"); writes cost plain input without it.
     // Use your model's actual rates; roster entries and decisions can have separate pricing.
     "model_pricing": null,
     // Claude reads the part of a request that repeats (tools, instructions, the conversation so far) from
