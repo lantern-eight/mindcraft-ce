@@ -16,6 +16,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - With native tools on, Claude and Gemini read the conversation's system notes (tool results, deaths, mode
   changes) where they happened, as the other providers do, instead of all of them at the end of the system
   prompt, out of order.
+- Claude 4.6 and later (Claude 5.x included) on the text path: a request no longer ends on the bot's own turn,
+  which these models reject; long turns are no longer cut off by a 4,096-token limit that their thinking
+  counts toward (the default is now 16,000, and it no longer leaks into the native tool path); a declined
+  request says so instead of "No response from Claude."; and an empty reply is tried once more. From
+  r77tchan's fork.
 
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 

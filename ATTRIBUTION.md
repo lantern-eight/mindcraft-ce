@@ -38,6 +38,7 @@ adapted here with its own test, and stays under the inherited code's MIT License
 | Fork | What was taken | License |
 |---|---|---|
 | [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`). Listing an agent on the MindServer only after the server check, in `src/mindcraft/mindcraft.js` (`f18b8f6`). `attackNearest` refusing an empty mob type, in `src/agent/library/skills.js` (`6533ada`), and `attackEntity` naming a player it killed (`e16fc01`). The removal of a dead method and unused imports from `src/models/vllm.js` (`f18b8f6`) | MIT |
+| [r77tchan/mindcraft](https://github.com/r77tchan/mindcraft) | Claude 4.6 and later on the text path of `src/models/claude.js` (its commits `b7aa235` and `c10134d`): closing a request that ends on an assistant turn with a user turn, room in `max_tokens` for thinking, saying so when a request is declined, and one more try after an empty reply. | MIT |
 
 ## Libraries
 
@@ -187,7 +188,8 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,
   `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`,
-  `tests/tool_docs_once.test.js`, `tests/system_notes_in_place.test.js`
+  `tests/tool_docs_once.test.js`, `tests/system_notes_in_place.test.js`,
+  `tests/claude_text_requests.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
   `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`
