@@ -46,7 +46,9 @@ It needs neither fair play nor world memory:
    (a row of carrots gets carrots), else the seed it holds most of. It holds back a seed for each ripe plant
    still to be replanted, so a field doesn't end up half bare.
 6. **Look again.** Walking the rows brings more of the field into view; the round takes in what it found,
-   up to three passes.
+   up to three passes. A cell where a seed was planted but nothing grew (the click went astray, or the server
+   was slow to show it) is tried again on the next pass, with the same seed if the bot cut a crop there. So is
+   a cut cell whose seed hadn't dropped yet when the bot went to plant it: it picks up what lies about it first.
 7. **Report what happened,** counted from what reached the bag, never from what was broken:
 
 > The field at 2, -61, -2 to 6, -61, 2 has 24 farmland (it is yours). Harvested 10 wheat, and gained 10 wheat,

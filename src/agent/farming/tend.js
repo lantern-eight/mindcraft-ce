@@ -255,7 +255,10 @@ export async function tendField(bot, { seed = null, book, behind = {}, name = ''
     const deadline = Date.now() + Math.min(MAX_MS, BASE_MS + PER_CELL_MS * field.cells.length);
     const before = counts(bot);
     const tally = { cut: {}, replanted: 0, sown: 0, unreached: new Set(), unseen: new Set(), noSeed: new Set(),
-        young: new Set(field.cells.filter(c => c.ripe === false).map(posKey)), planted: new Set() };
+        young: new Set(field.cells.filter(c => c.ripe === false).map(posKey)), planted: new Set(), didNotTake: new Set() };
+    // A cell cut this round, and the seed it is to be replanted with: if planting there fails, a later pass
+    // tries again with the same seed, and counts it as replanted, not sown.
+    const cutHere = new Map();
     let brokenSinceGain = 0, gainedSoFar = 0, stopReason = null;
     const done = new Set();
 
@@ -283,6 +286,7 @@ export async function tendField(bot, { seed = null, book, behind = {}, name = ''
                 const row = cropOfBlock(now.above);
                 if (!(await harvest(bot, read, now, above.block))) continue;
                 tally.cut[row.block] = (tally.cut[row.block] ?? 0) + 1;
+                cutHere.set(posKey(cell), row.seed);
                 // The drops show a moment after the crop goes; the seed to replant with comes from them.
                 const seedBefore = counts(bot)[row.seed] ?? 0;
                 await sleep(400);
@@ -293,22 +297,41 @@ export async function tendField(bot, { seed = null, book, behind = {}, name = ''
                     + tally.replanted + tally.sown;
                 if (total > gainedSoFar) { gainedSoFar = total; brokenSinceGain = 0; } else brokenSinceGain++;
                 seedHere = row.seed;
+            } else if (plan[0] === 'plant' && cutHere.has(posKey(cell))) {
+                // Cut earlier in this round and still bare: its planting didn't take, or its seed hadn't
+                // dropped yet. The same seed again, from what lies about it if the bag has none.
+                seedHere = cutHere.get(posKey(cell));
+                if (!counts(bot)[seedHere]) await collectDrops(bot, field, cell);
             } else if (plan[0] === 'plant') {
                 // Empty farmland: sow, holding back a seed for each ripe crop still to be replanted.
                 const owed = seedsOwed(field.cells.filter(c => !done.has(posKey(c))));
+                // And one for each cell cut this round that is still bare, waiting for its seed.
+                for (const [key, cutSeed] of cutHere) if (!tally.planted.has(key)) owed[cutSeed] = (owed[cutSeed] ?? 0) + 1;
                 const spare = Object.fromEntries(Object.entries(counts(bot)).map(([k, v]) => [k, v - (owed[k] ?? 0)]));
                 seedHere = seedToSow(now, field.cells, spare, seed);
-                if (!seedHere) { tally.noSeed.add(posKey(cell)); continue; }
+                if (!seedHere) { tally.noSeed.add(posKey(cell)); tally.didNotTake.delete(posKey(cell)); continue; }
             }
             if (seedHere) {
-                if (!counts(bot)[seedHere]) { tally.noSeed.add(posKey(cell)); }
+                const key = posKey(cell);
+                if (!counts(bot)[seedHere]) {
+                    tally.noSeed.add(key);
+                    tally.didNotTake.delete(key);
+                    // A crop's seed can drop after the wait for it, to be picked up later: try again next pass.
+                    if (cutHere.has(key)) done.delete(key);
+                }
                 else if (await plant(bot, read, cell, seedHere)) {
-                    if (plan[0] === 'harvest') tally.replanted++; else tally.sown++;
-                    tally.noSeed.delete(posKey(cell));
-                    tally.planted.add(posKey(cell));
+                    if (cutHere.has(key)) tally.replanted++; else tally.sown++;
+                    tally.noSeed.delete(key);
+                    tally.didNotTake.delete(key);
+                    tally.planted.add(key);
                     cell.above = cropOfBlock(read(cell.x, cell.y + 1, cell.z)?.name)?.block ?? cell.above;
                     cell.ripe = false;
-                } else tally.noSeed.add(posKey(cell));
+                } else if (!stopped(bot)) {
+                    // The seed was held but nothing grew there (the click went astray, or the server was
+                    // slow to show it). A player would try again; so does the next pass.
+                    tally.didNotTake.add(key);
+                    done.delete(key);
+                }
             }
             if (!keepHarvesting(brokenSinceGain)) { stopReason = 'no_gain'; break; }
         }
@@ -341,6 +364,7 @@ function report(bot, { field, where, whose, tally, before, stopReason, name }) {
     if (tally.sown) parts.push(`Sowed ${tally.sown} empty farmland.`);
     if (unripe) parts.push(`${unripe} not ripe yet, left to grow.`);
     if (tally.noSeed.size) parts.push(`${tally.noSeed.size} farmland left empty: no seed for it.`);
+    if (tally.didNotTake.size) parts.push(`${tally.didNotTake.size} farmland left empty: planting there did not take, try again.`);
     if (tally.unreached.size) parts.push(`Could not reach ${tally.unreached.size} cells without jumping or dropping onto the farmland.`);
     if (tally.unseen.size) parts.push(`Could not see ${tally.unseen.size} cells to tell what grows there.`);
     if (field.unknownEdge) parts.push('More farmland may lie beyond what you have seen of it.');
