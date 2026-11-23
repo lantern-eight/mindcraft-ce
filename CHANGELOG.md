@@ -21,6 +21,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   counts toward (the default is now 16,000, and it no longer leaks into the native tool path); a declined
   request says so instead of "No response from Claude."; and an empty reply is tried once more. From
   r77tchan's fork.
+- The same on the native tool path (the default): a request no longer ends on the bot's own turn, long turns
+  are no longer reported as "truncated" at 4,096 tokens (the default is now 16,000), and a declined request
+  is logged as declined instead of as an empty reply.
 
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 

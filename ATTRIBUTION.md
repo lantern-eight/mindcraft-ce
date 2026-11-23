@@ -189,7 +189,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,
   `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`,
   `tests/tool_docs_once.test.js`, `tests/system_notes_in_place.test.js`,
-  `tests/claude_text_requests.test.js`
+  `tests/claude_text_requests.test.js`, `tests/claude_tool_requests.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
   `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`
