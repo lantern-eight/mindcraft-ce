@@ -29,7 +29,7 @@ export function whereFrom(here, to) {
  * @param {object} options.legs - how the bot moves and looks:
  *   `position()` where it stands; `interrupted()` whether it was told to stop;
  *   `walk(point)` walk towards a point on its level, resolving to 'arrived', 'stalled', 'water' (it found
- *   itself swimming and turned back), 'no_path' or 'interrupted';
+ *   itself swimming and turned back), 'detour' (the way there grew too long), 'no_path' or 'interrupted';
  *   `lookAround()` look every way if it should; `newGround(angle)` how much of the ground that way it has
  *   never looked over (0..1), or null when it keeps no record;
  *   with `targets`: `find()` the nearest one in view or remembered close by, {name,x,y,z} or null, and
