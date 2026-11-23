@@ -26,6 +26,7 @@ says what works, what doesn't and how to try it.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
+| **Good neighbor** | On by default. The bot doesn't break what other players built: what isn't natural ground, what it saw someone put up, and logs that aren't part of a tree. `good_neighbor.protect_builds: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
@@ -75,8 +76,9 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
 | Fixes | | Fixes to inherited code, each listed in the [changelog](CHANGELOG.md) |
 
-**Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
-animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
+**Good-neighbor rules, in part:** the bot doesn't break what other players built, whatever skill is digging
+([docs/good-neighbor.md](docs/good-neighbor.md)). Not looting their chests and not hurting their animals are
+not built yet. The guide lists every [known limit](docs/fair-play.md#known-limits).
 
 ## Built for Two Editions
 

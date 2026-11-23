@@ -147,6 +147,9 @@ const settings = {
     // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
     // the reflex out. See docs/threat-reflexes.md.
     "threat_reflexes": true,
+    // Good-neighbor rules: protect_builds keeps the bot from breaking what other players built; protected_areas
+    // lists places where it breaks nothing, each { name, min, max } or { name, x, z, radius }. protect_chests
+    // and protect_animals are reserved. Works with fair play on or off. See docs/good-neighbor.md.
     "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
 
     // Allows generated executable code (newAction/executeCode/augments) with host access.

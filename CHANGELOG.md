@@ -9,6 +9,16 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Good-neighbor rules, first part: the bot doesn't break what other players built. Planks, glass,
+  cobblestone and everything else that isn't natural ground are left alone, and so is any block it saw
+  someone put up, even dirt. Logs are felled only from trees, never from a cabin. Routes go round, block
+  collecting skips them, and a dig of one is refused with the reason. Places listed in
+  `good_neighbor.protected_areas` are left alone entirely. On by default; `good_neighbor.protect_builds: false`
+  turns it off. See docs/good-neighbor.md.
+- World memory tags each cell someone else built, beside the bot's own placed and dug cells.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed

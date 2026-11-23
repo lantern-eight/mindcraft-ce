@@ -157,6 +157,18 @@ No code was copied for these. They are credited because the work builds on them.
   [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by the profile's
   `threat_rules` in `src/agent/reflexes/orders.js`.
 
+- **Good-neighbor rules that protect everything except natural ground, a list of the blocks that count as
+  natural ground, a tree told by its trunk running up into grown leaves with nothing a builder would put
+  against it, and enforcing them through the pathfinder's `safeToBreak` on the class** come from the
+  protection rule in the [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork (`src/agent/work/protect.js`
+  and `src/agent/work/data/natural_blocks.json`, MIT). The list of block names in `src/agent/neighbor/natural.js`
+  starts from that list, with the Nether and the End added; the code is written afresh. Used by
+  `src/agent/neighbor/`.
+- **A tree that stays a tree while it is felled, and a refused dig that tells the model why and what to do
+  instead** come from the protection in the [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce)
+  fork (`src/agent/library/natural_tree.js`, `protection.js`). Used by `src/agent/neighbor/trees.js` and
+  `enforce.js`.
+
 ## What This Fork Added
 
 These files are this fork's own work, under CC0 1.0. Source files among them say so in their first line
@@ -168,11 +180,12 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/edition/` (all files)
 - `src/agent/bedrock/` (all files)
 - `src/agent/reflexes/` (all files)
+- `src/agent/neighbor/` (all files)
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`,
   `src/agent/action_hold.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/edition.test.js`,
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/goto_path_search.test.js`,
@@ -194,7 +207,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
   `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
-- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
+- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file, and on the `bedrock` branch `CHANGELOG-bedrock.md`
 
