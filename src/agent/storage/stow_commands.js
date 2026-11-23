@@ -164,7 +164,7 @@ export async function fetchHere(bot, itemText, num, deps = {}) {
             : `it is ${ownerLabel(owner)} and no player asked`}.`);
     }
     for (const { chest, reason } of report.skipped) lines.push(`- ${labelOf(chest)} was left out: ${reason}`);
-    if (!report.total) {
+    if (!report.total && !held.length) {
         const like = (env.similar?.(name) ?? []).filter(other => other !== name);
         if (like.length) lines.push(`Chests you remember hold: ${like.slice(0, 6).join(', ')}. Did you mean one of those?`);
     }
