@@ -120,3 +120,9 @@ test('told to stop, it stops at once', async () => {
     assert.equal(result.status, 'interrupted');
     assert.equal(log.walks.length, 2);
 });
+
+test('one block is a block', async () => {
+    const { whereFrom } = await import('../src/agent/explore/explorer.js');
+    assert.equal(whereFrom({ x: 0, y: 64, z: 0 }, { x: 0, y: 63, z: 0 }), '1 block below');
+    assert.equal(whereFrom({ x: 0, y: 64, z: 0 }, { x: 0, y: 64, z: -2 }), '2 blocks north');
+});

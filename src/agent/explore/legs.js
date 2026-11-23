@@ -136,6 +136,7 @@ export function realLegs(bot, { targets = null, memory = null } = {}) {
         interrupted: () => Boolean(bot.interrupt_code),
         walk,
         lookAround: () => lookBeforeSearch(bot, null),
+        settle: async () => { if (inWaterNow()) await backToShore(); },
         newGround: memory?.cells ? angle => newGroundAlong((cx, cy, cz) => memory.cells.lookedAt(cx, cy, cz), here(), angle, LEG) : () => null,
         find,
         recall,

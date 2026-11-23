@@ -19,8 +19,9 @@ const spot = p => `${Math.floor(p.x)}, ${Math.floor(p.y)}, ${Math.floor(p.z)}`;
 /** "12 blocks north-east", as a player says it. */
 export function whereFrom(here, to) {
     const distance = Math.round(Math.hypot(to.x - here.x, to.y - here.y, to.z - here.z));
-    if (flat(here, to) < 1.5) return to.y > here.y ? `${distance} blocks above` : `${distance} blocks below`;
-    return `${distance} blocks ${compassName(Math.atan2(to.z - here.z, to.x - here.x))}`;
+    const blocks = `${distance} ${distance === 1 ? 'block' : 'blocks'}`;
+    if (flat(here, to) < 1.5) return to.y > here.y ? `${blocks} above` : `${blocks} below`;
+    return `${blocks} ${compassName(Math.atan2(to.z - here.z, to.x - here.x))}`;
 }
 
 /**
@@ -30,7 +31,7 @@ export function whereFrom(here, to) {
  *   `position()` where it stands; `interrupted()` whether it was told to stop;
  *   `walk(point)` walk towards a point on its level, resolving to 'arrived', 'stalled', 'water' (it found
  *   itself swimming and turned back), 'detour' (the way there grew too long), 'no_path' or 'interrupted';
- *   `lookAround()` look every way if it should; `newGround(angle)` how much of the ground that way it has
+ *   `lookAround()` look every way if it should; `settle()` (optional) end on dry ground; `newGround(angle)` how much of the ground that way it has
  *   never looked over (0..1), or null when it keeps no record;
  *   with `targets`: `find()` the nearest one in view or remembered close by, {name,x,y,z} or null, and
  *   `recall(maxDistance)` the nearest one remembered farther off, or null
@@ -43,7 +44,14 @@ export function whereFrom(here, to) {
  * @returns {Promise<{status: 'explored'|'found'|'known'|'blocked'|'interrupted', text: string,
  *   trail: object|null, found?: object}>}
  */
-export async function explore({ legs, direction, distance, targets = null, last = null, leg = LEG, random = Math.random }) {
+export async function explore(options) {
+    const result = await exploreLegs(options);
+    // However it ended, the bot isn't left treading water: a walk that stops in a lake swims back to the shore.
+    if (result.status !== 'interrupted' && options.legs.settle) await options.legs.settle();
+    return result;
+}
+
+async function exploreLegs({ legs, direction, distance, targets = null, last = null, leg = LEG, random = Math.random }) {
     const start = legs.position();
     const looking = targets?.length ? targets.join(' or ') : null;
     const newGround = angle => legs.newGround?.(angle) ?? null;
