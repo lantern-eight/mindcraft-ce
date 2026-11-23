@@ -137,6 +137,17 @@ log that `!recall("changes")` shows. It states what was seen and carries no inst
 Small differences are dropped as noise: a note needs a thing (a chest, a door) or at least eight blocks.
 A double chest, a bed or a door counts once, though it fills two cells.
 
+### Who Changed a Cell
+
+Apart from notes, memory keeps one tag per cell for who last changed it: `placed` and `dug` for the bot's
+own work, and `built` for a block someone else put there. A cell is tagged `built` when a block stands where
+the bot had seen empty space, or in place of a block it remembers, and nothing but a person could have put
+it there. That holds whether or not the bot watched it go up, and whatever it is made of: dirt stacked
+across a tunnel is built. Blocks that grow, fall, flow, freeze or weather into place are not (crops, trees,
+gravel, water, ice, lava meeting water, copper turning green), and neither is the bot's own work. The rest of
+a new wall, first seen in the same look and touching a built block of its kind, is tagged with it.
+[Good-neighbor rules](good-neighbor.md) leave built blocks alone.
+
 ## Is It Fair?
 
 World memory holds only what a player in the bot's place could know:

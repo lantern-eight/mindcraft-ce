@@ -484,11 +484,13 @@ export function createCells({ storage = memoryStorage(), now = Date.now, maxLoad
         wasLookedFrom(cx, cy, cz, crumbId) { return getCube(cx, cy, cz, false)?.from.includes(crumbId) ?? false; },
 
         /**
-         * Marks a cell as one the bot itself changed: 'placed' or 'dug'. Its own work is no surprise when
-         * it sees the place again, and "what did I place" is what it may take down again later.
+         * Marks who changed a cell. 'placed' or 'dug': the bot itself. Its own work is no surprise when it
+         * sees the place again, and "what did I place" is what it may take down again later. 'built':
+         * someone else put the block there (kinds.js `wasBuilt`), which good-neighbor rules protect. A cell
+         * keeps the latest of these.
          */
         tag(x, y, z, what) {
-            if (what !== 'placed' && what !== 'dug') throw new Error(`Unknown tag: ${what}`);
+            if (what !== 'placed' && what !== 'dug' && what !== 'built') throw new Error(`Unknown tag: ${what}`);
             const cube = getCube(x >> 4, y >> 4, z >> 4, true);
             cube.own ??= new Map();
             cube.own.set(cellIndex(x, y, z), what);
