@@ -156,6 +156,12 @@ No code was copied for these. They are credited because the work builds on them.
 - **Taking a bot's starting reactions to threats from its profile** comes from the instincts in the
   [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by the profile's
   `threat_rules` in `src/agent/reflexes/orders.js`.
+- **Exploring that keeps its heading** comes from the [`KojoBarbie/mindcraft`](https://github.com/KojoBarbie/mindcraft)
+  fork (`skills.explore`: a heading kept between calls); **carrying a walk on across short calls, turning by
+  growing offsets instead of reversing, and stopping when the target is seen** from the
+  [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork (`skills.exploreUntilBlock`);
+  **heading for ground not yet visited** from the [`3spress0/mindcraft`](https://github.com/3spress0/mindcraft)
+  fork (`navigation/exploration.js`). All three are MIT. Used by `src/agent/explore/`.
 
 ## What This Fork Added
 
@@ -168,11 +174,12 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/edition/` (all files)
 - `src/agent/bedrock/` (all files)
 - `src/agent/reflexes/` (all files)
+- `src/agent/explore/` (all files)
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`,
   `src/agent/action_hold.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/edition.test.js`,
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/explore_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/goto_path_search.test.js`,
