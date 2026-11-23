@@ -105,6 +105,11 @@ const settings = {
     // {"input_per_million":1, "output_per_million":2, "cached_input_per_million":0.5}
     // Use your model's actual rates; roster entries and decisions can have separate pricing.
     "model_pricing": null,
+    // Claude reads the part of a request that repeats (tools, instructions, the conversation so far) from
+    // its prompt cache, at a tenth of the input price or less. "5m" keeps a cached start 5 minutes from its
+    // last use, "1h" an hour (twice the price to write, for a bot spoken to with long pauses), "off" sends no
+    // cache markers. Other providers cache a repeated start by themselves. See docs/prompt-caching.md.
+    "prompt_caching": "5m",
 
     // Bounds for one native conversation/task loop, preventing endless attempts.
     "agent_max_steps": 50, // model turns

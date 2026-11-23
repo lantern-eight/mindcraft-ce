@@ -5,6 +5,10 @@ import { sendToolRequest } from '../src/models/_tool_request.js';
 // Claude 4.6 and later on the native tool path: no request may end on an assistant turn, thinking counts
 // toward max_tokens, and a declined request says so instead of looking like an empty reply.
 
+// The text of a system prompt or a message, whether sent as a string or as text blocks (prompt caching
+// sends marked parts as blocks).
+const textOf = content => typeof content === 'string' ? content : content.map(block => block.text).join('');
+
 const tools = [{type: 'function', function: {name: 'stats', description: 'Stats', parameters: {type: 'object', properties: {}}}}];
 function claude(reply, params) {
     const packs = [];
@@ -20,7 +24,7 @@ test('a conversation ending on the bot\'s own turn is closed with a user turn', 
     const {provider, packs} = claude(ok);
     await sendToolRequest(provider, [{role: 'user', content: 'Steve: hi'}, {role: 'assistant', content: 'Hello!'}], 'SYSTEM', tools);
     assert.equal(packs[0].messages.at(-1).role, 'user');
-    assert.equal(packs[0].messages.at(-2).content, 'Hello!');
+    assert.equal(textOf(packs[0].messages.at(-2).content), 'Hello!');
 });
 
 test('the default max_tokens leaves room for thinking', async () => {

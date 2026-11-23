@@ -6,6 +6,10 @@ import { sendToolRequest } from '../src/models/_tool_request.js';
 // happened. Claude and Gemini take one system prompt, and gluing the notes onto it put them out of order and
 // changed the system prompt on every conversation.
 
+// The text of a system prompt or a message, whether sent as a string or as text blocks (prompt caching
+// sends marked parts as blocks).
+const textOf = content => typeof content === 'string' ? content : content.map(block => block.text).join('');
+
 const tools = [{type: 'function', function: {name: 'stats', description: 'Stats', parameters: {type: 'object', properties: {}}}}];
 const history = [
     {role: 'user', content: 'Steve: get wood'},
@@ -21,10 +25,10 @@ test('Claude gets a system note in place, and the system prompt alone', async ()
         return Promise.resolve({content: [{type: 'text', text: 'ok'}]});
     }}}};
     await sendToolRequest(provider, history, 'TEMPLATE', tools);
-    assert.equal(packs[0].system, 'TEMPLATE');
+    assert.equal(textOf(packs[0].system), 'TEMPLATE');
     assert.deepEqual(packs[0].messages.map(m => m.role), ['user', 'assistant', 'user', 'user']);
-    assert.equal(packs[0].messages[2].content, 'SYSTEM: collectBlocks: Collected 3 oak_log.');
-    assert.equal(packs[0].messages[3].content, 'Steve: thanks');
+    assert.equal(textOf(packs[0].messages[2].content), 'SYSTEM: collectBlocks: Collected 3 oak_log.');
+    assert.equal(textOf(packs[0].messages[3].content), 'Steve: thanks');
 });
 
 test('a conversation that opens with a system note still starts on a user turn', async () => {
@@ -35,7 +39,7 @@ test('a conversation that opens with a system note still starts on a user turn',
     }}}};
     await sendToolRequest(provider, [{role: 'system', content: 'You died.'}, {role: 'user', content: 'Steve: hi'}], 'TEMPLATE', tools);
     assert.equal(packs[0].messages[0].role, 'user');
-    assert.equal(packs[0].messages[0].content, 'SYSTEM: You died.');
+    assert.equal(textOf(packs[0].messages[0].content), 'SYSTEM: You died.');
 });
 
 test('Gemini gets a system note in place, and the system instruction alone', async () => {

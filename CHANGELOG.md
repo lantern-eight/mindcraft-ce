@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Prompt caching for Claude (`prompt_caching`, on by default): native tool requests mark the tools, the
+  system prompt and the conversation so far for Claude's prompt cache, so each step of a task reads all but
+  its newest turn at a tenth of the input price or less. `"1h"` keeps the cache an hour, `"off"` sends no
+  markers. See docs/prompt-caching.md.
+
 ### Fixed
 
 - With native tools on (the default), the system prompt no longer holds a second copy of the whole tool list,

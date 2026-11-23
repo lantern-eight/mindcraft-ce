@@ -328,7 +328,9 @@ export class Prompter {
         let text, calls;
         try {
             [text, calls] = await this.usage.run(role, () => Promise.race([
-                sendToolRequest(model, requestMessages, prompt, tools, response_format, {signal,role}),
+                // The fresh state is sent this once; prompt caching leaves it out of what it stores.
+                sendToolRequest(model, requestMessages, prompt, tools, response_format,
+                    {signal, role, uncachedTail: requestMessages.length - messages.length}),
                 new Promise((_, reject) => {
                     abort = () => reject(signal.reason);
                     signal.addEventListener('abort', abort, {once:true});

@@ -1,5 +1,6 @@
 // Separate from sendRequest: develop's text, vision and embedding contracts stay intact.
 import { randomUUID } from 'node:crypto';
+import { markForCache } from './prompt_cache.js';
 
 const defaults = {
     openai: 'gpt-5.4-mini', anthropic: 'claude-sonnet-4-6', google: 'gemini-2.5-flash',
@@ -58,7 +59,7 @@ export function supportsNativeTools(provider) {
         ['ollama','ollama_cloud','andy'].includes(provider.constructor.prefix) || typeof provider.sendToolRequest === 'function');
 }
 
-export async function sendToolRequest(provider, turns, systemMessage, tools = [], responseFormat = null, {signal, role} = {}) {
+export async function sendToolRequest(provider, turns, systemMessage, tools = [], responseFormat = null, {signal, role, uncachedTail = 0} = {}) {
     const model = provider.model_name || defaults[provider.constructor.prefix];
     if (!model) throw new Error('Select an explicit model for native tool calling');
     const params = { ...(provider.params || {}) };
@@ -77,14 +78,17 @@ export async function sendToolRequest(provider, turns, systemMessage, tools = []
         });
         if (!messages.length || messages[0].role !== 'user') messages.unshift({ role: 'user', content: '_' });
         // Claude 4.6 and later reject a request that ends on an assistant turn (a prefill).
-        if (messages[messages.length - 1].role === 'assistant') messages.push({ role: 'user', content: '_' });
+        const closed = messages[messages.length - 1].role === 'assistant';
+        if (closed) messages.push({ role: 'user', content: '_' });
         // Without a thinking budget, newer models still think by default and that thinking counts toward
         // max_tokens: 4,096 ended long turns as "truncated".
-        const response = await provider.anthropic.messages.create({
+        const body = {
             ...params, model, max_tokens: params.max_tokens || (params.thinking?.budget_tokens ? params.thinking.budget_tokens + 1000 : 16000),
             system: schemaInstructions(systemMessage, responseFormat),
             messages, ...(tools.length ? { tools: tools.map(t => ({ name: t.function.name, description: t.function.description, input_schema: t.function.parameters })) } : {}),
-        }, {signal});
+        };
+        // Cache markers (prompt_cache.js). The closing turn and the fresh state are sent once only.
+        const response = await provider.anthropic.messages.create(markForCache(body, { uncachedTail: uncachedTail + (closed ? 1 : 0) }), {signal});
         if (response.stop_reason === 'max_tokens') throw new Error('Tool response was truncated; increase the output token limit');
         if (response.stop_reason === 'refusal')
             throw new Error(`Provider declined completion${response.stop_details?.category ? `: ${response.stop_details.category}` : ''}`);
