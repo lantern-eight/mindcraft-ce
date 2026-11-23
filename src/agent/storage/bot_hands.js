@@ -207,22 +207,31 @@ export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARM
                  * chest: onto stacks of the same item first, then into empty slots. Putting away goes slot
                  * by slot, so the stack the keep plan keeps (the good pickaxe, the torches in the hotbar)
                  * is never the one that goes. Rejects when not all of it fits, having moved what did.
+                 *
+                 * A whole stack is moved from its own slot. Part of a stack goes by count, which both
+                 * editions honour exactly: on Bedrock a part moved slot to slot while a chest is open goes
+                 * whole. Counted, it comes from the main inventory before the hotbar, and the keep plan
+                 * lists a stack it keeps part of last, so the stacks it keeps whole are not touched.
                  */
                 async putSlot(slot, count) {
                     const from = inWindow(slot), item = window.slots[from];
                     if (!item || !(count > 0)) return;
-                    if (typeof bot.transfer !== 'function') return window.deposit(item.type, null, count);
-                    await bot.transfer({ window, itemType: item.type, metadata: null, count: Math.min(count, item.count),
+                    if (count < item.count || typeof bot.transfer !== 'function') return window.deposit(item.type, null, Math.min(count, item.count));
+                    await bot.transfer({ window, itemType: item.type, metadata: null, count: item.count,
                         sourceStart: from, sourceEnd: from + 1, destStart: 0, destEnd: start });
                 },
                 /**
                  * Takes up to `count` of an item out of the chest onto the bot's stacks of it, then into
-                 * empty slots. Unlike `withdraw`, a bag with no empty slot but room on a stack still takes it.
+                 * empty slots. Java's `withdraw` refuses a bag with no empty slot even when a stack has
+                 * room; then the stacks are topped up with a transfer.
                  */
                 async takeOut(name, count) {
-                    if (typeof bot.transfer !== 'function') return window.withdraw(itemId(name), null, count);
-                    await bot.transfer({ window, itemType: itemId(name), metadata: null, count,
-                        sourceStart: 0, sourceEnd: start, destStart: start, destEnd: window.inventoryEnd });
+                    try { await window.withdraw(itemId(name), null, count); }
+                    catch (error) {
+                        if (!/inventory is full/i.test(error?.message ?? '') || typeof bot.transfer !== 'function') throw error;
+                        await bot.transfer({ window, itemType: itemId(name), metadata: null, count,
+                            sourceStart: 0, sourceEnd: start, destStart: start, destEnd: window.inventoryEnd });
+                    }
                 },
                 async settle() {
                     await sync();

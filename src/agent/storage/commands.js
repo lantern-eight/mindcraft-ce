@@ -483,7 +483,7 @@ export async function takeFromChestAt(bot, pos, itemName, num, deps = {}) {
             return toolResult('failed', `There is no ${itemName} in the ${label}. ${holds.length ? `It holds: ${holds.join(', ')}.` : 'It is empty.'}`);
         }
         const want = Math.min(num, had);
-        try { await opened.withdraw(itemName, want); }
+        try { await opened.takeOut(itemName, want); }
         catch { assertActionOwner(bot); /* not all of it fitted: what did is counted below */ }
         // The bot's own copy of the window is a guess. What moved is what the server says is left.
         await opened.settle();

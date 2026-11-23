@@ -164,7 +164,11 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
                 get slots() { return client.slots.map(toItem); },
                 get selectedItem() { return toItem(client.cursor, -1); },
                 // mineflayer's own "take out" and "put in": between the chest's slots and the bot's.
-                async withdraw(type, metadata, count) { both(view => transfer(view, type, count, [0, size], [size, size + 36], view.sizeOf)); },
+                async withdraw(type, metadata, count) {
+                    // mineflayer refuses outright when no slot of the bot's is empty, even with room on a stack.
+                    if (client.slots.slice(size).every(Boolean)) throw new Error('Unable to withdraw, Bot inventory is full.');
+                    both(view => transfer(view, type, count, [0, size], [size, size + 36], view.sizeOf));
+                },
                 async deposit(type, metadata, count) { both(view => transfer(view, type, count, [size, size + 36], [0, size], view.sizeOf)); },
                 close() {
                     if (bot.currentWindow !== window) return;
