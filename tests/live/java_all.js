@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 // measure rather than check, and run on their own.
 const SCRIPTS = ['fairplay_perception_smoke', 'fairplay_scenarios', 'narrow_view_scenarios', 'look_first_scenarios',
     'memory_scenarios', 'navigator_scenarios', 'legs_scenarios', 'travel_scenarios', 'turning_scenarios', 'mining_scenarios',
-    'storage_scenarios', 'storage_agent_scenarios', 'danger_scenarios', 'mob_scenarios', 'threat_scenarios',
+    'storage_scenarios', 'storage_agent_scenarios', 'farming_scenarios', 'danger_scenarios', 'mob_scenarios', 'threat_scenarios',
     'villager_scenarios', 'agent_scenarios', 'narration_scenarios'];
 const VIEWS = ['narrow', 'all'];
 
