@@ -26,6 +26,7 @@ says what works, what doesn't and how to try it.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
+| **Putting away and fetching** | On by default with chest sorting. "Put your things away" and "get me some iron": the bot uses its own and shared chests, and a player's when a player asks. `store_and_fetch: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
@@ -64,7 +65,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
 | Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
 | Route planning | The pathfinder plans over every loaded block, seen or not | It plans over what the bot has seen, takes what it has not seen for open ground, and plans again as the way ahead comes into view |
-| Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
+| Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. Puts its things away where they belong, keeping what it needs, and fetches things from the chests it remembers holding them. See [docs/chest-sorting.md](docs/chest-sorting.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
 | Model-written code | Handed the real bot | Handed a stand-in that can only do what a player could |
@@ -162,6 +163,7 @@ node tests/live/fairplay_scenarios.js
 | `danger_scenarios.js` | Danger zones: a walk across an arena going round where illagers were seen, against the same walk with no zone; a walk out of the middle of a zone; the zones a skeleton aiming and an explosion heard leave |
 | `fight_arena.js` | How well the bot fights, measured rather than checked: rounds of zombies, skeletons and spiders against kits from bare hands to iron and shield, each run several times, recording wins, time, damage, swings, swings per kill and hits the shield stopped (`--runs`, `--only`, `--kit`, `--fair=off`, `--orders=none`, `--shield=between`, `--out`). A yardstick for changes to how the bot fights; `arena_meter.js` holds the measures it shares with its Bedrock twin, `bedrock_fight_arena.js` |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
+| `stow_scenarios.js` | Putting away and fetching in a storage room people share: where things go, what the bot keeps, and the chests it may not use left as they were |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
@@ -200,7 +202,7 @@ all, to look into a world after a run.
 |---|---|
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
-| [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
+| [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, putting away and fetching, what the model can ask, and what happens when things go wrong |
 | [docs/threat-reflexes.md](docs/threat-reflexes.md) | The threat reflexes: when the bot backs off from a creeper or other mobs, when it fights, what it knows, how it holds other work, and the danger zones its walks go round |
 | [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |

@@ -167,6 +167,7 @@ node tests/live/bedrock_memory.js                      # world memory's look-aro
 node tests/live/bedrock_memory_scenarios.js            # world memory as the agent runs it (about 3 minutes)
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
+node tests/live/bedrock_stow.js                        # putting away and fetching
 node tests/live/bedrock_turning.js                     # work that turns a lot, timed
 node tests/live/bedrock_threats.js                     # the threat reflexes
 node tests/live/bedrock_fight_arena.js                 # how well the bot fights, measured (not in bedrock_all.js)
@@ -220,6 +221,10 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   fights, so `bedrock_all.js` doesn't run it. It changes the world's rules for its run (the bot keeps its
   inventory, respawns at once) and puts them back when it ends; if it was killed before that, start the
   other scripts on a fresh world.
+- **`bedrock_stow.js`** puts things away and fetches them in a storage room of the bot's own chests, a
+  shared one, a player's and one nobody has claimed, and reads the chests back with the test's own hands.
+  The Bedrock twin of `stow_scenarios.js`. On Bedrock a move between a chest and the bot is an item stack
+  request, and part of a stack moved slot to slot goes whole, so a part goes by count.
 - **`bedrock_storage.js`** installs chest sorting with fair play and world memory, fills containers from
   the console, has the bot sort them, and reads them back by opening them with the test's own hands: a
   chest of part stacks, a full chest of twenty kinds, and a chest, a double chest, a barrel and a trapped
@@ -325,7 +330,7 @@ world folder, start it again).
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, a villager's trade window, and letting go of every key (through `setControlState`, as on Java, so that an action the agent stopped can't let go of the keys of the one after it). A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
-| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, and chest sorting |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, and putting away and fetching |
 | `tests/live/bedrock_all.js`, `tests/live/bedrock_spawn_check.js` | Running all of them in turn; what stands at the world spawn, and clearing it |
 | `tests/live/bedrock-server/` | A throwaway server to run them against: its Docker Compose file and a console that works under emulation |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |
