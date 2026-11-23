@@ -46,7 +46,7 @@ forget.
 | **Contents** | What was in a container, taken when the bot opens it and again when it closes it | "chest: iron_ingot 30, bread 6" |
 | **Fields and herds** | Per area: how many plants of a crop and how many were ripe; which animals and how many | "wheat x12, 5 ripe", "cow x4" |
 | **Trail** | Where the bot has walked, as spots joined by links it can route over and walk again | "about 40 seconds on foot by a way you know" |
-| **Places** | Sites it found (things a player uses, close together) or was told the name of | "the base: chest 4, furnace 2, red_bed 1" |
+| **Places** | Sites it found (things a player uses, close together), spots it was told the name of, and places a player told it the position of | "the base: chest 4, furnace 2, red_bed 1" |
 | **Changes** | Short notes for when a place is not as it remembers it | "Gone: chest 2. New: oak_planks 42" |
 
 How it behaves:
@@ -59,6 +59,7 @@ How it behaves:
   a site as soon as they are seen. It can be named later, by the model or a player.
 - **Saved places move in.** `!rememberHere` and `!goToRememberedPlace` work as before, and a name saved
   that way is now a place.
+- **What a player tells it is kept apart from what it saw.** See [Places a Player Told It Of](#places-a-player-told-it-of).
 
 ## What the Model Can Ask
 
@@ -71,6 +72,8 @@ however much the bot remembers.
 | `!places` | The places it knows, nearest first, and what is at each |
 | `!namePlace(name)` | Names the place the bot is standing in |
 | `!rememberHere(name)`, `!goToRememberedPlace(name)` | As before, now kept in world memory |
+| `!rememberToldPlace(name, where)` | Remembers a place a player gave the position of: `"300 64 -120"`, or `"300 -120"` when they gave no height |
+| `!goToPlace(name)` | Walks to any place it knows by name: found, named or told |
 
 An answer says where, how far and which way, how long ago, and, when the trail joins the bot to the spot,
 how long the walk is:
@@ -81,6 +84,36 @@ IN CONTAINERS YOU OPENED
 ```
 
 Searches such as `!searchForBlock` use the same memory, for every kind of block.
+
+### Places a Player Told It Of
+
+Players tell each other where things are: "the village is at 300, -120", read off the debug screen or a
+minimap. The bot can remember that with `!rememberToldPlace`, and walk there with `!goToPlace`. But it
+hasn't seen the place, so until it does, the place is kept apart from everything it saw:
+
+- **It is listed as told,** with who said it, when, and the position as it was said: `"village" (told by
+  Steve 2 hours ago, not seen yet) at 300, ?, -120: 323 blocks east`.
+- **Nothing seen joins it or is filed under it.** A chest seen beside it starts a site of its own, and a
+  change seen there is not noted against it.
+- **A name the bot gave something it saw keeps it.** Told a place under that name, the bot says so and
+  saves nothing.
+- **Only a player can tell.** When the bot is acting on its own idea, the command refuses, so the model
+  can't make up a place and call it told.
+
+**It becomes a place like any other once the bot sees the spot,** by the same sight test as everything
+else in memory: after each look-around, a told place within 24 blocks counts as seen when memory holds
+the cells there. When no height was given, the bot must be within 16 blocks across the ground, and the
+highest block it saw in that column gives the height. The model hears of it once, in passing:
+
+> Seen "village", which Steve told you of, at 300, 71, -120. It is the site where you saw chest 2, red_bed 1.
+
+If the bot had found a site there with no name yet, the site takes the told name. If the site already
+has one, the told place stays a spot of its own beside it. A spot the bot had seen before it was told
+is confirmed at once. Seen means the bot has looked at the spot, not that what the player said about
+it is true.
+
+A told place with no height is walked to by its x and z; `!goToRememberedPlace` needs a height, so
+`!goToPlace` is the way there.
 
 ## Finding the Way
 
@@ -152,6 +185,7 @@ World memory holds only what a player in the bot's place could know:
   Ordinary travel is held to what the bot has seen as well, but has to guess at what it has not
   ([how the bot plans a route](fair-play.md#how-the-bot-plans-a-route)). The trail guesses at nothing.
 - **A change** is only noticed by looking again.
+- **A told place** is only what a player said, and is never treated as seen until the bot has seen it.
 
 It does remember perfectly, which a person doesn't. A player has coordinates on the debug screen and can
 write things down; the bot's notes are just more thorough.
@@ -220,7 +254,8 @@ All of it lives in `src/agent/memory/`:
 | `cells.js` | Every block seen, one byte per cell in 16-block cubes, in region files with an index of which regions hold which names |
 | `things.js` | Single objects with state, container contents, fields and herds |
 | `trail.js` | Crumbs and links, and the quickest route between two crumbs |
-| `places.js` | Sites found or named |
+| `places.js` | Sites found, named or told |
+| `told.js` | Places a player told the bot of: reading the position, and seeing the spot |
 | `changes.js` | Which differences are worth a note, and the notes |
 | `kinds.js` | **The one file that knows what a chest, a door or a crop is,** by name pattern |
 | `block_state.js` | Block states to named properties and back, through the [edition seam](edition-seam.md) (`src/agent/edition/`), since each edition of the game numbers states its own way |

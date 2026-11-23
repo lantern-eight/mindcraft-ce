@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- World memory keeps places a player told the bot of. `!rememberToldPlace(name, where)` takes the position
+  as the player gave it, with or without a height, and only a player can prompt it. Until the bot sees the
+  spot the place is listed as told, with who said it, and nothing it sees is joined to it; once seen, it
+  becomes a place like any other (the name of the site found there, if that has none), and the model hears
+  of it once. `!goToPlace(name)` walks to any place by name, told ones included.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed

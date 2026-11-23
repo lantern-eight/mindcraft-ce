@@ -97,7 +97,13 @@ No code was copied for these. They are credited because the work builds on them.
   (`src/agent/modes.js`). Used by `src/agent/fairplay/idle_look.js`.
 - **Keeping what a player told the bot apart from what the bot has seen** comes from the place registry in
   the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by world memory's
-  things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw.
+  things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw, and
+  by its told places (`src/agent/memory/places.js`, `src/agent/memory/told.js`): a place a player gave the
+  position of, kept as told until the bot sees it.
+- **Never folding a told place into a seen one until it is confirmed, and not letting the model invent a
+  location** come from the memory archive once in the
+  [`milkucha/mindcraft-ce-topography`](https://github.com/milkucha/mindcraft-ce-topography) fork. Ideas only,
+  no code: used by `src/agent/memory/told.js` and `!rememberToldPlace`, which only a player can prompt.
 
 - **Backing off from a creeper by sprinting, how far, and hitting a following creeper once and stepping
   back** come from the creeper procedure in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk)
