@@ -185,6 +185,8 @@ export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARM
             return {
                 slots: () => { const all = window.slots; return Array.from({ length: start }, (_, i) => stackOf(all[i])); },
                 bag: () => { const all = window.slots; return handSlots.map(slot => stackOf(all[inWindow(slot)])); },
+                /** All of the bot's own slots as the open window shows them: index 0 is its slot 9, the last its slot 44. */
+                pockets: () => { const all = window.slots; return Array.from({ length: 36 }, (_, i) => stackOf(all[inWindow(MAIN_START + i)])); },
                 async move(op, from, to) {
                     const a = op === 'put' ? inWindow(handSlots[from]) : from;
                     const b = op === 'take' ? inWindow(handSlots[to]) : to;
@@ -200,6 +202,28 @@ export function botHands(bot, { goTo, blockAt, isChest = () => true, reach = ARM
                  */
                 async withdraw(name, count) { await window.withdraw(itemId(name), null, count); },
                 async deposit(name, count) { await window.deposit(itemId(name), null, count); },
+                /**
+                 * Puts up to `count` from one of the bot's own slots (its own numbering: 9 to 44) into the
+                 * chest: onto stacks of the same item first, then into empty slots. Putting away goes slot
+                 * by slot, so the stack the keep plan keeps (the good pickaxe, the torches in the hotbar)
+                 * is never the one that goes. Rejects when not all of it fits, having moved what did.
+                 */
+                async putSlot(slot, count) {
+                    const from = inWindow(slot), item = window.slots[from];
+                    if (!item || !(count > 0)) return;
+                    if (typeof bot.transfer !== 'function') return window.deposit(item.type, null, count);
+                    await bot.transfer({ window, itemType: item.type, metadata: null, count: Math.min(count, item.count),
+                        sourceStart: from, sourceEnd: from + 1, destStart: 0, destEnd: start });
+                },
+                /**
+                 * Takes up to `count` of an item out of the chest onto the bot's stacks of it, then into
+                 * empty slots. Unlike `withdraw`, a bag with no empty slot but room on a stack still takes it.
+                 */
+                async takeOut(name, count) {
+                    if (typeof bot.transfer !== 'function') return window.withdraw(itemId(name), null, count);
+                    await bot.transfer({ window, itemType: itemId(name), metadata: null, count,
+                        sourceStart: 0, sourceEnd: start, destStart: start, destEnd: window.inventoryEnd });
+                },
                 async settle() {
                     await sync();
                     if (!window.selectedItem) return;

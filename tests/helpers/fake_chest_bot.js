@@ -192,6 +192,16 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
             leftClick(open.server, slot, serverSize);
             leftClick(open.client, slot, clientSize, clientIgnoresTags ? (a, b) => a.name === b.name : sameKind);
         },
+        /** mineflayer's `transfer`: moves up to `count` of an item from one run of a window's slots to another. */
+        async transfer({ window, itemType, count, sourceStart, sourceEnd, destStart, destEnd }) {
+            if (!open || open.window !== window) throw new Error('No window is open.');
+            const problems = [];
+            for (const view of [open.server, open.client]) {
+                try { transfer(view, itemType, count, [sourceStart, sourceEnd], [destStart, destEnd], view.sizeOf); }
+                catch (error) { problems.push(error); }
+            }
+            if (problems.length) throw problems[0];
+        },
         on(name, fn) { heard.set(name, [...(heard.get(name) ?? []), fn]); },
         off(name, fn) { heard.set(name, (heard.get(name) ?? []).filter(listener => listener !== fn)); },
         /** Asks the server to send the whole window again: the bot's copy becomes the truth. */
