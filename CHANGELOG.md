@@ -9,6 +9,16 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Exploring, on both editions (`explore`, on by default): `!explore(direction, distance)` walks into new ground
+  the way it is told, or with `"on"` carries on the way it was going, so short calls add up to one walk instead
+  of wandering back and forth as `!moveAway` does. It goes round water and steep ground rather than digging
+  through or swimming out, and looks round after each stretch. `!exploreFor(what, direction, distance)` stops
+  as soon as what it looks for (a block or a mob) is in view, and says where one is when the bot already sees
+  or remembers it. Under fair play it sees and plans only what the bot does; with world memory it heads for
+  land it hasn't looked over. See `docs/explore.md`.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed

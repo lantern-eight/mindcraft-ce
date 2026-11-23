@@ -27,6 +27,7 @@ says what works, what doesn't and how to try it.
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
+| **Exploring** | On by default. `!explore` walks into new ground on a heading it keeps from one call to the next, round water and steep ground and never through them; `!exploreFor` stops as soon as what it looks for is in view. `explore: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
 | **Runs on** | Node 22 |
@@ -154,6 +155,7 @@ node tests/live/fairplay_scenarios.js
 | `narrow_view_scenarios.js` | A player's field of view (`fov_degrees` 70): what is behind the bot unknown to perception and memory until it turns, turning to dig, open and build against a block behind it, refused behind a wall, and turning round toward an enderman without staring |
 | `look_first_scenarios.js` | Skills given a spot by its coordinates look before they decide; `digDown`'s staircase; `goToSurface` |
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
+| `explore_scenarios.js` | `!explore` and `!exploreFor`: a heading kept, a wall gone round, a lake not swum into, sand found and remembered |
 | `turning_scenarios.js` | Work that turns a lot, timed at the bot's turning speed: gathering from a tree ahead, one behind and a boulder beside, a bridge one block wide, a ladder, and a gap to jump; a fall or a stall fails it |
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
@@ -204,6 +206,7 @@ all, to look into a world after a run.
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
 | [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
 | [docs/threat-reflexes.md](docs/threat-reflexes.md) | The threat reflexes: when the bot backs off from a creeper or other mobs, when it fights, what it knows, how it holds other work, and the danger zones its walks go round |
+| [docs/explore.md](docs/explore.md) | Exploring: the two commands, how the bot keeps its heading and gets round what is in the way, and why it is fair |
 | [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
 | [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
