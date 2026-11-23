@@ -111,4 +111,4 @@ The code is in `src/agent/neighbor/`:
 | `install.js` | Reads the settings, builds the reader (fair play's view, or the raw world), and guards the bot |
 
 It is installed by one call in `src/agent/agent.js` ([core hook](core-hooks.md) 28). Its tests are
-`tests/neighbor_*.test.js`.
+`tests/neighbor_*.test.js`, and `tests/live/neighbor_scenarios.js` checks it on a real server.

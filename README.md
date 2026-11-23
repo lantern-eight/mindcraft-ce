@@ -163,6 +163,7 @@ node tests/live/fairplay_scenarios.js
 | `mob_scenarios.js` | The mob reflex, the fight and the enderman gaze guard: what the edition seam reads off a real server (a mob's target and aim, a hit's side), backing away from two zombies, cover from a skeleton, a skeleton in a pen with no cover with a shield and without, hits from something unseen, running at low health, a lone zombie fought, standing orders (an armed bot fighting two zombies, backing away from a zombie when told, ignoring or fighting a skeleton when told), an enderman never stared at, how often a night full of mobs interrupts the bot, and how many path searches the reflexes ask for standing by (`--stock` runs the last two with Mindcraft's own reflexes, to compare) |
 | `danger_scenarios.js` | Danger zones: a walk across an arena going round where illagers were seen, against the same walk with no zone; a walk out of the middle of a zone; the zones a skeleton aiming and an explosion heard leave |
 | `fight_arena.js` | How well the bot fights, measured rather than checked: rounds of zombies, skeletons and spiders against kits from bare hands to iron and shield, each run several times, recording wins, time, damage, swings, swings per kill and hits the shield stopped (`--runs`, `--only`, `--kit`, `--fair=off`, `--orders=none`, `--shield=between`, `--out`). A yardstick for changes to how the bot fights; `arena_meter.js` holds the measures it shares with its Bedrock twin, `bedrock_fight_arena.js` |
+| `neighbor_scenarios.js` | Good-neighbor rules: a plank wall and a dirt wall the bot saw go up are never dug through, a plank it is told to break is refused with the reason, and collecting logs fells a tree and leaves a log cabin standing |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
@@ -171,7 +172,8 @@ The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VI
 runs them seeing all around instead, which tells a failure that comes from the view apart from one in what
 the scene is about; a release runs them both ways. `narrow_view_scenarios.js` is about the view itself and
 always uses the screen. `java_all.js` runs every script here both ways, one after another, with a line for each
-and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts).
+and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts, `--port=` to run beside another
+run on ports of its own).
 `MC_TEST_TURN=instant` (or `--turn=instant`) has the bot turn its head at once, as mineflayer does, instead of
 at strict's speed, to measure what a player's turning costs a scene; the fight arena takes both switches too.
 
