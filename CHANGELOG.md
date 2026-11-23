@@ -19,6 +19,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   may tend it unasked; on its own idea it tends only its own, shared, and "always" fields, and a player asking
   is never refused. `farming: false` leaves the commands out. See `docs/farming.md`.
 
+### Fixed
+
+- `!collectBlocks` of a crop (`wheat`, `carrots`, `potatoes`, `beetroots`, `nether_wart`) takes only fully grown
+  plants. It broke young ones too, flattening a field that was still growing for a seed apiece, and now says the
+  crop is not grown yet when that is all there is.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed
