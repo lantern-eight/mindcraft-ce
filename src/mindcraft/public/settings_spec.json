@@ -320,6 +320,11 @@
         "default": true,
         "description": "Threat reflexes: the bot backs off from a creeper about to explode, even in the middle of another action, and deals with one that keeps following it. Works with fair play on or off. See docs/threat-reflexes.md."
     },
+    "explore": {
+        "type": "boolean",
+        "default": true,
+        "description": "Exploring: adds !explore and !exploreFor, which walk into new ground on a heading kept from one call to the next, round water and steep ground, and stop on seeing what was looked for. Works with fair play on or off. See docs/explore.md."
+    },
     "good_neighbor": {
         "type": "object",
         "default": {

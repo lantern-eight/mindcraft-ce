@@ -22,6 +22,7 @@ import { log, validateNameFormat, handleDisconnection } from './connection_handl
 import { installFairPlay } from './fairplay/install.js';
 import { installStorage } from './storage/install.js';
 import { installThreatReflexes } from './reflexes/install.js';
+import { installExplore } from './explore/install.js';
 
 /** The chat command that applies a profile's skin, or null when the profile doesn't set one. */
 export function skinCommand(profile) {
@@ -110,6 +111,8 @@ export class Agent {
         installStorage(this);
         // Threat reflexes (off unless settings.threat_reflexes is true): the creeper reflex.
         installThreatReflexes(this);
+        // Exploring (off unless settings.explore is true): adds !explore and !exploreFor.
+        installExplore(this);
 
         this.bot.on('login', () => {
             console.log(this.name, 'logged in!');

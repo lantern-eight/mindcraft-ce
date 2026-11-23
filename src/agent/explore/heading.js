@@ -12,6 +12,8 @@
 
 const EIGHTH = Math.PI / 4;
 const NAMES = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
+// Exact, so that "north" walks straight north: wrapping 6 eighths round lands a hair to the west of it.
+const ANGLES = [0, EIGHTH, 2 * EIGHTH, 3 * EIGHTH, Math.PI, -3 * EIGHTH, -2 * EIGHTH, -EIGHTH];
 
 // Turns tried, in eighths, when the way ahead is blocked: straight on, then a little to either side, then more.
 // Told a direction, the bot never turns back past a quarter: that would be walking the other way.
@@ -43,7 +45,7 @@ export function parseDirection(text) {
     if (ON_WORDS.has(word)) return ON;
     const name = SHORT[word] ?? word.replace(/^(north|south)-?(east|west)$/, '$1-$2');
     const index = NAMES.indexOf(name);
-    return index === -1 ? null : wrap(index * EIGHTH);
+    return index === -1 ? null : ANGLES[index];
 }
 
 /** The nearest of the eight compass words for an angle. */
@@ -106,7 +108,7 @@ export function startHeading({ direction, here, last = null, leg, newGround = ()
     // Starting afresh: towards the most land not yet seen, with a small cost for turning from the old heading
     // so that two ways about as new as each other keep the walk going the way it went. With no record of what
     // was seen, the old heading, or any.
-    const candidates = NAMES.map((_, i) => wrap(i * EIGHTH));
+    const candidates = [...ANGLES];
     if (last) candidates.push(last.heading);
     let best = null;
     for (const angle of candidates) {
