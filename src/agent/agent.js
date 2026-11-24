@@ -22,6 +22,7 @@ import { log, validateNameFormat, handleDisconnection } from './connection_handl
 import { installFairPlay } from './fairplay/install.js';
 import { installStorage } from './storage/install.js';
 import { installThreatReflexes } from './reflexes/install.js';
+import { installGoodNeighbor } from './neighbor/install.js';
 import { installSmelting } from './smelting/install.js';
 
 /** The chat command that applies a profile's skin, or null when the profile doesn't set one. */
@@ -114,6 +115,8 @@ export class Agent {
         // Smelting (off unless settings.smelting is true): smeltItem and clearNearestFurnace load a free
         // furnace, shut it and come back, instead of standing at it.
         installSmelting(this);
+        // Good-neighbor rules (settings.good_neighbor): the bot doesn't break what other players built.
+        installGoodNeighbor(this);
 
         this.bot.on('login', () => {
             console.log(this.name, 'logged in!');

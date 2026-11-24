@@ -19,6 +19,23 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   players' chests when a player asks; a chest nobody has said is anyone's is left alone and named, so the bot
   asks. Each chest is checked on opening, so a chest someone changed since the bot looked is no surprise.
 
+## [1.14.0-bedrock.1.15.0] - 2026-11-24
+
+### Added
+
+- Good-neighbor rules, first part: the bot doesn't break what other players built. Planks, glass,
+  cobblestone and everything else that isn't natural ground are left alone, and so is any block it saw
+  someone put up, even dirt. Logs are felled only from trees, never from a cabin. Routes go round, block
+  collecting skips them, and a dig of one is refused with the reason. Places listed in
+  `good_neighbor.protected_areas` are left alone entirely. On by default; `good_neighbor.protect_builds: false`
+  turns it off. See docs/good-neighbor.md.
+- World memory tags each cell someone else built, beside the bot's own placed and dug cells.
+
+### Fixed
+
+- A block the bot placed no longer stays its own after someone takes it away or puts another block in its
+  place: world memory notes the change, and the new block is theirs.
+
 ## [1.13.0-bedrock.1.14.0] - 2026-11-24
 
 ### Added
@@ -1163,7 +1180,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...HEAD
+[1.14.0-bedrock.1.15.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...v1.14.0-bedrock.1.15.0
 [1.13.0-bedrock.1.14.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...v1.13.0-bedrock.1.14.0
 [1.12.0-bedrock.1.13.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...v1.12.0-bedrock.1.13.0
 [1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0

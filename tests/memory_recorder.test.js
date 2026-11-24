@@ -495,3 +495,56 @@ test('memory is saved per world and read back by a new session', () => {
     assert.equal(again.memory.trail.size, 2);
     assert.equal(openMemory({ baseDir: first.baseDir, scope: 'local:55916/w1/the_nether' }).trail.size, 0, 'another dimension starts empty');
 });
+
+test('a hut that appeared is tagged as built by someone, the rows above its first one too', () => {
+    const { world, memory, lookAround, now, walkTo } = setup();
+    lookAround();
+    world.fill('oak_planks', [6, 1, -2], [10, 3, 2]);
+    world.fill('air', [7, 1, -1], [9, 2, 1]);
+    now.advance(3_600_000);
+    walkTo(-3, 1, 4);
+    lookAround();
+    assert.equal(memory.cells.tagOf(6, 1, 0), 'built', 'the row on ground it had seen');
+    assert.equal(memory.cells.tagOf(6, 3, 0), 'built', 'and the wall above it, first seen in the same look');
+    assert.equal(memory.cells.tagOf(0, 0, 0), null, 'the floor it always stood on is nobody\'s doing');
+});
+
+test('a dirt wall put up while the bot watched is tagged built, its own blocks are not', () => {
+    const { world, bot, memory, lookAround } = setup();
+    lookAround();
+    // Someone walls off the way with dirt, in front of the bot. That is no news worth a note, but it is someone's.
+    for (let z = -2; z <= 2; z++) world.set('dirt', 4, 1, z);
+    lookAround();
+    assert.equal(memory.cells.tagOf(4, 1, 0), 'built');
+    // The bot places cobblestone itself.
+    world.set('cobblestone', -3, 1, 0);
+    bot.emit('blockPlaced', null, { position: new Vec3(-3, 1, 0) });
+    lookAround();
+    assert.equal(memory.cells.tagOf(-3, 1, 0), 'placed');
+    // Gravel falling where there was air is nobody's.
+    world.set('gravel', 2, 1, 3);
+    lookAround();
+    assert.equal(memory.cells.tagOf(2, 1, 3), null);
+});
+
+test('a block the bot placed is its own only while it stands: someone else\'s block in its place is built', () => {
+    const { world, bot, memory, lookAround } = setup(w => w.set('short_grass', -3, 1, 2));
+    lookAround();
+    // The bot places cobblestone, one block in the open and one over a tuft of grass.
+    world.set('cobblestone', -3, 1, 0);
+    bot.emit('blockPlaced', null, { position: new Vec3(-3, 1, 0) });
+    world.set('cobblestone', -3, 1, 2);
+    bot.emit('blockPlaced', null, { position: new Vec3(-3, 1, 2) });
+    lookAround();
+    assert.equal(memory.cells.tagOf(-3, 1, 0), 'placed');
+    assert.equal(memory.cells.tagOf(-3, 1, 2), 'placed', 'the grass it placed over was no one else\'s doing');
+    // Someone takes the first away and later sets a plank there; someone swaps the second for a plank at once.
+    world.set('air', -3, 1, 0);
+    world.set('oak_planks', -3, 1, 2);
+    lookAround();
+    assert.equal(memory.cells.tagOf(-3, 1, 0), null, 'the bot\'s block is gone');
+    assert.equal(memory.cells.tagOf(-3, 1, 2), 'built', 'a plank in place of its block is someone\'s');
+    world.set('oak_planks', -3, 1, 0);
+    lookAround();
+    assert.equal(memory.cells.tagOf(-3, 1, 0), 'built', 'and so is one set where its block was');
+});

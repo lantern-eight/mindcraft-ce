@@ -28,6 +28,7 @@ says what works, what doesn't and how to try it.
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
 | **Putting away and fetching** | On by default with chest sorting. "Put your things away" and "get me some iron": the bot uses its own and shared chests, and a player's when a player asks. `store_and_fetch: false` turns it off |
 | **Smelting** | On by default. The bot loads a free furnace with the fuel it needs, shuts it and comes back for what is done, as a player does. `smelting: false` keeps Mindcraft-CE's own |
+| **Good neighbor** | On by default. The bot doesn't break what other players built: what isn't natural ground, what it saw someone put up, and logs that aren't part of a tree. `good_neighbor.protect_builds: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
@@ -78,8 +79,9 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
 | Fixes | | Fixes to inherited code, each listed in the [changelog](CHANGELOG.md) |
 
-**Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
-animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
+**Good-neighbor rules, in part:** the bot doesn't break what other players built, whatever skill is digging
+([docs/good-neighbor.md](docs/good-neighbor.md)). Not looting their chests and not hurting their animals are
+not built yet. The guide lists every [known limit](docs/fair-play.md#known-limits).
 
 ## Built for Two Editions
 
@@ -165,6 +167,7 @@ node tests/live/fairplay_scenarios.js
 | `mob_scenarios.js` | The mob reflex, the fight and the enderman gaze guard: what the edition seam reads off a real server (a mob's target and aim, a hit's side), backing away from two zombies, cover from a skeleton, a skeleton in a pen with no cover with a shield and without, hits from something unseen, running at low health, a lone zombie fought, standing orders (an armed bot fighting two zombies, backing away from a zombie when told, ignoring or fighting a skeleton when told), an enderman never stared at, how often a night full of mobs interrupts the bot, and how many path searches the reflexes ask for standing by (`--stock` runs the last two with Mindcraft's own reflexes, to compare) |
 | `danger_scenarios.js` | Danger zones: a walk across an arena going round where illagers were seen, against the same walk with no zone; a walk out of the middle of a zone; the zones a skeleton aiming and an explosion heard leave |
 | `fight_arena.js` | How well the bot fights, measured rather than checked: rounds of zombies, skeletons and spiders against kits from bare hands to iron and shield, each run several times, recording wins, time, damage, swings, swings per kill and hits the shield stopped (`--runs`, `--only`, `--kit`, `--fair=off`, `--orders=none`, `--shield=between`, `--out`). A yardstick for changes to how the bot fights; `arena_meter.js` holds the measures it shares with its Bedrock twin, `bedrock_fight_arena.js` |
+| `neighbor_scenarios.js` | Good-neighbor rules: a plank wall and a dirt wall the bot saw go up are never dug through, a plank it is told to break is refused with the reason, and collecting logs fells a tree and leaves a log cabin standing |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `stow_scenarios.js` | Putting away and fetching in a storage room people share: where things go, what the bot keeps, and the chests it may not use left as they were |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
@@ -175,7 +178,8 @@ The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VI
 runs them seeing all around instead, which tells a failure that comes from the view apart from one in what
 the scene is about; a release runs them both ways. `narrow_view_scenarios.js` is about the view itself and
 always uses the screen. `java_all.js` runs every script here both ways, one after another, with a line for each
-and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts).
+and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts, `--port=` to run beside another
+run on ports of its own).
 `MC_TEST_TURN=instant` (or `--turn=instant`) has the bot turn its head at once, as mineflayer does, instead of
 at strict's speed, to measure what a player's turning costs a scene; the fight arena takes both switches too.
 
