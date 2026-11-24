@@ -165,6 +165,9 @@ export function wasBuilt(before, after) {
     if (appearsByItself(now)) return false;
     if (before === 'air') return true;
     const was = javaName(before);
+    // The same block in another state that Bedrock names apart: a furnace burning (`lit_furnace`), a
+    // redstone lamp lit, a pumpkin carved and lit. Java keeps these as one block with a property.
+    if (was === now) return false;
     // A remembered block that became another by itself: grass to dirt and back, a field gone wild.
     if (changesByItself(was) && changesByItself(now)) return false;
     if (FLUIDS.has(was) && LAVA_MADE.has(now)) return false;

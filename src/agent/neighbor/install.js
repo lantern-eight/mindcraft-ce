@@ -66,14 +66,15 @@ export function installGoodNeighbor(agent, { config = settings } = {}) {
     const cellKey = p => `${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
     const onPlaced = (oldBlock, newBlock) => {
         const p = (newBlock ?? oldBlock)?.position;
-        if (p) placed.set(cellKey(p), newBlock?.name ?? null);
+        if (p) placed.set(cellKey(p), newBlock?.name ? javaName(newBlock.name) : null);
     };
     const onDug = block => { if (block?.position) placed.delete(cellKey(block.position)); };
     const onUpdate = (oldBlock, newBlock) => {
         const p = newBlock?.position;
         if (!p || placed.size === 0) return;
         const key = cellKey(p);
-        if (placed.has(key) && placed.get(key) !== newBlock.name) placed.delete(key);
+        // By Java's names, so a Bedrock furnace the bot placed is still its own while it burns (`lit_furnace`).
+        if (placed.has(key) && placed.get(key) !== javaName(newBlock.name)) placed.delete(key);
     };
     bot.on?.('blockPlaced', onPlaced);
     bot.on?.('diggingCompleted', onDug);

@@ -15,7 +15,7 @@ import { guardBot, protectorOf } from '../src/agent/neighbor/enforce.js';
 import { isNaturalTerrain, isTrunk } from '../src/agent/neighbor/natural.js';
 import { installGoodNeighbor } from '../src/agent/neighbor/install.js';
 import { javaEdition } from '../src/agent/edition/java.js';
-import { wasBuilt } from '../src/agent/memory/kinds.js';
+import { translateNamesWith, wasBuilt } from '../src/agent/memory/kinds.js';
 
 /** A protector over a fixture world, reading every cell (as with fair play off), with memory's tags in `tags`. */
 function protectorFor(world, { tags = new Map(), areas = [], hidden = () => false, now = () => 0 } = {}) {
@@ -76,6 +76,17 @@ test('a block that turns up where the bot saw empty space was built, unless it g
     assert.equal(wasBuilt('lava', 'cobblestone'), false, 'lava meeting water');
     assert.equal(wasBuilt('copper_block', 'exposed_copper'), false, 'copper weathers');
     assert.equal(wasBuilt('oak_planks', 'air'), false, 'a block gone is not a block built');
+});
+
+test('on Bedrock, a block that only changed its state under another name was not built', () => {
+    // Bedrock names a burning furnace or a lit lamp as a block of its own; Java keeps one block with a property.
+    translateNamesWith(name => ({ lit_furnace: { name: 'furnace' }, lit_redstone_lamp: { name: 'redstone_lamp' } })[name] ?? null);
+    try {
+        assert.equal(wasBuilt('furnace', 'lit_furnace'), false, 'a furnace lit');
+        assert.equal(wasBuilt('lit_furnace', 'furnace'), false, 'and gone out');
+        assert.equal(wasBuilt('redstone_lamp', 'lit_redstone_lamp'), false);
+        assert.equal(wasBuilt('furnace', 'chest'), true, 'another block in its place still was');
+    } finally { translateNamesWith(null); }
 });
 
 test('the rule: own blocks free, built and made blocks protected, natural ground free', () => {
