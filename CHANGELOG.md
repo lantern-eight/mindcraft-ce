@@ -9,6 +9,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.14.0-bedrock.1.15.0] - 2026-11-24
+
 ### Added
 
 - Good-neighbor rules, first part: the bot doesn't break what other players built. Planks, glass,
@@ -1168,7 +1170,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...HEAD
+[1.14.0-bedrock.1.15.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...v1.14.0-bedrock.1.15.0
 [1.13.0-bedrock.1.14.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...v1.13.0-bedrock.1.14.0
 [1.12.0-bedrock.1.13.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...v1.12.0-bedrock.1.13.0
 [1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0
