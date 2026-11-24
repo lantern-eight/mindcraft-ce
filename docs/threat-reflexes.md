@@ -124,7 +124,10 @@ Moving away goes through the same moves as the creeper reflex: a straight sprint
 safe, then the pathfinder, toward wherever is farthest from all of them. Leaving ends when the bot is far
 enough, or, seeing all around, when all of them have been out of its view for 2 s (they have lost it too).
 Through a player's screen the bot backs away facing the way out, so their being out of view says nothing:
-it goes by distance, and looks back when it stops (the glance).
+it goes by distance, and looks back when it stops (the glance). A mob that chases (a zombie, a spider) is
+taken to keep coming while out of view, at 2.5 blocks a second from where it was last seen, for as long as the
+move lasts, as a player running from zombies knows they follow (a zombie measured live on Bedrock went 2.3). Gone by where they
+were last seen, the bot stopped "far enough" with the zombies still coming, under 8 blocks behind it.
 
 ## The Fight
 
@@ -270,7 +273,10 @@ and each shot twangs. So the bot does what a Bedrock player does: it hears each 
 direction and a rough distance), takes it as the skeleton it sees on that side, and holds the shield up from
 just before the next shot is due until the arrow lands (`shot_beat.js`). The first arrow comes unwarned. It
 does so backing out of a skeleton's range with no cover near: in a walled pen, an unarmed bot took 4 damage
-from a skeleton with a shield, against 11 without. The fight doesn't keep the beat: it mostly kills a skeleton
+from a skeleton with a shield, against 11 without. Measured live, the beat holds to within a tenth of a second.
+A back-away that runs out of time ends just after a shot lands: ended with the shield up, or just before the
+next shot, it would leave the shield down while the reflex decides again, and that arrow would get through.
+The fight doesn't keep the beat: it mostly kills a skeleton
 before its beat counts, and in the Bedrock arena keeping it blocked about an arrow a round and cost more than
 that in time stood still (the mixed round, six runs each: 8.5 damage with it, 6.5 without, every round won).
 
@@ -381,6 +387,12 @@ enderman's eyes, and seen by perception and world memory. The idle look-around g
 - **Busy too, at a break in the work.** Not while the bot walks (the walk steers the head, and turning it
   would turn the walk) or while a reflex moves it. A sound waits for a block being dug to break, and is let go
   after three seconds; a hit or a shot doesn't wait.
+- **A hit from another side, in a fight.** A hit is put down to a mob in view only when it came from that
+  mob's side (within 60 degrees). Fighting a zombie in front, hit from behind by another, the bot turns to
+  look, and the fight stands still for that moment, neither turning back nor swinging. Then the mob reflex
+  sees two and backs away. Before, every hit counted as the first zombie's while it was in reach: in the
+  Bedrock arena the bot fought one for 15 s while the other hit it from behind, and backed away only when
+  that one came into view. With the look it backed away about half a second after the first hit from behind.
 - **Seeing all around,** there is nothing to turn for, and the glance does nothing.
 
 ## Danger Zones

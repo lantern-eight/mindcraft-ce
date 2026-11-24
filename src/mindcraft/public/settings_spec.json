@@ -315,6 +315,11 @@
         "default": true,
         "description": "Chest sorting: adds !sortChests, which tidies the chests and barrels around the bot (part stacks merged, each kind of item together, related kinds in the same chest). Works with fair play on or off. See docs/chest-sorting.md."
     },
+    "store_and_fetch": {
+        "type": "boolean",
+        "default": true,
+        "description": "Putting away and fetching: adds !putAway, which puts what the bot carries into the chests where those things belong (keeping its best tools, armour, food and torches), and !fetchItem, which takes an item out of the chests it remembers holding it. Uses only its own, shared and, when a player asks, players' chests. Needs chest_sorting on. See docs/chest-sorting.md."
+    },
     "threat_reflexes": {
         "type": "boolean",
         "default": true,
