@@ -133,8 +133,7 @@ export function createCells({ storage = memoryStorage(), now = Date.now, maxLoad
         cube.names.push(name);
         value = cube.names.length - 1 + FIRST;
         cube.nameIndex.set(name, value);
-        noteName(cube, name);
-        return value;
+        return value; // write() puts the name in the region's index
     }
 
     // A cube's list of names only grows as blocks come and go. When it is full, names no cell uses any
@@ -294,7 +293,15 @@ export function createCells({ storage = memoryStorage(), now = Date.now, maxLoad
             // The old name is read first: making room for a new name can renumber the cube's cells.
             const before = old === NEVER ? null : nameOf(cube, old);
             const value = empty ? EMPTY : valueFor(cube, name);
-            if (cube.cells[i] !== value) { cube.cells[i] = value; touch(cube); }
+            if (cube.cells[i] !== value) {
+                cube.cells[i] = value;
+                touch(cube);
+                // Each time a name arrives in a cell, not only the first time the cube meets it: saving
+                // leaves out of the index a name no cell held then, while the cube keeps the name's
+                // number. Without this a block that comes back after a save, under that old number, is
+                // in memory but never found by name.
+                if (value >= FIRST) noteName(cube, name);
+            }
             return before;
         },
 

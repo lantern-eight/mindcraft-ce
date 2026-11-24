@@ -7,6 +7,7 @@ import { withinAttackReach, faceBeforeHit } from './attack_reach.js';
 import { lookBeforeSearch } from './search_look.js';
 import { lookFirst, knownBlockAt, sideToPlaceAgainst, climbToSurface } from './look_first.js';
 import { digDownWayOf } from './dig_down_way.js';
+import { smeltWayOf } from './smelt_way.js';
 import { assertActionOwner, actionContext, onActionCleanup, cancellable } from '../action_context.js';
 import pf from 'mineflayer-pathfinder';
 import Vec3 from 'vec3';
@@ -176,6 +177,9 @@ export async function smeltItem(bot, itemName, num=1) {
      * await skills.smeltItem(bot, "raw_iron");
      * await skills.smeltItem(bot, "beef");
      **/
+    // An installed way of smelting takes over: the smelting module's (smelt_way.js).
+    const smeltWay = smeltWayOf(bot);
+    if (smeltWay) return await smeltWay.smeltItem(bot, itemName, num);
 
     if (!mc.isSmeltable(itemName)) {
         log(bot, `Cannot smelt ${itemName}. Hint: make sure you are smelting the 'raw' item.`);
@@ -307,6 +311,9 @@ export async function clearNearestFurnace(bot) {
      * @example
      * await skills.clearNearestFurnace(bot);
      **/
+    // An installed way of smelting takes over: the smelting module's (smelt_way.js).
+    const smeltWay = smeltWayOf(bot);
+    if (smeltWay) return await smeltWay.clearFurnace(bot);
     let furnaceBlock = world.getNearestBlock(bot, 'furnace', 32);
     if (!furnaceBlock) {
         log(bot, `No furnace nearby to clear.`);

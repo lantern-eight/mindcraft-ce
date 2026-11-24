@@ -207,6 +207,15 @@ test('Bedrock answers every question the edition seam asks', () => {
     assert.deepEqual(missing, []);
 });
 
+test('a Bedrock furnace is another block while it burns', () => {
+    assert.deepEqual(bedrockEdition.furnaceOf({ name: 'furnace' }), { kind: 'furnace', lit: false });
+    assert.deepEqual(bedrockEdition.furnaceOf({ name: 'lit_furnace' }), { kind: 'furnace', lit: true });
+    assert.deepEqual(bedrockEdition.furnaceOf({ name: 'lit_blast_furnace' }), { kind: 'blast_furnace', lit: true });
+    assert.deepEqual(bedrockEdition.furnaceOf({ name: 'smoker' }), { kind: 'smoker', lit: false });
+    assert.equal(bedrockEdition.furnaceOf({ name: 'chest' }), null);
+    assert.equal(bedrockEdition.furnaceOf(null), null);
+});
+
 test('a survival player on Bedrock reaches half a block farther to a block than on Java, and as far to a mob', () => {
     // The keyboard, mouse and controller reach. A touch screen reaches a block 6 away; the bot is held to 5.
     assert.deepEqual(bedrockEdition.survivalReach(), { blocks: 5, entities: 3 });

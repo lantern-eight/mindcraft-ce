@@ -26,6 +26,7 @@ says what works, what doesn't and how to try it.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
+| **Smelting** | On by default. The bot loads a free furnace with the fuel it needs, shuts it and comes back for what is done, as a player does. `smelting: false` keeps Mindcraft-CE's own |
 | **Farming** | On by default. The bot tends a field: cuts what it sees is ripe, replants, sows, never tramples the farmland, and leaves other people's fields alone unless asked. `farming: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
@@ -66,6 +67,7 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
 | Route planning | The pathfinder plans over every loaded block, seen or not | It plans over what the bot has seen, takes what it has not seen for open ground, and plans again as the way ahead comes into view |
 | Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
+| Smelting | Stands at an open furnace until it is done, with one kind of fuel added to an empty slot, takes whatever is in the output, and digs up the nearest furnace afterwards | Uses only a furnace that isn't in use, plans fuel (coal, then planks, making logs into planks first), shuts the furnace while it works, counts what came out, and picks up only the furnace it placed. See [docs/smelting.md](docs/smelting.md) |
 | Farming | `tillAndSow` in generated code; `!collectBlocks` breaks any wheat it finds, ripe or not | `!tendField` cuts only crops it sees are ripe, replants and sows, never jumps onto the farmland, and keeps whose each field is. See [docs/farming.md](docs/farming.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
@@ -122,6 +124,7 @@ In `settings.js`:
 },
 "world_memory": true,       // what the bot has seen, chests, places and the ways it walked; false turns it off
 "chest_sorting": true,      // one instruction tidies a player's chests; false leaves the commands out
+"smelting": true,           // a free furnace loaded, shut and come back to; false keeps the stock skill
 ```
 
 For fair play to mean anything the bot must not be a server operator, and under `strict` it stops and says
@@ -166,6 +169,7 @@ node tests/live/fairplay_scenarios.js
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `farming_scenarios.js` | Tending a field: only ripe crops cut, every cell replanted, nothing trampled, a field behind the bot found by looking, a stranger's field left alone |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
+| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, and a smelt stopped half way |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
 The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VIEW=all` (or `--view=all`)
@@ -204,6 +208,7 @@ all, to look into a world after a run.
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
 | [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
+| [docs/smelting.md](docs/smelting.md) | How the bot smelts: which furnace, which fuel, the wait with the furnace shut, and when it stops |
 | [docs/farming.md](docs/farming.md) | What a round of tending a field does, whose fields the bot tends, and what the model can ask |
 | [docs/threat-reflexes.md](docs/threat-reflexes.md) | The threat reflexes: when the bot backs off from a creeper or other mobs, when it fights, what it knows, how it holds other work, and the danger zones its walks go round |
 | [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |

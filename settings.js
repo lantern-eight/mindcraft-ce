@@ -147,6 +147,10 @@ const settings = {
     // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
     // the reflex out. See docs/threat-reflexes.md.
     "threat_reflexes": true,
+    // Smelting: !smeltItem finds a furnace that isn't in use (or places the bot's own), loads it with the
+    // fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or
+    // off; false keeps Mindcraft's own. See docs/smelting.md.
+    "smelting": true,
     // Farming: adds !tendField, which harvests the ripe crops of the field nearest the bot, replants them
     // and sows the empty farmland, and !markField, which says whose a field is. Works with fair play on or
     // off; false leaves the commands out. See docs/farming.md.

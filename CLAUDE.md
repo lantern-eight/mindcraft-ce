@@ -10,9 +10,9 @@ An integration fork of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-
 play**: the bot may only know and do what a human survival player could.
 
 - New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
-  the `world_memory` setting), `src/agent/storage/` (chest sorting, behind the `chest_sorting` setting),
-  `src/agent/reflexes/` (the threat reflexes, behind the `threat_reflexes` setting) and `src/agent/farming/`
-  (tending fields, behind the `farming` setting). `src/agent/edition/`, the edition seam, answers what depends on the edition of the game (how
+  the `world_memory` setting), `src/agent/storage/` (chest sorting, behind the `chest_sorting` setting), `src/agent/smelting/` (smelting,
+  behind the `smelting` setting), `src/agent/reflexes/` (the threat reflexes, behind the `threat_reflexes` setting)
+  and `src/agent/farming/` (tending fields, behind the `farming` setting). `src/agent/edition/`, the edition seam, answers what depends on the edition of the game (how
   block states are numbered, how a chunk section lists its blocks, sounds, operator rights, what a block
   entity holds, how a stack is moved); those modules ask it instead of reading game data shapes or packets
   themselves. `docs/edition-seam.md` lists its questions, and says when new code must ask it and how to
@@ -23,7 +23,7 @@ play**: the bot may only know and do what a human survival player could.
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
-  `src/agent/memory/`, `docs/chest-sorting.md` for `src/agent/storage/`, `docs/threat-reflexes.md` for
+  `src/agent/memory/`, `docs/chest-sorting.md` for `src/agent/storage/`, `docs/smelting.md` for `src/agent/smelting/`, `docs/threat-reflexes.md` for
   `src/agent/reflexes/`, and `docs/farming.md` for `src/agent/farming/`.
 - `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
   changed in each version, for both editions. On `bedrock`, `CHANGELOG-bedrock.md` records what its
@@ -254,7 +254,7 @@ declined.
 
 - **Tests first.** Use Node (see `.nvmrc`), then `npm test`.
 - Fair-play tests are `tests/fairplay_*.test.js`, world-memory tests are `tests/memory_*.test.js`,
-  chest-sorting tests are `tests/storage_*.test.js`, threat-reflex tests are `tests/reflexes_*.test.js` and farming
+  chest-sorting tests are `tests/storage_*.test.js`, smelting tests are `tests/smelting_*.test.js`, threat-reflex tests are `tests/reflexes_*.test.js` and farming
   tests are `tests/farming_*.test.js`
   (the runner globs `tests/*.test.js`); helpers go in `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
