@@ -216,6 +216,18 @@ test('a Bedrock furnace is another block while it burns', () => {
     assert.equal(bedrockEdition.furnaceOf(null), null);
 });
 
+test('a Bedrock cauldron is one block for every liquid: its states say which, and how full', () => {
+    const cauldron = state => ({ name: 'cauldron', getProperties: () => state });
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'lava', fill_level: 6 })), { liquid: 'lava', full: true });
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'lava', fill_level: 3 })), { liquid: 'lava', full: false });
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'water', fill_level: 6 })), { liquid: 'water', full: true });
+    // Empty, it still names a liquid (water, by default), but holds none.
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'water', fill_level: 0 })), { liquid: null, full: false });
+    assert.deepEqual(bedrockEdition.cauldronOf({ name: 'cauldron' }), { liquid: null, full: false }, 'remembered without its state');
+    assert.equal(bedrockEdition.cauldronOf({ name: 'lit_furnace' }), null);
+    assert.equal(bedrockEdition.cauldronOf(null), null);
+});
+
 test('a survival player on Bedrock reaches half a block farther to a block than on Java, and as far to a mob', () => {
     // The keyboard, mouse and controller reach. A touch screen reaches a block 6 away; the bot is held to 5.
     assert.deepEqual(bedrockEdition.survivalReach(), { blocks: 5, entities: 3 });

@@ -352,3 +352,15 @@ test('a Java furnace says it is lit by its `lit` property, read from the real bl
     // A block remembered without its state reads as not lit.
     assert.deepEqual(javaEdition.furnaceOf({ name: 'furnace' }), { kind: 'furnace', lit: false });
 });
+
+test('a Java cauldron says what it holds by its name, and how full by its level', () => {
+    const Block = blockFactory(registryFactory(GAME_VERSION));
+    const block = (name, props = {}) => Block.fromProperties(name, props, 0);
+    assert.deepEqual(javaEdition.cauldronOf(block('lava_cauldron')), { liquid: 'lava', full: true });
+    assert.deepEqual(javaEdition.cauldronOf(block('cauldron')), { liquid: null, full: false });
+    assert.deepEqual(javaEdition.cauldronOf(block('water_cauldron', { level: 3 })), { liquid: 'water', full: true });
+    assert.deepEqual(javaEdition.cauldronOf(block('water_cauldron', { level: 2 })), { liquid: 'water', full: false });
+    assert.deepEqual(javaEdition.cauldronOf(block('powder_snow_cauldron', { level: 1 })), { liquid: 'powder_snow', full: false });
+    assert.equal(javaEdition.cauldronOf(block('furnace', { facing: 'north', lit: false })), null);
+    assert.equal(javaEdition.cauldronOf(null), null);
+});

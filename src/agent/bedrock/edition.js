@@ -572,6 +572,21 @@ export const bedrockEdition = Object.freeze({
         return furnace ? { ...furnace } : null;
     },
 
+    /**
+     * What a cauldron holds, and whether it is full. Bedrock has one cauldron block for every liquid: the
+     * `cauldron_liquid` state says which, and `fill_level` how much, from 0 (empty) to 6 (full). A bucket
+     * takes only a full one.
+     */
+    cauldronOf(block) {
+        if (block?.name !== 'cauldron') return null;
+        let state;
+        try { state = block.getProperties?.() ?? {}; } catch { state = {}; }
+        const level = Number(state.fill_level);
+        if (!(level > 0)) return { liquid: null, full: false };
+        const liquid = ['water', 'lava', 'powder_snow'].includes(state.cauldron_liquid) ? state.cauldron_liquid : 'water';
+        return { liquid, full: level === 6 };
+    },
+
     moveStack,
 });
 

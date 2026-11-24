@@ -39,6 +39,10 @@ const SOUND_OF_EXPLOSION = 'explosion';
 // The blocks that open a furnace window (see furnaceOf).
 const FURNACE_KINDS = new Set(['furnace', 'blast_furnace', 'smoker']);
 
+// Java's cauldrons (see cauldronOf): a block for each thing it can hold. Water and powder snow fill it in
+// three steps (`level`); lava only ever fills it whole.
+const CAULDRONS = new Map([['cauldron', null], ['water_cauldron', 'water'], ['lava_cauldron', 'lava'], ['powder_snow_cauldron', 'powder_snow']]);
+
 /**
  * The name of the sound a packet carries, or null.
  *
@@ -521,6 +525,23 @@ export const javaEdition = Object.freeze({
         let lit;
         try { lit = block.getProperties?.()?.lit; } catch { lit = undefined; }
         return { kind: block.name, lit: lit === true || lit === 'true' };
+    },
+
+    /**
+     * What a cauldron holds, and whether it is full: a bucket takes only a full one. Java has a block for
+     * each liquid, and a `level` for water and powder snow; a lava cauldron is always full.
+     * @param {object|null} block - a block, as the bot knows it
+     * @returns {{liquid: 'water'|'lava'|'powder_snow'|null, full: boolean}|null} null for anything but a
+     *   cauldron; `liquid` null for an empty one
+     */
+    cauldronOf(block) {
+        if (!block || !CAULDRONS.has(block.name)) return null;
+        const liquid = CAULDRONS.get(block.name);
+        if (liquid === null) return { liquid: null, full: false };
+        if (liquid === 'lava') return { liquid, full: true };
+        let level;
+        try { level = Number(block.getProperties?.()?.level); } catch { level = NaN; }
+        return { liquid, full: level === 3 };
     },
 
     /**
