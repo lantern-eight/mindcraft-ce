@@ -330,6 +330,11 @@
         "default": true,
         "description": "Threat reflexes: the bot backs off from a creeper about to explode, even in the middle of another action, and deals with one that keeps following it. Works with fair play on or off. See docs/threat-reflexes.md."
     },
+    "smelting": {
+        "type": "boolean",
+        "default": true,
+        "description": "Smelting: !smeltItem finds a furnace that isn't in use (or places the bot's own), loads it with the fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or off. See docs/smelting.md."
+    },
     "good_neighbor": {
         "type": "object",
         "default": {
