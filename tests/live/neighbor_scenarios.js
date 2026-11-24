@@ -126,7 +126,7 @@ try {
         await delay(1500);
         const before = { at: bot.entity.position.toString(), yaw: bot.entity.yaw.toFixed(2) };
         const result = await act('test:break', () => skills.breakBlockAt(bot, 0, 70, 2));
-        assert.equal(rawName(0, 70, 2), 'oak_planks');
+        assert.equal(rawName(0, 70, 2), 'oak_planks', `the plank stands: ${result.text}`);
         // It saw the plank go up, so it knows someone put it there; otherwise planks are never natural ground.
         assert.match(result.text, /Breaking oak_planks at 0, 70, 2 refused: (I saw someone put it there|oak_planks isn't natural ground)/, JSON.stringify(before));
         return { text: result.text.trim() };

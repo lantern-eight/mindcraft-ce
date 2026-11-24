@@ -497,6 +497,12 @@ export function createCells({ storage = memoryStorage(), now = Date.now, maxLoad
             cube.region.dirty = true;
         },
         tagOf(x, y, z) { return getCube(x >> 4, y >> 4, z >> 4, false)?.own?.get(cellIndex(x, y, z)) ?? null; },
+        /** Forgets who changed a cell: what the bot placed there is gone, or someone else's block is there now. */
+        untag(x, y, z) {
+            const cube = getCube(x >> 4, y >> 4, z >> 4, false);
+            if (!cube?.own?.delete(cellIndex(x, y, z))) return;
+            cube.region.dirty = true;
+        },
 
         /**
          * Writes changed regions, then the index. With a budget it stops when the time is used up and

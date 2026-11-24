@@ -526,3 +526,25 @@ test('a dirt wall put up while the bot watched is tagged built, its own blocks a
     lookAround();
     assert.equal(memory.cells.tagOf(2, 1, 3), null);
 });
+
+test('a block the bot placed is its own only while it stands: someone else\'s block in its place is built', () => {
+    const { world, bot, memory, lookAround } = setup(w => w.set('short_grass', -3, 1, 2));
+    lookAround();
+    // The bot places cobblestone, one block in the open and one over a tuft of grass.
+    world.set('cobblestone', -3, 1, 0);
+    bot.emit('blockPlaced', null, { position: new Vec3(-3, 1, 0) });
+    world.set('cobblestone', -3, 1, 2);
+    bot.emit('blockPlaced', null, { position: new Vec3(-3, 1, 2) });
+    lookAround();
+    assert.equal(memory.cells.tagOf(-3, 1, 0), 'placed');
+    assert.equal(memory.cells.tagOf(-3, 1, 2), 'placed', 'the grass it placed over was no one else\'s doing');
+    // Someone takes the first away and later sets a plank there; someone swaps the second for a plank at once.
+    world.set('air', -3, 1, 0);
+    world.set('oak_planks', -3, 1, 2);
+    lookAround();
+    assert.equal(memory.cells.tagOf(-3, 1, 0), null, 'the bot\'s block is gone');
+    assert.equal(memory.cells.tagOf(-3, 1, 2), 'built', 'a plank in place of its block is someone\'s');
+    world.set('oak_planks', -3, 1, 0);
+    lookAround();
+    assert.equal(memory.cells.tagOf(-3, 1, 0), 'built', 'and so is one set where its block was');
+});

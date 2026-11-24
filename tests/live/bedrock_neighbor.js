@@ -114,7 +114,7 @@ try {
         await delay(1500);
         const p = at(0, 1, 2);
         const result = await act('test:break', () => skills.breakBlockAt(bot, p.x, p.y, p.z));
-        assert.equal(rawName([0, 1, 2]), 'oak_planks');
+        assert.equal(rawName([0, 1, 2]), 'oak_planks', `the plank stands: ${result.text}`);
         assert.match(result.text, /Breaking oak_planks at .* refused: (I saw someone put it there|oak_planks isn't natural ground)/);
         return { text: result.text.trim() };
     });

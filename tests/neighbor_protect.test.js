@@ -227,7 +227,7 @@ test('digging a protected block is refused with words the model can act on', asy
     } finally { unguard(); }
 });
 
-test('the install reads the settings, and counts what the bot placed this session as its own', async () => {
+test('the install reads the settings, and counts what the bot placed this session as its own while it stands', async () => {
     const world = plankWallWorld();
     const bot = walkerBot(world);
     bot.dig = async () => {};
@@ -236,7 +236,11 @@ test('the install reads the settings, and counts what the bot placed this sessio
     const on = installGoodNeighbor({ bot }, { config: { fair_play: 'off', good_neighbor: { protect_builds: true, protected_areas: [{ name: 'x' }] } } });
     try {
         await assert.rejects(bot.dig(bot.blockAt(new Vec3(8, 1, 0))));
-        bot.emit('blockPlaced', null, { position: new Vec3(8, 1, 0) });
+        bot.emit('blockPlaced', null, { position: new Vec3(8, 1, 0), name: 'oak_planks' });
         await bot.dig(bot.blockAt(new Vec3(8, 1, 0)));
+        // Someone else puts their own block where the bot's was: that one is theirs.
+        bot.emit('blockUpdate', null, { position: new Vec3(8, 1, 0), name: 'air' });
+        bot.emit('blockUpdate', null, { position: new Vec3(8, 1, 0), name: 'oak_planks' });
+        await assert.rejects(bot.dig(bot.blockAt(new Vec3(8, 1, 0))));
     } finally { on.stop(); }
 });

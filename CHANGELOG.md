@@ -19,6 +19,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   turns it off. See docs/good-neighbor.md.
 - World memory tags each cell someone else built, beside the bot's own placed and dug cells.
 
+### Fixed
+
+- A block the bot placed no longer stays its own after someone takes it away or puts another block in its
+  place: world memory notes the change, and the new block is theirs.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed

@@ -178,6 +178,11 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
 
     // ---- Writing one seen cell ----
 
+    // The cell the bot is placing a block in, while that placement is recorded: the block it replaces
+    // (grass, snow, water) is not someone else's change.
+    let placingAt = null;
+    const placing = (x, y, z) => placingAt !== null && placingAt.x === x && placingAt.y === y && placingAt.z === z;
+
     const isMine = (x, y, z, after) => {
         const tag = cells.tagOf(x, y, z);
         return tag === 'dug' ? after === AIR : tag === 'placed' ? after !== AIR : false;
@@ -191,6 +196,12 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         if (before && kindFor(before)) {
             if (things.get(x, y, z)?.provenance === 'gone') was = AIR;
             things.seeCell({ x, y, z }, after);
+        }
+        // A block the bot placed stays its own while it stands. Once it is gone, or someone has put another
+        // block in its place, the cell is no longer the bot's doing: without this, a player's plank set
+        // where the bot once had scaffolding would be free for the bot to break.
+        if (cells.tagOf(x, y, z) === 'placed' && !placing(x, y, z) && was !== after && (after === AIR || wasBuilt(before, after))) {
+            cells.untag(x, y, z);
         }
         const mine = isMine(x, y, z, after);
         const what = was === after ? null
@@ -520,7 +531,10 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     const onDug = block => { if (block?.position) { cells.tag(block.position.x, block.position.y, block.position.z, 'dug'); recordAt(block.position); } };
     const onPlaced = (oldBlock, newBlock) => {
         const pos = newBlock?.position ?? oldBlock?.position;
-        if (pos) { cells.tag(pos.x, pos.y, pos.z, 'placed'); recordAt(pos); }
+        if (!pos) return;
+        cells.tag(pos.x, pos.y, pos.z, 'placed');
+        placingAt = { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z) };
+        try { recordAt(pos); } finally { placingAt = null; }
     };
     const onBlockUpdate = (oldBlock, newBlock) => {
         const pos = (newBlock ?? oldBlock)?.position;

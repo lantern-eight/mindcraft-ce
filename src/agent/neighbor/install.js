@@ -59,13 +59,25 @@ export function installGoodNeighbor(agent, { config = settings } = {}) {
         return { name, placedLeaves: name.endsWith('_leaves') && live ? leavesPersist(block.stateId) : null };
     };
 
-    // What the bot placed this session, for when world memory is off (or hasn't caught up yet).
-    const placed = new Set();
+    // What the bot placed this session, for when world memory is off (or hasn't caught up yet): the cell,
+    // and what it put there. A block it placed is its own only while that block is still there; once the
+    // cell holds something else, someone else put it there, and it isn't the bot's to break.
+    const placed = new Map();
     const cellKey = p => `${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
-    const onPlaced = (oldBlock, newBlock) => { const p = (newBlock ?? oldBlock)?.position; if (p) placed.add(cellKey(p)); };
+    const onPlaced = (oldBlock, newBlock) => {
+        const p = (newBlock ?? oldBlock)?.position;
+        if (p) placed.set(cellKey(p), newBlock?.name ?? null);
+    };
     const onDug = block => { if (block?.position) placed.delete(cellKey(block.position)); };
+    const onUpdate = (oldBlock, newBlock) => {
+        const p = newBlock?.position;
+        if (!p || placed.size === 0) return;
+        const key = cellKey(p);
+        if (placed.has(key) && placed.get(key) !== newBlock.name) placed.delete(key);
+    };
     bot.on?.('blockPlaced', onPlaced);
     bot.on?.('diggingCompleted', onDug);
+    bot.on?.('blockUpdate', onUpdate);
     // mineflayer's digging plugin removes every 'diggingCompleted' listener when the bot dies; put this one back.
     const onDeath = () => queueMicrotask(() => { bot.off?.('diggingCompleted', onDug); bot.on?.('diggingCompleted', onDug); });
     bot.on?.('death', onDeath);
@@ -80,6 +92,6 @@ export function installGoodNeighbor(agent, { config = settings } = {}) {
     console.log(`[good neighbor] Protecting other players' builds${areas.length ? `, and ${areas.length} protected area(s)` : ''}.`);
     return {
         protector,
-        stop() { unguard(); bot.off?.('blockPlaced', onPlaced); bot.off?.('diggingCompleted', onDug); bot.off?.('death', onDeath); },
+        stop() { unguard(); bot.off?.('blockPlaced', onPlaced); bot.off?.('diggingCompleted', onDug); bot.off?.('blockUpdate', onUpdate); bot.off?.('death', onDeath); },
     };
 }

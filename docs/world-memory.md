@@ -145,7 +145,9 @@ the bot had seen empty space, or in place of a block it remembers, and nothing b
 it there. That holds whether or not the bot watched it go up, and whatever it is made of: dirt stacked
 across a tunnel is built. Blocks that grow, fall, flow, freeze or weather into place are not (crops, trees,
 gravel, water, ice, lava meeting water, copper turning green), and neither is the bot's own work. The rest of
-a new wall, first seen in the same look and touching a built block of its kind, is tagged with it.
+a new wall, first seen in the same look and touching a built block of its kind, is tagged with it. A block
+the bot placed is its own only while it stands: once the bot sees it gone, or someone else's block in its
+place, the `placed` tag goes, and a block set there later is built.
 [Good-neighbor rules](good-neighbor.md) leave built blocks alone.
 
 ## Is It Fair?
