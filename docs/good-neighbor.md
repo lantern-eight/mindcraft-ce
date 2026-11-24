@@ -45,7 +45,9 @@ few places. A cabin's logs touch planks, glass, a door or a torch; a pillar of l
 
 There is no test of the ground under the trunk, so a tree the bot has started felling is still a tree. A tree
 once recognized stays one for the session, log by log, so the bot can finish it after its leaves have started
-to fall. A log whose canopy the bot hasn't seen is protected until it looks up.
+to fall. From the foot of a tree, through a player's screen, the canopy is out of sight; so a bare trunk no
+wider than a tree's (2 by 2) whose top the bot hasn't seen is taken for a tree, as a player at its foot would
+take it, until the bot sees its top bare.
 
 ## Where It Is Enforced
 
@@ -92,6 +94,8 @@ it started.
   up before the bot first saw the spot looks like any other stone or dirt.
 - **Rarely, a block that got there by itself counts as built:** dirt an enderman set down, a huge mushroom grown
   where the bot had seen air.
+- **A post of logs whose top the bot hasn't seen is taken for a tree** when nothing built touches it where
+  the bot has looked. A wall of logs is wider than a trunk and stays protected.
 - **There is no way yet to let the bot break a protected block,** even for its owner. Ask a player to break
   it, or build somewhere else.
 - **Leaves the bot only remembers count as grown.** Memory keeps blocks by name, not by state, so leaves out of

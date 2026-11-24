@@ -146,16 +146,24 @@ test('a pillar of logs with no canopy, or under placed leaves, is not a tree', (
     assert.equal(refusal(4, 5, 0)?.why, 'made', 'and the placed leaves themselves are protected');
 });
 
-test('a tree whose canopy the bot has not seen is protected until it looks up', () => {
+test('a bare trunk running up out of sight is taken for a tree, until its top is seen bare', () => {
     const world = fixtureWorld();
     world.fill('stone', [-8, -1, -8], [8, -1, 8]);
-    oak(world, 0, 0);
+    world.fill('oak_log', [0, 0, 0], [0, 4, 0]);       // a pillar with nothing on top
     let looked = false, t = 0;
     const { refusal } = protectorFor(world, { hidden: (x, y) => !looked && y >= 3, now: () => t });
-    assert.equal(refusal(0, 1, 0)?.why, 'not a tree');
+    assert.equal(refusal(0, 0, 0), null, 'its top out of sight: a tree, as a player at its foot would take it');
     looked = true;
-    t += 10_000; // a "no" is kept only a few seconds
-    assert.equal(refusal(0, 1, 0), null);
+    t += 10_000;
+    assert.equal(refusal(0, 0, 0)?.why, 'not a tree', 'seen whole, with no leaves on it');
+});
+
+test('a wall of logs whose top is out of sight is still not a tree: it is wider than a trunk', () => {
+    const world = fixtureWorld();
+    world.fill('stone', [-8, -1, -8], [8, -1, 8]);
+    world.fill('oak_log', [0, 0, 0], [4, 4, 0]);
+    const { refusal } = protectorFor(world, { hidden: (x, y) => y >= 3 });
+    assert.equal(refusal(0, 0, 0)?.why, 'not a tree');
 });
 
 test('a 2x2 spruce is a tree', () => {

@@ -14,8 +14,10 @@
 // a tree a tree while it is felled is LarsHamb's (`natural_tree.js`). Neither's code is used here.
 //
 // A tree once recognized stays one for the session, log by log: after its lowest logs are cut, its
-// leaves start to fall, and the bot must still be able to finish it. A "not a tree" is kept only a few
-// seconds, since it may only mean the bot hasn't seen the canopy yet; once it looks up, it is a tree.
+// leaves start to fall, and the bot must still be able to finish it. A bare trunk no wider than a tree's,
+// whose top the bot hasn't seen, is taken for a tree too: from the foot of a tree, through a player's
+// screen, the canopy is out of sight. A "not a tree" is kept only a few seconds, since the bot may yet see
+// more of it.
 import { besideTrees, isCanopy, isEmpty } from './natural.js';
 
 const MAX_LOGS = 160;        // a giant 2x2 spruce or jungle tree, branches included, stays under this
@@ -71,7 +73,16 @@ export function createTreeJudge({ read, own = () => false, now = Date.now }) {
             }
         }
         if (bare) leaves = canopy.filter(at => at > minY).length;
-        return { tree: bare && leaves >= MIN_LEAVES, logs };
+        if (bare && leaves >= MIN_LEAVES) return { tree: true, sure: true, logs };
+        // A bare trunk running up out of sight is taken for a tree, as a player at its foot would take it,
+        // when it is no wider than a tree's trunk (2 by 2): a wall of logs is wider. The canopy can't be
+        // seen from the foot of a tree through a player's screen. This is not kept: once the bot has seen
+        // the top bare, it is not a tree.
+        const xs = logs.map(l => l[0]), zs = logs.map(l => l[2]);
+        const thin = Math.max(...xs) - Math.min(...xs) <= 1 && Math.max(...zs) - Math.min(...zs) <= 1;
+        const topY = Math.max(...logs.map(l => l[1]));
+        const topUnseen = logs.filter(l => l[1] === topY).every(([lx, , lz]) => read(lx, topY + 1, lz) === null);
+        return { tree: bare && thin && topUnseen, sure: false, logs };
     }
 
     return {
@@ -82,12 +93,13 @@ export function createTreeJudge({ read, own = () => false, now = Date.now }) {
             if (no !== undefined && now() - no < NO_KEPT_MS) return false;
             if (trees.size > MAX_KEPT) trees.clear();
             if (notTrees.size > MAX_KEPT) notTrees.clear();
-            const { tree, logs } = judge(x, y, z, name);
-            // Every log found was judged along with this one.
+            const { tree, sure, logs } = judge(x, y, z, name);
+            // Every log found was judged along with this one. A trunk only taken for a tree is judged again
+            // each time, so that seeing its top can change the answer.
             const t = now();
             for (const [lx, ly, lz] of logs) {
-                if (tree) { trees.add(key(lx, ly, lz)); notTrees.delete(key(lx, ly, lz)); }
-                else notTrees.set(key(lx, ly, lz), t);
+                if (tree && sure) { trees.add(key(lx, ly, lz)); notTrees.delete(key(lx, ly, lz)); }
+                else if (!tree) notTrees.set(key(lx, ly, lz), t);
             }
             return tree;
         },
