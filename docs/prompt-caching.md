@@ -39,7 +39,9 @@ allowed) on every native tool request to Claude:
 3. the last block of the conversation that the next call will send again, which leaves the fresh state out.
 
 During a task each call is the last one plus a turn or two, so it reads everything up to its newest turn
-from the cache and writes only that turn. Writing costs a quarter more than plain input (twice as much with
+from the cache and writes only that turn. Measured on Claude Haiku 5.5, ten calls of one task: the first
+wrote its 7,700-token start to the cache, and each later call read 96 to 98% of its prompt from it; over
+the ten, input cost about a third of what the same prompts cost uncached. Writing costs a quarter more than plain input (twice as much with
 the one-hour lifetime), and a read a tenth or less, so a cached start pays for itself on the second call.
 
 `prompt_caching` in `settings.js`:
