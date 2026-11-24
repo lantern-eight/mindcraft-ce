@@ -38,8 +38,7 @@ const TELL_AGAIN_MS = 60000;  // the same threat is told about once a minute at 
 const HITS_KEPT_MS = 10000;
 const LOST_SIGHT_MS = 2000;   // all of them out of view this long while retreating: they lost the bot too
 export const FOLLOW_PER_S = 2.5; // a mob out of view that chases is taken to keep coming at about this, in blocks a second
-                                 // (a zombie after a player, measured live on Bedrock: 2.3; a little over, to be sure),
-const FOLLOW_MS = 4000;          // for this long after it was last seen: past that, only a look back would say where it is
+                                 // (a zombie after a player, measured live on Bedrock: 2.3; a little over, to be sure)
 
 /**
  * @param {object} options
@@ -97,7 +96,8 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
         // A mob that chases (a zombie, a spider) and is out of view is taken to keep coming: a player running
         // from zombies knows they follow, and through a player's screen the bot runs with its back to them.
         // Gone by where it was last seen, the retreat ended 'far enough' with the zombies still coming, a few
-        // blocks behind.
+        // blocks behind. For as long as the move lasts: one zombie followed for all of a 5 s retreat. One that
+        // gave up only makes the bot run a little farther, and the look back as it stops shows which.
         let known = decision.from.slice(0, ids.length);
         const lastAt = [...known], seenAt = ids.map(() => now()), chases = ids.map(() => false);
         const from = () => {
@@ -107,7 +107,7 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
                 const mob = around.find(m => m.id === id);
                 if (mob) { lastAt[i] = mob.position; chases[i] = isMelee(mob); } // a stand-in stands where last seen
                 if (mob?.seenNow) seenAt[i] = now();
-                return chases[i] && !mob?.seenNow ? followedTo(lastAt[i], here, Math.min(now() - seenAt[i], FOLLOW_MS)) : lastAt[i];
+                return chases[i] && !mob?.seenNow ? followedTo(lastAt[i], here, now() - seenAt[i]) : lastAt[i];
             });
             const points = [...known, ...sides];
             if (decision.stance === 'flee') for (const mob of around) if (!ids.includes(mob.id)) points.push(mob.position);
