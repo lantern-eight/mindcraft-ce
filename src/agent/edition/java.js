@@ -176,6 +176,15 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * Whether leaves were placed by a player and so never fall away. Leaves a tree grew decay once no log
+     * is near them; placed ones stay. Good-neighbor rules count only grown leaves as a tree's canopy, and
+     * leave placed ones alone. Java keeps it as the `persistent` property of the leaves' state.
+     */
+    leavesPersist(registry, stateId) {
+        return javaEdition.propsOfState(registry, stateId)?.persistent === 'true';
+    },
+
+    /**
      * The state number for a block name with these properties (src/agent/memory/block_state.js): the
      * block's default state with each property given replaced. A property the block doesn't have, or a
      * value it can't take, is ignored. Null for a block name the game data doesn't know.
