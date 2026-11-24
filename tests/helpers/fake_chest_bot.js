@@ -164,7 +164,11 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
                 get slots() { return client.slots.map(toItem); },
                 get selectedItem() { return toItem(client.cursor, -1); },
                 // mineflayer's own "take out" and "put in": between the chest's slots and the bot's.
-                async withdraw(type, metadata, count) { both(view => transfer(view, type, count, [0, size], [size, size + 36], view.sizeOf)); },
+                async withdraw(type, metadata, count) {
+                    // mineflayer refuses outright when no slot of the bot's is empty, even with room on a stack.
+                    if (client.slots.slice(size).every(Boolean)) throw new Error('Unable to withdraw, Bot inventory is full.');
+                    both(view => transfer(view, type, count, [0, size], [size, size + 36], view.sizeOf));
+                },
                 async deposit(type, metadata, count) { both(view => transfer(view, type, count, [size, size + 36], [0, size], view.sizeOf)); },
                 close() {
                     if (bot.currentWindow !== window) return;
@@ -191,6 +195,16 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
             room.onClick?.(room.clicks);
             leftClick(open.server, slot, serverSize);
             leftClick(open.client, slot, clientSize, clientIgnoresTags ? (a, b) => a.name === b.name : sameKind);
+        },
+        /** mineflayer's `transfer`: moves up to `count` of an item from one run of a window's slots to another. */
+        async transfer({ window, itemType, count, sourceStart, sourceEnd, destStart, destEnd }) {
+            if (!open || open.window !== window) throw new Error('No window is open.');
+            const problems = [];
+            for (const view of [open.server, open.client]) {
+                try { transfer(view, itemType, count, [sourceStart, sourceEnd], [destStart, destEnd], view.sizeOf); }
+                catch (error) { problems.push(error); }
+            }
+            if (problems.length) throw problems[0];
         },
         on(name, fn) { heard.set(name, [...(heard.get(name) ?? []), fn]); },
         off(name, fn) { heard.set(name, (heard.get(name) ?? []).filter(listener => listener !== fn)); },

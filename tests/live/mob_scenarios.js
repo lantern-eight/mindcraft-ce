@@ -162,8 +162,10 @@ try {
 
     await step('seam: a zombie that has come for the bot is aggressive; one with no target is not', async () => {
         await reset();
-        await cmd('summon zombie 0.5 70 12.5 {NoAI:1b,PersistenceRequired:1b}');
-        await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
+        // Zombies are summoned grown (IsBaby:0b): a baby, which a summon makes now and then, runs as fast as the
+        // bot sprints, and no scene here is about one.
+        await cmd('summon zombie 0.5 70 12.5 {IsBaby:0b,NoAI:1b,PersistenceRequired:1b}');
+        await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b}');
         await waitFor(() => raw('zombie').length === 2, 5000);
         const still = raw('zombie').find(z => z.position.z > 10), coming = raw('zombie').find(z => z !== still);
         await waitFor(() => edition.isAggressive(bot.registry, coming), 8000, () => JSON.stringify(coming.metadata));
@@ -198,7 +200,7 @@ try {
             reflexes.mob.mode.on = false;
             await cmd(`tp ${NAME} 0.5 70 0.5 ${facing} 0`);
             await delay(500);
-            await cmd('summon zombie 0.5 70 3.5 {NoAI:1b,PersistenceRequired:1b,Tags:["hitter"]}');
+            await cmd('summon zombie 0.5 70 3.5 {IsBaby:0b,NoAI:1b,PersistenceRequired:1b,Tags:["hitter"]}');
             await delay(500);
             felt.length = 0;
             const packets = [];
@@ -223,8 +225,8 @@ try {
 
     await step('two zombies coming: the bot backs away from both, ends 12 or more from each (10 through a player\'s screen), takes little damage', async () => {
         await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
-        await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
-        await cmd('summon zombie 0.5 70 -6.5 {PersistenceRequired:1b}');
+        await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b}');
+        await cmd('summon zombie 0.5 70 -6.5 {IsBaby:0b,PersistenceRequired:1b}');
         const spawned = performance.now();
         await waitFor(() => decided('mob_safety').length > 0, 10000, () => JSON.stringify(events));
         const first = firstStepAfter(decided('mob_safety')[0].at);
@@ -248,8 +250,8 @@ try {
         const walk = act('action:goToPosition', () => skills.goToPosition(bot, 25, 70, 0.5, 1));
         await waitFor(() => bot.entity.position.x > -12, 8000);
         const p = bot.entity.position;
-        await cmd(`summon zombie ${(p.x + 6).toFixed(1)} 70 ${(p.z + 2).toFixed(1)} {PersistenceRequired:1b}`);
-        await cmd(`summon zombie ${(p.x + 6).toFixed(1)} 70 ${(p.z - 2).toFixed(1)} {PersistenceRequired:1b}`);
+        await cmd(`summon zombie ${(p.x + 6).toFixed(1)} 70 ${(p.z + 2).toFixed(1)} {IsBaby:0b,PersistenceRequired:1b}`);
+        await cmd(`summon zombie ${(p.x + 6).toFixed(1)} 70 ${(p.z - 2).toFixed(1)} {IsBaby:0b,PersistenceRequired:1b}`);
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
         const walked = await walk;
         assert.equal(walked.interrupted, true, 'the walk was stopped');
@@ -313,7 +315,7 @@ try {
     await step('hit twice from behind a wall by something unseen: the bot gets away from that side', async () => {
         await reset();
         await cmd('fill 2 70 -3 2 73 3 stone');
-        await cmd('summon zombie 4.5 70 0.5 {NoAI:1b,PersistenceRequired:1b,Tags:["hitter"]}');
+        await cmd('summon zombie 4.5 70 0.5 {IsBaby:0b,NoAI:1b,PersistenceRequired:1b,Tags:["hitter"]}');
         await delay(1500);
         const start = bot.entity.position.clone();
         await cmd(`damage ${NAME} 1 minecraft:mob_attack by @e[type=zombie,tag=hitter,limit=1]`);
@@ -333,7 +335,7 @@ try {
         // West again: through a player's screen the idle look turns the bot every second or two, and the wait
         // above is long enough for it to face away. Once the zombie is on screen, the idle look holds still.
         await faceExactly(bot, Math.PI / 2, 0);
-        await cmd('summon zombie -8.5 70 0.5 {PersistenceRequired:1b}');
+        await cmd('summon zombie -8.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b}');
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
         assert.ok(['flee', 'retreat'].includes(decided('mob_safety')[0].stance), JSON.stringify(decided()));
         assert.equal(decided('self_defense').length, 0);
@@ -347,7 +349,7 @@ try {
     await step('a lone zombie, the bot with a stone sword at full health: it fights and kills it', async () => {
         await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword`);
-        await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
+        await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b}');
         await waitFor(() => raw('zombie').length === 0, 30000, () => JSON.stringify(events));
         assert.ok(decided('self_defense').length >= 1, JSON.stringify(events));
         // Hurt under half health part way, the bot backs away from it for a moment (rule 5b): that is allowed.
@@ -369,8 +371,8 @@ try {
         await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
         await cmd(`give ${NAME} stone_sword`);
         healthAtDecisions.length = 0;
-        await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
-        await cmd('summon zombie 0.5 70 -6.5 {PersistenceRequired:1b}');
+        await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b}');
+        await cmd('summon zombie 0.5 70 -6.5 {IsBaby:0b,PersistenceRequired:1b}');
         const started = Date.now();
         // Over when both are dead, or when the bot has backed away (the order lapsed under half health).
         await waitFor(() => raw('zombie').length === 0 || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
@@ -388,7 +390,7 @@ try {
         try {
             act('action:stay', () => skills.stay(bot, -1));
             await delay(500);
-            await cmd('summon zombie -6.5 70 0.5 {PersistenceRequired:1b}');
+            await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b}');
             await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
             const zombie = raw('zombie')[0];
             const away = zombie ? flat(bot.entity.position, zombie.position) : null;

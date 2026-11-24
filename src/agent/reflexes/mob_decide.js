@@ -68,6 +68,24 @@ export const isRanged = mob => RANGED.has(mob.name) || (mob.name === 'piglin' &&
 export const isMelee = mob => mob.name !== 'creeper' && !isRanged(mob) && !FLYING.has(mob.name);
 /** Whether a mob could have dealt a hit just felt: one within reach, one with a target, one that shoots. */
 export const couldHaveHit = mob => mob.distance <= 6 || mob.aggressive || isRanged(mob);
+const HIT_SIDE_DEGREES = 60; // a hit is put down to a mob in view only when it came from that mob's side, within this
+
+/**
+ * Whether a mob in view accounts for a hit felt from `direction` (the side it came from, as the edition seam
+ * tells it: a player's screen tilts toward it). It must be one that could have dealt it, on that side: a
+ * player fighting a zombie in front of them, hit from behind, knows something else is there. With no side
+ * felt, any mob that could have dealt it will do.
+ * @param {{position: object, distance: number, aggressive?: boolean, name: string}} mob
+ * @param {{x: number, z: number}|null} direction
+ * @param {{x: number, z: number}} here - where the bot is
+ */
+export function explainsHit(mob, direction, here) {
+    if (!couldHaveHit(mob)) return false;
+    const dx = mob.position.x - here.x, dz = mob.position.z - here.z, apart = Math.hypot(dx, dz);
+    const length = direction ? Math.hypot(direction.x, direction.z) : 0;
+    if (!length || apart < 0.5) return true;
+    return (dx * direction.x + dz * direction.z) / (apart * length) >= Math.cos(HIT_SIDE_DEGREES * Math.PI / 180);
+}
 
 const isArcher = mob => ARCHERS.has(mob.name);
 

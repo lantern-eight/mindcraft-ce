@@ -9,6 +9,29 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.15.0-bedrock.1.16.0] - 2026-11-24
+
+### Added
+
+- Putting away and fetching (`store_and_fetch`, on by default with chest sorting). `!putAway("all", "any", 16)`
+  puts what the bot carries into the chests where those things belong: each kind with its own kind, else with
+  related things, else into an empty chest, keeping what it needs out in the world (its best tools and a spare
+  pickaxe, armour, food, torches, a few blocks). `!fetchItem("iron_ingot", 10)` takes an item out of the chests
+  it remembers holding it, from several if one is not enough. Both use the bot's own and shared chests, and
+  players' chests when a player asks; a chest nobody has said is anyone's is left alone and named, so the bot
+  asks. Each chest is checked on opening, so a chest someone changed since the bot looked is no surprise.
+
+### Fixed
+
+- Backing away from a skeleton behind a shield, with nowhere to go, the bot no longer lowers the shield just
+  as an arrow comes: when the move runs out of time, it ends just after a shot lands, not in the middle of one
+  or just before the next.
+- Backing away from zombies through a player's screen, the bot no longer stops while they are still close behind:
+  it takes a mob that chases to keep coming while out of view, as a player running from zombies does, instead of
+  going by where it last saw them.
+- Fighting one mob through a player's screen, the bot now turns to look when it is hit from another side, and
+  backs away from the second mob it finds there. Before, it kept fighting while the other hit it from behind.
+
 ## [1.14.0-bedrock.1.15.0] - 2026-11-24
 
 ### Added
@@ -1170,7 +1193,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.15.0-bedrock.1.16.0...HEAD
+[1.15.0-bedrock.1.16.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...v1.15.0-bedrock.1.16.0
 [1.14.0-bedrock.1.15.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...v1.14.0-bedrock.1.15.0
 [1.13.0-bedrock.1.14.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...v1.13.0-bedrock.1.14.0
 [1.12.0-bedrock.1.13.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...v1.12.0-bedrock.1.13.0
