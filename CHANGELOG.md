@@ -19,6 +19,32 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   or remembers it. Under fair play it sees and plans only what the bot does; with world memory it heads for
   land it hasn't looked over. See `docs/explore.md`.
 
+## [1.13.0-bedrock.1.14.0] - 2026-11-24
+
+### Added
+
+- Smelting (`smelting`, on by default): `!smeltItem` uses a furnace that isn't in use, or places the bot's
+  own beside it, loads it with the fuel it needs, shuts it and comes back for what is done, a stack at a
+  time, as a player does. Fuel is planned: coal and charcoal first, then planks, and logs are made into
+  planks before burning (a log goes four times as far that way), two kinds one after the other when one
+  doesn't cover it, never what is being smelted or made. The result counts what reached the inventory. See
+  [docs/smelting.md](docs/smelting.md).
+
+### Fixed
+
+- Smelting no longer hangs on a furnace that never opens, and never leaves a furnace window open.
+- Smelting no longer takes someone else's items out of a furnace's output, uses a furnace with another
+  item in it, or digs up the nearest furnace afterwards in place of the one it placed. A furnace it placed
+  is picked up only with a pickaxe; without one it is left, instead of being broken for nothing.
+- Smelting more than a stack works: it goes in a stack at a time. Fuel is topped up as the smelt goes, so one
+  plank left in the slot no longer stops a smelt after one item.
+- On Bedrock, a furnace that is burning (`lit_furnace`) is found too.
+- World memory finds a block by name again when it was gone at the moment memory was saved and came back
+  later: a chest broken and set down again, or on Bedrock a furnace that was burning (another block there)
+  when memory was saved.
+- On Bedrock, a furnace or a crafting table that did not open could stop the whole bot. It is now an error
+  for the skill that asked, as on Java.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed
@@ -1137,7 +1163,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...HEAD
+[1.13.0-bedrock.1.14.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...v1.13.0-bedrock.1.14.0
 [1.12.0-bedrock.1.13.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...v1.12.0-bedrock.1.13.0
 [1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0
 [1.10.0-bedrock.1.11.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.10.0-bedrock.1.11.0

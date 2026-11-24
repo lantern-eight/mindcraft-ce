@@ -93,7 +93,7 @@ All of it lives in `src/agent/explore/`:
 | `commands.js` | `!explore` and `!exploreFor`, and each bot's last walk |
 | `install.js` | Adds the commands when `explore` is on |
 
-`agent.js` calls `installExplore(this)` once (core hook 28 in [`core-hooks.md`](core-hooks.md)).
+`agent.js` calls `installExplore(this)` once (core hook 30 in [`core-hooks.md`](core-hooks.md)).
 
 **Tests.** `tests/explore_*.test.js` cover the heading, the loop on a pretend world and the commands.
 `tests/live/explore_scenarios.js` runs the commands on a real Java server, and `tests/live/bedrock_explore.js`
