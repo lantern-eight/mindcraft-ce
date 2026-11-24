@@ -114,8 +114,11 @@ try {
         await delay(300);
     };
     /** What is really in a chest, slot by slot, as "name xN": opened by the test's own hands, which the server answers. */
+    // From two blocks in front of it: a Bedrock chest opens only within reach, and after putting away the bot can
+    // stand at one end of the row, eight blocks from the other.
     const read = async cell => {
         if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
+        await tpTo([cell[0], 1, cell[2] + 2], 180, 600);
         const window = await rawOpen(bot.blockAt(at(...cell)));
         try {
             return Array.from({ length: window.inventoryStart }, (_, i) => stackOf(window.slots[i])).map(s => (s ? `${s.name} x${s.count}` : null));
