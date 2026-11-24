@@ -27,6 +27,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Smelting more than a stack works: it goes in a stack at a time. Fuel is topped up as the smelt goes, so one
   plank left in the slot no longer stops a smelt after one item.
 - On Bedrock, a furnace that is burning (`lit_furnace`) is found too.
+- On Bedrock, a furnace or a crafting table that did not open could stop the whole bot. It is now an error
+  for the skill that asked, as on Java.
 
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
