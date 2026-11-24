@@ -94,9 +94,10 @@ export function createJobs({ scope, now = Date.now } = {}) {
         /**
          * Notes what the bot just did at a furnace: `loaded` and `collected` add to the counts, `fuelPut`
          * adds (or with a negative count takes back) fuel, `readyAt` replaces when the furnace should be done
-         * (or out of fuel), and `unfueled` how many of what is in it the fuel won't reach.
+         * (or out of fuel), `unfueled` how many of what is in it the fuel won't reach, and `lavaUntil` when
+         * lava the bot put in burns out.
          */
-        note(pos, { loaded = 0, collected = 0, fuelPut = {}, readyAt, unfueled } = {}) {
+        note(pos, { loaded = 0, collected = 0, fuelPut = {}, readyAt, unfueled, lavaUntil } = {}) {
             const job = byKey.get(keyOf(pos));
             if (!job) return null;
             job.loaded += loaded;
@@ -107,6 +108,7 @@ export function createJobs({ scope, now = Date.now } = {}) {
             }
             if (readyAt !== undefined) { job.readyAt = readyAt; job.toldReady = false; }
             if (unfueled !== undefined) job.unfueled = unfueled;
+            if (lavaUntil !== undefined) job.lavaUntil = lavaUntil;
             job.seenAt = now();
             dirty = true;
             return copy(job);

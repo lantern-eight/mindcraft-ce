@@ -33,6 +33,7 @@ stock Mindcraft does, and with fair play on only the ones the bot has seen or re
    and planks for the rest. It never burns what it is smelting or what it is making (no charcoal burned to
    make charcoal), nor Nether wood, which doesn't burn. Coal blocks, blaze rods, dried kelp blocks and lava
    buckets only when nothing else covers it. Short of fuel, it smelts what the fuel covers and says so.
+   **Lava from a lava farm comes first** (see below).
 3. **The furnace.** One it knows of within 16 blocks; else its own, if it carries one, placed beside it on
    ground it can see; else one it knows of within 64 blocks.
 4. **Only a free one.** A furnace with anything in its input or output is someone else's work: the bot shuts
@@ -62,6 +63,27 @@ It stops when:
 | The furnace never opened (4 s), or is gone | Says so; no window is left open |
 
 `!clearFurnace` empties the nearest furnace the bot knows of within 32 blocks: input, fuel, then output.
+
+## Lava From a Lava Farm
+
+A cauldron full of lava under pointed dripstone fills itself again: a player who built one has fuel without
+end, and one bucket smelts a hundred items. So when the bot knows of a full lava cauldron within 32 blocks,
+lava is its first fuel, before coal.
+
+- **The bucket.** One it carries; else an empty bucket it remembers lying in a furnace's fuel slot (lava
+  leaves its bucket there when it catches), which it takes out. It doesn't look in chests for one: whose
+  bucket a chest holds is for the chest rules to say.
+- **Filling it.** It walks up to the cauldron and uses the empty bucket on it, as a player does, and checks
+  that a lava bucket came back. It never places lava.
+- **Burning it.** A bucket goes in only on an empty fuel slot, one at a time. Lava burns on for 1,000
+  seconds once it catches, smelting or not, and the slot then shows only the empty bucket, so the bot counts
+  the time left on its lava as fuel and adds no coal it doesn't need. It takes the empty bucket back out on
+  its next visit.
+- **Without a lava farm** a lava bucket the bot carries is a last resort, as before.
+
+The cauldron is found like any block (under fair play, one the bot has seen or remembers) and read through
+the edition seam: Java has a block for each liquid (`lava_cauldron`), Bedrock one `cauldron` block with the
+liquid and how full it is as states.
 
 ## Load and Leave
 
@@ -123,6 +145,7 @@ All of it lives in `src/agent/smelting/`:
 | `recipes.js` | What a furnace makes of what, by exact name. Pure |
 | `fuel.js` | What burns and how far, the fuel plan in stages, and what to add to the slot now. Pure |
 | `furnace_hands.js` | Opening a furnace with a deadline, reading its slots, putting and taking with a deadline each, closing it. The only file that touches a window |
+| `lava.js` | Lava from a lava farm: the nearest full lava cauldron, an empty bucket for it, filling it |
 | `jobs.js` | What the bot has left smelting where, per world: one job per furnace, and whether a furnace holds only the bot's own. Pure, with its file |
 | `smelt.js` | `smeltItem`, `clearFurnace`, `loadFurnace`, `collectFurnace` and what is smelting where, on those |
 | `commands.js` | `!loadFurnace`, `!collectFurnace` and `!furnaces`, and the "should be done" line on a result |

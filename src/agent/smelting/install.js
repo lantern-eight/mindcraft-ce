@@ -57,6 +57,17 @@ export function installSmelting(agent, { config = settings, jobsDir = null } = {
         lookAround: lookBeforeSearch,
         jobs,
         saveJobs,
+        // Furnaces world memory last saw holding an empty bucket (a lava load leaves one in the fuel slot):
+        // where the bot can get a bucket for a lava farm. Only furnaces: whose bucket a chest holds is for
+        // the chest rules to say.
+        knownBuckets: bot => {
+            const things = agent.fairPlay?.memory?.things;
+            if (!things || !bot.entity?.position) return [];
+            const furnace = name => editionOf(bot.registry).furnaceOf({ name }) !== null;
+            // An empty bucket only: with none remembered anywhere, "bucket" also finds lava and water buckets.
+            return things.findItem('bucket', bot.entity.position, { limit: 8 })
+                .filter(hit => furnace(hit.name) && hit.items.bucket > 0).slice(0, 3);
+        },
     });
     setSmeltWay(agent.bot, way);
 
