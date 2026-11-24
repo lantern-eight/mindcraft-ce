@@ -12,6 +12,7 @@ import * as world from '../library/world.js';
 import { worldQueries } from '../library/world_queries.js';
 import { setSmeltWay } from '../library/smelt_way.js';
 import { editionOf } from '../edition/index.js';
+import { lookBeforeSearch } from '../library/search_look.js';
 import { smeltingSkills } from './smelt.js';
 
 /**
@@ -29,6 +30,7 @@ export function installSmelting(agent, { config = settings } = {}) {
         skills,
         blockAt: (bot, pos) => worldQueries().blockAt(bot, pos),
         editionOf,
+        lookAround: lookBeforeSearch,
     });
     setSmeltWay(agent.bot, way);
     return way;

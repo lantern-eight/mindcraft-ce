@@ -40,13 +40,16 @@ const listOf = parts => parts.length <= 1 ? parts.join('') : `${parts.slice(0, -
  *   `pickupNearbyItems` (library/skills.js)
  * @param {(bot: object, pos: Vec3) => object|null} deps.blockAt - a block as the bot may know it
  * @param {(registry: object) => object} deps.editionOf - the edition seam
+ * @param {(bot: object, nearest: object|null) => Promise<boolean>} [deps.lookAround] - looks round before a
+ *   search when it should (library/search_look.js): under a player's screen, a furnace behind the bot isn't
+ *   known until it turns
  * @param {object} [deps.timing] - `smeltMs` (one item), `slackMs` (added to a wait), `limitPerItemMs`,
  *   `limitExtraMs` (the whole smelt's time limit), `watchMs` (how often the bot glances while it waits),
  *   and `hands` (options for furnace_hands.js)
  * @param {() => number} [deps.now]
  * @param {(ms: number) => Promise<void>} [deps.sleep]
  */
-export function smeltingSkills({ world, skills, blockAt, editionOf, timing = {}, now = Date.now,
+export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround = async () => false, timing = {}, now = Date.now,
     sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
     const { smeltMs = SMELT_MS, slackMs = 2000, limitPerItemMs = 12000, limitExtraMs = 30000, watchMs = 1000,
         hands: handOptions = {} } = timing;
@@ -124,6 +127,8 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, timing = {},
             }
             return { furnace: opened.furnace, at: block.position.clone?.() ?? block.position };
         };
+        // A player looks round before deciding there is no furnace near, or before walking to a far one.
+        await lookAround(bot, knownFurnaces(bot, NEAR_RANGE)[0]?.position ?? null);
         for (const block of knownFurnaces(bot, NEAR_RANGE)) {
             if (bot.interrupt_code) return { problem: 'I was interrupted.' };
             const got = await attempt(block);
@@ -345,7 +350,9 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, timing = {},
      */
     async function clearFurnace(bot) {
         const say = text => skills.log(bot, text);
-        const block = knownFurnaces(bot, CLEAR_RANGE, ['furnace', 'blast_furnace', 'smoker'])[0];
+        const kinds = ['furnace', 'blast_furnace', 'smoker'];
+        await lookAround(bot, knownFurnaces(bot, CLEAR_RANGE, kinds)[0]?.position ?? null);
+        const block = knownFurnaces(bot, CLEAR_RANGE, kinds)[0];
         if (!block) { say('There is no furnace nearby to clear.'); return false; }
         const hands = furnaceHands(bot, { wait: sleep, ...handOptions });
         const opened = await reach(bot, block, hands);
