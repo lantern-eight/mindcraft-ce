@@ -166,6 +166,7 @@ node tests/live/fairplay_scenarios.js
 | `fight_arena.js` | How well the bot fights, measured rather than checked: rounds of zombies, skeletons and spiders against kits from bare hands to iron and shield, each run several times, recording wins, time, damage, swings, swings per kill and hits the shield stopped (`--runs`, `--only`, `--kit`, `--fair=off`, `--orders=none`, `--shield=between`, `--out`). A yardstick for changes to how the bot fights; `arena_meter.js` holds the measures it shares with its Bedrock twin, `bedrock_fight_arena.js` |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
+| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, and a smelt stopped half way |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
 The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VIEW=all` (or `--view=all`)

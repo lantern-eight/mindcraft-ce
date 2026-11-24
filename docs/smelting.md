@@ -56,7 +56,7 @@ It stops when:
 | Nothing came out at two looks in a row | Takes its things back out and says the furnace stopped |
 | Much longer than it should take (12 s an item and 30 s more) | Takes its things back out |
 | It ran out of fuel | Takes the rest of its items back out |
-| It was interrupted (`!stop`, a reflex, a new task) | Leaves the furnace working, and says what of its own is still in it. `!clearFurnace` takes it out later |
+| It was interrupted (`!stop`, a reflex, a new task) | Leaves the furnace working, window shut. A stopped action's result is only "Action cancelled", so nothing more is said; `!clearFurnace` takes out what is left in it later |
 | The furnace never opened (4 s), or is gone | Says so; no window is left open |
 
 `!clearFurnace` empties the nearest furnace the bot knows of within 32 blocks: input, fuel, then output.
@@ -65,7 +65,8 @@ It stops when:
 
 Nothing here reads the world past the doors every skill uses. Furnaces are found through `world.js`, so
 under fair play only the ones the bot has seen or remembers count, and an empty-handed search gets fair
-play's note that none known isn't none there. It walks with the pathfinder, opens a furnace through the
+play's note that none known isn't none there. Through a player's screen the bot looks round first, as other
+searching skills do, when it knows of no furnace near. It walks with the pathfinder, opens a furnace through the
 reach rule (in reach and in view), and places its own furnace on a spot it can see. Seeing a furnace go out
 is seeing its glow stop: only while the furnace is in view.
 
@@ -75,7 +76,8 @@ furnace itself: anything in its input or output.
 ## Known Limits
 
 - **It waits beside the furnace.** A player would load it and go and do something else. Loading and leaving,
-  and remembering what is cooking where, are planned.
+  and remembering what is cooking where, are planned. Until then a smelt that is stopped leaves its items in
+  the furnace with nothing to remind the bot of them.
 - **One furnace at a time.** Sixty glass take ten minutes in one furnace; several at once are planned, and so
   are smokers and blast furnaces (twice as fast for food and ores).
 - **A furnace's leftover burn is not counted.** Coal half burned when the last item is done is lost, as it is
@@ -106,8 +108,9 @@ out of a furnace needs nothing from it: the Bedrock library gives the furnace wi
 
 ```bash
 node --test tests/smelting_plan.test.js tests/smelting_furnace.test.js   # the plan, and whole smelts against a pretend furnace
-node tests/live/smelting_scenarios.js                                    # on a real server (added with the live scenes)
+node tests/live/smelting_scenarios.js                                    # on a real server
 ```
 
-The live script starts its own throwaway server and makes no model calls. On Bedrock, `bedrock_skills.js`
-smelts and clears a furnace through the same skills.
+The live script starts its own throwaway server and makes no model calls. Its Bedrock twin,
+`tests/live/bedrock_smelting.js`, runs against a throwaway Bedrock server ([bedrock.md](bedrock.md)), and
+`bedrock_skills.js` smelts and clears a furnace there through the same skills.
