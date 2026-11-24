@@ -39,9 +39,10 @@ function stackIn(window, which) {
  * @param {number} [options.openTimeoutMs] - how long a furnace gets to open
  * @param {number} [options.stepTimeoutMs] - how long one put or take gets
  * @param {number} [options.settleMs] - a pause after each put or take, for the server's answer to land
+ * @param {number} [options.openSettleMs] - a pause after a furnace opens, before its slots are read
  * @param {(ms: number) => Promise<void>} [options.wait]
  */
-export function furnaceHands(bot, { openTimeoutMs = 4000, stepTimeoutMs = 4000, settleMs = 150,
+export function furnaceHands(bot, { openTimeoutMs = 4000, stepTimeoutMs = 4000, settleMs = 150, openSettleMs = 400,
     wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
     const itemId = name => {
         const id = bot.registry?.itemsByName?.[name]?.id;
@@ -66,6 +67,10 @@ export function furnaceHands(bot, { openTimeoutMs = 4000, stepTimeoutMs = 4000, 
             try {
                 opening = Promise.resolve().then(() => bot.openFurnace(block));
                 const window = await within(opening, openTimeoutMs, 'it did not open');
+                // What a furnace holds comes just after it opens (on Bedrock in packets of their own), and
+                // the edition's open may still be settling: read or shut it at once and a busy furnace
+                // looks empty, or the next open trips over the last.
+                if (openSettleMs > 0) await wait(openSettleMs);
                 return { furnace: handle(window) };
             } catch (error) {
                 // Should it open after all, once the bot has given up on it, it is closed again.

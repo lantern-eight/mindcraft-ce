@@ -8,11 +8,13 @@ import { smeltingSkills } from '../src/agent/smelting/smelt.js';
 import { javaEdition } from '../src/agent/edition/java.js';
 import { fakeFurnaceWorld } from './helpers/fake_furnace.js';
 
+// The pretend furnace's slots are filled the moment it opens, so the pause real furnaces get after opening
+// (openSettleMs) is left out: it would only let the pretend one burn on unwatched.
 function setup(options) {
     const w = fakeFurnaceWorld(options);
     const smelting = smeltingSkills({
         world: w.world, skills: w.skills, blockAt: w.blockAt, editionOf: () => javaEdition,
-        now: w.now, sleep: w.sleep, timing: { hands: { openTimeoutMs: 30, stepTimeoutMs: 30 } },
+        now: w.now, sleep: w.sleep, timing: { hands: { openTimeoutMs: 30, stepTimeoutMs: 30, openSettleMs: 0 } },
     });
     return { ...w, ...smelting, said: () => w.logs.join('\n') };
 }
@@ -119,7 +121,7 @@ test('stopped while it waits: the furnace is left working, and the bot says what
     t.bot.interrupt_code = false;
     const realSleep = async ms => { waited += ms; if (waited > 30000) t.bot.interrupt_code = true; await sleep(ms); };
     const smelting = smeltingSkills({ world: t.world, skills: t.skills, blockAt: t.blockAt, editionOf: () => javaEdition,
-        now: t.now, sleep: realSleep, timing: { hands: { openTimeoutMs: 30, stepTimeoutMs: 30 } } });
+        now: t.now, sleep: realSleep, timing: { hands: { openTimeoutMs: 30, stepTimeoutMs: 30, openSettleMs: 0 } } });
     assert.equal(await smelting.smeltItem(t.bot, 'sand', 20), false);
     assert.match(t.said(), /interrupted\. The furnace at 3, 64, 0 still has sand of mine in it/);
     assert.ok(t.furnaceAt(3, 64, 0).slots[0]?.count > 0);
@@ -143,7 +145,7 @@ test('someone puts their own things in mid-smelt: the bot stops and leaves them'
         if (!meddled && f.slots[0]?.count < 6) { meddled = true; f.slots[0] = { name: 'raw_iron', count: 2 }; }
     };
     const smelting = smeltingSkills({ world: t.world, skills: t.skills, blockAt: t.blockAt, editionOf: () => javaEdition,
-        now: t.now, sleep: meddling, timing: { hands: { openTimeoutMs: 30, stepTimeoutMs: 30 } } });
+        now: t.now, sleep: meddling, timing: { hands: { openTimeoutMs: 30, stepTimeoutMs: 30, openSettleMs: 0 } } });
     assert.equal(await smelting.smeltItem(t.bot, 'sand', 6), false);
     assert.deepEqual(t.furnaceAt(3, 64, 0).slots[0], { name: 'raw_iron', count: 2 });
     assert.match(t.said(), /Someone else put something in the furnace/);
