@@ -124,6 +124,10 @@ try {
         origin = bot.entity.position.floored().offset(0, 40, 0);
         await cmd('gamerule domobspawning false');
         await cmd('gamerule mobgriefing false');
+        // No loot: what a zombie the bot killed drops stays on the floor through the next reset, and item
+        // collecting walks the bot off its spot to pick it up. Ten blocks off, a creeper summoned for the next
+        // scene was more than 16 away and never came for it.
+        await cmd('gamerule domobloot false');
         await cmd('time set noon');
         agent = {
             name: NAME, bot, task: null, shut_up: true, last_sender: null, blocked_actions: [],
@@ -360,14 +364,24 @@ try {
             // still hold the open ground from before the walls went up, and the reflexes would plan by it.
             if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
             const blocksBefore = blocked;
+            // The hits the bot takes, when: a skeleton misses now and then (its arrow sticks in the floor), so a
+            // shield up for every shot after the first may have nothing to block in a short scene. The scene
+            // asks that it blocks one, or that nothing gets through once it has gone up.
+            const hits = [];
+            let healthNow = bot.health;
+            const onHealth = () => { if (bot.health < healthNow) hits.push(performance.now()); healthNow = bot.health; };
+            bot.on('health', onHealth);
             const spot = at(5, 1, 0);
             await cmd(`summon skeleton ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
             await delay(15000);
+            bot.off('health', onHealth);
             await cmd('time set noon');
             const raised = events.filter(e => e.event === 'shield').length;
-            if (shield) assert.ok(raised > 0 && blocked > blocksBefore, `the shield went up (${raised}) and stopped arrows (${blocked - blocksBefore}): ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
+            const firstUp = events.find(e => e.event === 'shield')?.at ?? Infinity;
+            const hitsAfter = hits.filter(at => at > firstUp).length;
+            if (shield) assert.ok(raised > 0 && (blocked > blocksBefore || hitsAfter === 0), `the shield went up (${raised}), stopped arrows (${blocked - blocksBefore}), and let ${hitsAfter} through after it first went up: ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
             else assert.equal(raised, 0);
-            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, blocked: blocked - blocksBefore };
+            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, blocked: blocked - blocksBefore, hitsAfterFirstRaise: hitsAfter };
         });
     }
 
@@ -524,7 +538,7 @@ try {
 } finally {
     running = false;
     try {
-        await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true');
+        await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true'); await cmd('gamerule domobloot true');
         // Take the floor away, the bot first back down where it began: a floor left here would lift the spawn of
         // every later script (docs/bedrock.md, "When Several Scripts Fail at Once"), and a bot left on it builds
         // its next scenes 40 blocks higher still.
