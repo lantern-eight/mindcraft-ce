@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Smelting remembers what it leaves in a furnace, per world. A smelt that was stopped (or a bot that
+  restarted) is gone on with by the next `!smeltItem` of that item, and a furnace holding only the bot's own
+  smelt is no longer taken for someone else's.
+
 ## [1.13.0-bedrock.1.14.0] - 2026-11-24
 
 ### Added

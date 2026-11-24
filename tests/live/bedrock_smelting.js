@@ -95,7 +95,7 @@ try {
         initModes(agent);
         const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-')) });
         assert.ok(handle?.memory, 'fair play and world memory are on');
-        assert.ok(installSmelting(agent), 'smelting is on');
+        assert.ok(installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-jobs-')) }), 'smelting is on');
     });
 
     await step('sand and coal make glass, and the bot finds its furnace again while it burns', async () => {

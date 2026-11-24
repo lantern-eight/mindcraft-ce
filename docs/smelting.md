@@ -36,7 +36,8 @@ stock Mindcraft does, and with fair play on only the ones the bot has seen or re
    ground it can see; else one it knows of within 64 blocks.
 4. **Only a free one.** A furnace with anything in its input or output is someone else's work: the bot shuts
    it and tries another, and says which it left alone. Fuel alone in a furnace is used, as a player at a
-   shared base would; at the end the bot takes back only as much fuel as it put in.
+   shared base would; at the end the bot takes back only as much fuel as it put in. A furnace that holds
+   only what the bot itself left smelting in it is its own (see "What Is Smelting Where").
 5. **Load, shut, wait.** It puts in up to a stack and the fuel for it, and shuts the furnace. It waits beside
    it, window shut, for as long as the load takes (10 s an item), or until the fuel in it is nearly spent,
    or until it sees the furnace go out. Then it opens it again, takes what is done, tops it up, and shuts it
@@ -56,10 +57,24 @@ It stops when:
 | Nothing came out at two looks in a row | Takes its things back out and says the furnace stopped |
 | Much longer than it should take (12 s an item and 30 s more) | Takes its things back out |
 | It ran out of fuel | Takes the rest of its items back out |
-| It was interrupted (`!stop`, a reflex, a new task) | Leaves the furnace working, window shut. A stopped action's result is only "Action cancelled", so nothing more is said; `!clearFurnace` takes out what is left in it later |
+| It was interrupted (`!stop`, a reflex, a new task) | Leaves the furnace working, window shut, and remembers what of its own is in it. A stopped action's result is only "Action cancelled", so nothing more is said; the next `!smeltItem` of that item goes on with it |
 | The furnace never opened (4 s), or is gone | Says so; no window is left open |
 
 `!clearFurnace` empties the nearest furnace the bot knows of within 32 blocks: input, fuel, then output.
+
+## What Is Smelting Where
+
+The bot remembers what it leaves in a furnace: which furnace, what it is smelting there, how many it put in
+and took out, the fuel it put in, and when the furnace should be done. It writes this down as soon as
+something goes in, so a smelt that is stopped, or a bot that restarts, still knows. It is kept per world and
+dimension, in `bots/<name>/smelting/`, and needs no world memory.
+
+- **Going on.** `!smeltItem` for an item it left smelting goes to that furnace first, takes what is done,
+  counts what is still in there towards what was asked, and carries on.
+- **Its own furnace.** A furnace holding only the bot's own job, and no more of it than the bot put in, is
+  its own, not "in use". Its own furnace smelting something else is left to that.
+- **A belief, not a fact.** What a furnace holds is known only by opening it. If someone took the bot's sand
+  out, the bot smelts what it carries and forgets the job.
 
 ## Fair Play
 
@@ -75,9 +90,8 @@ furnace itself: anything in its input or output.
 
 ## Known Limits
 
-- **It waits beside the furnace.** A player would load it and go and do something else. Loading and leaving,
-  and remembering what is cooking where, are planned. Until then a smelt that is stopped leaves its items in
-  the furnace with nothing to remind the bot of them.
+- **It waits beside the furnace.** A player would load it and go and do something else. Loading and leaving
+  are planned.
 - **One furnace at a time.** Sixty glass take ten minutes in one furnace; several at once are planned, and so
   are smokers and blast furnaces (twice as fast for food and ores).
 - **A furnace's leftover burn is not counted.** Coal half burned when the last item is done is lost, as it is
@@ -93,6 +107,7 @@ All of it lives in `src/agent/smelting/`:
 | `recipes.js` | What a furnace makes of what, by exact name. Pure |
 | `fuel.js` | What burns and how far, the fuel plan in stages, and what to add to the slot now. Pure |
 | `furnace_hands.js` | Opening a furnace with a deadline, reading its slots, putting and taking with a deadline each, closing it. The only file that touches a window |
+| `jobs.js` | What the bot has left smelting where, per world: one job per furnace, and whether a furnace holds only the bot's own. Pure, with its file |
 | `smelt.js` | `smeltItem` and `clearFurnace`, on those |
 | `install.js` | Turns it on for one agent |
 

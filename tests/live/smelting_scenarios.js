@@ -70,7 +70,7 @@ try {
     initModes(agent);
     const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'smelting-memory-')) });
     assert.ok(handle, 'fair play installed');
-    assert.ok(installSmelting(agent), 'smelting installed');
+    assert.ok(installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'smelting-jobs-')) }), 'smelting installed');
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 10 });
     const counts = () => world.getInventoryCounts(bot);
     const rawName = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name; // the test may peek; the bot may not
