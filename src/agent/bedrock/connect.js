@@ -17,7 +17,7 @@ import { plugin as pvp } from 'mineflayer-pvp';
 import { plugin as collectblock } from 'mineflayer-collectblock';
 import armorManager from 'mineflayer-armor-manager';
 import { guardBotActions } from '../action_context.js';
-import { javaShapes, recipesLikeGameData } from './java_shapes.js';
+import { javaShapes, keepOpensHeard, recipesLikeGameData } from './java_shapes.js';
 import { bedrockEater } from './eating.js';
 import './edition.js'; // fair play, world memory and chest sorting read Bedrock's game data through it
 import { bedrockNamesFor } from './names.js';
@@ -239,7 +239,10 @@ export function initBedrockBot(username, settings, useGameData, { createBot = cr
     bot.loadPlugin(javaShapes); // where the adapter's answers have another shape than on Java
     bot.autoEat = bedrockEater(bot);
 
-    bot.once('spawn', () => guardBotActions(bot));
+    bot.once('spawn', () => {
+        guardBotActions(bot);
+        keepOpensHeard(bot); // after the guard, which wraps the opens the adapter calls without waiting
+    });
     bot.once('resourcePack', () => {
         bot.acceptResourcePack();
     });
