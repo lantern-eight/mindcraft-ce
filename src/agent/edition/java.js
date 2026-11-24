@@ -36,6 +36,9 @@ const SOUND_AT_SPOT = ['sound_effect', 'named_sound_effect'];
 const SOUND_OF_ENTITY = 'entity_sound_effect';
 const SOUND_OF_EXPLOSION = 'explosion';
 
+// The blocks that open a furnace window (see furnaceOf).
+const FURNACE_KINDS = new Set(['furnace', 'blast_furnace', 'smoker']);
+
 /**
  * The name of the sound a packet carries, or null.
  *
@@ -503,6 +506,21 @@ export const javaEdition = Object.freeze({
     raiseShield(bot, up) {
         if (up) bot.activateItem(true);
         else bot.deactivateItem();
+    },
+
+    /**
+     * Whether a block is a furnace (or a blast furnace or a smoker), and whether it is lit. A lit furnace
+     * glows and smokes, so a player who can see it knows it is burning. Java keeps one block for each and
+     * says it is burning with its `lit` property.
+     *
+     * @param {object|null} block - a block, as the bot knows it
+     * @returns {{kind: 'furnace'|'blast_furnace'|'smoker', lit: boolean}|null} null for anything else
+     */
+    furnaceOf(block) {
+        if (!block || !FURNACE_KINDS.has(block.name)) return null;
+        let lit;
+        try { lit = block.getProperties?.()?.lit; } catch { lit = undefined; }
+        return { kind: block.name, lit: lit === true || lit === 'true' };
     },
 
     /**

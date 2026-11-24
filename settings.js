@@ -153,6 +153,10 @@ const settings = {
     // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
     // the reflex out. See docs/threat-reflexes.md.
     "threat_reflexes": true,
+    // Smelting: !smeltItem finds a furnace that isn't in use (or places the bot's own), loads it with the
+    // fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or
+    // off; false keeps Mindcraft's own. See docs/smelting.md.
+    "smelting": true,
     "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
 
     // Allows generated executable code (newAction/executeCode/augments) with host access.

@@ -158,7 +158,7 @@ one line of JSON for each step:
 export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
 export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 
-node tests/live/bedrock_all.js                         # all nine below, one after another
+node tests/live/bedrock_all.js                         # all ten below, one after another
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
@@ -168,6 +168,7 @@ node tests/live/bedrock_memory_scenarios.js            # world memory as the age
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
 node tests/live/bedrock_stow.js                        # putting away and fetching
+node tests/live/bedrock_smelting.js                    # smelting
 node tests/live/bedrock_turning.js                     # work that turns a lot, timed
 node tests/live/bedrock_threats.js                     # the threat reflexes
 node tests/live/bedrock_fight_arena.js                 # how well the bot fights, measured (not in bedrock_all.js)
@@ -232,6 +233,10 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   back. The Bedrock twin of
   the sorting steps of `storage_scenarios.js`; the rules about whose chest is sorted are the same code on
   both editions and are left to that one.
+- **`bedrock_smelting.js`** installs smelting with fair play and world memory: glass from sand and coal, with
+  the bot finding its furnace again while it burns (a burning furnace is another block on Bedrock,
+  `lit_furnace`); a furnace in use left alone for a free one; the bot's own furnace placed and picked back
+  up; and a furnace cleared. The Bedrock twin of `smelting_scenarios.js`.
 
 For a server on another machine, `BEDROCK_TEST_CONSOLE` starts with `ssh <that machine>`. The scenes
 send hundreds of console lines, and ssh's connection sharing (`-o ControlMaster=auto -o
@@ -330,7 +335,7 @@ world folder, start it again).
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, a villager's trade window, and letting go of every key (through `setControlState`, as on Java, so that an action the agent stopped can't let go of the keys of the one after it). A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
-| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, and putting away and fetching |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js`, `tests/live/bedrock_smelting.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, putting away and fetching, and smelting |
 | `tests/live/bedrock_all.js`, `tests/live/bedrock_spawn_check.js` | Running all of them in turn; what stands at the world spawn, and clearing it |
 | `tests/live/bedrock-server/` | A throwaway server to run them against: its Docker Compose file and a console that works under emulation |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |
