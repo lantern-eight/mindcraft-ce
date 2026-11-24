@@ -15,6 +15,7 @@ import { LEG } from './explorer.js';
 const STALL_MS = 8000;         // a leg that hasn't moved a block in this long is stuck: end it and try another way
 const SWIM_MS = 5000;          // swimming this long without a break is setting out to sea, not crossing a stream
 const SHORE_MS = 15000;
+const BANK_REACH = 16;         // how far off a bank to climb out on is looked for, when the way back is lost
 const DETOUR = 2.5;            // a leg that has walked this many times its length (and a little) is going the long way round        // how long the swim back to the shore may take before the next try starts anyway
 const WATCH_MS = 250;
 const SIGHT = 64;              // how far a thing looked for counts as found: as far as the searches look
@@ -108,12 +109,35 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
 
     // Having turned back from open water, the bot swims back to where it last stood dry, as a person does,
     // rather than starting its next try out in the lake.
+    // If there is no way back there, it climbs out at the nearest bank it knows of instead.
     async function backToShore() {
-        if (!dry || bot.interrupt_code) return;
-        const timer = setTimeout(() => bot.pathfinder.setGoal(null), shoreMs);
-        try { await bot.pathfinder.goto(new pf.goals.GoalNear(dry.x, dry.y, dry.z, 1)); }
-        catch { /* as near as it got; the next leg starts from there */ }
-        finally { clearTimeout(timer); }
+        if (bot.interrupt_code) return;
+        const ways = [() => dry, nearestBank];
+        for (const way of ways) {
+            if (bot.interrupt_code || !inWaterNow()) return;
+            const spot = way();
+            if (!spot) continue;
+            const goal = new pf.goals.GoalNear(spot.x, spot.y, spot.z, 1);
+            const timer = setTimeout(() => bot.pathfinder.setGoal(null), shoreMs);
+            try { await bot.pathfinder.goto(goal); return; }
+            catch { /* no way there: try the next */ }
+            finally { clearTimeout(timer); }
+        }
+    }
+
+    // The nearest solid ground in sight or remembered (through world.js, so only what the bot knows) with room
+    // above it to stand: where to climb out of the water. The spot to stand on, or null.
+    function nearestBank() {
+        const p = position();
+        const base = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) };
+        const ground = world.getNearestBlocksWhere(bot, block => block?.boundingBox === 'block' && !/water|leaves|ice/.test(block.name ?? ''), BANK_REACH, 64);
+        for (const block of ground) {
+            const at = block.position;
+            const room = [1, 2].every(dy => world.getBlockAtPosition(bot, at.x - base.x, at.y + dy - base.y, at.z - base.z)?.boundingBox === 'empty'
+                && !/water|lava/.test(world.getBlockAtPosition(bot, at.x - base.x, at.y + dy - base.y, at.z - base.z)?.name ?? ''));
+            if (room) return { x: at.x, y: at.y + 1, z: at.z };
+        }
+        return null;
     }
 
     function find() {

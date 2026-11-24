@@ -16,6 +16,7 @@ function pretendBot() {
         interrupt_code: false,
         entity: { position: new Vec3(0.5, 64, 0.5), onGround: true, isInWater: false },
         blockAt: () => ({ name: 'air' }),
+        findBlocks: () => [],
         pathfinder: {
             walkMs: 1000,
             onWalk: () => {},
@@ -76,4 +77,23 @@ test('what to look for is split into the blocks and mobs the game knows', () => 
     const registry = { blocksByName: { sand: {}, red_sand: {} }, entitiesByName: { cow: {} } };
     assert.deepEqual(targetsOf(registry, ' Sand, minecraft:red_sand ,cow, beach'),
         { blocks: ['sand', 'red_sand'], mobs: ['cow'], unknown: ['beach'], all: ['sand', 'red_sand', 'cow'] });
+});
+
+test('with no way back to where it stood dry, the bot climbs out at the nearest bank it knows of', async () => {
+    const { bot, goals } = pretendBot();
+    const bank = new Vec3(6, 63, 3);
+    bot.blockAt = pos => (pos.floored().equals(bank) ? { name: 'grass_block', boundingBox: 'block', position: bank } : { name: 'air', boundingBox: 'empty', position: pos.floored() });
+    bot.findBlocks = () => [bank];
+    const legs = realLegs(bot, quick);
+    bot.pathfinder.walkMs = 20;
+    await legs.walk({ x: 32, y: 64, z: 0 });                  // stood dry at the start: remembered
+    bot.entity.position = new Vec3(8.5, 63, 0.5); bot.entity.isInWater = true; bot.entity.onGround = false;
+    const goto = bot.pathfinder.goto;
+    bot.pathfinder.goto = goal => {                             // no way back there
+        if (goal.x === 0) { goals.push(goal); return Promise.reject(Object.assign(new Error('No path'), { name: 'NoPath' })); }
+        return goto(goal);
+    };
+    await legs.settle();
+    const climbed = goals.at(-1);
+    assert.deepEqual([climbed.x, climbed.y, climbed.z], [6, 64, 3], 'to stand on the bank');
 });
