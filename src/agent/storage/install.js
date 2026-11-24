@@ -16,6 +16,7 @@ import { adoptFormerScope, scopeDir } from '../memory/files.js';
 import { requestWatcher } from './asker.js';
 import { loadChestBook } from './chest_book.js';
 import { storageCommands } from './commands.js';
+import { stowCommands } from './stow_commands.js';
 import { watchMadeChests } from './made_chests.js';
 
 /**
@@ -69,7 +70,28 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
     // is sorted only when a player asks, so the bot's own ideas have to be told from a player's request.
     const watcher = requestWatcher(agent);
 
+    // What the bot believes is in a chest: what world memory saw the last time it looked. Without
+    // memory, or for a chest it never opened, nothing is believed and putting away opens it to see.
+    const contentsOf = chest => {
+        const seen = agent.fairPlay?.memory?.things?.get(chest.x, chest.y, chest.z)?.contents;
+        return seen && Number.isFinite(seen.freeSlots) ? { items: seen.items ?? {}, free: seen.freeSlots } : null;
+    };
+    // Items with a name like this one that the bot remembers in chests ("iron" finds iron_ingot and raw_iron).
+    const similar = name => {
+        const things = agent.fairPlay?.memory?.things;
+        if (!things) return [];
+        const feet = agent.bot.entity?.position ?? { x: 0, y: 0, z: 0 };
+        const words = [name, ...name.split('_').filter(word => word.length > 3)];
+        const names = new Set();
+        for (const word of words) for (const hit of things.findItem(word, feet, { limit: 10 })) Object.keys(hit.items).forEach(item => names.add(item));
+        return [...names];
+    };
+
     const commands = storageCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { signNear, ...deps } });
+    // Putting away and fetching have their own setting, and use the same chest book.
+    if (config.store_and_fetch === true) {
+        commands.push(...stowCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { contentsOf, similar, ...deps } }));
+    }
     for (const { command, action } of commands) registerCommand(command, { action });
 
     // A chest the bot places itself needs nobody to say whose it is: that follows from who it was

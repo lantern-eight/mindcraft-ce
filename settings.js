@@ -143,6 +143,12 @@ const settings = {
     // merged, each kind of item together, related kinds in the same chest). Works with fair play on or
     // off; false leaves the command out. See docs/chest-sorting.md.
     "chest_sorting": true,
+    // Putting away and fetching: adds !putAway (what the bot carries goes into the chests where those
+    // things belong, keeping what it needs) and !fetchItem (takes an item out of the chests it remembers
+    // holding it). Uses only the bot's own, shared, and (when a player asks) players' chests. Needs
+    // chest_sorting on, which keeps whose each chest is; false leaves the commands out. See
+    // docs/chest-sorting.md.
+    "store_and_fetch": true,
     // Threat reflexes: the bot backs off from a creeper about to explode, even in the middle of another
     // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
     // the reflex out. See docs/threat-reflexes.md.

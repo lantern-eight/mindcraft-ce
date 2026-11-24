@@ -493,7 +493,7 @@ const walk = [
         await cmd('time set midnight');
         await cmd('difficulty normal');
         try {
-            await cmd(`summon zombie ${xyz(at(4, 0, 3))}`, 1500);
+            await cmd(`summon zombie ${xyz(at(4, 0, 3))} 0 0 minecraft:as_adult`, 1500);
             assert.ok(await withinTime(skills.defendSelf(bot, 12), 60000, 'defendSelf'), said());
             await delay(800);
             assert.ok(!nearest('zombie') || nearest('zombie').position.distanceTo(bot.entity.position) > 12, 'the zombie is still there');
