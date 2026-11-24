@@ -194,10 +194,12 @@ try {
         await settled();
         const trip = await run(exploreForCommand, ['sand', 'east', 160]);
         assert.equal(trip.outcome, 'ok', trip.text);
-        // Through a player's screen the sand is behind the bot, and it has to explore to see it; seeing all
-        // around, it is in view from the start, and the bot says so without setting out.
-        if (LIVE_VIEW === 'narrow') assert.match(trip.text, new RegExp(`^Found sand .* at ${SAND.x}, ${G - 1}, ${SAND.z}, after exploring`));
-        else assert.match(trip.text, new RegExp(`^sand is .* at ${SAND.x}, ${G - 1}, ${SAND.z}\\. No need to explore`));
+        // Through a player's screen the sand is behind the bot, and it has to explore to see it. Seeing all
+        // around it may be in view from the start, and then the bot says so without setting out; one block
+        // flush with flat ground that far off may also not be, and then it is found on the way.
+        const found = new RegExp(`^Found sand .* at ${SAND.x}, ${G - 1}, ${SAND.z}, after exploring`);
+        if (LIVE_VIEW === 'narrow') assert.match(trip.text, found);
+        else assert.ok(found.test(trip.text) || new RegExp(`^sand is .* at ${SAND.x}, ${G - 1}, ${SAND.z}\\. No need to explore`).test(trip.text), trip.text);
         assert.ok(trip.dx < SAND.x + 24, `stopped instead of walking on: ${JSON.stringify(trip)}`);
         return trip;
     });
