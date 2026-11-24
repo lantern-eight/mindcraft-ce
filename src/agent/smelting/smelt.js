@@ -15,7 +15,7 @@ import { Vec3 } from 'vec3';
 import { cleanName, inputsFor, productOf } from './recipes.js';
 import { SMELT_MS, fuelPer, itemsFrom, nextFuel, planFuel } from './fuel.js';
 import { furnaceHands } from './furnace_hands.js';
-import { holdsOnly, stillInFurnace } from './jobs.js';
+import { holdsOnly, leftToLoad, stillInFurnace } from './jobs.js';
 
 /** A furnace the bot knows of this near is used before one it carries is placed. */
 export const NEAR_RANGE = 16;
@@ -31,6 +31,8 @@ const ARMS_REACH = 4;
 const STACK = 64;
 
 const where = pos => `${pos.x}, ${pos.y}, ${pos.z}`;
+/** A wait, as a player would say it: "about 40 seconds", "about 8 minutes". */
+const about = ms => (ms < 90000 ? `about ${Math.max(10, Math.round(ms / 10000) * 10)} seconds` : `about ${Math.round(ms / 60000)} minutes`);
 const plural = (count, name) => `${count} ${name}`;
 const listOf = parts => parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`;
 
@@ -233,10 +235,12 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
     const readyAfter = (inFurnace, covered) => now() + Math.min(inFurnace, covered) * smeltMs;
 
     /**
-     * Smelts `num` of an item. Says what happened in the bot's output, as Mindcraft's skills do.
-     * @returns {Promise<boolean>} true when all of them were smelted
+     * The start of a smelt, and of a load: what the item makes, how many to smelt (counting any of its own
+     * left in a furnace from a smelt that was stopped), the fuel for them (logs made into planks first), and
+     * the furnace, opened, with a job started in it. `atOnce` caps how many the fuel is planned for now: a
+     * load puts in one stack. Says why and gives null when it can't start.
      */
-    async function smeltItem(bot, itemName, num = 1) {
+    async function begin(bot, itemName, num, { atOnce = Infinity } = {}) {
         const say = text => skills.log(bot, text);
         const input = cleanName(itemName);
         const product = productOf(input, { edition: isBedrock(bot) ? 'bedrock' : 'java' });
@@ -245,7 +249,7 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
             say(from.length > 0
                 ? `${input} isn't smelted, it is made: smelt ${listOf(from)} to get it.`
                 : `${input ?? itemName} doesn't smelt into anything. Smelt raw ores, sand, cobblestone, logs or raw food.`);
-            return false;
+            return null;
         }
         const wanted = Number.isFinite(num) && num >= 1 ? Math.floor(num) : 1;
         const notes = [];
@@ -257,15 +261,15 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         const have = inventory[input] ?? 0;
         const left = book?.list({ from: bot.entity.position, input, maxDistance: FAR_RANGE })[0] ?? null;
         const inside = stillInFurnace(left);
-        if (have + inside === 0) { say(`I have no ${input} to smelt.`); return false; }
+        if (have + inside === 0) { say(`I have no ${input} to smelt.`); return null; }
         let target = Math.min(wanted, have + inside);
         if (target < wanted) notes.push(`I had only ${plural(have + inside, input)}${inside ? `, counting ${inside} left in the furnace at ${where(left)}` : ''}.`);
-        const need = Math.max(0, target - inside);
+        const need = Math.max(0, Math.min(target, atOnce) - inside);
         let plan = planFuel(inventory, need, { input, product });
         const noFuel = `I have no fuel to smelt ${input}: coal, charcoal, planks and logs burn.`;
-        if (need > 0 && plan.covers === 0 && inside === 0) { say(noFuel); return false; }
+        if (need > 0 && plan.covers === 0 && inside === 0) { say(noFuel); return null; }
         for (const craft of plan.crafts) {
-            if (bot.interrupt_code) return false;
+            if (bot.interrupt_code) return null;
             let made = false;
             try { made = await skills.craftRecipe(bot, craft.planks, craft.times); }
             catch (error) { console.warn('[smelting] Making planks for fuel:', error?.message ?? error); }
@@ -283,7 +287,7 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         // A furnace: the one with its own smelt in it, or one that is free.
         const hands = furnaceHands(bot, { wait: sleep, ...handOptions });
         const site = await freeFurnace(bot, hands, input);
-        if (!site.furnace) { say([...notes, site.problem].join(' ')); return false; }
+        if (!site.furnace) { say([...notes, site.problem].join(' ')); return null; }
         notes.push(...site.notes);
         if (site.placed) notes.push(`I placed my furnace at ${where(site.at)}.`);
         const at = site.at;
@@ -296,16 +300,30 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         const jobBefore = book?.at(at) ?? null;
         const placed = site.placed || (site.mine && (jobBefore?.placed ?? false));
         book?.start(at, { input, product, total: target, placed });
+        // The fuel of its own in this furnace: what an earlier smelt put in (if this is its job). Only as
+        // much as is its own is ever taken back.
+        const fuelBefore = site.mine ? { ...(jobBefore?.fuelPut ?? {}) } : {};
+        return { say, input, product, wanted, notes, book, inventory, target, hands, furnace: site.furnace, at, preloaded, placed, fuelBefore };
+    }
+
+    /**
+     * Smelts `num` of an item. Says what happened in the bot's output, as Mindcraft's skills do.
+     * @returns {Promise<boolean>} true when all of them were smelted
+     */
+    async function smeltItem(bot, itemName, num = 1) {
+        const start = await begin(bot, itemName, num);
+        if (!start) return false;
+        const { say, input, product, wanted, notes, book, inventory, hands, at, preloaded, placed } = start;
+        let { target } = start;
         // Standing still beside a furnace for minutes isn't being stuck.
         bot.modes?.pause?.('unstuck');
 
         const baseline = countOf(bot, product);
         const deadline = now() + target * limitPerItemMs + limitExtraMs;
-        // The fuel of its own in this furnace: what an earlier smelt put in (if this is its job), and what
-        // goes in now. Only that much is taken back at the end.
-        const fuelPut = site.mine ? { ...(jobBefore?.fuelPut ?? {}) } : {};
+        // The fuel of its own in this furnace, before and now, and what went in this time.
+        const fuelPut = { ...start.fuelBefore };
         const fuelNow = {};
-        let furnace = site.furnace, bag = { ...inventory }, loaded = 0, smelted = 0, lastInput = 0, stalls = 0;
+        let furnace = start.furnace, bag = { ...inventory }, loaded = 0, smelted = 0, lastInput = 0, stalls = 0;
         let reason = null, problem = null;
         try {
             for (let look = 0; ; look++) {
@@ -407,6 +425,164 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
     }
 
     /**
+     * Loads a furnace and leaves it, as a player does with a long smelt: puts in up to a stack of the item
+     * and the fuel for it, shuts it, and says when it will be done. The job remembers the rest of `num`, and
+     * `collectFurnace` takes out what is done and puts in more.
+     * @returns {Promise<boolean>} true when something went in
+     */
+    async function loadFurnace(bot, itemName, num = 1) {
+        const start = await begin(bot, itemName, num, { atOnce: STACK });
+        if (!start) return false;
+        const { say, input, product, notes, book, inventory, at, preloaded } = start;
+        let furnace = start.furnace;
+        try {
+            const visit = await tend(furnace, { input, product, more: start.target - preloaded, bag: { ...inventory } });
+            await furnace.close();
+            furnace = null;
+            if (visit.meddled) {
+                book?.end(at);
+                saveJobs(bot);
+                say([...notes, `Someone else's things went into the furnace at ${where(at)}, so I left it.`].join(' '));
+                return false;
+            }
+            const { took, movedIn, fuelMoved, inFurnace, covered } = visit;
+            const unfueled = Math.max(0, inFurnace - covered);
+            book?.note(at, { loaded: movedIn, collected: took, fuelPut: fuelMoved, readyAt: readyAfter(inFurnace, covered), unfueled });
+            if (inFurnace === 0) book?.end(at);
+            saveJobs(bot);
+            if (inFurnace === 0) { say([...notes, `I put nothing in the furnace at ${where(at)}.`].join(' ')); return false; }
+            const fuel = Object.entries(fuelMoved).map(([name, count]) => plural(count, name));
+            const later = leftToLoad(book?.at(at));
+            say([
+                ...notes,
+                movedIn > 0 ? `I put ${plural(movedIn, input)}${fuel.length ? ` and ${listOf(fuel)}` : ''} in the furnace at ${where(at)}.` : null,
+                took > 0 ? `I took out ${plural(took, product)} that was done.` : null,
+                unfueled === 0 ? `The ${inFurnace} ${input} in it will be ${product} in ${about(inFurnace * smeltMs)}.`
+                    : `Its fuel smelts ${covered} of the ${inFurnace} ${input} in it, in ${about(covered * smeltMs)}; the rest need more fuel.`,
+                later > 0 ? `${later} more ${input} go in when there is room.` : null,
+                '!collectFurnace takes out what is done.',
+            ].filter(Boolean).join(' '));
+            return true;
+        } finally {
+            if (furnace) await furnace.close();
+        }
+    }
+
+    /**
+     * Goes back to each furnace the bot left smelting, nearest first: takes out what is done, puts in more of
+     * the job (and fuel for it) when there is more to go in and the bot carries it, and when a job is over
+     * takes back the fuel of its own that is left, and picks up a furnace it placed for the job.
+     * @returns {Promise<boolean>} true when it took anything out
+     */
+    async function collectFurnace(bot) {
+        const say = text => skills.log(bot, text);
+        const book = jobs(bot);
+        const list = book?.list({ from: bot.entity.position, maxDistance: FAR_RANGE }) ?? [];
+        if (list.length === 0) { say('I have nothing smelting in any furnace that I know of.'); return false; }
+        const hands = furnaceHands(bot, { wait: sleep, ...handOptions });
+        const lines = [];
+        let tookAny = false;
+        bot.modes?.pause?.('unstuck');
+        for (const job of list) {
+            if (bot.interrupt_code) break;
+            const at = new Vec3(job.x, job.y, job.z);
+            const block = blockAt(bot, at);
+            if (!editionOf(bot.registry).furnaceOf(block)) {
+                book.end(at);
+                lines.push(`The furnace at ${where(at)} is gone, and the ${job.input} I had in it.`);
+                continue;
+            }
+            const opened = await reach(bot, block, hands);
+            if (!opened.furnace) { lines.push(`I couldn't get into the furnace at ${where(at)}: ${opened.problem}.`); continue; }
+            let furnace = opened.furnace;
+            let over = false;
+            try {
+                if (!holdsOnly(job, furnace.slots())) {
+                    book.end(at);
+                    lines.push(`The furnace at ${where(at)} has someone else's things in it now, so I left it.`);
+                    continue;
+                }
+                const visit = await tend(furnace, { input: job.input, product: job.product, more: leftToLoad(job), bag: world.getInventoryCounts(bot) });
+                const { took, movedIn, fuelMoved, inFurnace, covered } = visit;
+                const unfueled = Math.max(0, inFurnace - covered);
+                const after = book.note(at, { loaded: movedIn, collected: took, fuelPut: fuelMoved, readyAt: readyAfter(inFurnace, covered), unfueled });
+                if (took > 0) tookAny = true;
+                const parts = [took > 0 ? `From the furnace at ${where(at)} I took ${plural(took, job.product)}.` : `Nothing in the furnace at ${where(at)} was done yet.`];
+                if (movedIn > 0) parts.push(`I put in ${plural(movedIn, job.input)} more.`);
+                if (inFurnace > 0) {
+                    parts.push(unfueled === 0 ? `${inFurnace} ${job.input} still smelting, done in ${about(inFurnace * smeltMs)}.`
+                        : `${inFurnace} ${job.input} still in it; its fuel smelts ${covered} of them, and the rest need more fuel.`);
+                } else {
+                    // Nothing of the job left in it: take back what is left of the fuel the bot put in.
+                    const fuel = furnace.slots().fuel;
+                    if (fuel && after.fuelPut[fuel.name] > 0) {
+                        const back = await furnace.takeSome('fuel', after.fuelPut[fuel.name]);
+                        if (back > 0) parts.push(`I took back ${plural(back, fuel.name)}.`);
+                    }
+                    const short = leftToLoad(after);
+                    if (short > 0) parts.push(`${short} more ${job.input} were to go in, but I carry none.`);
+                    over = true;
+                }
+                lines.push(parts.join(' '));
+            } finally {
+                if (furnace) { await furnace.close(); furnace = null; }
+            }
+            if (over) {
+                book.end(at);
+                if (job.placed) {
+                    const pickaxe = Object.keys(world.getInventoryCounts(bot)).some(name => name.endsWith('_pickaxe'));
+                    let back = false;
+                    if (pickaxe && !bot.interrupt_code) {
+                        try {
+                            back = await skills.breakBlockAt(bot, at.x, at.y, at.z);
+                            if (back) await skills.pickupNearbyItems(bot);
+                        } catch (error) { console.warn('[smelting] Picking the furnace back up:', error?.message ?? error); }
+                    }
+                    if (back) lines.push('I picked my furnace back up.');
+                }
+            }
+            saveJobs(bot);
+        }
+        saveJobs(bot);
+        say(lines.join(' '));
+        return tookAny;
+    }
+
+    /**
+     * What the bot has smelting where, as it believes: what is in each furnace and when it should be done.
+     * Answers at once, without going to look.
+     */
+    function furnacesText(bot) {
+        const list = jobs(bot)?.list({ from: bot.entity.position }) ?? [];
+        if (list.length === 0) return 'I have nothing smelting in any furnace.';
+        const lines = list.map(job => {
+            const inside = stillInFurnace(job);
+            const left = job.readyAt === null ? null : job.readyAt - now();
+            const when = left === null ? '' : left <= 0
+                ? (job.unfueled > 0 ? `; it should have run out of fuel by now, with ${job.unfueled} still to smelt` : '; it should be done by now')
+                : `; done in ${about(left)}${job.unfueled > 0 ? `, but it needs more fuel for ${job.unfueled}` : ''}`;
+            const more = leftToLoad(job) > 0 ? `, ${leftToLoad(job)} more to put in` : '';
+            return `- furnace at ${where(job)}: ${inside} ${job.input} into ${job.product}${more}${job.collected ? `, ${job.collected} taken out so far` : ''}${when}`;
+        });
+        return `What I left smelting (as of when I last looked in each):\n${lines.join('\n')}\n!collectFurnace takes out what is done.`;
+    }
+
+    /**
+     * A line for each job that should be done by now and that the bot hasn't been told about, once. Goes on
+     * the next result the model reads, so a bot busy with something else is reminded, as a player glances
+     * at the time.
+     */
+    function readyNotes(bot) {
+        const book = jobs(bot);
+        const ready = (book?.list() ?? []).filter(job => job.readyAt !== null && job.readyAt <= now() && !job.toldReady);
+        for (const job of ready) book.toldReady(job);
+        if (ready.length) saveJobs(bot);
+        return ready.map(job => (job.unfueled > 0
+            ? `The furnace at ${where(job)} has smelted what its fuel covered; ${job.unfueled} ${job.input} wait for more fuel (!collectFurnace).`
+            : `The ${job.product} in the furnace at ${where(job)} should be done (!collectFurnace).`));
+    }
+
+    /**
      * Takes everything out of the nearest furnace the bot knows of.
      * @returns {Promise<boolean>} true when the furnace was opened and emptied
      */
@@ -439,5 +615,5 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         }
     }
 
-    return { smeltItem, clearFurnace };
+    return { smeltItem, clearFurnace, loadFurnace, collectFurnace, furnacesText, readyNotes };
 }

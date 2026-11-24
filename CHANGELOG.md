@@ -11,6 +11,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Added
 
+- Load and leave: `!loadFurnace` loads a furnace with up to a stack and the fuel for it and leaves it
+  working, `!collectFurnace` goes back for what is done and puts in the rest, and `!furnaces` says what is
+  smelting where. The next result after a furnace should be done says so, once.
 - Smelting remembers what it leaves in a furnace, per world. A smelt that was stopped (or a bot that
   restarted) is gone on with by the next `!smeltItem` of that item, and a furnace holding only the bot's own
   smelt is no longer taken for someone else's.

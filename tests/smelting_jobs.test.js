@@ -98,6 +98,24 @@ test('jobs are saved per world and loaded back; a file for another world is set 
     assert.equal(loadJobs(dir, { scope: SCOPE, warn: () => {} }).list().length, 0, 'a damaged file costs the jobs, not the bot');
 });
 
+test('installed, it adds its commands, and a furnace that should be done is said once on the next result', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'smelting-install-'));
+    const bot = { game: { dimension: 'overworld' }, worldIdentity: 'seed2', entity: { position: { x: 0, y: 64, z: 0 } } };
+    const agent = { name: 'Smelter', bot, actions: { runAction: async () => ({ status: 'ok', text: 'Done.', message: 'Done.' }) } };
+    const way = installSmelting(agent, { config: { smelting: true }, jobsDir: dir });
+    assert.deepEqual(way.commands, ['!loadFurnace', '!collectFurnace', '!furnaces']);
+    const { commandExists } = await import('../src/agent/commands/index.js');
+    assert.ok(commandExists('!loadFurnace') && commandExists('!collectFurnace') && commandExists('!furnaces'));
+
+    way.jobs().start({ x: 3, y: 64, z: 0 }, { input: 'sand', product: 'glass', total: 4 });
+    way.jobs().note({ x: 3, y: 64, z: 0 }, { loaded: 4, readyAt: Date.now() - 1000 });
+    const first = await agent.actions.runAction('action:test', async () => {});
+    assert.equal(first.message, 'Done.\nThe glass in the furnace at 3, 64, 0 should be done (!collectFurnace).');
+    const second = await agent.actions.runAction('action:test', async () => {});
+    assert.equal(second.message, 'Done.', 'said once');
+    assert.ok(existsSync(scopeDir(dir, 'world:seed2/overworld')), 'and that it was said is kept');
+});
+
 test('installed for a bot, the jobs are kept per world and dimension, under the folder given', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'smelting-install-'));
     const bot = { game: { dimension: 'overworld' }, worldIdentity: 'seed1' };

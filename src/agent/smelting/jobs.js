@@ -85,7 +85,7 @@ export function createJobs({ scope, now = Date.now } = {}) {
             }
             const [x, y, z] = key.split(',').map(Number);
             const job = { x, y, z, kind, input, product, total, loaded: 0, collected: 0, fuelPut: {}, placed,
-                startedAt: now(), readyAt: null, toldReady: false, seenAt: now() };
+                startedAt: now(), readyAt: null, unfueled: 0, toldReady: false, seenAt: now() };
             byKey.set(key, job);
             dirty = true;
             return copy(job);
@@ -93,9 +93,10 @@ export function createJobs({ scope, now = Date.now } = {}) {
 
         /**
          * Notes what the bot just did at a furnace: `loaded` and `collected` add to the counts, `fuelPut`
-         * adds (or with a negative count takes back) fuel, `readyAt` replaces when the furnace should be done.
+         * adds (or with a negative count takes back) fuel, `readyAt` replaces when the furnace should be done
+         * (or out of fuel), and `unfueled` how many of what is in it the fuel won't reach.
          */
-        note(pos, { loaded = 0, collected = 0, fuelPut = {}, readyAt } = {}) {
+        note(pos, { loaded = 0, collected = 0, fuelPut = {}, readyAt, unfueled } = {}) {
             const job = byKey.get(keyOf(pos));
             if (!job) return null;
             job.loaded += loaded;
@@ -105,6 +106,7 @@ export function createJobs({ scope, now = Date.now } = {}) {
                 if (left > 0) job.fuelPut[name] = left; else delete job.fuelPut[name];
             }
             if (readyAt !== undefined) { job.readyAt = readyAt; job.toldReady = false; }
+            if (unfueled !== undefined) job.unfueled = unfueled;
             job.seenAt = now();
             dirty = true;
             return copy(job);

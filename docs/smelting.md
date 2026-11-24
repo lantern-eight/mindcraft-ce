@@ -1,7 +1,8 @@
 # Smelting
 
 The bot smelts the way a player does: it finds a furnace that isn't in use (or places its own), puts in
-the items and the fuel they need, shuts it, and comes back for what is done.
+the items and the fuel they need, shuts it, and comes back for what is done. For a long smelt it can load
+a furnace and go and do something else, and it remembers what it left smelting where.
 
 Mindcraft-CE's `smeltItem` stands at an open furnace for the whole smelt (ten minutes for sixty glass),
 waits for ever on a furnace that never opens, adds fuel only to an empty fuel slot and only of one kind,
@@ -62,6 +63,20 @@ It stops when:
 
 `!clearFurnace` empties the nearest furnace the bot knows of within 32 blocks: input, fuel, then output.
 
+## Load and Leave
+
+Sixty glass take ten minutes. A player loads the furnace and goes off to do something else; so can the bot.
+
+| Command | What it does |
+|---|---|
+| `!loadFurnace("sand", 100)` | Finds a furnace as `!smeltItem` does, puts in up to a stack and the fuel for it, shuts it and leaves. Says when it will be done, or how far its fuel goes when it had too little. The rest of the 100 go in later |
+| `!collectFurnace` | Goes back to each furnace it left smelting, nearest first: takes out what is done, puts in more of the job (and fuel) when it carries them, and when a job is over takes back the fuel of its own left over, and picks up a furnace it placed for the job if it has a pickaxe |
+| `!furnaces` | Says what it left smelting where, and when each should be done. Answers at once, from what it remembers |
+
+When a furnace it left should be done (or has smelted what its fuel covered), the next result the model
+reads says so once: "The glass in the furnace at 3, 64, 0 should be done (!collectFurnace)." `!smeltItem`
+stays as it was, for when the result is needed now.
+
 ## What Is Smelting Where
 
 The bot remembers what it leaves in a furnace: which furnace, what it is smelting there, how many it put in
@@ -90,8 +105,9 @@ furnace itself: anything in its input or output.
 
 ## Known Limits
 
-- **It waits beside the furnace.** A player would load it and go and do something else. Loading and leaving
-  are planned.
+- **The time is worked out, not watched.** A furnace left working is known to be done from the time the
+  bot worked out when it loaded it, as a player knows. Someone may have emptied it since; the bot finds out
+  when it opens it.
 - **One furnace at a time.** Sixty glass take ten minutes in one furnace; several at once are planned, and so
   are smokers and blast furnaces (twice as fast for food and ores).
 - **A furnace's leftover burn is not counted.** Coal half burned when the last item is done is lost, as it is
@@ -108,7 +124,8 @@ All of it lives in `src/agent/smelting/`:
 | `fuel.js` | What burns and how far, the fuel plan in stages, and what to add to the slot now. Pure |
 | `furnace_hands.js` | Opening a furnace with a deadline, reading its slots, putting and taking with a deadline each, closing it. The only file that touches a window |
 | `jobs.js` | What the bot has left smelting where, per world: one job per furnace, and whether a furnace holds only the bot's own. Pure, with its file |
-| `smelt.js` | `smeltItem` and `clearFurnace`, on those |
+| `smelt.js` | `smeltItem`, `clearFurnace`, `loadFurnace`, `collectFurnace` and what is smelting where, on those |
+| `commands.js` | `!loadFurnace`, `!collectFurnace` and `!furnaces`, and the "should be done" line on a result |
 | `install.js` | Turns it on for one agent |
 
 **How it hooks into Mindcraft.** `src/agent/library/smelt_way.js` holds a way of smelting per bot, and the
