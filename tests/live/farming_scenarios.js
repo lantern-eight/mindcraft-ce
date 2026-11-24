@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // Live farming scenarios against a real server (no model calls, free to run).
-//   node tests/live/farming_scenarios.js [--port=55940] [--only=<regex>] [--view=all]
+//   node tests/live/farming_scenarios.js [--port=55942] [--only=<regex>] [--view=all]
 // Needs Node 22, Java 25 and a server jar: set MC_TEST_JAVA and MC_TEST_SERVER_JAR.
 //
 // A field is built from the console with crops at known ages and random ticks off, so nothing grows while a
@@ -18,7 +18,7 @@ import { vanillaFixture, delay, waitFor } from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
 import { LIVE_VIEW, faceExactly, fairPlaySettings } from '../helpers/live_view.js';
 
-const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55940);
+const port = Number(process.argv.find(a => a.startsWith('--port='))?.split('=')[1] || 55942);
 const NAME = 'Farmer';
 const results = [];
 const ONLY = process.argv.find(a => a.startsWith('--only='))?.split('=')[1];
