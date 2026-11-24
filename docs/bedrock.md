@@ -231,7 +231,8 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
 - **`bedrock_smelting.js`** installs smelting with fair play and world memory: glass from sand and coal, with
   the bot finding its furnace again while it burns (a burning furnace is another block on Bedrock,
   `lit_furnace`); a furnace in use left alone for a free one; the bot's own furnace placed and picked back
-  up; and a furnace cleared. The Bedrock twin of `smelting_scenarios.js`.
+  up; a furnace cleared; a furnace loaded and left, and collected; and lava from a lava cauldron (Bedrock's
+  one cauldron block, read through its states). The Bedrock twin of `smelting_scenarios.js`.
 
 For a server on another machine, `BEDROCK_TEST_CONSOLE` starts with `ssh <that machine>`. The scenes
 send hundreds of console lines, and ssh's connection sharing (`-o ControlMaster=auto -o

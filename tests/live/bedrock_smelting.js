@@ -42,7 +42,7 @@ try {
     const skills = await import('../../src/agent/library/skills.js');
     const world = await import('../../src/agent/library/world.js');
 
-    let agent, rawOpenFurnace;
+    let agent, rawOpenFurnace, smelting;
     const counts = () => world.getInventoryCounts(bot);
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 6 });
 
@@ -95,7 +95,8 @@ try {
         initModes(agent);
         const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-')) });
         assert.ok(handle?.memory, 'fair play and world memory are on');
-        assert.ok(installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-jobs-')) }), 'smelting is on');
+        smelting = installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-jobs-')) });
+        assert.ok(smelting, 'smelting is on');
     });
 
     await step('sand and coal make glass, and the bot finds its furnace again while it burns', async () => {
@@ -153,6 +154,51 @@ try {
         assert.equal(result.status, 'ok', result.text);
         await delay(500);
         assert.equal(counts().raw_iron, 3, result.text);
+        return { text: result.text.trim() };
+    });
+
+    await step('loaded and left: the bot walks off, is told when it is done, and collects', async () => {
+        await reset('sand 3', 'coal 1');
+        await set([3, 1, 0], 'furnace');
+        await delay(1200);
+        await lookAt([3, 1, 0]);
+        const loaded = await act('test:load', () => smelting.loadFurnace(bot, 'sand', 3));
+        assert.equal(loaded.status, 'ok', loaded.text);
+        assert.match(loaded.text, /put 3 sand and 1 coal in the furnace/);
+        await cmd(`tp ${NAME} ${at(-6, 1, 0).x + 0.5} ${at(-6, 1, 0).y} ${at(-6, 1, 0).z + 0.5} 90 20`, 1500);
+        await delay(32000);
+        const busy = await act('test:other', async () => {});
+        assert.match(busy.message, /The glass in the furnace at .* should be done \(!collectFurnace\)/);
+        const collected = await act('test:collect', () => smelting.collectFurnace(bot));
+        assert.equal(collected.status, 'ok', collected.text);
+        assert.match(collected.text, /I took 3 glass/);
+        await delay(500);
+        assert.equal(counts().glass, 3, JSON.stringify(counts()));
+        return { text: collected.text.trim() };
+    });
+
+    await step('a lava farm near: the bot fills its bucket and smelts on the lava, keeping its coal', async () => {
+        await reset('sand 2', 'coal 2', 'lava_bucket 1');
+        await set([3, 1, -1], 'furnace');
+        // Bedrock has one cauldron block, with the liquid and how full it is as states, and the console here
+        // takes no state list. So the lava goes in as a player's would: poured from a bucket, which leaves
+        // the bot the empty bucket the smelt fills again.
+        await set([3, 1, 1], 'cauldron');
+        await delay(1200);
+        await lookAt([3, 1, 1]);
+        await bot.equip(bot.inventory.items().find(item => item.name === 'lava_bucket'), 'hand');
+        await bot.activateBlock(bot.blockAt(at(3, 1, 1)));
+        await delay(1000);
+        assert.equal(counts().bucket, 1, `poured: ${JSON.stringify(counts())}`);
+        await lookAt([3, 1, -1], [3, 1, 1]);
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 2));
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /filled a bucket with lava from the cauldron/);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 2, JSON.stringify(have));
+        assert.equal(have.coal, 2, 'no coal burned');
+        assert.equal(have.bucket, 1, 'its bucket came back');
         return { text: result.text.trim() };
     });
 } catch (error) {

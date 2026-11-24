@@ -10,7 +10,8 @@
 //
 // Scenes: the glass test (16 sand), fuel from logs made into planks, a carried furnace placed and picked
 // back up, a furnace in use left alone for a free one, a furnace sealed behind a wall that the bot can't
-// know of, a furnace cleared, and a smelt stopped half way, which leaves the furnace working.
+// know of, a furnace cleared, a smelt stopped half way, which leaves the furnace working, and gone on with
+// after; a furnace loaded and left, and collected; and lava from a lava cauldron as the fuel.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -70,7 +71,8 @@ try {
     initModes(agent);
     const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'smelting-memory-')) });
     assert.ok(handle, 'fair play installed');
-    assert.ok(installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'smelting-jobs-')) }), 'smelting installed');
+    const smelting = installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'smelting-jobs-')) });
+    assert.ok(smelting, 'smelting installed');
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 10 });
     const counts = () => world.getInventoryCounts(bot);
     const rawName = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name; // the test may peek; the bot may not
@@ -212,6 +214,62 @@ try {
         assert.equal(holds[0]?.name, 'sand', JSON.stringify(holds));
         assert.equal(bot.currentWindow, null);
         return { text: result.text.trim(), holds };
+    });
+
+    await step('stopped half way, smelting again goes on with it in the same furnace and finishes', async () => {
+        await reset('sand 6', 'coal 1');
+        await furnace(3, 0);
+        await settle();
+        const running = act('test:smelt', () => skills.smeltItem(bot, 'sand', 6));
+        await delay(22000);
+        await agent.actions.stop();
+        await running;
+        assert.equal(counts().sand ?? 0, 0, 'its sand is in the furnace');
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 6));
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /went on with the sand I had left in the furnace at 3, 70, 0/);
+        assert.equal(counts().glass, 6, JSON.stringify(counts()));
+        assert.deepEqual(await furnaceHolds(3, 70, 0), {}, 'and left it empty');
+        return { text: result.text.trim() };
+    });
+
+    await step('loaded and left: the bot walks off, is told when it is done, and collects', async () => {
+        await reset('sand 4', 'coal 1');
+        await furnace(3, 0);
+        await settle();
+        const loaded = await act('test:load', () => smelting.loadFurnace(bot, 'sand', 4));
+        assert.equal(loaded.status, 'ok', loaded.text);
+        assert.match(loaded.text, /put 4 sand and 1 coal in the furnace at 3, 70, 0\. The 4 sand in it will be glass in about 40 seconds/);
+        assert.equal(bot.currentWindow, null);
+        // Off doing something else, out of reach of the furnace.
+        await cmd(`tp ${NAME} -8.5 70 0.5 90 20`);
+        await delay(43000);
+        const busy = await act('test:other', async () => {});
+        assert.match(busy.message, /The glass in the furnace at 3, 70, 0 should be done \(!collectFurnace\)/, 'told once, on the next result');
+        const collected = await act('test:collect', () => smelting.collectFurnace(bot));
+        assert.equal(collected.status, 'ok', collected.text);
+        assert.match(collected.text, /From the furnace at 3, 70, 0 I took 4 glass/);
+        assert.equal(counts().glass, 4);
+        assert.deepEqual(await furnaceHolds(3, 70, 0), {});
+        return { text: collected.text.trim() };
+    });
+
+    await step('a lava farm near: the bot fills its bucket and smelts on the lava, keeping its coal', async () => {
+        await reset('sand 4', 'coal 2', 'bucket 1');
+        await furnace(3, -1);
+        await cmd('setblock 3 70 1 lava_cauldron');
+        await settle();
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 4));
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /filled a bucket with lava from the cauldron at 3, 70, 1/);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 4, JSON.stringify(have));
+        assert.equal(have.coal, 2, 'no coal burned');
+        assert.equal(have.bucket, 1, 'its bucket came back');
+        assert.equal(rawName(3, 70, 1), 'cauldron', 'the lava came out of the cauldron');
+        assert.deepEqual(await furnaceHolds(3, 70, -1), {});
+        return { text: result.text.trim() };
     });
 
     console.log(JSON.stringify({ summary: 'smelting scenarios', passed: results.length }));
