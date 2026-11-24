@@ -47,6 +47,9 @@ const xyz = position => `${position.x} ${position.y} ${position.z}`;
 const fill = (a, b, block) => cmd(`fill ${xyz(at(...a))} ${xyz(at(...b))} ${block}`);
 const tpTo = (cell, yaw = 0, settle = 1200) => cmd(`tp ${NAME} ${at(...cell).x + 0.5} ${at(...cell).y} ${at(...cell).z + 0.5} ${yaw} 0`, settle);
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// How far the floor reaches from the middle, each way: as far as the server fills around a bot standing at the
+// middle (at 40 it answered "Cannot place blocks outside of the world").
+const FLOOR = 30;
 
 async function waitFor(check, ms, why) {
     const deadline = Date.now() + ms;
@@ -81,8 +84,8 @@ try {
         await cmd('difficulty peaceful', 1000);
         await cmd('difficulty normal');
         await waitFor(() => !agent?.actions.executing, 15000, () => 'the reflex is still moving');
-        for (let x = -30; x <= 30; x += 15) await fill([x, 1, -30], [Math.min(x + 14, 30), 6, 30], 'air'); // to 30, the floor's edge
-        await fill([-30, 0, -30], [30, 0, 30], 'stone');
+        for (let x = -FLOOR; x <= FLOOR; x += 15) await fill([x, 1, -FLOOR], [Math.min(x + 14, FLOOR), 6, FLOOR], 'air'); // to the floor's edge
+        await fill([-FLOOR, 0, -FLOOR], [FLOOR, 0, FLOOR], 'stone');
         await cmd(`effect ${NAME} clear`);
         // Each scene gives the bot what it needs: a sword left from the last one would change what the
         // standing orders let it fight.
@@ -416,9 +419,14 @@ try {
     });
 
     await step('two zombies coming: the mob reflex backs away from both, even from a fight just taken on', async () => {
-        await reset({ facing: 135 }); // facing north-west, between the two zombies
+        await reset({ facing: 135 });
+        // In the floor's north-west quarter, facing north-west, between the two zombies: the retreat runs south-east,
+        // with 40 blocks of floor ahead each way. Through a player's screen it runs until they would be far enough
+        // if they followed, 25 to 30 blocks, and from the middle it met the floor's edge, where a zombie caught up.
+        await tpTo([-10, 1, -10], 135, 1500);
+        await faceExactly(bot, (180 - 135) * Math.PI / 180, 0);
         await cmd(`effect ${NAME} resistance 30 2 true`);
-        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
+        for (const cell of [[-16, 1, -10], [-10, 1, -16]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
         const decided = events.filter(e => e.event === 'decided');
         assert.equal(decided.find(e => e.mode === 'mob_safety')?.key, 'crowd', JSON.stringify(decided));
@@ -547,7 +555,7 @@ try {
         // its next scenes 40 blocks higher still.
         if (origin) {
             await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y - 39} ${origin.z + 0.5}`, 1500);
-            for (let x = -30; x <= 30; x += 15) await fill([x, 0, -30], [Math.min(x + 14, 30), 6, 30], 'air');
+            for (let x = -FLOOR; x <= FLOOR; x += 15) await fill([x, 0, -FLOOR], [Math.min(x + 14, FLOOR), 6, FLOOR], 'air');
         }
     } catch { /* the console is gone */ }
     console.log(JSON.stringify(summary()));
