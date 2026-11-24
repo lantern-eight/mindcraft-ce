@@ -9,9 +9,10 @@ import {vanillaFixture,delay,waitFor} from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
 
 const live=process.argv.includes('--live-model');
-const fixture=await vanillaFixture(55918);
+const arg=name=>process.argv.find(a=>a.startsWith(`--${name}=`))?.split('=')[1]; // --port, --mind-port: to run beside other test servers
+const fixture=await vanillaFixture(Number(arg('port')||55918));
 const name=live?'CELiveModel':'CEReplay';
-const mindPort=8083;
+const mindPort=Number(arg('mind-port')||8083);
 const results=[];let child,socket,log='',state;
 const messages=[];
 const call=(name,args={})=>({id:`call-${Math.random().toString(16).slice(2)}`,name,arguments:args});

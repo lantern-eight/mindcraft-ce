@@ -22,7 +22,7 @@ import { scanSection, sectionsInRange } from '../fairplay/block_scan.js';
 import { editionOf } from '../edition/index.js';
 import { propsOfState } from './block_state.js';
 import { AIR, OTHER_NAME } from './cells.js';
-import { isCrop, isHerdAnimal, isRipe, kindOf, moveKindOf, partnerOffset, startsPlace } from './kinds.js';
+import { isCrop, isHerdAnimal, isRipe, kindOf, moveKindOf, partnerOffset, startsPlace, wasBuilt } from './kinds.js';
 
 const TAU = 2 * Math.PI;
 const WATCHING_MS = 60_000; // a cell seen this recently was being watched: a change to it is no surprise
@@ -178,6 +178,11 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
 
     // ---- Writing one seen cell ----
 
+    // The cell the bot is placing a block in, while that placement is recorded: the block it replaces
+    // (grass, snow, water) is not someone else's change.
+    let placingAt = null;
+    const placing = (x, y, z) => placingAt !== null && placingAt.x === x && placingAt.y === y && placingAt.z === z;
+
     const isMine = (x, y, z, after) => {
         const tag = cells.tagOf(x, y, z);
         return tag === 'dug' ? after === AIR : tag === 'placed' ? after !== AIR : false;
@@ -192,9 +197,22 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
             if (things.get(x, y, z)?.provenance === 'gone') was = AIR;
             things.seeCell({ x, y, z }, after);
         }
+        // A block the bot placed stays its own while it stands. Once it is gone, or someone has put another
+        // block in its place, the cell is no longer the bot's doing: without this, a player's plank set
+        // where the bot once had scaffolding would be free for the bot to break.
+        if (cells.tagOf(x, y, z) === 'placed' && !placing(x, y, z) && was !== after && (after === AIR || wasBuilt(before, after))) {
+            cells.untag(x, y, z);
+        }
+        const mine = isMine(x, y, z, after);
         const what = was === after ? null
-            : changes.see({ x, y, z, before: was, after, mine: isMine(x, y, z, after), watched, lookedBefore, place });
+            : changes.see({ x, y, z, before: was, after, mine, watched, lookedBefore, place });
         if (pass && (what === 'appeared' || what === 'replaced')) pass.appeared.push(x, y, z);
+        // Someone else put this block here. Unlike a note, this is kept whether or not the bot watched it
+        // happen, and for any block, dirt included: good-neighbor rules leave such blocks alone.
+        if (!mine && wasBuilt(before, after)) {
+            cells.tag(x, y, z, 'built');
+            pass?.built.push(x, y, z);
+        }
         if (before && isCrop(before) && pass?.cube) pass.cube.crops.add(before);
     }
 
@@ -205,17 +223,26 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     // that stands on ground it had seen. The rest of the wall is cells it never looked at before. But a
     // block first seen in this same look, of the same kind, touching one that certainly appeared, is
     // part of the same new thing, so it is counted with it. Without this a new hut reads as nine blocks.
+    // The same goes for knowing who built it: such a block is tagged as built along with the row it
+    // stands on. Blocks that appeared make notes as they spread; blocks only known to be built (the bot
+    // watched them go up, or they are dirt) are tagged and make none.
     function spreadAppeared() {
-        const queue = pass.appeared;
+        spreadFrom(pass.appeared, true);
+        spreadFrom(pass.built, false);
+    }
+
+    function spreadFrom(queue, note) {
         while (queue.length) {
             const z = queue.pop(), y = queue.pop(), x = queue.pop();
             const name = cells.read(x, y, z);
+            const built = cells.tagOf(x, y, z) === 'built';
             for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
                 const nx = x + dx, ny = y + dy, nz = z + dz;
                 const key = nearKey(nx, ny, nz);
                 if (pass.fresh.get(key) !== name) continue;
                 pass.fresh.delete(key);
-                changes.see({ x: nx, y: ny, z: nz, before: AIR, after: name, mine: isMine(nx, ny, nz, name), place: places.at({ x: nx, y: ny, z: nz })?.id ?? null });
+                if (note) changes.see({ x: nx, y: ny, z: nz, before: AIR, after: name, mine: isMine(nx, ny, nz, name), place: places.at({ x: nx, y: ny, z: nz })?.id ?? null });
+                if (built && cells.tagOf(nx, ny, nz) == null) cells.tag(nx, ny, nz, 'built');
                 queue.push(nx, ny, nz);
             }
         }
@@ -272,7 +299,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const minY = bot.game?.minY ?? -64;
         const maxY = minY + (bot.game?.height ?? 384) - 1;
         pass = { sections: sectionsInRange(feet, radius, minY, maxY), next: 0, queue: [], cube: null, minY,
-            crumb: trail.current, fresh: new Map(), appeared: [], facing: looking.screen };
+            crumb: trail.current, fresh: new Map(), appeared: [], built: [], facing: looking.screen };
         lastPassEye = eye;
         lastPassFacing = looking.screen;
         worldChanged = false;
@@ -347,7 +374,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     // Animals in view, per cube. A remembered herd whose spot is in view with no such animal near it has
     // moved on, and is forgotten; one whose spot can't be seen from here is left as it was remembered.
     function finishPass() {
-        if (pass.appeared.length && pass.fresh.size) spreadAppeared();
+        if ((pass.appeared.length || pass.built.length) && pass.fresh.size) spreadAppeared();
         const groups = new Map();
         for (const entity of perception.entities()) {
             if (!isHerdAnimal(entity.name) || !entity.position) continue;
@@ -504,7 +531,10 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     const onDug = block => { if (block?.position) { cells.tag(block.position.x, block.position.y, block.position.z, 'dug'); recordAt(block.position); } };
     const onPlaced = (oldBlock, newBlock) => {
         const pos = newBlock?.position ?? oldBlock?.position;
-        if (pos) { cells.tag(pos.x, pos.y, pos.z, 'placed'); recordAt(pos); }
+        if (!pos) return;
+        cells.tag(pos.x, pos.y, pos.z, 'placed');
+        placingAt = { x: Math.floor(pos.x), y: Math.floor(pos.y), z: Math.floor(pos.z) };
+        try { recordAt(pos); } finally { placingAt = null; }
     };
     const onBlockUpdate = (oldBlock, newBlock) => {
         const pos = (newBlock ?? oldBlock)?.position;

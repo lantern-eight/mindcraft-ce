@@ -127,6 +127,56 @@ export function changesByItself(name) {
         || name.endsWith('_roots') || name.endsWith('_fungus') || name.endsWith('_nylium');
 }
 
+// Blocks that turn up in an empty cell with nobody placing them: they grow there, fall there, flow there,
+// form there or are laid there. A tree's logs are among them, since a sapling grows into a tree.
+const APPEARS_BY_ITSELF = new Set(['sand', 'red_sand', 'gravel', 'suspicious_sand', 'suspicious_gravel', 'pointed_dripstone',
+    'snow', 'ice', 'frosted_ice', 'fire', 'soul_fire', 'water', 'lava', 'bubble_column', 'sugar_cane', 'cactus', 'bamboo',
+    'bamboo_sapling', 'kelp', 'kelp_plant', 'seagrass', 'tall_seagrass', 'vine', 'cave_vines', 'cave_vines_plant',
+    'twisting_vines', 'twisting_vines_plant', 'weeping_vines', 'weeping_vines_plant', 'glow_lichen', 'moss_carpet',
+    'pumpkin', 'melon', 'short_grass', 'tall_grass', 'fern', 'large_fern', 'sweet_berry_bush', 'chorus_plant',
+    'chorus_flower', 'brown_mushroom_block', 'red_mushroom_block', 'bee_nest', 'turtle_egg', 'frogspawn', 'sculk_vein',
+    'big_dripleaf', 'big_dripleaf_stem', 'small_dripleaf', 'hanging_roots', 'spore_blossom', 'pale_hanging_moss']);
+// What lava leaves where it meets water, so a cell that held either may hold one of these with nobody by.
+const LAVA_MADE = new Set(['stone', 'cobblestone', 'obsidian', 'basalt']);
+const FLUIDS = new Set(['water', 'lava', 'bubble_column']);
+const COPPER_AGE = /^(waxed_)?(exposed_|weathered_|oxidized_)?/;
+
+function appearsByItself(name) {
+    return APPEARS_BY_ITSELF.has(name) || Object.hasOwn(CROPS, name) || name.endsWith('_sapling') || name.endsWith('_leaves')
+        || name.endsWith('_log') || name.endsWith('_stem') || name.endsWith('_concrete_powder') || name.endsWith('_mushroom')
+        || name.endsWith('amethyst_bud') || name === 'amethyst_cluster' || name.endsWith('_propagule')
+        || name.endsWith('_roots') || name.endsWith('_fungus');
+}
+
+/**
+ * Is a block, seen where memory held something else, the sign of someone having built it there? True for
+ * a block where the bot had seen empty space, or in place of a block it remembers, unless that block
+ * could have got there by itself: grown, fallen, flowed, frozen, weathered, or left by lava meeting water.
+ * The bot's own work is the caller's to leave out. A cell never seen before (`before` null) proves nothing.
+ *
+ * This is what tells a wall a player put up from rock that was always there, whatever the wall is made of:
+ * dirt stacked across a tunnel is natural by its name and built by where it stands.
+ * @param {string|null} before - what memory held: a block name, 'air' for seen empty, null for never seen
+ * @param {string|null} after - what the bot sees there now
+ */
+export function wasBuilt(before, after) {
+    if (before == null || !after || after === 'air' || before === after) return false;
+    const now = javaName(after);
+    if (appearsByItself(now)) return false;
+    if (before === 'air') return true;
+    const was = javaName(before);
+    // The same block in another state that Bedrock names apart: a furnace burning (`lit_furnace`), a
+    // redstone lamp lit, a pumpkin carved and lit. Java keeps these as one block with a property.
+    if (was === now) return false;
+    // A remembered block that became another by itself: grass to dirt and back, a field gone wild.
+    if (changesByItself(was) && changesByItself(now)) return false;
+    if (FLUIDS.has(was) && LAVA_MADE.has(now)) return false;
+    // Copper weathering a step, or being waxed, is the same block getting older.
+    const copper = name => name.replace(COPPER_AGE, '').replace(/^copper_block$/, 'copper');
+    if (was.includes('copper') && copper(was) === copper(now)) return false;
+    return true;
+}
+
 const HERD_ANIMALS = new Set(['cow', 'mooshroom', 'sheep', 'pig', 'chicken', 'horse', 'donkey', 'mule', 'llama', 'trader_llama',
     'goat', 'rabbit', 'camel', 'villager', 'wandering_trader', 'wolf', 'cat', 'fox', 'bee', 'turtle', 'panda', 'axolotl',
     'frog', 'sniffer', 'armadillo', 'strider', 'iron_golem', 'snow_golem', 'allay', 'parrot', 'ocelot', 'polar_bear']);
