@@ -9,6 +9,7 @@ import { Vec3 } from 'vec3';
 import minecraftData from 'minecraft-data';
 import registryFactory from 'prismarine-registry';
 import chunkFactory from 'prismarine-chunk';
+import blockFactory from 'prismarine-block';
 import { editionOf, registerEdition } from '../src/agent/edition/index.js';
 import { javaEdition } from '../src/agent/edition/java.js';
 import { lazyStateTable, scanSection } from '../src/agent/fairplay/block_scan.js';
@@ -338,4 +339,16 @@ test('a melee hit on Java: each weapon\'s damage, and a recharge of a second ove
 test('a Java block\'s name in Java\'s terms is its own', () => {
     const registry = minecraftData(GAME_VERSION);
     for (const name of ['snow', 'water', 'powered_rail', 'not_a_block']) assert.equal(javaEdition.javaNameOf(registry, name), name);
+});
+
+test('a Java furnace says it is lit by its `lit` property, read from the real block', () => {
+    const Block = blockFactory(registryFactory(GAME_VERSION));
+    const block = (name, props) => Block.fromProperties(name, props, 0);
+    assert.deepEqual(javaEdition.furnaceOf(block('furnace', { facing: 'north', lit: true })), { kind: 'furnace', lit: true });
+    assert.deepEqual(javaEdition.furnaceOf(block('smoker', { facing: 'east', lit: false })), { kind: 'smoker', lit: false });
+    assert.deepEqual(javaEdition.furnaceOf(block('blast_furnace', { facing: 'south', lit: false })), { kind: 'blast_furnace', lit: false });
+    assert.equal(javaEdition.furnaceOf(block('chest', { facing: 'north', type: 'single', waterlogged: false })), null);
+    assert.equal(javaEdition.furnaceOf(null), null);
+    // A block remembered without its state reads as not lit.
+    assert.deepEqual(javaEdition.furnaceOf({ name: 'furnace' }), { kind: 'furnace', lit: false });
 });
