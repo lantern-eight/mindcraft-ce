@@ -247,7 +247,7 @@ try {
         await cmd('time set midnight'); // so it doesn't burn
         await tpTo([0, 1, -3], 180);
         const bottom = at(0, low[1], (low[2] + high[2]) / 2);
-        await cmd(`summon zombie ${bottom.x + 0.5} ${bottom.y} ${bottom.z + 0.5}`, 1500);
+        await cmd(`summon zombie ${bottom.x + 0.5} ${bottom.y} ${bottom.z + 0.5} 0 0 minecraft:as_adult`, 1500);
         const zombies = () => Object.values(bot.entities).filter(e => e.name === 'zombie' && e.position.distanceTo(bottom) < 3);
         assert.equal(zombies().length, 1, 'the raw bot knows about the zombie');
         const start = bot.entity.position.clone();

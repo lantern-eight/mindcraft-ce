@@ -98,6 +98,8 @@ try {
         reflexes?.glance?.clear(); // nor a look back from the last one's back-off, which would turn the bot
         lowestHealth = bot.health;
     }
+    // Every zombie is summoned grown (minecraft:as_adult). A summon makes a baby now and then, and a baby runs
+    // as fast as the bot sprints: one kept pace with a retreat for 5 s and caught it at the floor's edge.
     // A creeper lit where it stands, penned in glass so it can't walk.
     async function litCreeper(cell) {
         await fill([cell[0] - 1, 1, cell[2] - 1], [cell[0] + 1, 3, cell[2] + 1], 'glass');
@@ -315,7 +317,7 @@ try {
         reflexes.mob.mode.on = false; reflexes.fight.mode.on = false; // only watching here
         await cmd(`effect ${NAME} resistance 30 4 true`);
         const spot = at(8, 1, 0);
-        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
         await waitFor(() => rawMob('zombie'), 5000, () => 'no zombie arrived');
         const zombie = rawMob('zombie');
         let aggressiveAt = null;
@@ -403,7 +405,7 @@ try {
         const onFelt = event => { if (event.event === 'felt') felt.push(event.direction); };
         bot.on('threat_reflex', onFelt);
         const spot = at(0, 1, 4); // to the south
-        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
         await waitFor(() => felt.length >= 1, 12000, () => `no hit felt: ${JSON.stringify(packets).slice(0, 600)}`);
         await delay(600);
         for (const [name, fn] of listeners) bot._client.off(name, fn);
@@ -416,14 +418,15 @@ try {
     await step('two zombies coming: the mob reflex backs away from both, even from a fight just taken on', async () => {
         await reset({ facing: 135 }); // facing north-west, between the two zombies
         await cmd(`effect ${NAME} resistance 30 2 true`);
-        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`); }
+        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
         const decided = events.filter(e => e.event === 'decided');
         assert.equal(decided.find(e => e.mode === 'mob_safety')?.key, 'crowd', JSON.stringify(decided));
         const zombies = Object.values(bot.entities).filter(e => e.name === 'zombie');
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
         const ended = events.find(e => e.event === 'done' && e.mode === 'mob_safety')?.ended;
-        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest (${ended}); zones: ${JSON.stringify(reflexes.zones.list().map(z => z.kind))}`);
+        const where = p => `${(p.x - origin.x).toFixed(1)},${(p.z - origin.z).toFixed(1)}`;
+        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest (${ended}), the bot at ${where(bot.entity.position)} and the zombies at ${zombies.map(z => where(z.position)).join(' and ')}; moves: ${JSON.stringify(events.filter(e => e.event === 'step').map(e => e.how))}; zones: ${JSON.stringify(reflexes.zones.list().map(z => z.kind))}`);
         return { endedFromNearest: Number(nearest.toFixed(1)), ended, stances: decided.map(e => `${e.mode}:${e.stance}`) };
     });
 
@@ -431,7 +434,7 @@ try {
         await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword 1`, 700);
         const spot = at(-6, 1, 0);
-        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
         await waitFor(() => events.some(e => e.event === 'decided' && e.mode === 'self_defense'), 15000, () => JSON.stringify(events));
         await waitFor(() => !rawMob('zombie'), 30000, () => JSON.stringify(events));
         return { fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length, lowestHealth };
@@ -445,7 +448,7 @@ try {
         const healthAt = [];
         const note = event => { if (event.event === 'decided') healthAt.push({ mode: event.mode, key: event.key, health: bot.health }); };
         bot.on('threat_reflex', note);
-        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`); }
+        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
         const started = Date.now();
         try {
             await waitFor(() => !rawMob('zombie') || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
