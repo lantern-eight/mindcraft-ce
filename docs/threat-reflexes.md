@@ -387,6 +387,12 @@ enderman's eyes, and seen by perception and world memory. The idle look-around g
 - **Busy too, at a break in the work.** Not while the bot walks (the walk steers the head, and turning it
   would turn the walk) or while a reflex moves it. A sound waits for a block being dug to break, and is let go
   after three seconds; a hit or a shot doesn't wait.
+- **A hit from another side, in a fight.** A hit is put down to a mob in view only when it came from that
+  mob's side (within 60 degrees). Fighting a zombie in front, hit from behind by another, the bot turns to
+  look, and the fight stands still for that moment, neither turning back nor swinging. Then the mob reflex
+  sees two and backs away. Before, every hit counted as the first zombie's while it was in reach: in the
+  Bedrock arena the bot fought one for 15 s while the other hit it from behind, and backed away only when
+  that one came into view. With the look it backed away about half a second after the first hit from behind.
 - **Seeing all around,** there is nothing to turn for, and the glance does nothing.
 
 ## Danger Zones

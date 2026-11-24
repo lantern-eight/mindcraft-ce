@@ -3,7 +3,7 @@
 // taken only one mob at a time and only when fit for it, and one owner per threat.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { decideMobThreat, chooseFight, joinsFight, ordersAfterGivingUp, fightScope, LOW_HEALTH, isRanged, isMelee } from '../src/agent/reflexes/mob_decide.js';
+import { decideMobThreat, chooseFight, joinsFight, ordersAfterGivingUp, fightScope, LOW_HEALTH, isRanged, isMelee, explainsHit } from '../src/agent/reflexes/mob_decide.js';
 import { createClaims } from '../src/agent/reflexes/claims.js';
 
 const self = (fields = {}) => ({ position: { x: 0, y: 64, z: 0 }, health: 20, food: 20, gameMode: 'survival', ...fields });
@@ -218,4 +218,16 @@ test('joining a fight under way follows the same scope: an archer joins only whe
     assert.equal(joinsFight(skeleton, { scope: { melee: 1, archers: 0 } }), false);
     assert.equal(joinsFight(skeleton, { scope: { melee: 3, archers: 1 } }), true);
     assert.equal(joinsFight(mob('zombie', 3), { scope: { melee: 3, archers: 2 } }), true);
+});
+
+test('a hit is put down to a mob in view only on the side it came from: hit from behind while facing a zombie, something else is there', () => {
+    const here = { x: 0, z: 0 };
+    const zombie = { name: 'zombie', position: { x: 0, y: 64, z: -2 }, distance: 2, aggressive: true }; // to the north
+    assert.equal(explainsHit(zombie, { x: 0, z: -1 }, here), true, 'from the north: the zombie');
+    assert.equal(explainsHit(zombie, { x: 0.6, z: -0.8 }, here), true, 'a little off: still the zombie');
+    assert.equal(explainsHit(zombie, { x: 0, z: 1 }, here), false, 'from behind: not the zombie');
+    assert.equal(explainsHit(zombie, { x: -1, z: 0 }, here), false, 'from the side: not the zombie');
+    assert.equal(explainsHit(zombie, null, here), true, 'no side felt: the zombie in view will do');
+    const far = { name: 'zombie', position: { x: 0, y: 64, z: -12 }, distance: 12, aggressive: false };
+    assert.equal(explainsHit(far, { x: 0, z: -1 }, here), false, 'one that couldn\'t have dealt it, whichever side');
 });

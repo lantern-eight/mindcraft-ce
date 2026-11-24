@@ -83,6 +83,19 @@ test('a sound waits for a dig to finish and for a walk to stop; a hit doesn\'t w
     assert.equal(looks.length, 2, 'a hit turns the bot mid-dig');
 });
 
+test('in a fight, a hit from out of view turns the head; a sound doesn\'t, nor a hit while another reflex moves the bot', () => {
+    const { agent, glance, looks } = scene();
+    agent.actions.currentActionLabel = 'mode:self_defense';
+    glance.hear(agent, heard('zombie', 'south', 'close'));
+    assert.equal(looks.length, 0, 'a sound waits out the fight');
+    glance.clear();
+    glance.felt(agent, { x: -1, z: 0 });
+    assert.deepEqual(looks, [WEST], 'a hit from the side turns it mid-fight');
+    agent.actions.currentActionLabel = 'mode:mob_safety';
+    glance.felt(agent, { x: 0, z: 1 });
+    assert.equal(looks.length, 1, 'backing away, the move keeps the head');
+});
+
 test('a sound waits while a hostile mob in view has the bot\'s eyes; a hit doesn\'t', () => {
     const { bot, agent, glance, looks } = scene();
     bot.entities = { 7: { id: 7, name: 'zombie', type: 'hostile', position: new Vec3(0.5, 64, -5.5) } };

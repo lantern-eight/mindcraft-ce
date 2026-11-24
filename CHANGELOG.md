@@ -27,6 +27,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Backing away from zombies through a player's screen, the bot no longer stops while they are still close behind:
   it takes a mob that chases to keep coming while out of view, as a player running from zombies does, instead of
   going by where it last saw them.
+- Fighting one mob through a player's screen, the bot now turns to look when it is hit from another side, and
+  backs away from the second mob it finds there. Before, it kept fighting while the other hit it from behind.
 
 ## [1.14.0-bedrock.1.15.0] - 2026-11-24
 

@@ -25,7 +25,7 @@ import { holdActions } from '../action_hold.js';
 import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
-import { couldHaveHit, decideMobThreat, isMelee, ordersAfterGivingUp } from './mob_decide.js';
+import { decideMobThreat, explainsHit, isMelee, ordersAfterGivingUp } from './mob_decide.js';
 import { backAwayFacing, retreatFrom, takeCover } from './moves.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
@@ -211,9 +211,11 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
     /** Listens for hits on the bot and mobs dying, on the bot it acts for. */
     function watch(bot) {
         editionOf(bot.registry).onHurt(bot, ({ direction }) => {
-            // Whether something in view could have dealt it, as it lands: a player knows who hit them when
-            // a zombie is right there, and remembers it after the zombie falls.
-            const explained = Boolean(bot.entity) && mobsAround(bot, dying).some(mob => mob.seenNow && couldHaveHit(mob));
+            // Whether something in view could have dealt it, as it lands, on the side it came from: a player knows
+            // who hit them when a zombie is right there, and remembers it after the zombie falls. One hit from
+            // behind while fighting a zombie in front is not that zombie's, and the bot looks round (the glance).
+            const here = bot.entity?.position;
+            const explained = Boolean(here) && mobsAround(bot, dying).some(mob => mob.seenNow && explainsHit(mob, direction, here));
             hits.push({ at: now(), direction, explained });
             bot.emit?.('threat_reflex', { event: 'felt', at: performance.now(), direction, unseen: !explained, mode: MODE_NAME });
         });
