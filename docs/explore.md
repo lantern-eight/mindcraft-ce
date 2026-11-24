@@ -50,7 +50,7 @@ You remember sand 180 blocks west, at -40, 63, 2. Go there, or explore another w
 - **It doesn't dig.** A person exploring goes over or round a hill. It may break leaves where a forest comes
   down to the ground, and place a block it carries to step up.
 - **It doesn't swim out to sea.** A block of water costs a route as much as twenty of land, so a stream is
-  crossed and a lake walked round. Five seconds of swimming in one stretch ends it: the bot swims back to the
+  crossed and a lake walked round. Five seconds of swimming without a break ends a stretch: the bot swims back to the
   last dry ground it stood on and tries another way, and a walk never ends with the bot in the water.
 - **It gives up a spot whose way round grows long.** A stretch whose end turns out to be in a lake, or across a
   ravine, has no dry way there, and the pathfinder would walk all the way round looking for one. Once a

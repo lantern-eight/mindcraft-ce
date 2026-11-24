@@ -13,7 +13,7 @@ import { newGroundAlong } from './heading.js';
 import { LEG } from './explorer.js';
 
 const STALL_MS = 8000;         // a leg that hasn't moved a block in this long is stuck: end it and try another way
-const SWIM_MS = 5000;          // swimming this long in one leg is setting out to sea, not crossing a stream
+const SWIM_MS = 5000;          // swimming this long without a break is setting out to sea, not crossing a stream
 const SHORE_MS = 15000;
 const DETOUR = 2.5;            // a leg that has walked this many times its length (and a little) is going the long way round        // how long the swim back to the shore may take before the next try starts anyway
 const WATCH_MS = 250;
@@ -51,8 +51,11 @@ export function targetsOf(registry, what) {
  * @param {object} [options]
  * @param {{blocks: string[], mobs: string[]}|null} [options.targets] - what to look for
  * @param {object|null} [options.memory] - world memory, open for this world, or null
+ * @param {number} [options.swimMs], [options.stallMs], [options.watchMs], [options.shoreMs] - the limits above, shorter in tests
+ * @param {(bot: object) => object} [options.movements] - the pathfinder movements to walk with (tests hand in a stand-in)
  */
-export function realLegs(bot, { targets = null, memory = null } = {}) {
+export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS, stallMs = STALL_MS, watchMs = WATCH_MS, shoreMs = SHORE_MS,
+    movements = exploreMovements } = {}) {
     const position = () => bot.entity.position;
     const here = () => ({ x: position().x, y: position().y, z: position().z });
 
@@ -62,28 +65,33 @@ export function realLegs(bot, { targets = null, memory = null } = {}) {
     // The last ground the bot stood on out of the water, kept from one leg to the next: after turning back
     // from a lake it heads there, not out into the lake again.
     let dry = null;
+    // When the bot last went into the water, kept from one leg to the next and cleared only on dry ground, so
+    // the limit is on swimming without a break, however many legs it is spread over.
+    let wetSince = null;
+    const feel = now => {
+        if (inWaterNow()) wetSince ??= now;
+        else if (bot.entity.onGround) { wetSince = null; dry = position().clone(); }
+    };
 
     async function walk(point) {
         if (bot.interrupt_code) return 'interrupted';
-        bot.pathfinder.setMovements(exploreMovements(bot));
+        bot.pathfinder.setMovements(movements(bot));
         let outcome = null;
-        let mark = position().clone(), markAt = Date.now(), swum = 0, last = Date.now();
+        let mark = position().clone(), markAt = Date.now();
         // A leg whose end is out in a lake, or across a ravine, has no dry way there: the pathfinder would walk
         // all the way round looking for one. A person gives that spot up once the way round gets long.
         let walked = 0, previous = position().clone();
         const budget = DETOUR * Math.hypot(point.x - previous.x, point.z - previous.z) + 16;
-        if (bot.entity.onGround && !inWaterNow()) dry = position().clone();
+        feel(Date.now());
         const watch = setInterval(() => {
             const now = Date.now();
-            if (inWaterNow()) swum += now - last;
-            else if (bot.entity.onGround) dry = position().clone();
-            last = now;
+            feel(now);
             if (position().distanceTo(mark) >= 1) { mark = position().clone(); markAt = now; }
             walked += position().distanceTo(previous);
             previous = position().clone();
-            const stop = swum > SWIM_MS ? 'water' : now - markAt > STALL_MS ? 'stalled' : walked > budget ? 'detour' : null;
+            const stop = wetSince !== null && now - wetSince > swimMs ? 'water' : now - markAt > stallMs ? 'stalled' : walked > budget ? 'detour' : null;
             if (stop && !outcome) { outcome = stop; bot.pathfinder.setGoal(null); }
-        }, WATCH_MS);
+        }, watchMs);
         try {
             await bot.pathfinder.goto(new pf.goals.GoalNearXZ(point.x, point.z, 2));
             return 'arrived';
@@ -102,7 +110,7 @@ export function realLegs(bot, { targets = null, memory = null } = {}) {
     // rather than starting its next try out in the lake.
     async function backToShore() {
         if (!dry || bot.interrupt_code) return;
-        const timer = setTimeout(() => bot.pathfinder.setGoal(null), SHORE_MS);
+        const timer = setTimeout(() => bot.pathfinder.setGoal(null), shoreMs);
         try { await bot.pathfinder.goto(new pf.goals.GoalNear(dry.x, dry.y, dry.z, 1)); }
         catch { /* as near as it got; the next leg starts from there */ }
         finally { clearTimeout(timer); }
