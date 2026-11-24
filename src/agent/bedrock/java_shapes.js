@@ -406,6 +406,28 @@ function keysLikeJava(bot) {
     };
 }
 
+/**
+ * Keeps the adapter's unawaited opens from stopping Node, once other code has wrapped them.
+ *
+ * The adapter opens a furnace or a crafting table with `bot.openContainer` and never waits for what that
+ * hands back. chestsLikeJava gives each promise it hands out a listener, but code that wraps
+ * `bot.openContainer` after it (the agent's action guard does, when the bot spawns) hands out a new
+ * promise of its own. When an open fails (it timed out, or a newer open took its place), that promise
+ * fails with nobody listening, and Node stops the whole bot. Called after those wrappers, this gives
+ * their promises a listener too. A caller that waits still gets the failure.
+ */
+export function keepOpensHeard(bot) {
+    for (const name of ['openContainer', 'openChest']) {
+        const open = bot[name];
+        if (typeof open !== 'function') continue;
+        bot[name] = function (...args) {
+            const promise = Promise.resolve(open.apply(this, args));
+            promise.catch(() => {});
+            return promise;
+        };
+    }
+}
+
 export function javaShapes(bot) {
     biomesLikeJava(bot);
     chestsLikeJava(bot);
