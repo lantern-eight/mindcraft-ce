@@ -24,6 +24,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Backing away from a skeleton behind a shield, with nowhere to go, the bot no longer lowers the shield just
   as an arrow comes: when the move runs out of time, it ends just after a shot lands, not in the middle of one
   or just before the next.
+- Backing away from zombies through a player's screen, the bot no longer stops while they are still close behind:
+  it takes a mob that chases to keep coming while out of view, as a player running from zombies does, instead of
+  going by where it last saw them.
 
 ## [1.14.0-bedrock.1.15.0] - 2026-11-24
 

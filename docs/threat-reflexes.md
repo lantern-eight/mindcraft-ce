@@ -124,7 +124,10 @@ Moving away goes through the same moves as the creeper reflex: a straight sprint
 safe, then the pathfinder, toward wherever is farthest from all of them. Leaving ends when the bot is far
 enough, or, seeing all around, when all of them have been out of its view for 2 s (they have lost it too).
 Through a player's screen the bot backs away facing the way out, so their being out of view says nothing:
-it goes by distance, and looks back when it stops (the glance).
+it goes by distance, and looks back when it stops (the glance). A mob that chases (a zombie, a spider) is
+taken to keep coming while out of view, at 2.5 blocks a second from where it was last seen, for up to 4 s, as a
+player running from zombies knows they follow (a zombie measured live on Bedrock went 2.3). Gone by where they
+were last seen, the bot stopped "far enough" with the zombies still coming, under 8 blocks behind it.
 
 ## The Fight
 
