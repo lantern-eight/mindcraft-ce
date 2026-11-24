@@ -15,6 +15,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   restarted) is gone on with by the next `!smeltItem` of that item, and a furnace holding only the bot's own
   smelt is no longer taken for someone else's.
 
+### Fixed
+
+- Fuel topped up while a furnace has something in it to smelt catches at once, and smelting counted it as
+  not gone in: it then said it burned less than it did, and could put in more than was needed.
+
 ## [1.13.0-bedrock.1.14.0] - 2026-11-24
 
 ### Added
