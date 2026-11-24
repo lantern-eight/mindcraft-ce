@@ -9,6 +9,25 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Smelting (`smelting`, on by default): `!smeltItem` uses a furnace that isn't in use, or places the bot's
+  own beside it, loads it with the fuel it needs, shuts it and comes back for what is done, a stack at a
+  time, as a player does. Fuel is planned: coal and charcoal first, then planks, and logs are made into
+  planks before burning (a log goes four times as far that way), two kinds one after the other when one
+  doesn't cover it, never what is being smelted or made. The result counts what reached the inventory. See
+  [docs/smelting.md](docs/smelting.md).
+
+### Fixed
+
+- Smelting no longer hangs on a furnace that never opens, and never leaves a furnace window open.
+- Smelting no longer takes someone else's items out of a furnace's output, uses a furnace with another
+  item in it, or digs up the nearest furnace afterwards in place of the one it placed. A furnace it placed
+  is picked up only with a pickaxe; without one it is left, instead of being broken for nothing.
+- Smelting more than a stack works: it goes in a stack at a time. Fuel is topped up as the smelt goes, so one
+  plank left in the slot no longer stops a smelt after one item.
+- On Bedrock, a furnace that is burning (`lit_furnace`) is found too.
+
 ## [1.12.0-bedrock.1.13.0] - 2026-11-21
 
 ### Changed
