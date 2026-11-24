@@ -114,5 +114,5 @@ The code is in `src/agent/neighbor/`:
 | `enforce.js` | Puts the rule under the pathfinder's `safeToBreak` and the bot's `dig` |
 | `install.js` | Reads the settings, builds the reader (fair play's view, or the raw world), and guards the bot |
 
-It is installed by one call in `src/agent/agent.js` ([core hook](core-hooks.md) 28). Its tests are
+It is installed by one call in `src/agent/agent.js` ([core hook](core-hooks.md) 30). Its tests are
 `tests/neighbor_*.test.js`, and `tests/live/neighbor_scenarios.js` checks it on a real server.

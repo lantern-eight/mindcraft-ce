@@ -147,6 +147,10 @@ const settings = {
     // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
     // the reflex out. See docs/threat-reflexes.md.
     "threat_reflexes": true,
+    // Smelting: !smeltItem finds a furnace that isn't in use (or places the bot's own), loads it with the
+    // fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or
+    // off; false keeps Mindcraft's own. See docs/smelting.md.
+    "smelting": true,
     // Good-neighbor rules: protect_builds keeps the bot from breaking what other players built; protected_areas
     // lists places where it breaks nothing, each { name, min, max } or { name, x, z, radius }. protect_chests
     // and protect_animals are reserved. Works with fair play on or off. See docs/good-neighbor.md.

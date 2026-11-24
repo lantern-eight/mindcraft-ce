@@ -204,6 +204,15 @@ function javaNamesFor(registry) {
 // A survival player's reach on Bedrock (see survivalReach).
 const SURVIVAL_REACH = Object.freeze({ blocks: 5, entities: 3 });
 
+// ---- Furnaces ----
+
+// Bedrock's furnace blocks (see furnaceOf): a burning furnace is a block of its own, not a state.
+const FURNACES = new Map([
+    ['furnace', { kind: 'furnace', lit: false }], ['lit_furnace', { kind: 'furnace', lit: true }],
+    ['blast_furnace', { kind: 'blast_furnace', lit: false }], ['lit_blast_furnace', { kind: 'blast_furnace', lit: true }],
+    ['smoker', { kind: 'smoker', lit: false }], ['lit_smoker', { kind: 'smoker', lit: true }],
+]);
+
 // ---- Melee ----
 
 // What a melee hit does on Bedrock (see meleeOf): each item's attack damage. Bedrock's swords hit harder
@@ -559,6 +568,16 @@ export const bedrockEdition = Object.freeze({
      */
     raiseShield(bot, up) {
         bot.setControlState('sneak', up);
+    },
+
+    /**
+     * Whether a block is a furnace (or a blast furnace or a smoker), and whether it is lit. Bedrock swaps a
+     * furnace for a block of its own while it burns (`lit_furnace`), and back when it goes out, so the name
+     * says both.
+     */
+    furnaceOf(block) {
+        const furnace = block ? FURNACES.get(block.name) : undefined;
+        return furnace ? { ...furnace } : null;
     },
 
     moveStack,

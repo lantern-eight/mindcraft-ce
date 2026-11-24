@@ -144,6 +144,21 @@ test('C3: nearest sand is found through the index, across region files, without 
     assert.equal(rebuilt.nearest(['sand'], { x: -890, y: 70, z: 300 }, { maxDistance: 100 })[0].x, -900);
 });
 
+test('a block that is gone when its region is saved, and then comes back, is found again', () => {
+    // Saving puts the index right: only the names the region's cells hold then. The cube still knows the
+    // name, so when the block came back it went in under its old number and the index never heard of it:
+    // a furnace that was burning (another block on Bedrock) when memory was saved, put out again later,
+    // could not be found by name.
+    const cells = createCells({ storage: memoryStorage() });
+    cells.write(3, 64, 0, 'furnace');
+    cells.write(3, 64, 0, 'lit_furnace');
+    cells.save();
+    assert.equal(cells.nearest(['furnace'], { x: 0, y: 64, z: 0 }).length, 0, 'gone, and not in the index');
+    cells.write(3, 64, 0, 'furnace');
+    assert.deepEqual(cells.nearest(['furnace'], { x: 0, y: 64, z: 0 }).map(h => [h.x, h.y, h.z]), [[3, 64, 0]]);
+    assert.ok(cells.namesWithin({ x: 0, y: 64, z: 0 }, 16).has('furnace'));
+});
+
 test('C3b: only a few regions stay in memory, and one pushed out is written first', () => {
     const storage = memoryStorage();
     const cells = createCells({ storage, maxLoadedRegions: 2 });
