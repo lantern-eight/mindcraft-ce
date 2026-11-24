@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import Vec3 from 'vec3';
-import { javaShapes, recipesLikeGameData, stepToTheMiddle } from '../src/agent/bedrock/java_shapes.js';
+import { javaShapes, keepOpensHeard, recipesLikeGameData, stepToTheMiddle } from '../src/agent/bedrock/java_shapes.js';
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -81,6 +81,26 @@ test('and is not one for a caller who does not wait', async () => {
         bot.openContainer({ name: 'crafting_table' });
         bot.openBlock({ name: 'crafting_table' });
         await delay(5400);
+        assert.deepEqual(unheard, []);
+    } finally {
+        process.off('unhandledRejection', listener);
+    }
+});
+
+test('nor once other code has wrapped the opens again, as the action guard does', async () => {
+    // A wrapper added later hands out a promise of its own. The adapter doesn't wait for that one either,
+    // so a furnace that never opened stopped the whole bot.
+    const unheard = [];
+    const listener = reason => unheard.push(reason);
+    process.on('unhandledRejection', listener);
+    try {
+        const { bot } = adapterBot({ opens: false });
+        const open = bot.openContainer;
+        bot.openContainer = async function (...args) { return await open.apply(this, args); };
+        keepOpensHeard(bot);
+        bot.openContainer({ name: 'furnace' });
+        await assert.rejects(bot.openContainer({ name: 'furnace' }), /furnace did not open/, 'a caller who waits still hears it');
+        await delay(300);
         assert.deepEqual(unheard, []);
     } finally {
         process.off('unhandledRejection', listener);
