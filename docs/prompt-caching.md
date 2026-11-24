@@ -62,6 +62,14 @@ several steps, `cached` should soon be most of `input`. If it stays at zero:
   up to 4,096 on some older ones). The API ignores the markers then, with no error.
 - Something early in the request changes on every call. Set `log_all_prompts` and compare two prompts.
 
+To check against the API itself, after changing how a request is put together (`prompter.js`,
+`_tool_request.js`, `prompt_cache.js`, the prompt templates), run
+`node tests/live/prompt_cache_check.js --paid`. It is billed, so it won't start without `--paid`. It plays
+one task of six steps on Claude Haiku 5.5 (`--model=`, `--steps=` to change them) through the real prompt and
+tools, prints what each call read from the cache, wrote and left uncached, and fails unless every call after
+the first reads all that the call before it marked, and the fresh state is never marked. Six steps cost a
+fraction of a cent. It needs no game server.
+
 To have a model's own rates count cache writes, add `cache_write_per_million` to `model_pricing` (for
 Claude, 1.25 times the input price with `"5m"`, twice it with `"1h"`). Without it, writes are priced as plain
 input.
