@@ -19,6 +19,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   players' chests when a player asks; a chest nobody has said is anyone's is left alone and named, so the bot
   asks. Each chest is checked on opening, so a chest someone changed since the bot looked is no surprise.
 
+### Fixed
+
+- Backing away from a skeleton behind a shield, with nowhere to go, the bot no longer lowers the shield just
+  as an arrow comes: when the move runs out of time, it ends just after a shot lands, not in the middle of one
+  or just before the next.
+
 ## [1.14.0-bedrock.1.15.0] - 2026-11-24
 
 ### Added

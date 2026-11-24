@@ -270,7 +270,10 @@ and each shot twangs. So the bot does what a Bedrock player does: it hears each 
 direction and a rough distance), takes it as the skeleton it sees on that side, and holds the shield up from
 just before the next shot is due until the arrow lands (`shot_beat.js`). The first arrow comes unwarned. It
 does so backing out of a skeleton's range with no cover near: in a walled pen, an unarmed bot took 4 damage
-from a skeleton with a shield, against 11 without. The fight doesn't keep the beat: it mostly kills a skeleton
+from a skeleton with a shield, against 11 without. Measured live, the beat holds to within a tenth of a second.
+A back-away that runs out of time ends just after a shot lands: ended with the shield up, or just before the
+next shot, it would leave the shield down while the reflex decides again, and that arrow would get through.
+The fight doesn't keep the beat: it mostly kills a skeleton
 before its beat counts, and in the Bedrock arena keeping it blocked about an arrow a round and cost more than
 that in time stood still (the mixed round, six runs each: 8.5 damage with it, 6.5 without, every round won).
 
