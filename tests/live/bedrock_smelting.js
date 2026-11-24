@@ -39,6 +39,7 @@ try {
     const { initModes } = await import('../../src/agent/modes.js');
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installSmelting } = await import('../../src/agent/smelting/install.js');
+    const { installGoodNeighbor } = await import('../../src/agent/neighbor/install.js');
     const skills = await import('../../src/agent/library/skills.js');
     const world = await import('../../src/agent/library/world.js');
 
@@ -96,6 +97,8 @@ try {
         const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-')) });
         assert.ok(handle?.memory, 'fair play and world memory are on');
         assert.ok(installSmelting(agent), 'smelting is on');
+        // As in a real bot, where both are on by default: the furnace the bot placed is its own to pick up again.
+        assert.ok(installGoodNeighbor(agent), 'good-neighbor rules installed');
     });
 
     await step('sand and coal make glass, and the bot finds its furnace again while it burns', async () => {

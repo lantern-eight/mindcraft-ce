@@ -333,6 +333,6 @@
             "protect_animals": true,
             "protected_areas": []
         },
-        "description": "Reserved for good-neighbor rules (not built yet): don't break players' builds, loot their chests, or hurt their animals."
+        "description": "Good-neighbor rules. protect_builds: the bot doesn't break what other players built (anything that isn't natural ground, what it saw someone put up, logs that aren't part of a tree). protected_areas: places where nothing is broken, each { name, min, max } or { name, x, z, radius }. protect_chests and protect_animals are reserved, not built yet. Works with fair play on or off. See docs/good-neighbor.md."
     }
 }
