@@ -43,7 +43,7 @@ forget.
 |---|---|---|
 | **Cells** | Every block the bot has seen, exactly, in 16-block cubes | "sand, 30 blocks north" |
 | **Things** | Single objects a player uses, with their state and when they were last seen: containers, workstations, doors, beds, signs, portals, spawners, ores | "an oak door, open, seen an hour ago" |
-| **Contents** | What was in a container, taken when the bot opens it and again when it closes it | "chest: iron_ingot 30, bread 6" |
+| **Contents** | What was in a container, taken when the bot opens it and again when it closes it. A shelf has no lid: what stands on it is taken whenever its front is in view, and a shelf seen only from behind, beside or above is one of unknown contents | "chest: iron_ingot 30, bread 6" |
 | **Fields and herds** | Per area: how many plants of a crop and how many were ripe; which animals and how many | "wheat x12, 5 ripe", "cow x4" |
 | **Trail** | Where the bot has walked, as spots joined by links it can route over and walk again | "about 40 seconds on foot by a way you know" |
 | **Places** | Sites it found (things a player uses, close together) or was told the name of | "the base: chest 4, furnace 2, red_bed 1" |
@@ -67,7 +67,7 @@ however much the bot remembers.
 
 | Command | What it does |
 |---|---|
-| `!recall(what)` | What the bot remembers, nearest first. `what` can be a block type (`sand`, `iron_ore`), a kind of thing (`chest`, `door`, `bed`, `containers`), an item (`iron`, answered from the containers it opened), an animal (`cow`), a crop (`wheat`), a place name, or `changes` |
+| `!recall(what)` | What the bot remembers, nearest first. `what` can be a block type (`sand`, `iron_ore`), a kind of thing (`chest`, `door`, `bed`, `containers`), an item (`iron`, answered from the containers it opened and the shelves whose fronts it saw), an animal (`cow`), a crop (`wheat`), a place name, or `changes` |
 | `!places` | The places it knows, nearest first, and what is at each |
 | `!namePlace(name)` | Names the place the bot is standing in |
 | `!rememberHere(name)`, `!goToRememberedPlace(name)` | As before, now kept in world memory |
@@ -76,7 +76,7 @@ An answer says where, how far and which way, how long ago, and, when the trail j
 how long the walk is:
 
 ```
-IN CONTAINERS YOU OPENED
+IN CONTAINERS YOU LOOKED INTO
 - chest at 4, 70, 0: iron_ingot 30 (looked 10 minutes ago), 18 blocks east, about 4 seconds on foot by a way you know
 ```
 
@@ -160,7 +160,8 @@ World memory holds only what a player in the bot's place could know:
   screen starts a new look, as a step does. A look takes a few seconds, done a few milliseconds at a time;
   a turn while one is under way looks again first at the cubes already gone over that the new screen shows,
   so a turn of a second to look at something records it.
-- **Container contents** are only what the bot saw by opening the container.
+- **Container contents** are only what the bot saw by opening the container, or for a shelf, by seeing its
+  front.
 - **The trail** is the bot's own past positions, and a route is made only of spots it has stood on.
   Ordinary travel is held to what the bot has seen as well, but has to guess at what it has not
   ([how the bot plans a route](fair-play.md#how-the-bot-plans-a-route)). The trail guesses at nothing.

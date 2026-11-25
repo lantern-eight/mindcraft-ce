@@ -198,7 +198,7 @@ try {
         assert.equal(result.status, 'ok', result.text);
         assert.match(result.text, /^The chest here \(Alice's\) is already in order\. Nothing was moved\./, result.text);
         const recall = getCommand('!recall').perform(agent, 'cobblestone');
-        assert.match(recall, new RegExp(`IN CONTAINERS YOU OPENED\\n- chest at ${where(ONE['the chest'][0])}: cobblestone 75 `), recall);
+        assert.match(recall, new RegExp(`IN CONTAINERS YOU LOOKED INTO\\n- chest at ${where(ONE['the chest'][0])}: cobblestone 75 `), recall);
     });
 
     await step('S2: one chest with no free slot and twenty kinds: merged, grouped by category, then by name', async () => {
