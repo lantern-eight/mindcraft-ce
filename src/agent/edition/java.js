@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // The edition seam's answers for Java Edition (see index.js).
+import Vec3 from 'vec3';
 //
 // Java's game data numbers the states of all blocks in one run from 0, and each block type owns the
 // numbers from its minStateId to its maxStateId. So a table with one entry per block state can be a typed
@@ -157,6 +158,29 @@ export function shelfSlots(items) {
         if (item && item !== 'air') slots[at] = { name: item, count: n };
     }
     return slots;
+}
+
+/**
+ * Where a player clicks a shelf to reach one of its slots: its front face, in the third of it that the
+ * slot sits in. Slots run 0 to 2 from left to right as a player standing in front sees them, so on a
+ * shelf facing south (seen looking north) slot 0 is at the west end. The game picks the slot from where
+ * across the face the click lands, so the cursor, not the face's middle, is what matters.
+ * @param {string} facing - the way the shelf's front faces: north, south, east or west
+ * @param {number} slot - 0, 1 or 2
+ * @returns {{face: {x: number, y: number, z: number}, cursor: {x: number, y: number, z: number}}|null}
+ *   the face as a direction out of the block, and the point on it (0 to 1 within the block); null for a
+ *   facing or slot there is no such point for
+ */
+export function shelfClickAt(facing, slot) {
+    const third = [0.17, 0.5, 0.83][slot];
+    if (third === undefined) return null;
+    switch (facing) {
+        case 'south': return { face: { x: 0, y: 0, z: 1 }, cursor: { x: third, y: 0.5, z: 1 } };
+        case 'north': return { face: { x: 0, y: 0, z: -1 }, cursor: { x: 1 - third, y: 0.5, z: 0 } };
+        case 'east': return { face: { x: 1, y: 0, z: 0 }, cursor: { x: 1, y: 0.5, z: 1 - third } };
+        case 'west': return { face: { x: -1, y: 0, z: 0 }, cursor: { x: 0, y: 0.5, z: third } };
+        default: return null;
+    }
 }
 
 export const javaEdition = Object.freeze({
@@ -339,6 +363,36 @@ export const javaEdition = Object.freeze({
         const entity = block.blockEntity ?? null;
         const slots = entity ? shelfSlots((entity.Items ?? []).map(item => ({ slot: item.Slot, name: item.id, count: item.count }))) : null;
         return { facing: props.facing ?? null, powered: props.powered === true || props.powered === 'true', slots };
+    },
+
+    /**
+     * Clicks one slot of a shelf with whatever the bot holds in its main hand, as a player does: an empty
+     * hand takes the slot's stack, a held stack goes into an empty slot, and two stacks swap whole. On Java
+     * the click carries the point on the face it landed on, and the game picks the slot from that.
+     * @param {object} bot
+     * @param {object} block - the shelf, as the bot sees it now
+     * @param {number} slot - 0, 1 or 2
+     */
+    async clickShelfSlot(bot, block, slot) {
+        const at = shelfClickAt(javaEdition.shelfOf(block)?.facing, slot);
+        if (!at) throw new Error('there is no telling which way the shelf faces');
+        await bot.activateBlock(block, new Vec3(at.face.x, at.face.y, at.face.z), new Vec3(at.cursor.x, at.cursor.y, at.cursor.z));
+    },
+
+    /**
+     * Moves `count` of the stack in one of the bot's own slots onto another, with no chest open: the whole
+     * stack, or part of it, as a player splits one with the mouse. `to` is empty or holds the same item.
+     * Slots are the bot's own numbers, 9 to 44 (the hotbar is 36 to 44). On Java, part of a stack is put
+     * down one at a time with right clicks, the only way the game moves a given number.
+     */
+    async moveInBag(bot, from, to, count) {
+        const item = bot.inventory.slots[from];
+        if (!item) return;
+        const n = Math.min(count ?? item.count, item.count);
+        await bot.clickWindow(from, 0, 0);
+        if (n >= item.count) await bot.clickWindow(to, 0, 0);
+        else for (let i = 0; i < n; i++) await bot.clickWindow(to, 1, 0);
+        if (bot.inventory.selectedItem) await bot.clickWindow(from, 0, 0);
     },
 
     /**

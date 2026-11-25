@@ -30,7 +30,7 @@
 // Registered for the game data type "bedrock" when this file is first imported. connect.js imports it,
 // so it is in place before any bot starts.
 import { registerEdition } from '../edition/index.js';
-import { javaEdition as java, isShelfBlock, shelfSlots } from '../edition/java.js';
+import { javaEdition as java, isShelfBlock, shelfClickAt, shelfSlots } from '../edition/java.js';
 import { moveStack } from './window_moves.js';
 import { bedrockNamesFor } from './names.js';
 
@@ -426,6 +426,40 @@ export const bedrockEdition = Object.freeze({
         }
         const powered = props.powered_bit;
         return { facing: props['minecraft:cardinal_direction'] ?? props.facing ?? null, powered: powered === 1 || powered === true || powered === '1', slots };
+    },
+
+    /**
+     * Clicks one slot of a shelf (see Java's answer). The adapter's `activateBlock` always clicks the
+     * middle of a face, which is the middle slot, so this goes through the click the adapter places blocks
+     * with, which takes the point on the face (`delta`), without the start and end of an item use that a
+     * placement sends: a plain click on a block, as when a chest is opened.
+     */
+    async clickShelfSlot(bot, block, slot) {
+        const at = shelfClickAt(bedrockEdition.shelfOf(block)?.facing, slot);
+        if (!at) throw new Error('there is no telling which way the shelf faces');
+        if (typeof bot._genericPlace !== 'function') throw new Error('the Bedrock adapter in use cannot click a point on a block');
+        await bot._genericPlace(block, at.face, { delta: at.cursor, swingArm: 'right', itemUseLifecycle: false });
+    },
+
+    /**
+     * Moves `count` of a stack between two of the bot's own slots (see Java's answer). Bedrock moves a
+     * given number in one request. A move between the hotbar and the main inventory needs the inventory
+     * screen open, as a player has it open to do it, so it is opened for the move and closed again.
+     */
+    async moveInBag(bot, from, to, count) {
+        const item = bot.inventory.slots[from];
+        if (!item) return;
+        const bedrockSlot = slot => (slot >= 36 ? slot - 36 : slot);
+        const crosses = (from >= 36) !== (to >= 36);
+        const opened = crosses && !bot.currentWindow && typeof bot.openInventory === 'function';
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        if (opened) { bot.openInventory(); await pause(400); }
+        try {
+            bot.moveInventoryItem(bedrockSlot(from), bedrockSlot(to), Math.min(count ?? item.count, item.count));
+            await pause(400);
+        } finally {
+            if (opened && bot.currentWindow) bot.closeWindow(bot.currentWindow);
+        }
     },
 
     /**

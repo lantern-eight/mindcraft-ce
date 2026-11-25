@@ -220,6 +220,29 @@ test('a Bedrock shelf shows its three slots, from its state and its block entity
     assert.equal(bedrockEdition.shelfOf({ name: 'barrel' }), null);
 });
 
+test('Bedrock clicks a shelf slot through the adapter\'s click with a point, and moves part of a stack in one request', async () => {
+    const sent = [];
+    const bot = {
+        _genericPlace: async (block, face, options) => sent.push(['click', face, options]),
+        inventory: { slots: [] },
+        currentWindow: null,
+        openInventory() { sent.push(['open']); this.currentWindow = { id: 'inventory' }; },
+        closeWindow() { sent.push(['close']); this.currentWindow = null; },
+        moveInventoryItem: (from, to, count) => sent.push(['move', from, to, count]),
+    };
+    const shelf = { name: 'oak_shelf', getProperties: () => ({ 'minecraft:cardinal_direction': 'south', powered_bit: 0 }) };
+    await bedrockEdition.clickShelfSlot(bot, shelf, 0);
+    assert.deepEqual(sent, [['click', { x: 0, y: 0, z: 1 }, { delta: { x: 0.17, y: 0.5, z: 1 }, swingArm: 'right', itemUseLifecycle: false }]]);
+
+    sent.length = 0;
+    bot.inventory.slots[36] = { name: 'torch', count: 20 };
+    await bedrockEdition.moveInBag(bot, 36, 40, 3);
+    assert.deepEqual(sent, [['move', 0, 4, 3]], 'hotbar to hotbar: Bedrock slots 0 to 8, no screen');
+    sent.length = 0;
+    await bedrockEdition.moveInBag(bot, 36, 12, 3);
+    assert.deepEqual(sent, [['open'], ['move', 0, 12, 3], ['close']], 'into the main inventory: the inventory screen is opened for it');
+});
+
 test('a Bedrock furnace is another block while it burns', () => {
     assert.deepEqual(bedrockEdition.furnaceOf({ name: 'furnace' }), { kind: 'furnace', lit: false });
     assert.deepEqual(bedrockEdition.furnaceOf({ name: 'lit_furnace' }), { kind: 'furnace', lit: true });
