@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Bringing a player something. `!bringItem("Alice", "iron_ingot", 10)` hands over what the bot carries and
+  fetches the rest from the chests, then walks up to the player and throws it to them, and says whether they
+  took it. It throws from close by and chest high, so the item lands at their feet; Mindcraft's own hand-over
+  threw at the feet from three blocks, which on Bedrock fell short enough for the bot to pick it back up.
+
 ## [1.16.0-bedrock.1.17.0] - 2026-11-24
 
 ### Added

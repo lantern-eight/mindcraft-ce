@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshBot, freshStart } from './bedrock_fixture.js';
 import { fairPlaySettings } from '../helpers/live_view.js';
 
 const NAME = 'BedrockStower';
@@ -27,7 +27,7 @@ const server = bedrockTestServer();
 if (!server.hasConsole) throw new Error('The scenes are built from the server console: set BEDROCK_TEST_CONSOLE');
 const cmd = server.command;
 
-let bot, origin;
+let bot, alice, origin;
 const at = (dx, dy, dz) => origin.offset(dx, dy, dz);
 const xyz = position => `${position.x} ${position.y} ${position.z}`;
 const fill = (a, b, block) => cmd(`fill ${xyz(at(...a))} ${xyz(at(...b))} ${block}`);
@@ -240,9 +240,30 @@ try {
         assert.deepEqual(await read(UNKNOWN), before.unknown, 'the unknown chest is slot for slot as it was');
         return { text: result.text.split('\n').slice(0, 3).join(' | ') };
     });
+    await step('"bring me 5 iron": the bot fetches what it lacks and hands it to Alice, a real player beside it', async () => {
+        alice = initBot('Alice');
+        alice.on('error', error => console.error('Alice error:', error.message));
+        await Promise.race([once(alice, 'spawn'), delay(30000).then(() => { throw new Error('Alice did not spawn within 30 s'); })]);
+        await freshBot(server, alice);
+        await delay(2000);
+        await tpTo([0, 1, 0], 0);                       // facing south, toward where Alice will stand
+        await cmd(`tp Alice ${at(0, 1, 4).x + 0.5} ${at(0, 1, 4).y} ${at(0, 1, 4).z + 0.5} 180 0`, 1500);
+        await bot.lookAt(at(0, 2, 4).offset(0.5, 0, 0.5), true);
+        await settled();
+        const had = carried('iron_ingot');
+        const result = await run('Alice', '!bringItem', ['Alice', 'iron_ingot', 5]);
+        assert.equal(result.status, 'ok', result.text);
+        await waitFor(() => alice.inventory.items().some(item => item.name === 'iron_ingot'), 5000, () => `Alice never got the iron: ${result.text}`);
+        await delay(500);
+        const got = alice.inventory.items().filter(item => item.name === 'iron_ingot').reduce((n, item) => n + item.count, 0);
+        assert.equal(got, 5, `Alice holds ${got}: ${result.text}`);
+        assert.equal(carried('iron_ingot'), Math.max(0, had - 5), 'the bot gave what it carried and fetched the rest');
+        return { text: result.text.split('\n').at(-1) };
+    });
 } catch (error) {
     console.error(error);
 } finally {
+    alice?.quit();
     try {
         if (origin) await fill([-10, 0, -10], [10, 6, 10], 'air');
     } catch (error) { console.error('Tear-down failed:', error.message); }

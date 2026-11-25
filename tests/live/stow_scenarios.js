@@ -33,7 +33,7 @@ const step = async (name, fn) => {
 };
 
 const server = await vanillaFixture(port);
-let bot;
+let bot, alice;
 try {
     setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(),
         world_memory: true, chest_sorting: true, store_and_fetch: true });
@@ -241,6 +241,27 @@ try {
         return { text: result.text };
     });
 
+    await step('"bring me 5 iron": the bot fetches what it lacks and hands it to Alice, a real player beside it', async () => {
+        alice = initBot('Alice');
+        alice.on('error', error => console.error('Alice error:', error.message));
+        await once(alice, 'spawn');
+        await cmd('clear Alice');
+        await cmd(`tp ${NAME} 0.5 70 -6.5 0 0`); // facing south, toward where Alice will stand
+        await cmd('tp Alice 0.5 70 -1.5 180 0');
+        await delay(1500);
+        await settled();
+        const had = carried('iron_ingot');
+        const result = await run('Alice', '!bringItem', ['Alice', 'iron_ingot', 5], 120);
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /Gave 5 iron_ingot to Alice\.$/, result.text);
+        await waitFor(() => alice.inventory.items().some(item => item.name === 'iron_ingot'), 5000, () => 'Alice never got the iron');
+        await delay(500);
+        const got = alice.inventory.items().filter(item => item.name === 'iron_ingot').reduce((n, item) => n + item.count, 0);
+        assert.equal(got, 5, `Alice holds ${got}: ${result.text}`);
+        assert.equal(carried('iron_ingot'), Math.max(0, had - 5), 'the bot gave what it carried and fetched the rest');
+        return { text: result.text };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });
@@ -251,6 +272,7 @@ try {
     console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: results.length }));
     process.exitCode = 1;
 } finally {
+    alice?.quit();
     bot?.quit();
     await server.stop();
     process.exit(process.exitCode ?? 0);

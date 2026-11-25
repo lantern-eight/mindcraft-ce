@@ -5,6 +5,7 @@
 //                                      belong: "all" for everything it does not need to keep, or one item
 //   !fetchItem(item_name, num)         takes an item out of the chests the bot remembers holding it
 //   !fileInbox(whose, distance)        files what players left in the inbox into the chests where it belongs
+//   !bringItem(player_name, item_name, num)   fetches an item if the bot doesn't carry enough, and hands it over
 //
 // Which chests may be used is decided in take_put.js from the chest book, never by the model. Where each
 // thing goes, and which chests to fetch from, is worked out in stow_plan.js and done in stow.js, so the
@@ -15,6 +16,7 @@
 import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { botHands } from './bot_hands.js';
+import { handOver } from './hand_over.js';
 import { asAction, chestsAround, forgetGone, labelOf, ownerLabel, purposesOn, real } from './commands.js';
 import { ME, SHARED } from './chest_book.js';
 import { isSortable } from './chests.js';
@@ -183,6 +185,55 @@ export async function fetchHere(bot, itemText, num, deps = {}) {
     return toolResult(status, lines.join('\n'));
 }
 
+/** How many of an item the bot carries. */
+const carriedOf = (bot, name) => bagOf(bot).filter(item => item.name === name).reduce((n, item) => n + item.count, 0);
+
+/**
+ * !bringItem: gets an item to a player. What the bot carries goes first, as a player hands over what is in
+ * their bag; only what it is short of is fetched from the chests, by the same rules as !fetchItem. Then it
+ * walks up to the player and throws it to them (hand_over.js). Which chests it may take from follows who
+ * asked, never who receives: bringing Bob something from Alice's chests takes Alice asking.
+ * @param {object} bot
+ * @param {string} playerText - who gets it
+ * @param {string} itemText - the item's exact name
+ * @param {number} num
+ * @param {object} deps - as for fetchHere, plus `give(bot, name, player, count)` to stand in for handOver
+ */
+export async function bringHere(bot, playerText, itemText, num, deps = {}) {
+    const env = { give: handOver, ...real, ...deps };
+    const player = String(playerText ?? '').trim().replace(/^["']|["']$/g, '');
+    const name = cleanName(String(itemText ?? '').replace(/^["']|["']$/g, ''));
+    if (!player) return toolResult('failed', 'Bring it to whom? Give the player\'s name.');
+    if (!name) return toolResult('failed', 'Which item? Give its name, like iron_ingot.');
+    if ([bot.username, env.name].some(self => self && player.toLowerCase() === String(self).toLowerCase())) return toolResult('failed', 'You can\'t bring things to yourself: use !fetchItem.');
+
+    const lines = [];
+    const short = num - carriedOf(bot, name);
+    let fetched = null;
+    if (short > 0) {
+        fetched = await fetchHere(bot, name, short, { ...deps, by: deps.by ?? null });
+        // The fetch's own advice to hand it over is what happens next, here.
+        lines.push(...fetched.text.split('\n').filter(line => !/hand it over with !givePlayer/.test(line)));
+    }
+    const have = Math.min(num, carriedOf(bot, name));
+    if (!have) return toolResult('failed', [...lines, `Nothing to bring ${player}.`].join('\n'));
+
+    let given;
+    try { given = await env.give(bot, name, player, have); }
+    catch (error) { assertActionOwner(bot); given = { thrown: 0, taken: false, problem: error?.message ?? String(error) }; }
+    const handed = given.thrown;
+    if (handed && given.taken) {
+        lines.push(`Gave ${handed} ${name} to ${player}${handed < num ? ` (of the ${num} asked for)` : ''}.`);
+    } else if (handed) {
+        // Thrown to them, and not picked up: it lies on the ground at their feet.
+        lines.push(`Threw ${handed} ${name} to ${player}, but they didn't pick it up: it is on the ground at their feet.`);
+    } else {
+        lines.push(`Could not hand it to ${player}: ${given.problem ?? 'they never took it'}. You carry ${carriedOf(bot, name)} ${name}.`);
+    }
+    const status = !handed ? 'failed' : !given.taken || handed < num ? 'partial' : 'ok';
+    return toolResult(status, lines.join('\n'));
+}
+
 /**
  * !fileInbox: takes what players left in the inbox and puts it where it belongs, by the rules of putting
  * away. What fits nowhere goes back into the inbox.
@@ -271,6 +322,17 @@ export function stowCommands({ book, save = () => {}, asker = () => ({}), deps =
                 'num': { type: 'int', description: 'How many to fetch.', domain: [1, Number.MAX_SAFE_INTEGER] },
             },
             perform: run('fetchItem', (agent, itemName, num) => fetchHere(agent.bot, itemName, num, env(agent))),
+        } },
+        { action: true, command: {
+            name: '!bringItem',
+            description: 'Bring a player an item: hand over what you carry, fetching from the chests what you are short of '
+                + '(by the same rules as !fetchItem), then walk to the player and give it. Use the exact item name.',
+            params: {
+                'player_name': { type: 'string', description: 'The player to bring it to.' },
+                'item_name': { type: 'ItemName', description: 'The exact name of the item, like iron_ingot.' },
+                'num': { type: 'int', description: 'How many to bring.', domain: [1, Number.MAX_SAFE_INTEGER] },
+            },
+            perform: run('bringItem', (agent, player, itemName, num) => bringHere(agent.bot, player, itemName, num, env(agent))),
         } },
         { action: true, command: {
             name: '!fileInbox',
