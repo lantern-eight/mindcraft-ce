@@ -9,6 +9,19 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.16.0-bedrock.1.17.0] - 2026-11-24
+
+### Added
+
+- What a chest is for. `!chestFor(x, y, z, "tools")` says a chest is for a group of items, an item, several
+  of those, or the inbox, where players drop things for the bot to file; a sign over a chest saying "Ores"
+  or "Iron ingots" counts too, until a player says otherwise. Putting away puts each thing in the chest for
+  it and never in a chest for something else; a sort places things in the chest for them first; the inbox
+  is left out of both. `!chests` says what each chest is for, and whether that comes from a sign.
+- Filing the inbox. `!fileInbox("any", 16)` takes what players left in the inbox and puts it where it belongs,
+  by the rules of putting away, a bagful at a time; what fits nowhere goes back into the inbox. Only the
+  inbox's things are filed: the bot keeps its own, even of the same kind.
+
 ## [1.15.0-bedrock.1.16.0] - 2026-11-24
 
 ### Added
@@ -1193,7 +1206,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.15.0-bedrock.1.16.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.16.0-bedrock.1.17.0...HEAD
+[1.16.0-bedrock.1.17.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.15.0-bedrock.1.16.0...v1.16.0-bedrock.1.17.0
 [1.15.0-bedrock.1.16.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...v1.15.0-bedrock.1.16.0
 [1.14.0-bedrock.1.15.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...v1.14.0-bedrock.1.15.0
 [1.13.0-bedrock.1.14.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...v1.13.0-bedrock.1.14.0

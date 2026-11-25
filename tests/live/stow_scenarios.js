@@ -186,6 +186,61 @@ try {
         return { text: result.text };
     });
 
+    // ---- What a chest is for ----
+    const chestsList = () => agent.handleMessage('Alice', () => getCommand('!chests').perform(agent, 16));
+
+    await step('a sign over a chest says what it is for, and the list reads it as a sign, not a word', async () => {
+        const [x, y, z] = SHARED;
+        await cmd(`setblock ${x} ${y + 1} ${z} oak_wall_sign[facing=south]{front_text:{messages:["Wood","","",""]}}`);
+        await bot.lookAt(new Vec3(x + 0.5, y + 1.5, z + 0.5), true);
+        await settled();
+        const text = await chestsList();
+        assert.match(text, /- chest at -2, 70, -10: shared\.[^\n]*For wood, going by its sign\. A sign beside it says "Wood"/, text);
+        return { text };
+    });
+
+    await step('a player says a chest is for tools: put-away follows that and the sign, over what each chest holds', async () => {
+        assert.match(await agent.handleMessage('Alice', () => getCommand('!chestFor').perform(agent, ...SPARE, 'tools')), /For tools/);
+        const was = { own: await read(OWN), shared: await read(SHARED), spare: await read(SPARE) };
+        for (const give of ['dirt 20', 'oak_log 8', 'stone_pickaxe']) await cmd(`give ${NAME} ${give}`);
+        await delay(500);
+        const result = await run('Alice', '!putAway', ['all', 'any', 16], 180);
+        assert.equal(result.status, 'ok', result.text);
+        const now = { own: await read(OWN), shared: await read(SHARED), spare: await read(SPARE) };
+        // The spare chest holds dirt, and the bot's own chest a stone pickaxe: without what each is for, the
+        // dirt would join the dirt and the pickaxe the pickaxe.
+        assert.equal(countIn(now.spare, 'stone_pickaxe') - countIn(was.spare, 'stone_pickaxe'), 1, `the pickaxe into the chest for tools: ${result.text}`);
+        assert.equal(countIn(now.spare, 'dirt'), countIn(was.spare, 'dirt'), `no dirt into the chest for tools: ${result.text}`);
+        assert.equal(countIn(now.own, 'dirt') - countIn(was.own, 'dirt'), 20, `the dirt into the chest for anything: ${result.text}`);
+        assert.equal(countIn(now.shared, 'oak_log') - countIn(was.shared, 'oak_log'), 8, `logs into the chest whose sign says wood: ${result.text}`);
+        assert.equal(countIn(now.shared, 'dirt'), countIn(was.shared, 'dirt'), 'no dirt under the wood sign');
+        const alice = await read(ALICE);
+        assert.deepEqual([countIn(alice, 'iron_ingot'), countIn(alice, 'gold_ingot'), alice.filter(Boolean).length], [13, 3, 2], 'Alice\'s chest is as the fetch left it');
+        return { text: result.text };
+    });
+
+    const INBOX = [6, 70, -10];
+    await step('a chest named as the inbox becomes shared, and filing it puts each thing where it belongs', async () => {
+        const [x, y, z] = INBOX;
+        await cmd(`setblock ${x} ${y} ${z} chest[facing=south]`);
+        await bot.lookAt(new Vec3(x + 0.5, y + 0.5, z + 0.5), true);
+        await settled();
+        const named = await agent.handleMessage('Alice', () => getCommand('!chestFor').perform(agent, ...INBOX, 'inbox'));
+        assert.match(named, /The inbox.*it is now shared/, named);
+        // Players drop things in it.
+        await fill(INBOX, { 0: 'oak_log x6', 1: 'iron_ingot x4', 2: 'bone x5', 3: 'cobblestone x7' });
+        const was = { shared: await read(SHARED), spare: await read(SPARE) };
+        const bag = ['oak_log', 'iron_ingot', 'bone', 'cobblestone'].map(carried);
+        const result = await run('Alice', '!fileInbox', ['any', 16], 180);
+        assert.equal(result.status, 'ok', result.text);
+        assert.deepEqual((await read(INBOX)).filter(Boolean), [], `the inbox is empty: ${result.text}`);
+        assert.equal(countIn(await read(SHARED), 'oak_log') - countIn(was.shared, 'oak_log'), 6, `logs under the wood sign: ${result.text}`);
+        assert.deepEqual(await read(SPARE), was.spare, 'nothing into the chest for tools');
+        assert.deepEqual(['oak_log', 'iron_ingot', 'bone', 'cobblestone'].map(carried), bag, 'the bot keeps what it carried, its cobblestone too');
+        assert.deepEqual(await read(UNKNOWN), before.unknown, 'the unknown chest is slot for slot as it was');
+        return { text: result.text };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });

@@ -45,6 +45,8 @@ async function waitFor(check, ms, why) {
 
 // A row of chests along one wall, two blocks apart so none pairs into a double chest.
 const OWN = [-4, 1, -4], SHARED = [-2, 1, -4], ALICE = [0, 1, -4], UNKNOWN = [2, 1, -4], SPARE = [4, 1, -4];
+// A sign on top of the shared chest, and a chest placed later to be the inbox.
+const SIGN = [-2, 2, -4], INBOX = [6, 1, -4];
 
 try {
     setSettings({ ...rootSettings, ...bedrockTestSettings(server), ...fairPlaySettings(), world_memory: true, chest_sorting: true, store_and_fetch: true });
@@ -73,6 +75,17 @@ try {
         await fill([-10, 0, -10], [10, 0, 10], 'stone');
         for (const cell of [OWN, SHARED, ALICE, UNKNOWN, SPARE]) await set(cell, 'chest');
         await cmd(`clear ${NAME}`);
+        // A sign's text is a player's to write, and the console can't: the bot writes it with its own hands,
+        // before fair play is installed. A Bedrock server takes a sign's text only from a player it opened the
+        // sign for, so the bot clicks the sign first, as a player does.
+        await set(SIGN, 'standing_sign');
+        await tpTo([SIGN[0], 1, SIGN[2] + 2], 180);
+        const sign = bot.blockAt(at(...SIGN));
+        const opened = once(bot, 'signOpen');
+        await bot.activateBlock(sign);
+        await Promise.race([opened, delay(5000).then(() => { throw new Error('The server never opened the sign'); })]);
+        bot.updateSign(sign, 'Wood');
+        await delay(800);
         await tpTo([0, 1, 0], 180);
         for (const give of ['cobblestone 64', 'cobblestone 40', 'oak_log 12', 'wheat 12', 'iron_pickaxe 1', 'stone_pickaxe 1', 'stone_pickaxe 1 100', 'bread 6', 'dirt 5']) {
             await cmd(`give ${NAME} ${give}`, 400);
@@ -174,6 +187,58 @@ try {
         assert.equal(result.status, 'failed', result.text);
         assert.match(result.text, /it is Alice's and no player asked/, result.text);
         assert.equal(countIn(await read(ALICE), 'iron_ingot'), 13);
+    });
+    // ---- What a chest is for ----
+    const chestsList = () => agent.handleMessage('Alice', () => getCommand('!chests').perform(agent, 16));
+    const say = (command, cell, ...args) => {
+        const c = at(...cell);
+        return agent.handleMessage('Alice', () => getCommand(command).perform(agent, c.x, c.y, c.z, ...args));
+    };
+
+    await step('a sign over a chest says what it is for, and the list reads it as a sign, not a word', async () => {
+        await tpTo([0, 1, 0], 180);
+        await bot.lookAt(at(...SIGN).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        const text = await chestsList();
+        assert.match(text, /shared\.[^\n]*For wood, going by its sign\. A sign beside it says "Wood"/, text);
+        return { text: text.split('\n').find(line => line.includes('Wood')) };
+    });
+
+    await step('a player says a chest is for tools: put-away follows that and the sign, over what each chest holds', async () => {
+        assert.match(await say('!chestFor', SPARE, 'tools'), /For tools/);
+        const was = { own: await read(OWN), shared: await read(SHARED), spare: await read(SPARE) };
+        await tpTo([0, 1, 0], 180);
+        for (const give of ['dirt 20', 'oak_log 8', 'stone_pickaxe 1']) await cmd(`give ${NAME} ${give}`, 400);
+        const result = await run('Alice', '!putAway', ['all', 'any', 16]);
+        assert.equal(result.status, 'ok', result.text);
+        const now = { own: await read(OWN), shared: await read(SHARED), spare: await read(SPARE) };
+        assert.equal(countIn(now.spare, 'stone_pickaxe') - countIn(was.spare, 'stone_pickaxe'), 1, `the pickaxe into the chest for tools: ${result.text}`);
+        assert.equal(countIn(now.spare, 'dirt'), countIn(was.spare, 'dirt'), `no dirt into the chest for tools: ${result.text}`);
+        assert.equal(countIn(now.own, 'dirt') - countIn(was.own, 'dirt'), 20, `the dirt into the chest for anything: ${result.text}`);
+        assert.equal(countIn(now.shared, 'oak_log') - countIn(was.shared, 'oak_log'), 8, `logs into the chest whose sign says wood: ${result.text}`);
+        assert.equal(countIn(now.shared, 'dirt'), countIn(was.shared, 'dirt'), 'no dirt under the wood sign');
+        return { text: result.text.split('\n').slice(0, 4).join(' | ') };
+    });
+
+    await step('a chest named as the inbox becomes shared, and filing it puts each thing where it belongs', async () => {
+        await set(INBOX, 'chest');
+        await tpTo([0, 1, 0], 180);
+        await bot.lookAt(at(...INBOX).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        const named = await say('!chestFor', INBOX, 'inbox');
+        assert.match(named, /The inbox.*it is now shared/, named);
+        await stock(INBOX, { 0: 'oak_log x6', 1: 'iron_ingot x4', 2: 'bone x5', 3: 'cobblestone x7' });
+        const was = { shared: await read(SHARED), spare: await read(SPARE) };
+        const bag = ['oak_log', 'iron_ingot', 'bone', 'cobblestone'].map(carried);
+        await tpTo([0, 1, 0], 180);
+        const result = await run('Alice', '!fileInbox', ['any', 16]);
+        assert.equal(result.status, 'ok', result.text);
+        assert.deepEqual((await read(INBOX)).filter(Boolean), [], `the inbox is empty: ${result.text}`);
+        assert.equal(countIn(await read(SHARED), 'oak_log') - countIn(was.shared, 'oak_log'), 6, `logs under the wood sign: ${result.text}`);
+        assert.deepEqual(await read(SPARE), was.spare, 'nothing into the chest for tools');
+        assert.deepEqual(['oak_log', 'iron_ingot', 'bone', 'cobblestone'].map(carried), bag, 'the bot keeps what it carried, its cobblestone too');
+        assert.deepEqual(await read(UNKNOWN), before.unknown, 'the unknown chest is slot for slot as it was');
+        return { text: result.text.split('\n').slice(0, 3).join(' | ') };
     });
 } catch (error) {
     console.error(error);

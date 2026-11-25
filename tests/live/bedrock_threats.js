@@ -505,6 +505,9 @@ try {
             const spot = at(...cell);
             await cmd(`summon ${mob} ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
         }
+        // East again, between the two pens: building them took a few seconds, and the idle look-around may
+        // have turned the bot so that one is out of a player's screen.
+        await faceExactly(bot, 3 * Math.PI / 2, 0);
         await waitFor(() => reflexes.zones.list().filter(z => z.kind === 'illagers').length >= 2, 10000, () => JSON.stringify(reflexes.zones.list()));
         const kept = reflexes.zones.list();
         for (const cell of Object.values(pens))

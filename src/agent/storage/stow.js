@@ -11,6 +11,8 @@
 // Nothing touches the game here directly. It is handed "hands" (bot_hands.js) that walk, open and move,
 // so the same code runs on a real bot and in the fake room of the tests.
 import { planFetch, planPutAway, walkOrder } from './stow_plan.js';
+import { groupOf as groupByName } from './item_groups.js';
+import { fitFor } from './purposes.js';
 
 /** How many chests it opens just to see what is inside, at most, before or while it plans. */
 export const LOOK_LIMIT = 12;
@@ -70,7 +72,9 @@ export async function putAway(chests, { items, hands, from, stackSize = () => 64
     // First, a look into the chests it has never seen inside, nearest first, as a player in a storage room
     // they don't know opens the chests before deciding where things go. Without that, every chest would
     // look alike to the plan and everything would land in the first.
-    for (const chest of walkOrder(from, [...beliefs.values()].filter(c => !c.items))) {
+    // A chest that is for something else none of it suits is not worth a look: nothing will go in it.
+    const mayTake = chest => items.some(item => fitFor(chest.holds, item.name, groupOf ?? groupByName) >= 0);
+    for (const chest of walkOrder(from, [...beliefs.values()].filter(c => !c.items && mayTake(c)))) {
         if (looked >= lookLimit) break;
         looked++;
         const result = await visit(hands, chest, checkpoint, async opened => Object.assign(chest, beliefOf(opened.slots())));

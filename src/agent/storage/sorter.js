@@ -203,7 +203,7 @@ export async function runSort(chests, { hands, stackSize = () => 64, groupOf, gr
 
     while (known.size) {
         measure();
-        const plan = planSort([...known.values()].map(({ chest, slots }) => ({ id: chest.id, slots })),
+        const plan = planSort([...known.values()].map(({ chest, slots }) => ({ id: chest.id, slots, holds: chest.holds })),
             { stackSize: sizeOf, groupOf, groupOrder, carry });
         if (!plan.moves.length || (await carryOut(plan))) {
             report.done = plan.complete;

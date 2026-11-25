@@ -7,6 +7,8 @@
 // whether that is still so, and asks again with what it learned.
 //
 // Where a thing goes, the way a player puts things away in a storage room:
+//   0. into a chest that is for it (a player said so, or a sign on it says so: purposes.js), one for the item
+//      itself before one for its group; and never into a chest that is for something else, or the inbox;
 //   1. into a chest that already holds that kind of thing, the one holding most of it;
 //   2. else into the chest that holds most of its group (tools with tools, wood with wood), the group's
 //      home in the sort plan's words, so a base somebody organized stays organized;
@@ -20,6 +22,7 @@
 // and shared, the asker's, other players'), and within a rank from one chest that has all of it if
 // there is one, else the nearest first.
 import { groupOf as groupByName } from './item_groups.js';
+import { fitFor } from './purposes.js';
 
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
@@ -49,9 +52,10 @@ function add(chest, name, count, stackSize) {
 /**
  * Plans where each item goes.
  * @param {{name: string, count: number}[]} items - what to put away
- * @param {{id: string, rank: number, distance: number, items: Object<string, number>|null, free: number|null}[]} chests -
- *   the chests that may be used, with what the bot believes each holds (`items` and `free` null for one it
- *   has not looked into), its rank from take_put.js and its distance from the bot
+ * @param {{id: string, rank: number, distance: number, items: Object<string, number>|null, free: number|null,
+ *   holds?: string[]}[]} chests - the chests that may be used, with what the bot believes each holds (`items`
+ *   and `free` null for one it has not looked into), its rank from take_put.js, its distance from the bot,
+ *   and what it is for (`holds`, purposes.js; none or empty for anything)
  * @param {object} [options]
  * @param {(name: string) => number} [options.stackSize]
  * @param {(name: string) => string} [options.groupOf]
@@ -78,15 +82,19 @@ export function planPutAway(items, chests, { stackSize = () => 64, groupOf = gro
     for (const { name, count } of [...items].sort((a, b) => b.count - a.count || compare(a.name, b.name))) {
         let left = count;
         const group = groupOf(name);
+        const fit = chest => fitFor(chest.holds, name, groupOf);
         while (left > 0) {
-            const roomy = known.filter(chest => roomFor(chest, name, stackSize) > 0);
+            const roomy = known.filter(chest => fit(chest) >= 0 && roomFor(chest, name, stackSize) > 0);
+            // A chest for this item, then one for its group: the one already holding most of it, else the nearest.
+            const meant = roomy.filter(chest => fit(chest) > 0)
+                .sort((a, b) => fit(b) - fit(a) || (b.items[name] ?? 0) - (a.items[name] ?? 0) || byNear(a, b));
             const holding = roomy.filter(chest => chest.items[name] > 0)
                 .sort((a, b) => b.items[name] - a.items[name] || byNear(a, b));
             const home = roomy.filter(chest => groupCount(chest, group) > 0)
                 .sort((a, b) => groupCount(b, group) - groupCount(a, group) || byNear(a, b));
             const empty = roomy.filter(isEmpty).sort(byNear);
             const most = [...roomy].sort((a, b) => b.free - a.free || byNear(a, b));
-            const chest = holding[0] ?? home[0] ?? empty[0] ?? most[0];
+            const chest = meant[0] ?? holding[0] ?? home[0] ?? empty[0] ?? most[0];
             if (!chest) break;
             const n = Math.min(left, roomFor(chest, name, stackSize));
             add(chest, name, n, stackSize);
@@ -94,8 +102,9 @@ export function planPutAway(items, chests, { stackSize = () => 64, groupOf = gro
             left -= n;
         }
         if (left > 0) {
-            // No chest the bot has looked into has room: the nearest one it has not looked into may.
-            const maybe = [...unseen].sort(byNear)[0];
+            // No chest the bot has looked into has room: one it has not looked into may, one for this
+            // first. Never one for something else.
+            const maybe = unseen.filter(chest => fit(chest) >= 0).sort((a, b) => fit(b) - fit(a) || byNear(a, b))[0];
             if (maybe) put(maybe, name, left);
             else unplaced.push({ name, count: left });
         }
