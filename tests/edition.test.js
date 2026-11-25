@@ -11,7 +11,7 @@ import registryFactory from 'prismarine-registry';
 import chunkFactory from 'prismarine-chunk';
 import blockFactory from 'prismarine-block';
 import { editionOf, registerEdition } from '../src/agent/edition/index.js';
-import { javaEdition } from '../src/agent/edition/java.js';
+import { javaEdition, shelfClickAt } from '../src/agent/edition/java.js';
 import { lazyStateTable, scanSection } from '../src/agent/fairplay/block_scan.js';
 import { GAME_VERSION } from './helpers/game_version.js';
 
@@ -158,6 +158,61 @@ test('Java\'s signs read their own text, which the seam passes on side by side',
     assert.deepEqual(javaEdition.signSidesOf({ getSignText: () => ['Wheat\nfarm', ''] }), ['Wheat\nfarm', '']);
     assert.deepEqual(javaEdition.signSidesOf({ name: 'stone' }), [], 'a block with no text');
     assert.deepEqual(javaEdition.signSidesOf(null), [], 'nothing there');
+});
+
+test('a Java shelf shows its three slots, read from the block entity the server sends every player', () => {
+    // As mineflayer keeps it: the probe of a live 26.3 shelf gave exactly this shape.
+    const shelf = (props, blockEntity) => ({ name: 'oak_shelf', getProperties: () => props, blockEntity });
+    const seen = javaEdition.shelfOf(shelf({ facing: 'south', powered: false },
+        { align_items_to_bottom: 0, Items: [{ count: 7, Slot: 0, id: 'minecraft:iron_ingot' }, { count: 4, Slot: 2, id: 'minecraft:string' }] }));
+    assert.deepEqual(seen, { facing: 'south', powered: false, slots: [{ name: 'iron_ingot', count: 7 }, null, { name: 'string', count: 4 }] });
+    assert.deepEqual(javaEdition.shelfOf(shelf({ facing: 'east', powered: true }, { align_items_to_bottom: 0 })),
+        { facing: 'east', powered: true, slots: [null, null, null] }, 'an empty shelf, powered');
+    assert.equal(javaEdition.shelfOf(shelf({ facing: 'north', powered: false }, undefined)).slots, null, 'items not known: a remembered block');
+    assert.equal(javaEdition.shelfOf({ name: 'chest' }), null);
+    assert.equal(javaEdition.shelfOf({ name: 'shelf_mushroom' }), null, 'a mushroom on a tree is no shelf');
+    assert.equal(javaEdition.shelfOf(null), null);
+});
+
+test('a shelf slot is clicked in its third of the front face, left to right as a player in front sees it', () => {
+    // Checked on a live 26.3 server: on a shelf facing south, 0.17, 0.5 and 0.83 across hit slots 0, 1, 2.
+    assert.deepEqual(shelfClickAt('south', 0), { face: { x: 0, y: 0, z: 1 }, cursor: { x: 0.17, y: 0.5, z: 1 } });
+    assert.deepEqual(shelfClickAt('south', 2).cursor, { x: 0.83, y: 0.5, z: 1 });
+    // Turned round, the left end is at the other side.
+    assert.deepEqual(shelfClickAt('north', 0), { face: { x: 0, y: 0, z: -1 }, cursor: { x: 0.83, y: 0.5, z: 0 } });
+    assert.deepEqual(shelfClickAt('east', 0), { face: { x: 1, y: 0, z: 0 }, cursor: { x: 1, y: 0.5, z: 0.83 } });
+    assert.deepEqual(shelfClickAt('west', 0), { face: { x: -1, y: 0, z: 0 }, cursor: { x: 0, y: 0.5, z: 0.17 } });
+    assert.equal(shelfClickAt('west', 1).cursor.z, 0.5);
+    assert.equal(shelfClickAt('up', 0), null);
+    assert.equal(shelfClickAt('south', 3), null);
+});
+
+test('Java clicks a shelf slot with the point on the face, and splits a stack in the bag with right clicks', async () => {
+    const clicks = [];
+    const bot = {
+        activateBlock: async (block, face, cursor) => clicks.push(['activate', face.x, face.y, face.z, cursor.x, cursor.y, cursor.z]),
+        inventory: { slots: [], selectedItem: null },
+        clickWindow: async (slot, button, mode) => clicks.push([slot, button, mode]),
+    };
+    const shelf = { name: 'oak_shelf', getProperties: () => ({ facing: 'west' }), blockEntity: {} };
+    await javaEdition.clickShelfSlot(bot, shelf, 2);
+    assert.deepEqual(clicks, [['activate', -1, 0, 0, 0, 0.5, 0.83]]);
+
+    clicks.length = 0;
+    bot.inventory.slots[36] = { name: 'torch', count: 20 };
+    await javaEdition.moveInBag(bot, 36, 10, 3);
+    assert.deepEqual(clicks, [[36, 0, 0], [10, 1, 0], [10, 1, 0], [10, 1, 0]], 'picked up, three put down one by one');
+    clicks.length = 0;
+    bot.inventory.selectedItem = { name: 'torch', count: 17 };   // what is left on the cursor goes back
+    await javaEdition.moveInBag(bot, 36, 10, 3);
+    assert.deepEqual(clicks.at(-1), [36, 0, 0]);
+    clicks.length = 0;
+    bot.inventory.selectedItem = null;
+    await javaEdition.moveInBag(bot, 36, 10, 20);
+    assert.deepEqual(clicks, [[36, 0, 0], [10, 0, 0]], 'the whole stack: picked up and put down');
+    clicks.length = 0;
+    await javaEdition.moveInBag(bot, 37, 10, 5);
+    assert.deepEqual(clicks, [], 'nothing there, nothing clicked');
 });
 
 test('Java keeps a mob\'s age in its metadata, at index 16', () => {

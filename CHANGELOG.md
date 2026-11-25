@@ -9,6 +9,17 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.18.0-bedrock.1.19.0] - 2026-11-25
+
+### Added
+
+- Shelves. The bot remembers what stands on a shelf when it sees the shelf's front, and `!chests` lists shelves
+  with what was on them. `!markChest` and `!chestFor` say whose a shelf is and what it is for. Fetching
+  (`!fetchItem`, `!bringItem`, `!getTool`) takes from shelves by the same rules as from chests: the bot stands
+  in front, takes the stack with an empty hand, and puts back what it didn't need. `!putAway` puts things onto
+  a shelf only when a player has said what it is for, into an empty slot. A shelf is never sorted, and a
+  powered one is never clicked.
+
 ## [1.17.0-bedrock.1.18.0] - 2026-11-25
 
 ### Added
@@ -1236,7 +1247,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.18.0-bedrock.1.19.0...HEAD
+[1.18.0-bedrock.1.19.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...v1.18.0-bedrock.1.19.0
 [1.17.0-bedrock.1.18.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.16.0-bedrock.1.17.0...v1.17.0-bedrock.1.18.0
 [1.16.0-bedrock.1.17.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.15.0-bedrock.1.16.0...v1.16.0-bedrock.1.17.0
 [1.15.0-bedrock.1.16.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...v1.15.0-bedrock.1.16.0

@@ -313,6 +313,52 @@ try {
         assert.equal(countIn(await read(BARREL), 'string'), 8, fetched.text);
         return { text: fetched.text.split('\n')[0] };
     });
+    // A shelf shows what is on it on its front: the bot learns that by looking, lists it with the chests, takes
+    // from it with its hand, and puts onto one a player has said is for something. A powered shelf is never
+    // clicked. A shelf placed here faces south, toward the room.
+    const SHELF = [-8, 1, -4], POWERED = [-10, 1, -4];
+    const { editionOf } = await import('../../src/agent/edition/index.js');
+    // What is on a shelf, from the block entity the server sends every player: there is no console command
+    // that reads one.
+    const onShelf = cell => (editionOf(bot.registry).shelfOf(bot.blockAt(at(...cell)))?.slots ?? []).map(s => (s ? `${s.name} x${s.count}` : null));
+    await step('a shelf is seen from in front and listed; a fetch takes part of a stack off it, and a named shelf takes things back', async () => {
+        await set(SHELF, 'oak_shelf');
+        await stock(SHELF, { 0: 'torch x40', 2: 'apple x3' });
+        await set(POWERED, 'oak_shelf');
+        await set([POWERED[0], 1, POWERED[2] - 1], 'redstone_block');
+        await stock(POWERED, { 1: 'feather x5' });
+        await cmd(`clear ${NAME} torch`);
+        await cmd(`clear ${NAME} feather`);
+        await waitFor(() => editionOf(bot.registry).shelfOf(bot.blockAt(at(...POWERED)))?.powered, 5000, () => 'the shelf by the redstone block never showed powered');
+        // Out of reach, but in front: it has to walk up to take from it.
+        await tpTo([SHELF[0], 1, 2], 180);
+        await bot.lookAt(at(SHELF[0] - 1, 1, SHELF[2]).offset(0.5, 0.5, 1), true);
+        await settled();
+        const listed = await chestsList();
+        const here = cell => { const c = at(...cell); return `${c.x}, ${c.y}, ${c.z}`; };
+        assert.ok(listed.includes(`oak_shelf at ${here(SHELF)}: owner unknown. A shelf: never sorted. On it: 40 torch, 3 apple; one slot free`), listed);
+        assert.ok(listed.includes(`oak_shelf at ${here(POWERED)}: owner unknown. A shelf: never sorted. On it: 5 feather; 2 slots free`), listed);
+        for (const shelf of [SHELF, POWERED]) assert.match(await say('!markChest', shelf, NAME, 'same'), /is now|was already/);
+        const fetched = await run('Alice', '!fetchItem', ['torch', 10], 150);
+        assert.equal(fetched.status, 'ok', fetched.text);
+        assert.equal(carried('torch'), 10, fetched.text);
+        assert.deepEqual(onShelf(SHELF), ['torch x30', null, 'apple x3'], `the rest went back to its slot: ${fetched.text}`);
+
+        // Said to be for torches, the shelf takes them back: into its empty slot, not onto the 30.
+        assert.match(await say('!chestFor', SHELF, 'torch'), /For torch/);
+        const put = await run('Alice', '!putAway', ['torch', 'any', 16], 150);
+        assert.equal(put.status, 'ok', put.text);
+        assert.ok(put.text.includes(`oak_shelf at ${here(SHELF)} (your own): torch 10`), put.text);
+        assert.deepEqual(onShelf(SHELF), ['torch x30', 'torch x10', 'apple x3'], put.text);
+        assert.equal(carried('torch'), 0, put.text);
+
+        const feather = await run('Alice', '!fetchItem', ['feather', 2], 150);
+        assert.equal(feather.status, 'failed', feather.text);
+        assert.ok(feather.text.includes(`oak_shelf at ${here(POWERED)} was left out: it is powered`), feather.text);
+        assert.deepEqual(onShelf(POWERED), [null, 'feather x5', null], 'the powered shelf is as it was');
+        assert.equal(carried('feather'), 0);
+        return { text: `${fetched.text.split('\n')[0]} | ${put.text.split('\n')[0]} | ${feather.text.split('\n')[0]}` };
+    });
 } catch (error) {
     console.error(error);
 } finally {

@@ -67,7 +67,7 @@ test('!recall answers for a block, a thing, a kind, an item, an animal, a crop, 
     assert.match(recall('doors'), /- oak_door at 24, 64, 3/);
 
     const iron = recall('iron');
-    assert.match(iron, /^IN CONTAINERS YOU OPENED\n- chest at 20, 64, 2: iron_ingot 30 \(looked 10 minutes ago\), 20 blocks east, about \d+ seconds on foot/);
+    assert.match(iron, /^IN CONTAINERS YOU LOOKED INTO\n- chest at 20, 64, 2: iron_ingot 30 \(looked 10 minutes ago\), 20 blocks east, about \d+ seconds on foot/);
     assert.match(recall('diamond_ore'), /- at 3, 12, -40: \d+ blocks north/);
     assert.match(recall('cow'), /^ANIMALS YOU REMEMBER\n- cow x4 near 40, 64, 3: 40 blocks east, seen 10 minutes ago/);
     assert.match(recall('wheat'), /FIELDS YOU REMEMBER\n- wheat x12 \(5 ripe when last seen\) near 18, 64, 17/);

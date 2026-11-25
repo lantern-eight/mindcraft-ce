@@ -17,6 +17,7 @@
 import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { botHands } from './bot_hands.js';
+import { shelfHands } from './shelf_hands.js';
 import { handOver } from './hand_over.js';
 import { craftRecipe } from '../library/skills.js';
 import * as world from '../library/world.js';
@@ -55,10 +56,13 @@ export function bagOf(bot) {
     return out;
 }
 
-/** The chests around the bot, each with what the bot believes is in it and how far it is. */
-function chestsWithBeliefs(bot, distance, env) {
+/**
+ * The chests around the bot, each with what the bot believes is in it and how far it is. With `shelves`,
+ * the shelves too: fetching takes from them, putting away never puts onto one.
+ */
+function chestsWithBeliefs(bot, distance, env, { shelves = false } = {}) {
     const feet = bot.entity?.position ?? { x: 0, y: 0, z: 0 };
-    return chestsAround(bot, distance, env).map(chest => {
+    return chestsAround(bot, distance, env, { shelves }).map(chest => {
         const seen = env.contentsOf?.(chest) ?? null;
         return {
             ...chest,
@@ -88,7 +92,16 @@ function readWhose(whoseText, env) {
         : word === SHARED ? SHARED : env.book.spell?.(String(whoseText).trim()) ?? String(whoseText).trim();
 }
 
-const hands = (bot, env) => botHands(bot, { goTo: chest => env.goTo(bot, chest), blockAt: pos => env.blockAt(bot, pos), isChest: isSortable, ...env.hands });
+/**
+ * The hands for a round of putting away or fetching: a chest's (bot_hands.js) for a chest, a shelf's
+ * (shelf_hands.js) for a shelf, which is walked up to from in front and clicked instead of opened.
+ */
+function hands(bot, env) {
+    const blockAt = pos => env.blockAt(bot, pos);
+    const chests = botHands(bot, { goTo: chest => env.goTo(bot, chest), blockAt, isChest: isSortable, ...env.hands });
+    const shelves = shelfHands(bot, { goTo: front => env.goTo(bot, front, 1), blockAt, ...env.shelfHands });
+    return { ...chests, open: found => (found.shelf ? shelves.open(found) : chests.open(found)) };
+}
 const sizeOf = bot => name => bot.registry.itemsByName[name]?.stackSize ?? 64;
 const here = bot => bot.entity?.position ?? { x: 0, y: 0, z: 0 };
 
@@ -111,7 +124,12 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
 
     const whose = readWhose(whoseText, env);
     forgetGone(bot, env);
-    const found = chestsWithBeliefs(bot, Math.min(distance, PUT_RANGE), env);
+    // A shelf is often a display a player arranged by hand, so things go onto one only when a player has
+    // said what it is for (or a sign on it says): a shelf for torches takes torches. One for anything, or
+    // one nobody has said anything about, is left as it is.
+    const purposeOf = purposesOn(bot, env);
+    const named = shelf => { const { holds, from } = purposeOf(shelf); return from !== null && holds.length > 0 && !isInbox(holds); };
+    const found = chestsWithBeliefs(bot, Math.min(distance, PUT_RANGE), env, { shelves: true }).filter(chest => !chest.shelf || named(chest));
     const allowed = putInto(found, env.book, { whose, asked: env.asked ?? null });
     const leftOut = leftOutText(allowed.left);
     if (!allowed.usable.length) {
@@ -120,7 +138,6 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
     }
     // What each chest is for (a player's word, else its sign): put-away keeps things out of a chest meant
     // for something else, and out of the inbox.
-    const purposeOf = purposesOn(bot, env);
     const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner, holds: purposeOf(chest).holds }));
     const report = await putAway(chests, {
         items: plan.store, hands: hands(bot, env), from: here(bot), stackSize: sizeOf(bot),
@@ -156,7 +173,7 @@ export async function fetchHere(bot, itemText, num, deps = {}) {
     const name = cleanName(String(itemText ?? '').replace(/^["']|["']$/g, ''));
     if (!name) return toolResult('failed', 'Which item? Give its name, like iron_ingot.');
     forgetGone(bot, env);
-    const found = chestsWithBeliefs(bot, FETCH_RANGE, env);
+    const found = chestsWithBeliefs(bot, FETCH_RANGE, env, { shelves: true });
     const allowed = takeFrom(found, env.book, { asked: env.asked ?? null, by: env.by ?? null });
     const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner }));
     const report = chests.length
@@ -266,7 +283,7 @@ export async function getToolHere(bot, kindText, materialText, deps = {}) {
 
     // 2. The chests, as fetching would use them, best first for "any".
     forgetGone(bot, env);
-    const allowed = takeFrom(chestsWithBeliefs(bot, FETCH_RANGE, env), env.book, { asked: env.asked ?? null, by: env.by ?? null });
+    const allowed = takeFrom(chestsWithBeliefs(bot, FETCH_RANGE, env, { shelves: true }), env.book, { asked: env.asked ?? null, by: env.by ?? null });
     // Chests it has never looked into are opened first, as for putting away: what they hold decides between
     // fetching the tool, fetching its makings, and neither.
     await lookInto(allowed.usable.map(({ chest }) => chest), { hands: hands(bot, env), from: here(bot), checkpoint: () => assertActionOwner(bot) });
