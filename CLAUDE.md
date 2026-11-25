@@ -6,7 +6,8 @@ details.
 ## What This Is
 
 An integration fork of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce), built on its
-`agent-system` branch. `main` is that branch plus this fork's own work. The first addition is **fair
+`develop` branch (which took in its earlier `agent-system` branch). `main` is that branch plus this fork's
+own work. The first addition is **fair
 play**: the bot may only know and do what a human survival player could.
 
 - New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
@@ -152,13 +153,12 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
 1. **Make the fix on the working branch, with its test, as a commit of its own,** its changelog and
    `ATTRIBUTION.md` lines in the same commit like any other change. Nothing else from this fork goes in
    it: no fork modules or helpers, no fork docs. Then the fix itself can be taken as it is.
-2. **If it can go upstream, break it off:** a branch named `fix/<what-it-fixes>`, cut from `git merge-base
-   upstream/develop upstream/agent-system` (the last commit the two share), with the fix's commit
-   cherry-picked onto it, less this fork's changelog and `ATTRIBUTION.md` lines (`git cherry-pick -n`,
-   undo those files, commit with the same message). Mindcraft-CE takes pull requests on `develop`, its default branch, while this
-   fork is built on `agent-system`; starting from the commit they share means the branch holds the fix and
-   nothing else and applies to `develop`. If the code being fixed exists only on `agent-system`, branch
-   from `upstream/agent-system` instead and ask the maintainer where to offer it. The test must pass on
+2. **If it can go upstream, break it off:** a branch named `fix/<what-it-fixes>`, cut from
+   `upstream/develop` (fetched first), with the fix's commit cherry-picked onto it, less this fork's
+   changelog and `ATTRIBUTION.md` lines (`git cherry-pick -n`, undo those files, commit with the same
+   message). Mindcraft-CE takes pull requests on `develop`, the branch this fork is built on, so the branch
+   holds the fix and nothing else. If the code being fixed has changed on `develop` since this fork last
+   merged it, make the fix again there by hand rather than carry this fork's version over. The test must pass on
    Mindcraft-CE's code: a test that leans on this fork's code is rewritten there to use only
    Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node --test tests/*.test.js`.
    The fix branch is never merged anywhere in this repository; the working branch already has the fix.
