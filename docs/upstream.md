@@ -25,6 +25,7 @@ unless noted. Each comes from a `fix/...` branch of this repository, cut from th
 | [#116](https://github.com/mindcraft-ce/mindcraft-ce/pull/116) | Position packets stay in their own tick once the client sends `tick_end` |
 | [#138](https://github.com/mindcraft-ce/mindcraft-ce/pull/138) | `defendSelf` and the `self_defense` reflex don't fight a creeper hand to hand (asks CE how it wants creepers handled, having no creeper reflex) |
 | [#140](https://github.com/mindcraft-ce/mindcraft-ce/pull/140) | `avoidEnemies` no longer pauses `self_preservation` while it runs |
+| [#147](https://github.com/mindcraft-ce/mindcraft-ce/pull/147) | `putInChest`, `takeFromChest` and `viewChest` use the nearest chest, trapped chest or barrel, not chests alone |
 
 ### Merged Into `develop`
 
@@ -117,6 +118,10 @@ fork's `bedrock-combined` branch, which the `bedrock` branch pins.
 | [#15](https://github.com/Pix3lPirat3/mineflayer/pull/15) | A loom puts in only the one dye a pattern uses |
 | [#16](https://github.com/Pix3lPirat3/mineflayer/pull/16) | `consume()` eats the way the game's client does |
 | [#17](https://github.com/Pix3lPirat3/mineflayer/pull/17) | `clearControlStates()` lets go of each key through `setControlState()`, as on Java. Also put right on the bot in `java_shapes.js` |
+| [#18](https://github.com/Pix3lPirat3/mineflayer/pull/18) | A drop from the main inventory opens the inventory screen for it, so an item just taken out of a chest can be thrown |
+| [#19](https://github.com/Pix3lPirat3/mineflayer/pull/19) | `recipesFor` counts every ingredient against what the bot holds. Also put right on the bot in `java_shapes.js` |
+| [#20](https://github.com/Pix3lPirat3/mineflayer/pull/20) | `craft` closes the screen it opened. Also put right on the bot in `java_shapes.js` |
+| [#21](https://github.com/Pix3lPirat3/mineflayer/pull/21) | A whole stack clicked into or out of a barrel or a shulker box names their slots as #8 does |
 
 ### Found, Not Offered
 
