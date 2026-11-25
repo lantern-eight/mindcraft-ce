@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.19.0-bedrock.1.20.0] - 2026-11-25
+
+A release for both editions that brings this fork level with Mindcraft-CE's `develop` branch, which has
+taken in the `agent-system` branch this fork was built on and is now Mindcraft-CE's one working branch. It
+has every fix this fork offered except two still open, and the maintainer combined two of them into a new
+creeper retreat. Also vanilla's shears speeds on Java Edition 26.3's new shears tags. Built on Mindcraft-CE's
+`develop` branch at commit `0fb1bd1`.
+
 ### Changed
 
 - With the threat reflexes off, Mindcraft's `self_defense` reflex backs away from a nearby creeper instead
@@ -1266,7 +1274,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.18.0-bedrock.1.19.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.19.0-bedrock.1.20.0...HEAD
+[1.19.0-bedrock.1.20.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.18.0-bedrock.1.19.0...v1.19.0-bedrock.1.20.0
 [1.18.0-bedrock.1.19.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...v1.18.0-bedrock.1.19.0
 [1.17.0-bedrock.1.18.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.16.0-bedrock.1.17.0...v1.17.0-bedrock.1.18.0
 [1.16.0-bedrock.1.17.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.15.0-bedrock.1.16.0...v1.16.0-bedrock.1.17.0
