@@ -26,6 +26,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 - Mindcraft's chest commands (`!viewChest`, `!takeFromChest`, `!putInChest`) use the nearest chest, trapped
   chest or barrel. They looked for chests alone, so a bot standing by a barrel said there was no chest nearby.
+- Crafting just after using a chest lost the crafted item on Java. The pinned mineflayer kept one state number
+  for every window, so the first crafting clicks after a chest closed went out with the chest's, and the
+  server resent the whole inventory in the middle of the craft. It now keeps one for each window, as the
+  game's client does (PrismarineJS/mineflayer#4103, pinned until a release has it).
 - Crafting on Bedrock took a recipe the bot had nothing for. The server lists a stick from bamboo first, and
   the library let it through for a bot with planks and no bamboo, so crafting sticks failed. Only recipes the
   bot holds every ingredient of are handed out now, as on Java.

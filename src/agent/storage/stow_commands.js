@@ -324,14 +324,7 @@ export async function getToolHere(bot, kindText, materialText, deps = {}) {
     if (sticksShort) steps.push(['stick', 1, () => (countsOf(bot).stick ?? 0) >= stickCount]);
     if (tableShort) steps.push(['crafting_table', 1, () => carriedOf(bot, 'crafting_table') > 0 || env.tableNear(bot)]);
     steps.push([tool, 1]);
-    // Mineflayer keeps one state id for every window: after a chest is closed it is the chest's, and the first
-    // crafting clicks in the bot's own inventory go to the server with it. The server answers each with the
-    // whole inventory again, which lands in the middle of the craft and left a stack on the cursor and no
-    // sticks (checked live on Java 26.3). Asking for the inventory's own state first puts the id right.
     for (const [name, times, made] of steps) {
-        if (typeof bot._syncWindow === 'function' && bot.inventory) {
-            await Promise.race([Promise.resolve(bot._syncWindow(bot.inventory)).catch(() => {}), new Promise(resolve => setTimeout(resolve, 2000))]);
-        }
         const problem = await make(name, times, made);
         if (problem) return toolResult('failed', [...lines, problem].join('\n'));
     }

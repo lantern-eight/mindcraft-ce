@@ -87,7 +87,7 @@ they came from. `overrides` in `package.json` make every package in the tree use
 
 | Package | Pinned to | Why | Back to npm when |
 |---|---|---|---|
-| `mineflayer` | `lantern-eight/mineflayer` `ad4af12` | Minecraft 26.3. The head of PrismarineJS/mineflayer#4206 (26.3 branch `pc26_3` with master and the open 26.3 fixes merged). Mindcraft-CE's `patches/mineflayer+4.39.0.patch` applies to it unchanged | A mineflayer release lists 26.3 |
+| `mineflayer` | `lantern-eight/mineflayer` `dcb626c` | Minecraft 26.3. The head of PrismarineJS/mineflayer#4206 (26.3 branch `pc26_3` with master and the open 26.3 fixes merged), with the three commits of PrismarineJS/mineflayer#4103 on top: each window keeps its own state id, as the game's client does. With one id for every window, the first clicks in the bot's own inventory after a chest closed carried the chest's; the server answered each with the whole inventory, in the middle of a craft, and the crafted item was lost. #4103 also closes an open window on respawn and makes `closeWindow(null)` do nothing. Mindcraft-CE's `patches/mineflayer+4.39.0.patch` applies to it unchanged | A mineflayer release lists 26.3 and has #4103 |
 | `minecraft-protocol` | `lantern-eight/node-minecraft-protocol` `3473413` | 26.3 packets, including the stepped entity-move encoding. The head of PrismarineJS/node-minecraft-protocol#1553 | A minecraft-protocol release lists 26.3 |
 | `prismarine-chunk` | `lantern-eight/prismarine-chunk` `a96fd70` | 26.2 and 26.3 chunk mapping and light masks. The head of PrismarineJS/prismarine-chunk#347 | A release maps 26.3 |
 | `prismarine-physics` | `lantern-eight/prismarine-physics` `e641ceb` | 26.3's liquid gravity. PrismarineJS/prismarine-physics#145 merged onto master | A release has #145 |
