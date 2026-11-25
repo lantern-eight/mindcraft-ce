@@ -103,7 +103,7 @@ up is forgotten.
 | **Merging** | Stacks of one kind are poured together: full stacks, and at most one part stack |
 | **Order in a chest** | From the first slot with no gaps, by group and then by name |
 | **Groups** | Tools, combat, food, minerals, wood, stone, earth, plants, mob drops, redstone, building, other |
-| **Which chest** | A group stays in the chest that already holds most of it, so a base somebody has organized keeps its chests. Otherwise it goes to the chest that is least full for its size |
+| **Which chest** | An item or a group goes to the chest that is [for it](#what-a-chest-is-for), when one is. Otherwise a group stays in the chest that already holds most of it, so a base somebody has organized keeps its chests, and else goes to the chest that is least full for its size. A chest for something else is used only when nothing else has room |
 | **Too much for one chest** | A group is then placed kind by kind, and a kind stack by stack |
 | **Items that only share a name** | A worn tool and a new one, or two different potions, are kept apart and never merged |
 | **Already sorted** | Nothing is moved |
@@ -153,6 +153,8 @@ in the hotbar is kept before one in the main inventory.
 
 **Where each thing goes:**
 
+0. Into a chest that is [for it](#what-a-chest-is-for), one for the item itself before one for its group.
+   Never into a chest that is for something else, or into the inbox.
 1. Into a chest that already holds that kind of thing, the one holding most of it.
 2. Else into the chest holding most of its group (the groups of [a sort](#what-a-sort-does)).
 3. Else into an empty chest, which starts a new group's home.
@@ -196,12 +198,53 @@ it saw inside. It walks to a chest without digging or placing, opens one only wi
 moves items as a player's clicks would. Unlike a sort, a chest out of sight may be used: putting away means
 going to the storage room.
 
+## What a Chest Is For
+
+"This chest is for tools", "put the ores in that one", a sign over a chest that says *Wood*. A player who
+sets up a storage room decides what goes where, and says so or puts up signs. The bot keeps what a player
+says in the chest book, and reads the signs it has seen (world memory keeps what a sign says):
+
+| Where it comes from | Counts |
+|---|---|
+| A player's word, `!chestFor(x, y, z, what)` | Always. The latest word wins |
+| A sign on or beside the chest (within a block of it) | While no player has said anything about that chest. A player's "anything" overrides it |
+
+A chest can be for:
+
+- **a group**, by its name or a word players use for it: `tools`, `combat` (weapons, armour), `food`,
+  `minerals` (ores, ingots, gems), `wood` (logs), `stone`, `earth` (dirt), `plants` (crops, seeds, farm),
+  `mob_drops` (drops, loot), `redstone`, `building` (decoration), `other`;
+- **an item**, as the game names it (`iron_ingot`) or as a sign writes it (*Iron ingots*, *Iron*);
+- **several of those**, joined by commas, slashes, `&` or "and": *Ores / Gems*, `iron_ingot, gold_ingot`;
+- **the inbox**: the chest players drop things into for the bot to file. A chest nobody had claimed becomes
+  shared when it is marked as the inbox, so anyone may leave things in it.
+
+`anything` says a chest has no purpose (and overrides its sign); `unknown` forgets what was said. A word
+that is no group and no item is refused, with what may be said instead.
+
+**What it changes:**
+
+| | A chest for something | The inbox |
+|---|---|---|
+| **Putting away** | Takes what it is for first, the item before its group. Nothing else goes in, and the bot doesn't even open it when nothing it carries is for it | Nothing goes in |
+| **Sorting** | What it is for is placed there first. Other things go there only when they fit nowhere else, since a sort has to place everything already in the chests | Not sorted: what is in it is waiting to be filed |
+| **Fetching** | No change | No change: it may be fetched from like any chest |
+
+A chest's purpose never says whose it is: that still only comes from a player (`!markChest`).
+
+```
+- chest at 41, 70, 0: Alice's. Sorted only when asked. For tools
+- chest at 38, 70, 3: shared. Sorted only when asked. For minerals, going by its sign. A sign beside it says "Ores"
+- chest at 35, 70, 0: shared. Sorted only when asked. The inbox: players leave things in it for you to file (!fileInbox)
+```
+
 ## What the Model Can Ask
 
 | Command | What it does |
 |---|---|
-| `!chests(distance)` | Lists the chests the bot knows of within `distance` blocks (1 to 64): where, whose, the permission, when last sorted, and which are out of sight |
+| `!chests(distance)` | Lists the chests the bot knows of within `distance` blocks (1 to 64): where, whose, the permission, what it is for, when last sorted, and which are out of sight |
 | `!markChest(x, y, z, owner, sorting)` | Says whose one chest is, how it may be sorted, or both |
+| `!chestFor(x, y, z, what)` | Says what one chest is for: a group, items, `inbox`, `anything`, or `unknown` to forget it. See [What a Chest Is For](#what-a-chest-is-for) |
 | `!markChests(which, distance, owner, sorting)` | The same for several chests in view at once. `which` is `unknown` for the ones with no owner yet, or a current owner. It never changes another owner's chests |
 | `!sortChest(x, y, z)` | Sorts one chest by itself |
 | `!sortChests(whose, distance)` | Sorts one owner's chests in view within `distance` blocks (1 to 32), together. `whose` is a player's name, `shared`, the bot's own name, or `approved` for every chest marked `always` |
@@ -348,8 +391,10 @@ Nothing is lost in any of these.
   if a player set the goal. The action's result says so, so the model can put it right.
 - **Bots do not share a chest book.** Each keeps its own.
 - **Sorting can change a redstone signal** read from a chest by a comparator. Mark such a chest `never`.
-- **The groups are fixed.** There is no way yet to say "this chest is for building blocks", beyond the
-  rule that a group stays in the chest that already holds most of it.
+- **The groups are fixed.** A chest can be for a group or an item, but a player can't make a group of their
+  own ("redstone and rails").
+- **A sign is read for what a chest is for, never for whose it is.** A sign that says "Bob" is shown, not
+  believed.
 - **An interrupted sort leaves what the bot had picked up in its inventory.** It does not put it back.
 - **A walk can be given up on.** The walk to each chest gets a deadline, in case the pathfinder stands
   still for good on the way. After it, that chest is left out.
@@ -369,11 +414,12 @@ The code is in `src/agent/storage/`.
 | `sorter.js` | Carries a plan out, checks every step, and plans again after a surprise. Touches no game: it is handed "hands" |
 | `bot_hands.js` | The real hands: getting to a chest, opening it, reading slots, clicking. The only file that touches the bot's windows |
 | `chests.js` | Which blocks are chests to sort, and which two blocks are one chest |
-| `chest_book.js` | Whose each chest is and how it may be sorted. A plain store that never touches the game |
+| `chest_book.js` | Whose each chest is, how it may be sorted, and what a player said it is for. A plain store that never touches the game |
 | `permit.js` | Which chests a request may sort, in sets that never cross owners, and why the rest are left. A pure function |
 | `asker.js` | Who is behind what the bot is doing: a player who asked, or the bot's own idea |
 | `made_chests.js` | Whose a chest is when the bot placed it itself, and forgetting one it dug up |
-| `commands.js` | The eight commands and the text of their results |
+| `purposes.js` | What a chest is for: reads a player's words or a sign's text, says which wins, and how well a chest suits an item. A pure function |
+| `commands.js` | The nine commands and the text of their results |
 | `keep_plan.js` | What the bot keeps on itself when it puts things away. A pure function, ported from the akarkin1/mindcraft-fk fork under the MIT License (see `ATTRIBUTION.md`) |
 | `take_put.js` | Which chests putting away and fetching may use, and why the others are left. A pure function |
 | `stow_plan.js` | Which chest each thing goes in, and which chests to fetch from, from what the bot believes is in them. A pure function |
@@ -412,7 +458,7 @@ asked for before counting what moved.
 
 | Layer | Where | Needs |
 |---|---|---|
-| The plan, and who may be sorted | `tests/storage_keep_plan.test.js`, `tests/storage_take_put.test.js`, `tests/storage_stow_plan.test.js`, `tests/storage_sort_plan.test.js`, `tests/storage_item_groups.test.js`, `tests/storage_chest_book.test.js`, `tests/storage_permit.test.js`, `tests/storage_asker.test.js`, `tests/storage_made_chests.test.js` | Nothing |
+| The plan, and who may be sorted | `tests/storage_keep_plan.test.js`, `tests/storage_take_put.test.js`, `tests/storage_stow_plan.test.js`, `tests/storage_sort_plan.test.js`, `tests/storage_item_groups.test.js`, `tests/storage_chest_book.test.js`, `tests/storage_purposes.test.js`, `tests/storage_permit.test.js`, `tests/storage_asker.test.js`, `tests/storage_made_chests.test.js` | Nothing |
 | The doing, in a fake room | `tests/storage_stow.test.js`, `tests/storage_stow_commands.test.js`, `tests/storage_sorter.test.js`, `tests/storage_commands.test.js`, `tests/storage_chest_access.test.js`, `tests/storage_install.test.js`. The room (`tests/helpers/fake_chest_bot.js`) keeps the server's copy of a window apart from the bot's guess | Nothing |
 | The doing, for real | `tests/live/stow_scenarios.js` puts away and fetches in a room several people share. `tests/live/storage_scenarios.js`: the server console fills the chests and reads them back itself. Its last steps are a room several players share, where every chest a sort was not approved for must be slot for slot as it was | A throwaway server, no model |
 | The asking | `tests/live/storage_agent_scenarios.js`: the whole agent is told things in plain words ("that chest is mine", "sort my chests", "keep them tidy"), and the console reads the chests and the bot's own file back. On recorded replies it checks that the commands reach the model as tools and that the bot knows who is speaking | A throwaway server, no model |

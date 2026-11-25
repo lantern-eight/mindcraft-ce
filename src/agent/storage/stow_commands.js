@@ -14,7 +14,7 @@
 import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { botHands } from './bot_hands.js';
-import { asAction, chestsAround, forgetGone, labelOf, ownerLabel, real } from './commands.js';
+import { asAction, chestsAround, forgetGone, labelOf, ownerLabel, purposesOn, real } from './commands.js';
 import { ME, SHARED } from './chest_book.js';
 import { isSortable } from './chests.js';
 import { grouper } from './item_groups.js';
@@ -104,7 +104,10 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
         return toolResult('failed', `You know no chest within ${distance} blocks that you may put things in${whose === ANY ? ' (your own or shared ones)' : ''}. `
             + `Nothing was put away.${leftOut ? `\n${leftOut}` : ''}`);
     }
-    const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner }));
+    // What each chest is for (a player's word, else its sign): put-away keeps things out of a chest meant
+    // for something else, and out of the inbox.
+    const purposeOf = purposesOn(bot, env);
+    const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner, holds: purposeOf(chest).holds }));
     const report = await putAway(chests, {
         items: plan.store, hands: hands(bot, env), from: here(bot), stackSize: sizeOf(bot),
         groupOf: grouper({ isFood: name => Boolean(bot.registry.foodsByName?.[name]) }), checkpoint: () => assertActionOwner(bot),

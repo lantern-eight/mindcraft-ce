@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- What a chest is for. `!chestFor(x, y, z, "tools")` says a chest is for a group of items, an item, several
+  of those, or the inbox, where players drop things for the bot to file; a sign over a chest saying "Ores"
+  or "Iron ingots" counts too, until a player says otherwise. Putting away puts each thing in the chest for
+  it and never in a chest for something else; a sort places things in the chest for them first; the inbox
+  is left out of both. `!chests` says what each chest is for, and whether that comes from a sign.
+
 ## [1.15.0-bedrock.1.16.0] - 2026-11-24
 
 ### Added

@@ -63,7 +63,7 @@ test('the latest word on whose a chest is wins, and the book remembers who said 
     now.tick();
     const result = book.mark(c, { owner: 'Bob', by: 'Carol' });
     assert.equal(book.ownerOf(c), 'Bob');
-    assert.deepEqual(result.was, { owner: 'Alice', sorting: 'asked' });
+    assert.deepEqual(result.was, { owner: 'Alice', sorting: 'asked', holds: null });
     assert.equal(result.changed, true);
     assert.deepEqual(book.of(c).said, [
         { at: 1000, by: 'Alice', owner: 'Alice' },

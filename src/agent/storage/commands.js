@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: CC0-1.0
 // What the model can ask about chests, and how the answers read.
 //
-//   !chests(distance)                           the chests the bot knows of nearby: whose each is and
-//                                               whether it may be sorted without asking
+//   !chests(distance)                           the chests the bot knows of nearby: whose each is, what
+//                                               it is for, and whether it may be sorted without asking
 //   !markChest(x, y, z, owner, sorting)         says whose one chest is, how it may be sorted, or both
 //   !markChests(which, distance, owner, sorting)   the same for several chests in view at once
+//   !chestFor(x, y, z, what)                    says what one chest is for: a group, items, or the inbox
 //   !sortChest(x, y, z)                         tidies one chest, by itself
 //   !sortChests(whose, distance)                tidies one owner's chests in view together: part
 //                                               stacks merged, each kind of item together, related
@@ -33,6 +34,7 @@ import { chestsFrom, isSortable, SORTABLE } from './chests.js';
 import { GROUPS, groupOf as groupByName, grouper } from './item_groups.js';
 import { APPROVED, poolsFor } from './permit.js';
 import { runSort } from './sorter.js';
+import { isInbox, purposeOf, purposeText, readPurpose } from './purposes.js';
 
 // How long a walk to a chest may take before it is called off: a start, plus time for each block of the way.
 const WALK_MS = 8000, WALK_MS_PER_BLOCK = 1500;
@@ -283,6 +285,8 @@ export function chestsText(bot, distance, deps = {}) {
             capital(SORTING_TEXT[env.book.sortingOf(chest)])];
         if (entry?.lastSorted) parts.push(`Last sorted ${ago(t - entry.lastSorted.at)}`);
         if (!chest.inView) parts.push('Out of sight from here');
+        const purpose = purposeLine(purposesOn(bot, env)(chest));
+        if (purpose) parts.push(purpose);
         const sign = env.signNear(bot, chest);
         if (sign) parts.push(`A sign beside it says "${String(sign).replace(/\s+/g, ' ').trim().slice(0, 60)}"`);
         return `- ${labelOf(chest)}: ${parts.join('. ')}`;
@@ -311,6 +315,61 @@ function readMarking(bot, ownerText, sortingText, env) {
 }
 
 const nowText = (book, chest) => `${ownerLabel(book.ownerOf(chest))}, ${SORTING_TEXT[book.sortingOf(chest)]}`;
+
+/**
+ * What each chest is for, as this bot knows it: what a player said, else a sign on it the bot has seen
+ * (purposes.js). Items are the game's own, so "Iron ingots" on a sign is iron_ingot.
+ */
+export const purposesOn = (bot, env) => chest => purposeOf(chest, {
+    book: env.book, signText: c => env.signNear(bot, c), isItem: name => Boolean(bot.registry?.itemsByName?.[name]),
+});
+
+/** "For tools", "For ores, going by its sign", "The inbox": a chest's purpose as the model reads it, or null for none. */
+export function purposeLine({ holds, from }) {
+    if (from === null) return null;
+    if (isInbox(holds)) return `The inbox: players leave things in it for you to file (!fileInbox)${from === 'sign' ? ', going by its sign' : ''}`;
+    if (!holds.length) return 'For anything (a player said so)';
+    return `For ${purposeText(holds)}${from === 'sign' ? ', going by its sign' : ''}`;
+}
+
+const ANYTHING = ['anything', 'any', 'everything', 'all'];
+const FORGET = ['unknown', 'forget', 'nothing said'];
+
+/**
+ * !chestFor: what one chest is for. A group of items, items, several of either, the inbox; "anything" for a
+ * chest with no purpose (which also overrides a sign on it), or "unknown" to forget what was said and go by
+ * its sign again. An inbox nobody has said whose it is becomes shared: it is for everyone to drop things in.
+ */
+export function chestFor(bot, pos, whatText, deps = {}) {
+    const env = { ...real, ...deps };
+    const chest = chestAt(bot, pos, env);
+    if (!chest) return toolResult('failed', `You don't know of a chest or barrel at ${at(pos)}. Use !chests to see the ones you know of.`);
+    const word = String(whatText ?? '').trim().replace(/^["']|["']$/g, '');
+    let holds;
+    if (ANYTHING.includes(word.toLowerCase())) holds = [];
+    else if (FORGET.includes(word.toLowerCase())) holds = null;
+    else {
+        const read = readPurpose(word, { isItem: name => Boolean(bot.registry?.itemsByName?.[name]) });
+        if (!read.holds.length || read.unknown.length) {
+            const missing = read.unknown.length ? read.unknown : [word];
+            return toolResult('failed', `"${missing.join('", "')}" is not a group of items or an item you know. Say a group (${GROUPS.filter(g => g !== 'other').join(', ')}), `
+                + 'an item name such as iron_ingot, several joined by commas, "inbox" for the chest players leave things in for you to file, '
+                + '"anything" for a chest with no purpose, or "unknown" to forget what was said.');
+        }
+        holds = read.holds;
+    }
+    const was = purposesOn(bot, env)(chest);
+    const { changed } = env.book.mark(chest, { holds, by: env.by ?? null });
+    let shared = '';
+    if (isInbox(holds) && env.book.ownerOf(chest) === null) {
+        env.book.mark(chest, { owner: SHARED, by: env.by ?? null });
+        shared = ' Nobody had said whose it is, so it is now shared: anyone may leave things in it, and you may file them.';
+    }
+    const now = purposeLine(purposesOn(bot, env)(chest)) ?? 'With nothing said about what it is for';
+    if (!changed && !shared) return toolResult('ok', `The ${labelOf(chest)} was already so. ${now}. Nothing changed.`);
+    const before = purposeLine(was);
+    return toolResult('ok', `The ${labelOf(chest)}: ${now}.${before ? ` It was: ${before}.` : ''}${shared}`);
+}
 
 /** !markChest: says whose one chest is, how it may be sorted, or both. */
 export function markChest(bot, pos, ownerText, sortingText, deps = {}) {
@@ -353,10 +412,18 @@ async function sortPools(bot, picked, { whose = null, distance = null } = {}, en
     const groupOf = grouper({ isFood: name => Boolean(bot.registry.foodsByName?.[name]) });
     const blocks = [];
     let opened = 0, clean = true;
+    // What each chest is for goes with it into the plan. The inbox is not sorted: what is in it is waiting
+    // to be filed into the other chests (!fileInbox), not to be tidied where it is.
+    const purposes = purposesOn(bot, env);
+    const inboxes = [];
     for (const [i, pool] of picked.pools.entries()) {
+        const chests = pool.chests.map(chest => ({ ...chest, holds: purposes(chest).holds }));
+        inboxes.push(...chests.filter(chest => isInbox(chest.holds)));
+        const sorted = chests.filter(chest => !isInbox(chest.holds));
+        if (!sorted.length) continue;
         // Hands are made anew for each pool: the slots the bot may carry in are the ones empty now.
         const hands = botHands(bot, { goTo: chest => env.goTo(bot, chest), blockAt: pos => env.blockAt(bot, pos), isChest: isSortable, ...env.hands });
-        const report = await runSort(pool.chests, {
+        const report = await runSort(sorted, {
             hands, groupOf, groupOrder: GROUPS,
             stackSize: name => bot.registry.itemsByName[name]?.stackSize ?? 64,
             checkpoint: () => assertActionOwner(bot),
@@ -375,6 +442,7 @@ async function sortPools(bot, picked, { whose = null, distance = null } = {}, en
     }
     const left = leftText(picked, { whose });
     if (left) blocks.push(`Left alone${distance ? ` within ${distance} blocks` : ''}:\n${left}`);
+    if (inboxes.length) blocks.push(`Not sorted: the inbox (${inboxes.map(labelOf).join('; ')}). What players leave there is filed with !fileInbox.`);
     const status = !opened ? 'failed' : clean ? 'ok' : 'partial';
     return toolResult(status, blocks.join('\n'));
 }
@@ -468,8 +536,10 @@ export async function viewChestAt(bot, pos, deps = {}) {
     const env = { ...real, ...deps };
     return withChestAt(bot, pos, env, async (opened, chest, label) => {
         const slots = opened.slots(), used = slots.filter(Boolean).length;
-        if (!used) return toolResult('ok', `The ${label}, is empty.`);
-        return toolResult('ok', `The ${label}, holds (${used} of ${slots.length} slots used):\n${contentsOf(slots).map(line => `- ${line}`).join('\n')}`);
+        const purpose = purposeLine(purposesOn(bot, env)(chest));
+        const forWhat = purpose ? ` ${purpose}.` : '';
+        if (!used) return toolResult('ok', `The ${label}, is empty.${forWhat}`);
+        return toolResult('ok', `The ${label}, holds (${used} of ${slots.length} slots used):\n${contentsOf(slots).map(line => `- ${line}`).join('\n')}${forWhat ? `\n${forWhat.trim()}` : ''}`);
     });
 }
 
@@ -569,7 +639,7 @@ export function storageCommands({ book, save = () => {}, asker = () => ({}), dep
     return [
         { action: false, command: {
             name: '!chests',
-            description: 'List the chests and barrels you know of nearby: where each is, whose it is, and whether you may sort it without being asked.',
+            description: 'List the chests and barrels you know of nearby: where each is, whose it is, what it is for, and whether you may sort it without being asked.',
             params: { 'distance': { type: 'int', description: 'How far from you to look, in blocks.', domain: [1, 64, '[]'] } },
             perform: quick((agent, distance) => chestsText(agent.bot, distance, env(agent))),
         } },
@@ -578,6 +648,14 @@ export function storageCommands({ book, save = () => {}, asker = () => ({}), dep
             description: 'Record whose a chest is and how it may be sorted, when a player tells you. The latest word wins.',
             params: { ...COORDS, 'owner': { type: 'string', description: OWNER_PARAM }, 'sorting': { type: 'string', description: SORTING_PARAM } },
             perform: quick((agent, x, y, z, owner, sorting) => markChest(agent.bot, { x, y, z }, owner, sorting, env(agent))),
+        } },
+        { action: false, command: {
+            name: '!chestFor',
+            description: 'Record what a chest is for, when a player says "this chest is for tools" or "put iron in that one", or names the chest players leave things in for you to sort (the inbox). '
+                + 'Putting away then uses it for those things and nothing else, and sorting keeps them there. The latest word wins, and it beats a sign on the chest.',
+            params: { ...COORDS, 'what': { type: 'string', description: 'A group (tools, combat, food, minerals, wood, stone, earth, plants, mob_drops, redstone, building), '
+                + 'an item name such as iron_ingot, several joined by commas, "inbox", "anything" for no purpose, or "unknown" to forget what was said and go by the chest\'s sign.' } },
+            perform: quick((agent, x, y, z, what) => chestFor(agent.bot, { x, y, z }, what, env(agent))),
         } },
         { action: false, command: {
             name: '!markChests',
