@@ -11,7 +11,8 @@
 //      and reported to the change notes.
 //   3. Keep things up to date: chests, doors, beds and the rest, the crops per cube, the animals in view.
 //   4. Drop trail crumbs as the bot moves.
-//   5. Take a snapshot of a container's contents when the bot opens it and again when it closes it.
+//   5. Take a snapshot of a container's contents when the bot opens it and again when it closes it, and of
+//      a shelf's whenever its front is in view: a shelf's items are on show, not behind a lid.
 //   6. Tag what the bot digs and places, so its own work is never reported back to it as a change.
 //
 // The look-around is spread over many short slices (a few milliseconds each), so it never holds up the
@@ -22,7 +23,7 @@ import { scanSection, sectionsInRange } from '../fairplay/block_scan.js';
 import { editionOf } from '../edition/index.js';
 import { propsOfState } from './block_state.js';
 import { AIR, OTHER_NAME } from './cells.js';
-import { isCrop, isHerdAnimal, isRipe, kindOf, moveKindOf, partnerOffset, startsPlace, wasBuilt } from './kinds.js';
+import { isCrop, isHerdAnimal, isRipe, isShelf, kindOf, moveKindOf, partnerOffset, startsPlace, wasBuilt } from './kinds.js';
 
 const TAU = 2 * Math.PI;
 const WATCHING_MS = 60_000; // a cell seen this recently was being watched: a change to it is no surprise
@@ -165,6 +166,29 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     }
 
     /**
+     * What is on a shelf, noted when its front is in view. A shelf's items stand on its front, so a
+     * player sees them from in front of it, and not from behind it, beside it or above it: from there it
+     * is a shelf whose contents are unknown, as a chest is before it is opened. The front is in view when
+     * the eye is past the shelf's front face, with the shelf itself in view (which is why this is asked).
+     */
+    function noteShelf(x, y, z) {
+        let shown = null;
+        try { shown = edition.shelfOf(bot.blockAt(new Vec3(x, y, z))); } catch { return; }
+        if (!shown?.slots || !inFrontOf(x, y, z, shown.facing)) return;
+        things.setContents({ x, y, z }, shown.slots.filter(Boolean), { slots: 3, freeSlots: shown.slots.filter(slot => !slot).length });
+    }
+    function inFrontOf(x, y, z, facing) {
+        const from = eyeOrFeet();
+        switch (facing) {
+            case 'south': return from.z > z + 1;
+            case 'north': return from.z < z;
+            case 'east': return from.x > x + 1;
+            case 'west': return from.x < x;
+            default: return false;
+        }
+    }
+
+    /**
      * Where the other half of a two-block thing is: from its state where the game keeps it there, else
      * from what the edition finds elsewhere (a Bedrock double chest names its partner in its block
      * entity). The block is only built if the edition asks for what it holds.
@@ -270,6 +294,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
                 ...(kind === 'sign' ? { text: signText(x, y, z) } : {}),
             });
             if (isNew && startsPlace(kind)) places.noteThing(thing);
+            if (kind === 'container' && isShelf(name)) noteShelf(x, y, z);
             // The other cell of a two-block thing the bot already has: not a second new thing.
             secondHalf = !isNew && thing.also?.x === x && thing.also.y === y && thing.also.z === z && (before === null || before === AIR);
         } else if (pass?.cube && isCrop(name)) {
@@ -541,6 +566,9 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
         const p = bot.entity?.position;
         if (pos && p && Math.abs(pos.x - p.x) <= radius && Math.abs(pos.y - p.y) <= radius && Math.abs(pos.z - p.z) <= radius) worldChanged = true;
     };
+    // What stands on a shelf changes without the block changing: the game sends the shelf's block entity
+    // again. That is something new to look at, as a changed block is.
+    const onBlockEntityData = block => { if (isShelf(block?.name)) onBlockUpdate(null, block); };
     // A chunk arriving is new world to look at. Without this, a bot that lands somewhere (a spawn, a
     // teleport) before its chunks have loaded would look once at nothing and, standing still, never again.
     const onChunkLoad = corner => {
@@ -555,7 +583,7 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
     const listenForDigs = () => { bot.off?.('diggingCompleted', onDug); if (listening) bot.on?.('diggingCompleted', onDug); };
     const onDeath = () => { trail.breakStretch(); queueMicrotask(listenForDigs); };
     const listeners = [['move', onMove], ['windowClose', onWindowClose], ['diggingCompleted', onDug], ['blockPlaced', onPlaced],
-        ['blockUpdate', onBlockUpdate], ['chunkColumnLoad', onChunkLoad], ['death', onDeath]];
+        ['blockUpdate', onBlockUpdate], ['blockEntityData', onBlockEntityData], ['chunkColumnLoad', onChunkLoad], ['death', onDeath]];
 
     // ---- What perception is told the bot remembers ----
     //

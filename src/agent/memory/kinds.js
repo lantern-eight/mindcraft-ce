@@ -47,7 +47,7 @@ export function kindOf(name) {
 }
 
 function kindOfJava(name) {
-    if (CONTAINERS.has(name) || name.endsWith('shulker_box')) return 'container';
+    if (CONTAINERS.has(name) || name.endsWith('shulker_box') || isShelfName(name)) return 'container';
     if (WORKSTATIONS.has(name) || name.endsWith('anvil') || name.endsWith('cauldron')) return 'workstation';
     if (name.endsWith('_door') || name.endsWith('_fence_gate') || name.endsWith('_trapdoor')) return 'passage';
     if (name.endsWith('_bed')) return 'bed';
@@ -57,6 +57,13 @@ function kindOfJava(name) {
     if (name.endsWith('_ore') || name === 'ancient_debris') return 'ore';
     return null;
 }
+
+// A shelf holds three stacks on its front, with no lid: what is on it is seen, not opened. Every wood's
+// is `<wood>_shelf`; a `shelf_mushroom` grows on trees.
+const isShelfName = name => name.endsWith('_shelf');
+
+/** Is this block a shelf, whose contents are seen from in front instead of by opening it? */
+export const isShelf = name => Boolean(name) && isShelfName(javaName(name));
 
 /** Kinds that make a spot a place worth naming. An ore vein or a lone portal doesn't. */
 export const startsPlace = kind => kind === 'container' || kind === 'workstation' || kind === 'passage'
