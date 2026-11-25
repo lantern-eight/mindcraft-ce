@@ -210,7 +210,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skills_chest_kinds.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/bag_room.test.js`, `tests/goto_path_search.test.js`,
-  `tests/goto_square_corners.test.js`, `tests/pathfinder_diagonal_corners.test.js`,
+  `tests/pathfinder_diagonal_corners.test.js`,
   `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/action_stop_race.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
   `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/door_search.test.js`, `tests/hunting_babies.test.js`, `tests/idle_staring_babies.test.js`, `tests/baby_villagers.test.js`,

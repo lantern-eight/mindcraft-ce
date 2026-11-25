@@ -9,6 +9,20 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- With the threat reflexes off, Mindcraft's `self_defense` reflex backs away from a nearby creeper instead
+  of leaving it alone, cowardice on or off. From Mindcraft-CE's maintainer, who combined this fork's two
+  creeper and retreat fixes into one.
+- While the bot runs from mobs (`avoidEnemies`), fire and lava still make it get out, as before, but low
+  health alone no longer cuts the retreat short to run somewhere else. From the same change.
+
+### Fixed
+
+- A resumable action that fails is no longer started again when the bot goes idle, and one that was
+  cancelled while waiting its turn to resume doesn't start, or stop the action running then. From
+  Mindcraft-CE.
+
 ## [1.18.0-bedrock.1.19.0] - 2026-11-25
 
 ### Added
