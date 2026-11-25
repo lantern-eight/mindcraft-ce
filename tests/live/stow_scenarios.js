@@ -281,6 +281,20 @@ try {
         return { text: result.text };
     });
 
+    await step('"get yourself an iron axe": none in the chests, so it fetches iron and logs and crafts one', async () => {
+        await cmd(`clear ${NAME} dirt`);  // what the last step had no room for
+        await cmd(`tp ${NAME} 0.5 70 -6.5 180 10`);
+        await delay(800);
+        await settled();
+        const result = await run('Alice', '!getTool', ['axe', 'iron'], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /Crafted an iron_axe\.$/, result.text);
+        assert.equal(carried('iron_axe'), 1, result.text);
+        // Mindcraft's crafting puts down the table it made, uses it, and picks it up again.
+        assert.equal(carried('crafting_table'), 1, 'the table it made was picked up again');
+        return { text: result.text };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });

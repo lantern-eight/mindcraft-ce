@@ -279,6 +279,17 @@ try {
         assert.ok(countIn(await read(OWN), 'dirt') > ownBefore, 'the dirt went into the bot\'s own chest');
         return { text: result.text.split('\n').slice(0, 3).join(' | ') };
     });
+    await step('"get yourself an iron axe": none in the chests, so it fetches iron and logs and crafts one', async () => {
+        await cmd(`clear ${NAME} dirt`);  // what the last step had no room for
+        await tpTo([0, 1, 0], 180);
+        await bot.lookAt(at(0, 1, -4).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        const result = await run('Alice', '!getTool', ['axe', 'iron'], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /Crafted an iron_axe\.$/, result.text);
+        assert.equal(carried('iron_axe'), 1, result.text);
+        return { text: result.text.split('\n').at(-1) };
+    });
 } catch (error) {
     console.error(error);
 } finally {

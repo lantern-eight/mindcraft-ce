@@ -6,6 +6,7 @@
 //   !fetchItem(item_name, num)         takes an item out of the chests the bot remembers holding it
 //   !fileInbox(whose, distance)        files what players left in the inbox into the chests where it belongs
 //   !bringItem(player_name, item_name, num)   fetches an item if the bot doesn't carry enough, and hands it over
+//   !getTool(kind, material)           a tool from the bag, else from the chests, else crafted (tool_kit.js)
 //
 // Which chests may be used is decided in take_put.js from the chest book, never by the model. Where each
 // thing goes, and which chests to fetch from, is worked out in stow_plan.js and done in stow.js, so the
@@ -17,6 +18,9 @@ import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { botHands } from './bot_hands.js';
 import { handOver } from './hand_over.js';
+import { craftRecipe } from '../library/skills.js';
+import * as world from '../library/world.js';
+import { carriedTool, craftOrder, craftPlan, fetchOrder, isLog, isPlanks, planksOf, readKind, readMaterial, SHAPES } from './tool_kit.js';
 import { asAction, chestsAround, forgetGone, labelOf, ownerLabel, purposesOn, real } from './commands.js';
 import { ME, SHARED } from './chest_book.js';
 import { isSortable } from './chests.js';
@@ -24,7 +28,7 @@ import { grouper } from './item_groups.js';
 import { cleanName, keepPlan } from './keep_plan.js';
 import { fileInbox } from './inbox.js';
 import { isInbox } from './purposes.js';
-import { fetchItem, putAway } from './stow.js';
+import { fetchItem, lookInto, putAway } from './stow.js';
 import { ANY, putInto, takeFrom } from './take_put.js';
 
 /** How far away chests may be to put things away in them, at most. A storage room, not the whole base. */
@@ -234,6 +238,106 @@ export async function bringHere(bot, playerText, itemText, num, deps = {}) {
     return toolResult(status, lines.join('\n'));
 }
 
+const an = name => (/^[aeiou]/.test(name) ? `an ${name}` : `a ${name}`);
+/** The bag's counts by name. */
+const countsOf = bot => bagOf(bot).reduce((acc, item) => ({ ...acc, [item.name]: (acc[item.name] ?? 0) + item.count }), {});
+const sumWhere = (counts, test) => Object.entries(counts).reduce((n, [name, count]) => n + (test(name) ? count : 0), 0);
+/** A fetch's lines, less its advice to hand the item over: the tool is for the bot. */
+const fetchLines = result => result.text.split('\n').filter(line => !/hand it over with !givePlayer/.test(line));
+
+/**
+ * !getTool: a tool of a kind and material for the bot. One it carries, else one from the chests it may take
+ * from, else one crafted, fetching what the recipe is short of first (tool_kit.js says what that is).
+ * @param {object} bot
+ * @param {string} kindText - pickaxe, axe, shovel, hoe or sword
+ * @param {string} materialText - wooden, stone, golden, iron, diamond, netherite, or "any" for the best it can get
+ * @param {object} deps - as for fetchHere, plus `craft(bot, name, times)` and `tableNear(bot)` to stand in for the game
+ */
+export async function getToolHere(bot, kindText, materialText, deps = {}) {
+    const env = { craft: craftRecipe, tableNear: b => Boolean(world.getNearestBlock(b, 'crafting_table', 16)), ...real, ...deps };
+    const kind = readKind(kindText), material = readMaterial(materialText);
+    if (!kind) return toolResult('failed', `"${kindText}" is not a tool: say ${Object.keys(SHAPES).join(', ')}.`);
+    if (!material) return toolResult('failed', `"${materialText}" is not a material: say wooden, stone, golden, iron, diamond, netherite, or "any".`);
+    const wanted = material === 'any' ? kind : `${material} ${kind}`;
+
+    // 1. The bag.
+    const carried = carriedTool(bagOf(bot), kind, material);
+    if (carried) return toolResult('ok', `You already have ${an(carried)}.`);
+
+    // 2. The chests, as fetching would use them, best first for "any".
+    forgetGone(bot, env);
+    const allowed = takeFrom(chestsWithBeliefs(bot, FETCH_RANGE, env), env.book, { asked: env.asked ?? null, by: env.by ?? null });
+    // Chests it has never looked into are opened first, as for putting away: what they hold decides between
+    // fetching the tool, fetching its makings, and neither.
+    await lookInto(allowed.usable.map(({ chest }) => chest), { hands: hands(bot, env), from: here(bot), checkpoint: () => assertActionOwner(bot) });
+    const stored = {};
+    for (const { chest } of allowed.usable) for (const [name, n] of Object.entries(chest.items ?? {})) stored[name] = (stored[name] ?? 0) + n;
+    const lines = [];
+    for (const m of fetchOrder(material)) {
+        const name = `${m}_${kind}`;
+        if (!(stored[name] > 0)) continue;
+        const fetched = await fetchHere(bot, name, 1, deps);
+        if (carriedOf(bot, name) > 0) return toolResult('ok', fetchLines(fetched).join('\n'));
+        lines.push(...fetchLines(fetched));
+    }
+
+    // 3. Crafted: the best material the bag and the chests have enough for.
+    const plans = craftOrder(material).map(m => ({ m, plan: craftPlan(kind, m, countsOf(bot), stored, { table: env.tableNear(bot) }) }));
+    const chosen = plans.find(({ plan }) => plan.possible);
+    if (!chosen) {
+        const lacking = plans.at(-1)?.plan.missing;
+        return toolResult('failed', [...lines, `No ${wanted} in your bag or the chests you may use${lacking ? `, and not enough to craft one: it needs ${lacking}` : ''}${material === 'netherite' ? ' (netherite is made at a smithing table, not crafted)' : ''}.`].join('\n'));
+    }
+    const { m } = chosen;
+    // What is crafted lands in the bag: with no slot free, the crafting table hands nothing back.
+    if (bot.inventory?.emptySlotCount?.() === 0) {
+        return toolResult('failed', [...lines, `To craft ${an(`${m}_${kind}`)} you need a free slot in your bag: put things away (!putAway) first.`].join('\n'));
+    }
+    for (const { name, count } of chosen.plan.fetch) lines.push(...fetchLines(await fetchHere(bot, name, count, deps)));
+    // Planks from logs, sticks from planks, a table from planks, then the tool: what a player does at the table.
+    const [headCount, stickCount] = SHAPES[kind];
+    const sticksShort = Math.max(0, stickCount - (countsOf(bot).stick ?? 0));
+    const tableShort = !env.tableNear(bot) && !(countsOf(bot).crafting_table > 0);
+    const planksNeeded = (m === 'wooden' ? headCount : 0) + (sticksShort ? 2 : 0) + (tableShort ? 4 : 0);
+    // Each step must come out, or the next has nothing to work with: the first that doesn't is the answer.
+    const make = async (name, times, made = () => carriedOf(bot, name) > 0) => {
+        const mark = String(bot.output ?? '').length;
+        await env.craft(bot, name, times);
+        // The server's copy of the bag comes a moment after the craft: look again for a second or two.
+        for (let tries = 0; tries < 10 && !made(); tries++) await new Promise(resolve => setTimeout(resolve, 200));
+        if (made()) return null;
+        const said = String(bot.output ?? '').slice(mark).trim().split('\n').filter(Boolean).at(-1);
+        return `Could not craft ${name}${said ? `: ${said.replace(/\.+$/, '')}` : ''}.`;
+    };
+    const tool = `${m}_${kind}`;
+    const steps = [];
+    let planksShort = planksNeeded - sumWhere(countsOf(bot), isPlanks);
+    let planksBefore = sumWhere(countsOf(bot), isPlanks);
+    for (const [log, n] of Object.entries(countsOf(bot)).filter(([name]) => isLog(name))) {
+        if (planksShort <= 0) break;
+        const times = Math.min(n, Math.ceil(planksShort / 4));
+        const enough = planksBefore + 4 * times;
+        steps.push([planksOf(log), times, () => sumWhere(countsOf(bot), isPlanks) >= enough]);
+        planksBefore = enough;
+        planksShort -= 4 * times;
+    }
+    if (sticksShort) steps.push(['stick', 1, () => (countsOf(bot).stick ?? 0) >= stickCount]);
+    if (tableShort) steps.push(['crafting_table', 1, () => carriedOf(bot, 'crafting_table') > 0 || env.tableNear(bot)]);
+    steps.push([tool, 1]);
+    // Mineflayer keeps one state id for every window: after a chest is closed it is the chest's, and the first
+    // crafting clicks in the bot's own inventory go to the server with it. The server answers each with the
+    // whole inventory again, which lands in the middle of the craft and left a stack on the cursor and no
+    // sticks (checked live on Java 26.3). Asking for the inventory's own state first puts the id right.
+    for (const [name, times, made] of steps) {
+        if (typeof bot._syncWindow === 'function' && bot.inventory) {
+            await Promise.race([Promise.resolve(bot._syncWindow(bot.inventory)).catch(() => {}), new Promise(resolve => setTimeout(resolve, 2000))]);
+        }
+        const problem = await make(name, times, made);
+        if (problem) return toolResult('failed', [...lines, problem].join('\n'));
+    }
+    return toolResult('ok', [...lines, `Crafted ${an(tool)}.`].join('\n'));
+}
+
 /**
  * !fileInbox: takes what players left in the inbox and puts it where it belongs, by the rules of putting
  * away. What fits nowhere goes back into the inbox.
@@ -333,6 +437,16 @@ export function stowCommands({ book, save = () => {}, asker = () => ({}), deps =
                 'num': { type: 'int', description: 'How many to bring.', domain: [1, Number.MAX_SAFE_INTEGER] },
             },
             perform: run('bringItem', (agent, player, itemName, num) => bringHere(agent.bot, player, itemName, num, env(agent))),
+        } },
+        { action: true, command: {
+            name: '!getTool',
+            description: 'Get yourself a tool: one you carry, else one from the chests (by the rules of !fetchItem), else craft it, '
+                + 'fetching from the chests what the recipe is short of (planks, logs, sticks, cobblestone, ingots, diamonds, a crafting table).',
+            params: {
+                'kind': { type: 'string', description: 'pickaxe, axe, shovel, hoe or sword.' },
+                'material': { type: 'string', description: 'wooden, stone, golden, iron, diamond or netherite, or "any" for the best you can get.' },
+            },
+            perform: run('getTool', (agent, kind, material) => getToolHere(agent.bot, kind, material, env(agent))),
         } },
         { action: true, command: {
             name: '!fileInbox',

@@ -133,6 +133,7 @@ own setting; it needs chest sorting on, which keeps whose each chest is:
 | `!putAway(what, whose, distance)` | `what` is `all` for everything the bot does not need to keep, or one item's name for all of it. `whose` is `any` (the bot's own chests, then the shared ones), `shared`, the bot's own name, or a player's name. Chests within `distance` blocks (1 to 32) |
 | `!fetchItem(item_name, num)` | Takes up to `num` of an item out of the chests within 64 blocks, from several when one is not enough |
 | `!bringItem(player_name, item_name, num)` | Gets an item to a player: hands over what the bot carries, fetches the rest from the chests by the rules of `!fetchItem`, then walks up to the player and throws it to them |
+| `!getTool(kind, material)` | Gets the bot a tool: `kind` is `pickaxe`, `axe`, `shovel`, `hoe` or `sword`, `material` is `wooden`, `stone`, `golden`, `iron`, `diamond`, `netherite` or `any`. The one it carries, else one from the chests, else one crafted from what the bag and the chests hold |
 | `!fileInbox(whose, distance)` | Files what players left in [the inbox](#the-inbox) into the chests where it belongs. `whose` and `distance` as for `!putAway` |
 
 **Which chests:**
@@ -175,6 +176,21 @@ in their bag, and fetches only what it is short of. Which chests it may take fro
 who gets it. It walks to about two blocks from the player and throws the item at them chest high, so it
 lands at their feet, and the result says whether they took it. A player it can't see or doesn't know is
 near gets nothing, and the result says so.
+
+**Getting a tool** ("get yourself an iron pickaxe") goes the way a player goes about it. A tool the bot
+already carries is enough, of that material or better (gold counts only when gold was asked for: it wears
+out at once). Else it takes one from the chests, by the rules of fetching. Else it crafts one: it works out
+what the tool takes (the head, sticks, a crafting table if none is near or carried), counts what the bag
+and the chests have, fetches what the bag is short of, then makes planks from logs, sticks from planks, the
+table, and the tool. `any` tries the best material first. Netherite is never crafted: it is made at a
+smithing table. When nothing is enough the result says what the tool needs, and a full bag is reported
+before any crafting, since a crafted thing needs a slot to land in.
+
+```
+Took 3 iron_ingot:
+- 3 from the chest at -2, 70, -10 (shared)
+Crafted an iron_axe.
+```
 
 **What it believes and what it checks.** What is in each chest comes from world memory: what the bot saw
 the last time it looked. A chest it knows but has never looked into is opened to see first, at most 12, as
@@ -431,7 +447,8 @@ Nothing is lost in any of these.
 - **A chest nobody has spoken for is never used to put away or fetch,** even loot out in the world. Telling
   that from a chest in someone's base is not built.
 - **There is no list of what to keep** beyond the built-in one; a player can ask to put one item away.
-- **Fetching does not craft** what no chest holds.
+- **Fetching does not craft** what no chest holds; only `!getTool` crafts, and only tools. It does not
+  smelt, so iron that is still ore doesn't count, and it never mines what is missing.
 - **An owner is a name.** A player who renames their account keeps their chests under the old name until
   someone says otherwise.
 - **A chest replaced while the bot was away keeps what was said about the old one,** until a player's
@@ -475,7 +492,8 @@ The code is in `src/agent/storage/`.
 | `stow.js` | Puts away and fetches: one chest at a time, checking it, planning the rest again. Touches no game: it is handed "hands" |
 | `inbox.js` | Files the inbox: takes a bagful out, puts it away, returns what fits nowhere, goes back for more. Touches no game |
 | `hand_over.js` | Hands an item to a player: walks up close, throws it chest high, sees it taken. Used by `!bringItem`; `!givePlayer` keeps Mindcraft's own |
-| `stow_commands.js` | `!putAway`, `!fetchItem`, `!bringItem` and `!fileInbox`, and the text of their results |
+| `tool_kit.js` | What a tool takes to craft, what the bag and the chests are short of, and which material "any" tries first. A pure function |
+| `stow_commands.js` | `!putAway`, `!fetchItem`, `!bringItem`, `!getTool` and `!fileInbox`, and the text of their results |
 | `install.js` | Turns it on for an agent, from the `chest_sorting` setting. Opens and saves the chest book |
 
 The chest book is saved under `bots/<name>/storage/`, one `chests.json` per world and dimension, so a world

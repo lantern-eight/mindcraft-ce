@@ -18,6 +18,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Gathering with a full bag. Collecting used to go on breaking blocks with a full bag, leaving the drops on the
   ground. Now it checks for room before each block: with the bot's own or shared chests within 32 blocks it
   puts things away and goes on, saying so in its result; otherwise it stops with "Inventory full".
+- Getting a tool. `!getTool("pickaxe", "iron")` uses the one the bot carries, else takes one from the chests,
+  else crafts one: it fetches what the recipe is short of (the head, logs or planks for sticks and a table),
+  then makes the planks, sticks, table and tool. `"any"` tries the best material first.
 
 ### Fixed
 
