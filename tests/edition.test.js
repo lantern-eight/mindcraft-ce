@@ -160,6 +160,20 @@ test('Java\'s signs read their own text, which the seam passes on side by side',
     assert.deepEqual(javaEdition.signSidesOf(null), [], 'nothing there');
 });
 
+test('a Java shelf shows its three slots, read from the block entity the server sends every player', () => {
+    // As mineflayer keeps it: the probe of a live 26.3 shelf gave exactly this shape.
+    const shelf = (props, blockEntity) => ({ name: 'oak_shelf', getProperties: () => props, blockEntity });
+    const seen = javaEdition.shelfOf(shelf({ facing: 'south', powered: false },
+        { align_items_to_bottom: 0, Items: [{ count: 7, Slot: 0, id: 'minecraft:iron_ingot' }, { count: 4, Slot: 2, id: 'minecraft:string' }] }));
+    assert.deepEqual(seen, { facing: 'south', powered: false, slots: [{ name: 'iron_ingot', count: 7 }, null, { name: 'string', count: 4 }] });
+    assert.deepEqual(javaEdition.shelfOf(shelf({ facing: 'east', powered: true }, { align_items_to_bottom: 0 })),
+        { facing: 'east', powered: true, slots: [null, null, null] }, 'an empty shelf, powered');
+    assert.equal(javaEdition.shelfOf(shelf({ facing: 'north', powered: false }, undefined)).slots, null, 'items not known: a remembered block');
+    assert.equal(javaEdition.shelfOf({ name: 'chest' }), null);
+    assert.equal(javaEdition.shelfOf({ name: 'shelf_mushroom' }), null, 'a mushroom on a tree is no shelf');
+    assert.equal(javaEdition.shelfOf(null), null);
+});
+
 test('Java keeps a mob\'s age in its metadata, at index 16', () => {
     assert.equal(javaEdition.isBaby({ name: 'cow', metadata: { 16: true } }), true);
     assert.equal(javaEdition.isBaby({ name: 'cow', metadata: { 16: false } }), false);

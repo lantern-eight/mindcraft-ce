@@ -138,6 +138,27 @@ const BOW_SHOOTERS = new Set(['skeleton', 'stray', 'bogged', 'illusioner']);
 const CROSSBOW_SHOOTERS = new Set(['pillager', 'piglin']);
 const holds = (entity, item) => [entity?.heldItem, entity?.equipment?.[0]].some(held => held?.name === item);
 
+
+/** Is this block a shelf? Every wood's shelf is named `<wood>_shelf`; a `shelf_mushroom` grows on trees. */
+export const isShelfBlock = name => typeof name === 'string' && name.endsWith('_shelf');
+
+/**
+ * A shelf's three slots from its block entity's items, each `{slot, name, count}` in the game's own
+ * spelling: the slots in order, the item names without the `minecraft:` prefix, an empty slot null.
+ * Shared with the Bedrock answer, whose block entity spells the same three fields its own way.
+ */
+export function shelfSlots(items) {
+    const slots = [null, null, null];
+    for (const { slot, name, count } of items) {
+        const at = Number(slot);
+        const n = Number(count);
+        if (!Number.isInteger(at) || at < 0 || at > 2 || typeof name !== 'string' || !(n > 0)) continue;
+        const item = name.replace(/^minecraft:/, '');
+        if (item && item !== 'air') slots[at] = { name: item, count: n };
+    }
+    return slots;
+}
+
 export const javaEdition = Object.freeze({
     name: 'java',
 
@@ -297,6 +318,27 @@ export const javaEdition = Object.freeze({
      */
     signSidesOf(block) {
         return block?.getSignText?.() ?? [];
+    },
+
+    /**
+     * What a shelf shows, as a player in front of it sees: which way its front faces, whether it is
+     * powered (a click on a powered shelf swaps the player's whole hotbar section, not one stack), and the
+     * stack in each of its three slots, left to right as seen from in front. A shelf has no screen: its
+     * items stand on its front for anyone to see, and the game sends them to every player in its block
+     * entity (`Items`, slots 0 to 2), which mineflayer keeps on the block (`blockEntity`).
+     *
+     * @param {object} block - a block the bot can see, or one it remembers
+     * @returns {{facing: string|null, powered: boolean, slots: ({name: string, count: number}|null)[]|null}|null}
+     *   null for a block that is no shelf; `slots` null when its items aren't known (a remembered block,
+     *   or one whose block entity hasn't come yet)
+     */
+    shelfOf(block) {
+        if (!isShelfBlock(block?.name)) return null;
+        let props = {};
+        try { props = block.getProperties?.() ?? {}; } catch { /* a shape without properties: none known */ }
+        const entity = block.blockEntity ?? null;
+        const slots = entity ? shelfSlots((entity.Items ?? []).map(item => ({ slot: item.Slot, name: item.id, count: item.count }))) : null;
+        return { facing: props.facing ?? null, powered: props.powered === true || props.powered === 'true', slots };
     },
 
     /**

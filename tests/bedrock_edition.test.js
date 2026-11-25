@@ -207,6 +207,19 @@ test('Bedrock answers every question the edition seam asks', () => {
     assert.deepEqual(missing, []);
 });
 
+test('a Bedrock shelf shows its three slots, from its state and its block entity in tagged values', () => {
+    const tag = (type, value) => ({ type, value });
+    const item = (slot, name, count) => ({ Slot: tag('byte', slot), Name: tag('string', name), Count: tag('byte', count) });
+    const entity = tag('compound', { Items: tag('list', tag('compound', [item(1, 'minecraft:iron_ingot', 7), item(2, 'minecraft:string', 4)])) });
+    const shelf = (props, entity) => ({ name: 'spruce_shelf', getProperties: () => props, entity });
+    assert.deepEqual(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'west', powered_bit: 0, powered_shelf_type: 0 }, entity)),
+        { facing: 'west', powered: false, slots: [null, { name: 'iron_ingot', count: 7 }, { name: 'string', count: 4 }] });
+    assert.equal(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'west', powered_bit: 1 }, tag('compound', {}))).powered, true);
+    assert.deepEqual(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'west', powered_bit: 0 }, tag('compound', {}))).slots, [null, null, null]);
+    assert.equal(bedrockEdition.shelfOf(shelf({}, undefined)).slots, null, 'no block entity: items not known');
+    assert.equal(bedrockEdition.shelfOf({ name: 'barrel' }), null);
+});
+
 test('a Bedrock furnace is another block while it burns', () => {
     assert.deepEqual(bedrockEdition.furnaceOf({ name: 'furnace' }), { kind: 'furnace', lit: false });
     assert.deepEqual(bedrockEdition.furnaceOf({ name: 'lit_furnace' }), { kind: 'furnace', lit: true });

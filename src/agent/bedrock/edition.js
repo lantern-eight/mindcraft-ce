@@ -30,7 +30,7 @@
 // Registered for the game data type "bedrock" when this file is first imported. connect.js imports it,
 // so it is in place before any bot starts.
 import { registerEdition } from '../edition/index.js';
-import { javaEdition as java } from '../edition/java.js';
+import { javaEdition as java, isShelfBlock, shelfSlots } from '../edition/java.js';
 import { moveStack } from './window_moves.js';
 import { bedrockNamesFor } from './names.js';
 
@@ -401,6 +401,31 @@ export const bedrockEdition = Object.freeze({
         if (fields?.FrontText || fields?.BackText) return [textOf(fields.FrontText), textOf(fields.BackText)];
         const old = plain(fields?.Text);
         return typeof old === 'string' ? [old] : [];
+    },
+
+    /**
+     * What a shelf shows (as on Java: its facing, whether it is powered, and its three slots). Bedrock names
+     * the state's parts its own way, `minecraft:cardinal_direction` and `powered_bit`, and keeps the items in
+     * the shelf's block entity as a container does, `Items` with `Slot`, `Name` and `Count`, in tagged
+     * values the adapter hands on as they came.
+     */
+    shelfOf(block) {
+        if (!isShelfBlock(block?.name)) return null;
+        let props = {};
+        try { props = block.getProperties?.() ?? {}; } catch { /* a shape without properties: none known */ }
+        const plain = field => (field && typeof field === 'object' && 'type' in field && 'value' in field ? field.value : field);
+        const fields = plain(block?.entity);
+        let slots = null;
+        if (fields && typeof fields === 'object') {
+            let items = plain(fields.Items) ?? [];
+            if (items && !Array.isArray(items)) items = plain(items) ?? [];   // a tagged list: {type, value: [...]}
+            slots = shelfSlots((Array.isArray(items) ? items : []).map(entry => {
+                const item = plain(entry) ?? {};
+                return { slot: plain(item.Slot), name: plain(item.Name ?? item.name), count: plain(item.Count ?? item.count) };
+            }));
+        }
+        const powered = props.powered_bit;
+        return { facing: props['minecraft:cardinal_direction'] ?? props.facing ?? null, powered: powered === 1 || powered === true || powered === '1', slots };
     },
 
     /**
