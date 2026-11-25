@@ -171,7 +171,7 @@ node tests/live/fairplay_scenarios.js
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `stow_scenarios.js` | Putting away and fetching in a storage room people share: where things go, what the bot keeps, and the chests it may not use left as they were |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
-| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, a smelt stopped half way and gone on with, a furnace loaded and left and collected, and lava from a lava cauldron |
+| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, a smelt stopped half way and gone on with, a furnace loaded and left and collected, and lava from a lava cauldron, with the empty bucket for it in the bag, in the bot's own chest, or on its shelf |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
 The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VIEW=all` (or `--view=all`)

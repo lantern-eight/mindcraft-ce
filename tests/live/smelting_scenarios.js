@@ -48,6 +48,8 @@ try {
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installSmelting } = await import('../../src/agent/smelting/install.js');
     const { installGoodNeighbor } = await import('../../src/agent/neighbor/install.js');
+    const { installStorage } = await import('../../src/agent/storage/install.js');
+    const { getCommand } = await import('../../src/agent/commands/index.js');
     const skills = await import('../../src/agent/library/skills.js');
     const world = await import('../../src/agent/library/world.js');
 
@@ -61,7 +63,7 @@ try {
         name: NAME, bot, task: null, shut_up: true, last_sender: null, blocked_actions: [],
         prompter: { profile: {}, getInitModes: () => ({}) },
         self_prompter: { isActive: () => false, stopLoop: () => {} },
-        openChat: () => {}, handleMessage: () => {},
+        openChat: () => {}, handleMessage: async (source, run) => (typeof run === 'function' ? run() : undefined),
         clearBotLogs: () => { bot.output = ''; bot.interrupt_code = false; },
         requestInterrupt: () => {
             bot.interrupt_code = true; bot.stopDigging(); bot.pathfinder.setGoal(null); bot.clearControlStates(); bot.pvp?.stop();
@@ -76,6 +78,11 @@ try {
     assert.ok(smelting, 'smelting installed');
     // As in a real bot, where both are on by default: the furnace the bot placed is its own to pick up again.
     assert.ok(installGoodNeighbor(agent), 'good-neighbor rules installed');
+    // Chest storage, for an empty bucket fetched from the bot's own chest or shelf for a lava farm.
+    assert.ok(installStorage(agent, { bookDir: mkdtempSync(path.join(tmpdir(), 'smelting-book-')) })?.commands.includes('!fetchItem'), 'fetching is on');
+    /** A player tells the bot that a chest or shelf is its own. */
+    const ownChest = async (x, y, z) => assert.match(
+        await agent.handleMessage('Alice', () => getCommand('!markChest').perform(agent, x, y, z, NAME, 'same')), /is now|was already/);
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 10 });
     const counts = () => world.getInventoryCounts(bot);
     const rawName = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name; // the test may peek; the bot may not
@@ -272,6 +279,50 @@ try {
         assert.equal(have.bucket, 1, 'its bucket came back');
         assert.equal(rawName(3, 70, 1), 'cauldron', 'the lava came out of the cauldron');
         assert.deepEqual(await furnaceHolds(3, 70, -1), {});
+        return { text: result.text.trim() };
+    });
+
+    // No bucket on it and none in a furnace: a player goes and gets one from their chests. The cauldron is
+    // left full, and the bucket comes back to the bag, not the chest: it is the bot's to keep using.
+    await step('a lava farm near and no bucket: the bot takes one from its own chest and smelts on the lava', async () => {
+        await reset('sand 4', 'coal 2');
+        await furnace(3, -1);
+        await cmd('setblock 3 70 1 lava_cauldron');
+        await cmd('setblock 4 70 3 chest[facing=west]');
+        await cmd('item replace block 4 70 3 container.0 with bucket 1');
+        await settle();
+        await ownChest(4, 70, 3);
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 4));
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /took an empty bucket from the chest at 4, 70, 3 \(your own\)\. I filled a bucket with lava/, result.text);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 4, JSON.stringify(have));
+        assert.equal(have.coal, 2, 'no coal burned');
+        assert.equal(have.bucket, 1, 'the bucket came back out of the fuel slot');
+        assert.deepEqual(await furnaceHolds(4, 70, 3), {}, 'the bucket was taken out of the chest');
+        return { text: result.text.trim() };
+    });
+
+    // The same from a shelf, which shows its bucket on its front: taken with the bot's hand, as fetching does.
+    await step('a lava farm near and a bucket on the bot\'s shelf: it takes the bucket off the shelf and smelts on the lava', async () => {
+        await reset('sand 4', 'coal 2');
+        await furnace(3, -1);
+        await cmd('setblock 3 70 1 lava_cauldron');
+        await cmd('setblock 2 70 -3 oak_shelf[facing=south]');
+        await cmd('item replace block 2 70 -3 container.1 with bucket 1');
+        await bot.lookAt(new Vec3(2.5, 70.5, -2.5), true);
+        await settle();
+        await ownChest(2, 70, -3);
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 4));
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /took an empty bucket from the oak_shelf at 2, 70, -3 \(your own\)\. I filled a bucket with lava/, result.text);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 4, JSON.stringify(have));
+        assert.equal(have.coal, 2, 'no coal burned');
+        assert.equal(have.bucket, 1);
+        assert.deepEqual(await furnaceHolds(2, 70, -3), {}, 'the shelf is empty');
         return { text: result.text.trim() };
     });
 
