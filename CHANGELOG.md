@@ -19,6 +19,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   ground. Now it checks for room before each block: with the bot's own or shared chests within 32 blocks it
   puts things away and goes on, saying so in its result; otherwise it stops with "Inventory full".
 
+### Fixed
+
+- Crafting on Bedrock took a recipe the bot had nothing for. The server lists a stick from bamboo first, and
+  the library let it through for a bot with planks and no bamboo, so crafting sticks failed. Only recipes the
+  bot holds every ingredient of are handed out now, as on Java.
+
 ## [1.16.0-bedrock.1.17.0] - 2026-11-24
 
 ### Added
