@@ -225,7 +225,7 @@ try {
     await step('V6: the chest in the sealed room is not found; once a doorway is opened it is, and the skill works', async () => {
         const dirt = count('dirt');
         const before = await act('test:chest', () => skills.putInChest(bot, 'dirt', 1));
-        assert.match(before.text, /Could not find a chest nearby/);
+        assert.match(before.text, /Could not find a chest( or barrel)? nearby/);
         assert.equal(count('dirt'), dirt);
         await fill([0, 1, 6], [0, 2, 6], 'air'); // a doorway facing the bot
         await delay(800);

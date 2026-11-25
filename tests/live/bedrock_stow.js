@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
-import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshStart } from './bedrock_fixture.js';
+import { bedrockTestServer, bedrockTestSettings, createReport, delay, freshBot, freshStart } from './bedrock_fixture.js';
 import { fairPlaySettings } from '../helpers/live_view.js';
 
 const NAME = 'BedrockStower';
@@ -27,7 +27,7 @@ const server = bedrockTestServer();
 if (!server.hasConsole) throw new Error('The scenes are built from the server console: set BEDROCK_TEST_CONSOLE');
 const cmd = server.command;
 
-let bot, origin;
+let bot, alice, origin;
 const at = (dx, dy, dz) => origin.offset(dx, dy, dz);
 const xyz = position => `${position.x} ${position.y} ${position.z}`;
 const fill = (a, b, block) => cmd(`fill ${xyz(at(...a))} ${xyz(at(...b))} ${block}`);
@@ -240,9 +240,83 @@ try {
         assert.deepEqual(await read(UNKNOWN), before.unknown, 'the unknown chest is slot for slot as it was');
         return { text: result.text.split('\n').slice(0, 3).join(' | ') };
     });
+    await step('"bring me 5 iron": the bot fetches what it lacks and hands it to Alice, a real player beside it', async () => {
+        alice = initBot('Alice');
+        alice.on('error', error => console.error('Alice error:', error.message));
+        await Promise.race([once(alice, 'spawn'), delay(30000).then(() => { throw new Error('Alice did not spawn within 30 s'); })]);
+        await freshBot(server, alice);
+        await delay(2000);
+        await tpTo([0, 1, 0], 0);                       // facing south, toward where Alice will stand
+        await cmd(`tp Alice ${at(0, 1, 4).x + 0.5} ${at(0, 1, 4).y} ${at(0, 1, 4).z + 0.5} 180 0`, 1500);
+        await bot.lookAt(at(0, 2, 4).offset(0.5, 0, 0.5), true);
+        await settled();
+        const had = carried('iron_ingot');
+        const result = await run('Alice', '!bringItem', ['Alice', 'iron_ingot', 5]);
+        assert.equal(result.status, 'ok', result.text);
+        await waitFor(() => alice.inventory.items().some(item => item.name === 'iron_ingot'), 5000, () => `Alice never got the iron: ${result.text}`);
+        await delay(500);
+        const got = alice.inventory.items().filter(item => item.name === 'iron_ingot').reduce((n, item) => n + item.count, 0);
+        assert.equal(got, 5, `Alice holds ${got}: ${result.text}`);
+        assert.equal(carried('iron_ingot'), Math.max(0, had - 5), 'the bot gave what it carried and fetched the rest');
+        return { text: result.text.split('\n').at(-1) };
+    });
+    await step('gathering with a full bag: the bot empties it into its chests nearby and goes on to the end', async () => {
+        // Three logs beside the storage room, and a bag full of dirt on top of what the bot keeps.
+        for (const dy of [1, 2, 3]) await set([3, dy, 2], 'oak_log');
+        await cmd(`give ${NAME} dirt 2304`, 1500);
+        await tpTo([0, 1, 0], -45);                     // facing the logs
+        await bot.lookAt(at(3, 2, 2).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        assert.equal(bot.inventory.emptySlotCount(), 0, `the bag is full: ${bot.inventory.items().length} stacks`);
+        const ownBefore = countIn(await read(OWN), 'dirt');
+        await tpTo([0, 1, 0], -45);
+        await bot.lookAt(at(3, 2, 2).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        const result = await run('Alice', '!collectBlocks', ['oak_log', 3], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(carried('oak_log'), 3, result.text);
+        assert.match(result.text, /\nYour bag was full\. Put away .*dirt/, result.text);
+        assert.ok(countIn(await read(OWN), 'dirt') > ownBefore, 'the dirt went into the bot\'s own chest');
+        return { text: result.text.split('\n').slice(0, 3).join(' | ') };
+    });
+    await step('"get yourself an iron axe": none in the chests, so it fetches iron and logs and crafts one', async () => {
+        await cmd(`clear ${NAME} dirt`);  // what the last step had no room for
+        await tpTo([0, 1, 0], 180);
+        await bot.lookAt(at(0, 1, -4).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        const result = await run('Alice', '!getTool', ['axe', 'iron'], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /Crafted an iron_axe\.$/, result.text);
+        assert.equal(carried('iron_axe'), 1, result.text);
+        return { text: result.text.split('\n').at(-1) };
+    });
+    // Chest storage treats a barrel as a chest. Sorting is checked with one in bedrock_storage.js; this is the
+    // same for putting away and fetching. Bedrock names a barrel's slots apart from a chest's.
+    const BARREL = [8, 1, -4];
+    await step('a barrel is used as a chest: string joins the string in the bot\'s barrel, and is fetched back out', async () => {
+        await set(BARREL, 'barrel');
+        await stock(BARREL, { 0: 'string x4' });
+        await tpTo([0, 1, 0], 180);
+        await bot.lookAt(at(...BARREL).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        assert.match(await say('!markChest', BARREL, NAME, 'same'), /is now|was already/);
+        await cmd(`give ${NAME} string 10`, 500);
+        const put = await run('Alice', '!putAway', ['string', 'any', 16], 150);
+        assert.equal(put.status, 'ok', put.text);
+        assert.equal(carried('string'), 0, put.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 14, `the string joins the string in the barrel: ${put.text}`);
+        await tpTo([0, 1, 0], 180);
+        await settled();
+        const fetched = await run('Alice', '!fetchItem', ['string', 6], 150);
+        assert.equal(fetched.status, 'ok', fetched.text);
+        assert.equal(carried('string'), 6, fetched.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 8, fetched.text);
+        return { text: fetched.text.split('\n')[0] };
+    });
 } catch (error) {
     console.error(error);
 } finally {
+    alice?.quit();
     try {
         if (origin) await fill([-10, 0, -10], [10, 6, 10], 'air');
     } catch (error) { console.error('Tear-down failed:', error.message); }
