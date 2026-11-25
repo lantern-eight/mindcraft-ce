@@ -15,8 +15,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   working, `!collectFurnace` goes back for what is done and puts in the rest, and `!furnaces` says what is
   smelting where. The next result after a furnace should be done says so, once.
 - Lava from a lava farm is smelting's first fuel: with a full lava cauldron near, the bot fills a bucket
-  (its own, or an empty one it remembers in a furnace's fuel slot) and smelts on the lava, keeping its coal.
-  It counts the lava still burning, and takes the empty bucket back out.
+  (its own, an empty one it remembers in a furnace's fuel slot, or one it fetches from the chests and shelves
+  it may take from, as `!fetchItem` does) and smelts on the lava, keeping its coal. It counts the lava still
+  burning, and takes the empty bucket back out.
 - Smelting remembers what it leaves in a furnace, per world. A smelt that was stopped (or a bot that
   restarted) is gone on with by the next `!smeltItem` of that item, and a furnace holding only the bot's own
   smelt is no longer taken for someone else's.

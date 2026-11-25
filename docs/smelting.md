@@ -71,8 +71,11 @@ end, and one bucket smelts a hundred items. So when the bot knows of a full lava
 lava is its first fuel, before coal.
 
 - **The bucket.** One it carries; else an empty bucket it remembers lying in a furnace's fuel slot (lava
-  leaves its bucket there when it catches), which it takes out. It doesn't look in chests for one: whose
-  bucket a chest holds is for the chest rules to say.
+  leaves its bucket there when it catches), which it takes out; else one from the chests, barrels and
+  shelves it remembers holding one. That last is chest storage's fetch, the same as `!fetchItem`: its own
+  and shared chests, and a player's only when a player asked for the smelt ([chest-sorting.md](chest-sorting.md#putting-away-and-fetching)).
+  With `store_and_fetch` off, chests aren't looked in. When a chest held a bucket the bot may not take, the
+  result names it, so the model can ask whose it is.
 - **Filling it.** It walks up to the cauldron and uses the empty bucket on it, as a player does, and checks
   that a lava bucket came back. It never places lava.
 - **Burning it.** A bucket goes in only on an empty fuel slot, one at a time. Lava burns on for 1,000
@@ -145,7 +148,7 @@ All of it lives in `src/agent/smelting/`:
 | `recipes.js` | What a furnace makes of what, by exact name. Pure |
 | `fuel.js` | What burns and how far, the fuel plan in stages, and what to add to the slot now. Pure |
 | `furnace_hands.js` | Opening a furnace with a deadline, reading its slots, putting and taking with a deadline each, closing it. The only file that touches a window |
-| `lava.js` | Lava from a lava farm: the nearest full lava cauldron, an empty bucket for it, filling it |
+| `lava.js` | Lava from a lava farm: the nearest full lava cauldron, an empty bucket for it (from the bag, a furnace's fuel slot, or the chests through `library/fetch_way.js`), filling it |
 | `jobs.js` | What the bot has left smelting where, per world: one job per furnace, and whether a furnace holds only the bot's own. Pure, with its file |
 | `smelt.js` | `smeltItem`, `clearFurnace`, `loadFurnace`, `collectFurnace` and what is smelting where, on those |
 | `commands.js` | `!loadFurnace`, `!collectFurnace` and `!furnaces`, and the "should be done" line on a result |

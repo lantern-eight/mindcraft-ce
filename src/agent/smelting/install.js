@@ -13,6 +13,7 @@ import * as skills from '../library/skills.js';
 import * as world from '../library/world.js';
 import { worldQueries } from '../library/world_queries.js';
 import { setSmeltWay } from '../library/smelt_way.js';
+import { fetcherOf } from '../library/fetch_way.js';
 import { editionOf } from '../edition/index.js';
 import { lookBeforeSearch } from '../library/search_look.js';
 import { scopeOf } from '../fairplay/install.js';
@@ -58,8 +59,8 @@ export function installSmelting(agent, { config = settings, jobsDir = null } = {
         jobs,
         saveJobs,
         // Furnaces world memory last saw holding an empty bucket (a lava load leaves one in the fuel slot):
-        // where the bot can get a bucket for a lava farm. Only furnaces: whose bucket a chest holds is for
-        // the chest rules to say.
+        // where the bot can get a bucket for a lava farm. Only furnaces here: chests and shelves are fetched
+        // from by chest storage, below, by its rules of whose.
         knownBuckets: bot => {
             const things = agent.fairPlay?.memory?.things;
             if (!things || !bot.entity?.position) return [];
@@ -68,6 +69,9 @@ export function installSmelting(agent, { config = settings, jobsDir = null } = {
             return things.findItem('bucket', bot.entity.position, { limit: 8 })
                 .filter(hit => furnace(hit.name) && hit.items.bucket > 0).slice(0, 3);
         },
+        // An empty bucket from the chests, when chest storage has installed a fetch for the bot. Asked when it
+        // is needed, not now: storage may be installed after smelting.
+        fetchItem: (bot, name, count) => fetcherOf(bot)?.(name, count) ?? null,
     });
     setSmeltWay(agent.bot, way);
 

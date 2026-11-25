@@ -17,7 +17,8 @@ import { requestWatcher } from './asker.js';
 import { loadChestBook } from './chest_book.js';
 import { storageCommands } from './commands.js';
 import { setRoomMaker } from '../library/bag_room.js';
-import { PUT_RANGE, putAwayHere, stowCommands } from './stow_commands.js';
+import { setFetcher } from '../library/fetch_way.js';
+import { fetchHere, PUT_RANGE, putAwayHere, stowCommands } from './stow_commands.js';
 import { watchMadeChests } from './made_chests.js';
 
 /**
@@ -102,6 +103,13 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
                 const result = await putAwayHere(agent.bot, 'all', 'any', PUT_RANGE, env);
                 return `Your bag was full. ${result.text}`;
             } finally { save(agent); }
+        });
+        // Another module short of something (smelting, an empty bucket for a lava farm: library/fetch_way.js)
+        // fetches it the way !fetchItem does: the same chests and shelves, by the same rules of whose.
+        setFetcher(agent.bot, async (name, count) => {
+            const env = { contentsOf, similar, signNear, ...deps, book: bookNow(agent), name: agent.name, ...watcher.behind() };
+            try { return await fetchHere(agent.bot, name, count, env); }
+            finally { save(agent); }
         });
     }
     for (const { command, action } of commands) registerCommand(command, { action });

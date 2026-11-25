@@ -57,17 +57,19 @@ const listOf = parts => parts.length <= 1 ? parts.join('') : `${parts.slice(0, -
  * @param {(bot: object) => void} [deps.saveJobs] - writes the jobs out when they changed
  * @param {(bot: object) => {x: number, y: number, z: number}[]} [deps.knownBuckets] - furnaces the bot
  *   remembers holding an empty bucket (world memory), for filling one from a lava farm
+ * @param {(bot: object, name: string, count: number) => Promise<object|null>} [deps.fetchItem] - fetches an
+ *   item from the chests (chest storage's, through library/fetch_way.js): an empty bucket for a lava farm
  * @param {() => number} [deps.now]
  * @param {(ms: number) => Promise<void>} [deps.sleep]
  */
 export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround = async () => false, timing = {}, jobs = () => null,
-    saveJobs = () => {}, knownBuckets = () => [], now = Date.now, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
+    saveJobs = () => {}, knownBuckets = () => [], fetchItem = async () => null, now = Date.now, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
     const { smeltMs = SMELT_MS, slackMs = 2000, limitPerItemMs = 12000, limitExtraMs = 30000, watchMs = 1000,
         hands: handOptions = {} } = timing;
 
     const isBedrock = bot => bot.registry?.version?.type === 'bedrock';
     const countOf = (bot, name) => world.getInventoryCounts(bot)[name] ?? 0;
-    const lava = lavaSource({ world, skills, blockAt, editionOf, knownBuckets, sleep,
+    const lava = lavaSource({ world, skills, blockAt, editionOf, knownBuckets, fetchItem, sleep,
         openFurnace: (bot, block) => reach(bot, block, furnaceHands(bot, { wait: sleep, ...handOptions })) });
     /** Lava burns this long once it catches, smelting or not: when lava the bot put in at `at` burns out. */
     const lavaBurnsUntil = at => at + fuelPer(LAVA) * smeltMs;

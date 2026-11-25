@@ -47,6 +47,43 @@ test('no bucket in its bag: it takes the empty one it knows is in a furnace', as
     assert.equal(t.furnaceAt(6, 64, 4).slots[1], null);
 });
 
+test('no bucket in its bag or a furnace: it fetches one from the chests, and says where from', async () => {
+    let t = null;
+    const asked = [];
+    t = setup({ inventory: { sand: 8, coal: 1 }, furnaces: [{ at: [3, 64, 0] }], lavaCauldrons: [[-3, 64, 0]] }, {
+        fetchItem: async (bot, name, count) => {
+            asked.push([name, count]);
+            t.bag.bucket = 1;
+            return { status: 'ok', text: 'Took 1 bucket:', taken: [{ label: 'chest at 5, 64, 5', owner: 'shared', count: 1 }] };
+        },
+    });
+    assert.equal(await t.smeltItem(t.bot, 'sand', 8), true, t.said());
+    assert.deepEqual(asked, [['bucket', 1]], 'an empty bucket, one, by its exact name');
+    assert.match(t.said(), /took an empty bucket from the chest at 5, 64, 5 \(shared\)\. I filled a bucket with lava/);
+    assert.equal(t.bag.coal, 1, 'no coal burned');
+    assert.equal(t.bag.bucket, 1, 'the bucket came back out of the fuel slot');
+});
+
+test('a furnace\'s bucket comes before the chests', async () => {
+    let fetched = 0;
+    const t = setup({ inventory: { sand: 8, coal: 1 }, furnaces: [{ at: [3, 64, 0] }, { at: [6, 64, 4], fuel: { name: 'bucket', count: 1 } }], lavaCauldrons: [[-3, 64, 0]] },
+        { knownBuckets: () => [{ x: 6, y: 64, z: 4 }], fetchItem: async () => { fetched++; return null; } });
+    assert.equal(await t.smeltItem(t.bot, 'sand', 8), true, t.said());
+    assert.equal(fetched, 0);
+});
+
+test('a chest held a bucket the bot may not take: it names that chest, and burns coal', async () => {
+    const t = setup({ inventory: { sand: 8, coal: 1 }, furnaces: [{ at: [3, 64, 0] }], lavaCauldrons: [[-3, 64, 0]] }, {
+        fetchItem: async () => ({ status: 'failed', taken: [], text: 'You know of no bucket in a chest you may take from within 64 blocks.\n'
+            + '- The chest at 9, 64, 9 held 1 bucket when you last looked, but nobody has said whose it is: ask\n'
+            + 'Chests you remember hold: water_bucket. Did you mean one of those?' }),
+    });
+    assert.equal(await t.smeltItem(t.bot, 'sand', 8), true, t.said());
+    assert.match(t.said(), /no empty bucket for it\.\n- The chest at 9, 64, 9 held 1 bucket/);
+    assert.doesNotMatch(t.said(), /Did you mean/);
+    assert.equal(t.bag.coal ?? 0, 0);
+});
+
 test('no bucket anywhere: it says so, and burns coal', async () => {
     const t = setup({ inventory: { sand: 8, coal: 1 }, furnaces: [{ at: [3, 64, 0] }], lavaCauldrons: [[-3, 64, 0]] });
     assert.equal(await t.smeltItem(t.bot, 'sand', 8), true, t.said());
