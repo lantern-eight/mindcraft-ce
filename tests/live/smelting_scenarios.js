@@ -47,6 +47,7 @@ try {
     const { initModes } = await import('../../src/agent/modes.js');
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installSmelting } = await import('../../src/agent/smelting/install.js');
+    const { installGoodNeighbor } = await import('../../src/agent/neighbor/install.js');
     const skills = await import('../../src/agent/library/skills.js');
     const world = await import('../../src/agent/library/world.js');
 
@@ -73,6 +74,8 @@ try {
     assert.ok(handle, 'fair play installed');
     const smelting = installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'smelting-jobs-')) });
     assert.ok(smelting, 'smelting installed');
+    // As in a real bot, where both are on by default: the furnace the bot placed is its own to pick up again.
+    assert.ok(installGoodNeighbor(agent), 'good-neighbor rules installed');
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 10 });
     const counts = () => world.getInventoryCounts(bot);
     const rawName = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name; // the test may peek; the bot may not

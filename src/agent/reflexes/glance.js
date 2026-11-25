@@ -18,7 +18,8 @@
 // elsewhere, and at once on a hit.
 //
 // A busy bot glances too, but not while it walks (the walk steers the head, and turning it would turn the
-// walk) or while a reflex is moving it, and a sound waits for a dig in progress to finish. A hit or a shot
+// walk) or while a reflex is moving it, except a hit's glance in a fight, and a sound waits for a dig in
+// progress to finish. A hit or a shot
 // doesn't wait. Only through a player's screen: seeing all around, there is nothing to turn for.
 import { describeDirection } from '../fairplay/perception.js';
 import * as world from '../library/world.js';
@@ -78,7 +79,9 @@ export function createGlance({ now = Date.now } = {}) {
         if (t - pending.at > WAIT_MS) { pending = null; return false; }
         const label = agent.actions?.currentActionLabel ?? '';
         const walking = bot.pathfinder?.isMoving?.();
-        const reflexMoving = label.startsWith('mode:') && !pending.afterReflex;
+        // A hit from out of view turns the head in the middle of a fight too, which stands still for it (melee.js):
+        // fighting one zombie, the bot was hit from behind by another for 15 s and never looked round.
+        const reflexMoving = label.startsWith('mode:') && !pending.afterReflex && !(pending.hit && label === 'mode:self_defense');
         if (walking || reflexMoving) return false;
         if (bot.targetDigBlock && !pending.urgent) return false; // a sound waits for the block to be dug
         // A hostile mob in view nearby has the bot's eyes: turning to a sound would turn it off the screen,
@@ -124,7 +127,7 @@ export function createGlance({ now = Date.now } = {}) {
     function felt(agent, direction) {
         notes.length = 0;
         if (!narrow(agent) || !direction) return;
-        ask(agent, { yaw: Math.atan2(-direction.x, -direction.z), urgent: true, why: 'felt a hit' });
+        ask(agent, { yaw: Math.atan2(-direction.x, -direction.z), urgent: true, hit: true, why: 'felt a hit' });
     }
 
     /** A back-off has ended: a look back the way the bot came, toward what it ran from. */

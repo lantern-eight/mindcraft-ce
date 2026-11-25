@@ -47,6 +47,9 @@ const xyz = position => `${position.x} ${position.y} ${position.z}`;
 const fill = (a, b, block) => cmd(`fill ${xyz(at(...a))} ${xyz(at(...b))} ${block}`);
 const tpTo = (cell, yaw = 0, settle = 1200) => cmd(`tp ${NAME} ${at(...cell).x + 0.5} ${at(...cell).y} ${at(...cell).z + 0.5} ${yaw} 0`, settle);
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+// How far the floor reaches from the middle, each way: as far as the server fills around a bot standing at the
+// middle (at 40 it answered "Cannot place blocks outside of the world").
+const FLOOR = 30;
 
 async function waitFor(check, ms, why) {
     const deadline = Date.now() + ms;
@@ -81,8 +84,8 @@ try {
         await cmd('difficulty peaceful', 1000);
         await cmd('difficulty normal');
         await waitFor(() => !agent?.actions.executing, 15000, () => 'the reflex is still moving');
-        for (let x = -30; x <= 30; x += 15) await fill([x, 1, -30], [Math.min(x + 14, 30), 6, 30], 'air'); // to 30, the floor's edge
-        await fill([-30, 0, -30], [30, 0, 30], 'stone');
+        for (let x = -FLOOR; x <= FLOOR; x += 15) await fill([x, 1, -FLOOR], [Math.min(x + 14, FLOOR), 6, FLOOR], 'air'); // to the floor's edge
+        await fill([-FLOOR, 0, -FLOOR], [FLOOR, 0, FLOOR], 'stone');
         await cmd(`effect ${NAME} clear`);
         // Each scene gives the bot what it needs: a sword left from the last one would change what the
         // standing orders let it fight.
@@ -98,6 +101,8 @@ try {
         reflexes?.glance?.clear(); // nor a look back from the last one's back-off, which would turn the bot
         lowestHealth = bot.health;
     }
+    // Every zombie is summoned grown (minecraft:as_adult). A summon makes a baby now and then, and a baby runs
+    // as fast as the bot sprints: one kept pace with a retreat for 5 s and caught it at the floor's edge.
     // A creeper lit where it stands, penned in glass so it can't walk.
     async function litCreeper(cell) {
         await fill([cell[0] - 1, 1, cell[2] - 1], [cell[0] + 1, 3, cell[2] + 1], 'glass');
@@ -124,6 +129,10 @@ try {
         origin = bot.entity.position.floored().offset(0, 40, 0);
         await cmd('gamerule domobspawning false');
         await cmd('gamerule mobgriefing false');
+        // No loot: what a zombie the bot killed drops stays on the floor through the next reset, and item
+        // collecting walks the bot off its spot to pick it up. Ten blocks off, a creeper summoned for the next
+        // scene was more than 16 away and never came for it.
+        await cmd('gamerule domobloot false');
         await cmd('time set noon');
         agent = {
             name: NAME, bot, task: null, shut_up: true, last_sender: null, blocked_actions: [],
@@ -311,7 +320,7 @@ try {
         reflexes.mob.mode.on = false; reflexes.fight.mode.on = false; // only watching here
         await cmd(`effect ${NAME} resistance 30 4 true`);
         const spot = at(8, 1, 0);
-        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
         await waitFor(() => rawMob('zombie'), 5000, () => 'no zombie arrived');
         const zombie = rawMob('zombie');
         let aggressiveAt = null;
@@ -360,14 +369,24 @@ try {
             // still hold the open ground from before the walls went up, and the reflexes would plan by it.
             if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
             const blocksBefore = blocked;
+            // The hits the bot takes, when: a skeleton misses now and then (its arrow sticks in the floor), so a
+            // shield up for every shot after the first may have nothing to block in a short scene. The scene
+            // asks that it blocks one, or that nothing gets through once it has gone up.
+            const hits = [];
+            let healthNow = bot.health;
+            const onHealth = () => { if (bot.health < healthNow) hits.push(performance.now()); healthNow = bot.health; };
+            bot.on('health', onHealth);
             const spot = at(5, 1, 0);
             await cmd(`summon skeleton ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
             await delay(15000);
+            bot.off('health', onHealth);
             await cmd('time set noon');
             const raised = events.filter(e => e.event === 'shield').length;
-            if (shield) assert.ok(raised > 0 && blocked > blocksBefore, `the shield went up (${raised}) and stopped arrows (${blocked - blocksBefore}): ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
+            const firstUp = events.find(e => e.event === 'shield')?.at ?? Infinity;
+            const hitsAfter = hits.filter(at => at > firstUp).length;
+            if (shield) assert.ok(raised > 0 && (blocked > blocksBefore || hitsAfter === 0), `the shield went up (${raised}), stopped arrows (${blocked - blocksBefore}), and let ${hitsAfter} through after it first went up: ${JSON.stringify(events.filter(e => e.event !== 'step'))}`);
             else assert.equal(raised, 0);
-            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, blocked: blocked - blocksBefore };
+            return { damage: Number((20 - lowestHealth).toFixed(1)), raised, blocked: blocked - blocksBefore, hitsAfterFirstRaise: hitsAfter };
         });
     }
 
@@ -389,7 +408,7 @@ try {
         const onFelt = event => { if (event.event === 'felt') felt.push(event.direction); };
         bot.on('threat_reflex', onFelt);
         const spot = at(0, 1, 4); // to the south
-        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
         await waitFor(() => felt.length >= 1, 12000, () => `no hit felt: ${JSON.stringify(packets).slice(0, 600)}`);
         await delay(600);
         for (const [name, fn] of listeners) bot._client.off(name, fn);
@@ -400,16 +419,30 @@ try {
     });
 
     await step('two zombies coming: the mob reflex backs away from both, even from a fight just taken on', async () => {
-        await reset({ facing: 135 }); // facing north-west, between the two zombies
+        await reset({ facing: 135 });
+        // In the floor's north-west quarter, facing north-west, between the two zombies: the retreat runs south-east,
+        // with 40 blocks of floor ahead each way. Through a player's screen it runs until they would be far enough
+        // if they followed, 25 to 30 blocks, and from the middle it met the floor's edge, where a zombie caught up.
+        await tpTo([-10, 1, -10], 135, 1500);
+        await faceExactly(bot, (180 - 135) * Math.PI / 180, 0);
         await cmd(`effect ${NAME} resistance 30 2 true`);
-        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`); }
+        // Both come for the bot at once. Left to themselves, each zombie picks its target on its own clock, and
+        // now and then one came ten seconds after the other, by which time the first was a lone zombie the bot
+        // rightly fought. Zombies leave a player in creative alone: summoned while the bot is in creative, both
+        // turn on it together once it is back in survival. (On Java they are hurt "by the bot" instead; the
+        // console here takes no selectors, so there is no naming the zombies to hurt them.)
+        await cmd(`gamemode creative ${NAME}`);
+        for (const cell of [[-16, 1, -10], [-10, 1, -16]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
+        await delay(1000);
+        await cmd(`gamemode survival ${NAME}`, 0);
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
         const decided = events.filter(e => e.event === 'decided');
         assert.equal(decided.find(e => e.mode === 'mob_safety')?.key, 'crowd', JSON.stringify(decided));
         const zombies = Object.values(bot.entities).filter(e => e.name === 'zombie');
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
         const ended = events.find(e => e.event === 'done' && e.mode === 'mob_safety')?.ended;
-        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest (${ended}); zones: ${JSON.stringify(reflexes.zones.list().map(z => z.kind))}`);
+        const where = p => `${(p.x - origin.x).toFixed(1)},${(p.z - origin.z).toFixed(1)}`;
+        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest (${ended}), the bot at ${where(bot.entity.position)} and the zombies at ${zombies.map(z => where(z.position)).join(' and ')}; moves: ${JSON.stringify(events.filter(e => e.event === 'step').map(e => e.how))}; zones: ${JSON.stringify(reflexes.zones.list().map(z => z.kind))}`);
         return { endedFromNearest: Number(nearest.toFixed(1)), ended, stances: decided.map(e => `${e.mode}:${e.stance}`) };
     });
 
@@ -417,7 +450,7 @@ try {
         await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword 1`, 700);
         const spot = at(-6, 1, 0);
-        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
+        await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
         await waitFor(() => events.some(e => e.event === 'decided' && e.mode === 'self_defense'), 15000, () => JSON.stringify(events));
         await waitFor(() => !rawMob('zombie'), 30000, () => JSON.stringify(events));
         return { fights: events.filter(e => e.event === 'decided' && e.mode === 'self_defense').length, lowestHealth };
@@ -431,7 +464,7 @@ try {
         const healthAt = [];
         const note = event => { if (event.event === 'decided') healthAt.push({ mode: event.mode, key: event.key, health: bot.health }); };
         bot.on('threat_reflex', note);
-        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`); }
+        for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
         const started = Date.now();
         try {
             await waitFor(() => !rawMob('zombie') || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
@@ -480,6 +513,9 @@ try {
             const spot = at(...cell);
             await cmd(`summon ${mob} ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5}`);
         }
+        // East again, between the two pens: building them took a few seconds, and the idle look-around may
+        // have turned the bot so that one is out of a player's screen.
+        await faceExactly(bot, 3 * Math.PI / 2, 0);
         await waitFor(() => reflexes.zones.list().filter(z => z.kind === 'illagers').length >= 2, 10000, () => JSON.stringify(reflexes.zones.list()));
         const kept = reflexes.zones.list();
         for (const cell of Object.values(pens))
@@ -524,13 +560,13 @@ try {
 } finally {
     running = false;
     try {
-        await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true');
+        await cmd('difficulty peaceful'); await cmd('gamerule mobgriefing true'); await cmd('gamerule domobloot true');
         // Take the floor away, the bot first back down where it began: a floor left here would lift the spawn of
         // every later script (docs/bedrock.md, "When Several Scripts Fail at Once"), and a bot left on it builds
         // its next scenes 40 blocks higher still.
         if (origin) {
             await cmd(`tp ${NAME} ${origin.x + 0.5} ${origin.y - 39} ${origin.z + 0.5}`, 1500);
-            for (let x = -30; x <= 30; x += 15) await fill([x, 0, -30], [Math.min(x + 14, 30), 6, 30], 'air');
+            for (let x = -FLOOR; x <= FLOOR; x += 15) await fill([x, 0, -FLOOR], [Math.min(x + 14, FLOOR), 6, FLOOR], 'air');
         }
     } catch { /* the console is gone */ }
     console.log(JSON.stringify(summary()));

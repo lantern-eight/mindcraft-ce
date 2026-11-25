@@ -253,7 +253,9 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
         if (!threats?.length) return 'gone';
         if (distance() >= to) return 'far enough';
         if (done()) return 'done';
-        if (Date.now() - started > maxMs) return 'out of time';
+        // Out of time only with the shield down: lowered for the end of the move, a shield up against a shot on
+        // its way lets that arrow through. It comes down by itself once the shot has landed (shotWindow).
+        if (Date.now() - started > maxMs && !guard?.shield?.up) return 'out of time';
         return null;
     };
     let ended = finished(), blocks = 0, backed = 0;
@@ -328,6 +330,9 @@ export async function retreatFrom(bot, { from, to = 16, maxMs = 6000, done = () 
     return { distance: distance(), ended, blocks };
 }
 
+const JUST_AFTER_MS = 1200;    // backing away facing an archer, a move out of time ends this soon after a shot...
+const BEAT_GRACE_MS = 4500;    // ...or at most this long after its time, a little over the slowest beat (shot_beat.js)
+
 /**
  * Walks backwards away from threats, facing one of them, as a player backs out of an archer's range behind a
  * shield. Running faces away from the archer, and through a player's screen the bot then can't see it draw,
@@ -352,10 +357,19 @@ export async function backAwayFacing(bot, { from, face, to = 16, maxMs = 8000, d
         if (!threats?.length) return 'gone';
         if (distance() >= to) return 'far enough';
         if (done()) return 'done';
-        if (Date.now() - started > maxMs) return 'out of time';
-        return null;
+        return timeUp() ? 'out of time' : null;
     };
-    let ended = finished(), blocks = 0;
+    let ended = null, blocks = 0, lowered = null;
+    // Out of time, but not in the middle of a shot, nor just before the next one. The move ends here only to be
+    // decided again, and that takes a moment with the shield down: ended with a shot on its way, or just before
+    // one due, it lets that arrow through. So once the shield has been up for an archer's beat, the move ends
+    // just after a shot lands, the most time before the next, or a beat late at most.
+    const timeUp = () => {
+        const over = Date.now() - started - maxMs;
+        if (over <= 0 || guard?.shield?.up) return false;
+        return !blocks || over > BEAT_GRACE_MS || (lowered !== null && Date.now() - lowered < JUST_AFTER_MS);
+    };
+    ended = finished();
     const halt = () => bot.setControlState('back', false);
     try {
         if (!ended) report({ event: 'step', at: performance.now(), how: 'back away facing' });
@@ -366,6 +380,7 @@ export async function backAwayFacing(bot, { from, face, to = 16, maxMs = 8000, d
                 await wait(STEP_MS);
                 continue;
             }
+            if (wasUp) lowered = Date.now(); // the shot it was up for has landed
             const point = face();
             const here = bot.entity.position;
             if (point) await bot.lookAt(here.offset(point.x - here.x, point.y - here.y, point.z - here.z), true);

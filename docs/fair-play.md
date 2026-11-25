@@ -238,8 +238,9 @@ Fair play is honest about what it doesn't cover yet:
 - **The vision camera (`allow_vision`) is Mindcraft's own:** 75° tall on an 800 by 512 picture, about 100°
   across, against fair play's screen of 70° tall at 16:9, about 102° across. Across it is the same; it shows a
   few degrees more above and below.
-- **Good-neighbor rules** (don't break players' builds, loot their chests, or hurt their animals) are
-  planned and not built yet. The `good_neighbor` setting is reserved for them.
+- **Good-neighbor rules** are part built: the bot doesn't break other players' builds
+  ([good-neighbor.md](good-neighbor.md)). Not looting their chests and not hurting their animals are planned,
+  and `protect_chests` and `protect_animals` are reserved for them.
 - **The code runner isn't a CPU sandbox.** Model-written code that loops forever without waiting stalls
   the agent. Keep `allow_insecure_coding` off unless you need it.
 

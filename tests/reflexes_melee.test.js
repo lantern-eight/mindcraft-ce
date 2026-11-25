@@ -9,6 +9,7 @@ import { Vec3 } from 'vec3';
 import { reachTo, pickTarget, shouldStepBack, openWayTo, charged, fightLetGo, withinLeash, fightMelee } from '../src/agent/reflexes/melee.js';
 import { createShield } from '../src/agent/reflexes/shield.js';
 import { createItemUse, EATING } from '../src/agent/reflexes/item_use.js';
+import { watchLooks } from '../src/agent/fairplay/look_around.js';
 
 const eye = { x: 0.5, y: 65.62, z: 0.5 };
 const mob = (id, x, z, extra = {}) => ({ id, name: 'zombie', position: { x, y: 64, z }, width: 0.6, height: 1.95, ...extra });
@@ -159,6 +160,23 @@ test('the fight swings with the shield down, and neither swings nor raises it in
     beats = 0;
     await fightMelee(bot, { first: 3, see: () => zombie, shield, use, shotComing: () => skeleton(10.5, true), stop: () => ++beats > 2 });
     assert.deepEqual(did, ['swing 3'], 'the zombie in reach comes first; the shield stays down to swing');
+});
+
+test('while a glance has the head, the fight stands: it neither turns back to its target nor swings', async () => {
+    const { bot, did } = fighter();
+    const looks = watchLooks(bot, { getScreen: () => ({}) });
+    const started = Date.now();
+    looks.holdUntil = started + 300; // a hit from behind turned the head (glance.js)
+    const turnedAt = [];
+    bot.lookAt = async () => { turnedAt.push(Date.now() - started); };
+    const swungAt = [];
+    bot.attack = target => { swungAt.push(Date.now() - started); did.push(`swing ${target.id}`); };
+    const zombie = { id: 3, name: 'zombie', position: new Vec3(2.0, 64, 0.5), width: 0.6, height: 1.95 };
+    try {
+        await fightMelee(bot, { first: 3, see: () => zombie, stop: () => Date.now() - started > 700 });
+    } finally { looks.stop(); }
+    assert.ok(turnedAt.length && turnedAt[0] >= 290, `no turn back to the zombie while the glance holds: ${turnedAt}`);
+    assert.ok(swungAt.length && swungAt[0] >= 290, `the swing waits for the glance: ${swungAt}`);
 });
 
 test('a mob the bot keeps reaching is no fight "not getting closer", though it gets knocked back after each hit', async () => {

@@ -86,7 +86,7 @@ export function getFirstBlockAboveHead(bot, ignore_types=null, distance=32) {
      * @param {Bot} bot - The bot to get the block for.
      * @param {string[]} ignore_types - The names of the blocks to ignore.
      * @param {number} distance - The maximum distance to search, default 32.
-     * @returns {string} - The fist block above head.
+     * @returns {string} - The first block above the head, 'none', or 'unknown (N blocks up)' at a spot it has no block for.
      * @example
      * let firstBlockAboveHead = world.getFirstBlockAboveHead(bot, null, 32);
      **/

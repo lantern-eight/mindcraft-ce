@@ -1,8 +1,4 @@
 // SPDX-License-Identifier: CC0-1.0
-// A creeper is not fought hand to hand. defendSelf hands its target to the combat plugin, which follows
-// it to melee range and stays there, and a creeper explodes when something stands next to it. The
-// self_defense reflex, which starts defendSelf, doesn't fire on one either: it would only find nothing to
-// fight and fire again.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Vec3 } from 'vec3';
@@ -42,17 +38,32 @@ test('defendSelf with only a creeper near finds nothing to fight', async () => {
     assert.deepEqual(attacked, []);
 });
 
-test('the self_defense reflex doesn\'t fire on a creeper', async () => {
-    const { bot } = botWith([mob('creeper', 2)]);
+test('the self-defense reflex retreats from a creeper with cowardice off', async () => {
+    const { bot, attacked } = botWith([mob('creeper', 2)]);
     const started = [];
+    const goals = [];
+    let execution;
+    bot.pathfinder.setGoal = goal => {
+        goals.push(goal);
+        bot.interrupt_code = true;
+    };
+    bot.pathfinder.stop = () => {};
     const agent = {
         bot, task: null, shut_up: true, isIdle: () => true,
         prompter: { getInitModes: () => null },
-        actions: { currentActionLabel: '', runAction: async label => { started.push(label); return { message: '' }; } },
+        actions: { currentActionLabel: '', runAction(label, action) {
+            started.push(label);
+            return execution = action().then(() => ({ message: '' }));
+        } },
         self_prompter: { isActive: () => false },
     };
     initModes(agent);
     for (const name of Object.keys(bot.modes.getJson())) bot.modes.setOn(name, name === 'self_defense');
     await bot.modes.update();
-    assert.deepEqual(started, []);
+    await execution;
+    assert.deepEqual(started, ['mode:self_defense']);
+    assert.deepEqual(attacked, []);
+    assert.equal(goals.length, 1);
+    assert.equal(goals[0].constructor.name, 'GoalInvert');
+    assert.match(bot.modes.behavior_log, /Backing away/);
 });

@@ -194,6 +194,47 @@ test('backing away facing an archer into a wall: it stands there facing it, and 
     } finally { stop(); }
 });
 
+test('backing away facing an archer runs out of time only once the shield is down: a shot on its way is blocked first', async () => {
+    const wall = {};
+    for (let z = -3; z <= 3; z++) for (const y of [64, 65]) wall[`-1,${y},${z}`] = 'stone';
+    const { bot, shield, stop } = backingBot(wall);
+    try {
+        const archer = { x: 8.5, y: 64, z: 0.5 };
+        const started = Date.now();
+        let loweredAt = null;
+        const lower = shield.lower.bind(shield);
+        shield.lower = () => { if (shield.up && loweredAt === null) loweredAt = Date.now() - started; return lower(); };
+        // A shot due from 100 ms to 600 ms in, the time running out at 300 ms, in the middle of it.
+        const outcome = await backAwayFacing(bot, {
+            from: () => [archer], face: () => ({ ...archer, y: 65.5 }), to: 12, maxMs: 300,
+            guard: { against: () => { const t = Date.now() - started; return t >= 100 && t < 600 ? { ...archer, y: 65.5 } : null; }, shield },
+        });
+        assert.equal(outcome.ended, 'out of time');
+        assert.equal(outcome.blocks, 1);
+        assert.ok(loweredAt >= 600, `the shield stayed up until the shot was over, not lowered at ${loweredAt} ms`);
+    } finally { stop(); }
+});
+
+test('backing away facing an archer whose shots it has blocked: out of time, it ends just after a shot, not just before the next', async () => {
+    const wall = {};
+    for (let z = -3; z <= 3; z++) for (const y of [64, 65]) wall[`-1,${y},${z}`] = 'stone';
+    const { bot, shield, stop } = backingBot(wall);
+    try {
+        const archer = { x: 8.5, y: 64, z: 0.5 };
+        const started = Date.now();
+        // Shots due at 100-400 ms and 2300-2600 ms in; the time runs out at 1800 ms, 500 ms before the second.
+        const due = t => (t >= 100 && t < 400) || (t >= 2300 && t < 2600);
+        const outcome = await backAwayFacing(bot, {
+            from: () => [archer], face: () => ({ ...archer, y: 65.5 }), to: 12, maxMs: 1800,
+            guard: { against: () => (due(Date.now() - started) ? { ...archer, y: 65.5 } : null), shield },
+        });
+        const took = Date.now() - started;
+        assert.equal(outcome.ended, 'out of time');
+        assert.equal(outcome.blocks, 2, 'the second shot was guarded too');
+        assert.ok(took >= 2600 && took < 3500, `it ended just after the second shot: ${took} ms`);
+    } finally { stop(); }
+});
+
 test('a way out: on open ground there is one; in a dead end, walled on every side away from the threat, none', () => {
     const away = { x: 1, z: 0 };
     assert.equal(wayOut(world(), feet, away), true);

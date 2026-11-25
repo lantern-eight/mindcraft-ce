@@ -30,7 +30,7 @@
 // Registered for the game data type "bedrock" when this file is first imported. connect.js imports it,
 // so it is in place before any bot starts.
 import { registerEdition } from '../edition/index.js';
-import { javaEdition as java } from '../edition/java.js';
+import { javaEdition as java, isShelfBlock, shelfClickAt, shelfSlots } from '../edition/java.js';
 import { moveStack } from './window_moves.js';
 import { bedrockNamesFor } from './names.js';
 
@@ -285,6 +285,14 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
+     * Whether leaves were placed by a player and so never fall away, as on Java. Bedrock keeps it as the
+     * `persistent_bit` of the leaves' state, a byte: 1 for placed leaves.
+     */
+    leavesPersist(registry, stateId) {
+        return bedrockEdition.propsOfState(registry, stateId)?.persistent_bit === '1';
+    },
+
+    /**
      * The state for a block name with these properties: the block's default state with each property
      * given replaced, as on Java. A property the block doesn't have, a value it can't take, or a mix of
      * values no state has, keeps the default.
@@ -393,6 +401,67 @@ export const bedrockEdition = Object.freeze({
         if (fields?.FrontText || fields?.BackText) return [textOf(fields.FrontText), textOf(fields.BackText)];
         const old = plain(fields?.Text);
         return typeof old === 'string' ? [old] : [];
+    },
+
+    /**
+     * What a shelf shows (as on Java: its facing, whether it is powered, and its three slots). Bedrock names
+     * the state's parts its own way, `minecraft:cardinal_direction` and `powered_bit`, and keeps the items in
+     * the shelf's block entity as a container does, `Items` with `Slot`, `Name` and `Count`, in tagged
+     * values the adapter hands on as they came.
+     */
+    shelfOf(block) {
+        if (!isShelfBlock(block?.name)) return null;
+        let props = {};
+        try { props = block.getProperties?.() ?? {}; } catch { /* a shape without properties: none known */ }
+        const plain = field => (field && typeof field === 'object' && 'type' in field && 'value' in field ? field.value : field);
+        const fields = plain(block?.entity);
+        let slots = null;
+        if (fields && typeof fields === 'object') {
+            let items = plain(fields.Items) ?? [];
+            if (items && !Array.isArray(items)) items = plain(items) ?? [];   // a tagged list: {type, value: [...]}
+            // The list holds all three slots in order, an empty one as a blank name and a count of 0, with no
+            // Slot field (checked on a 1.26.60 server): where an entry stands is its slot.
+            slots = shelfSlots((Array.isArray(items) ? items : []).map((entry, index) => {
+                const item = plain(entry) ?? {};
+                return { slot: plain(item.Slot) ?? index, name: plain(item.Name ?? item.name), count: plain(item.Count ?? item.count) };
+            }));
+        }
+        const powered = props.powered_bit;
+        return { facing: props['minecraft:cardinal_direction'] ?? props.facing ?? null, powered: powered === 1 || powered === true || powered === '1', slots };
+    },
+
+    /**
+     * Clicks one slot of a shelf (see Java's answer). The adapter's `activateBlock` always clicks the
+     * middle of a face, which is the middle slot, so this goes through the click the adapter places blocks
+     * with, which takes the point on the face (`delta`), without the start and end of an item use that a
+     * placement sends: a plain click on a block, as when a chest is opened.
+     */
+    async clickShelfSlot(bot, block, slot) {
+        const at = shelfClickAt(bedrockEdition.shelfOf(block)?.facing, slot);
+        if (!at) throw new Error('there is no telling which way the shelf faces');
+        if (typeof bot._genericPlace !== 'function') throw new Error('the Bedrock adapter in use cannot click a point on a block');
+        await bot._genericPlace(block, at.face, { delta: at.cursor, swingArm: 'right', itemUseLifecycle: false });
+    },
+
+    /**
+     * Moves `count` of a stack between two of the bot's own slots (see Java's answer). Bedrock moves a
+     * given number in one request, and swaps two different items. A move between the hotbar and the main inventory needs the inventory
+     * screen open, as a player has it open to do it, so it is opened for the move and closed again.
+     */
+    async moveInBag(bot, from, to, count) {
+        const item = bot.inventory.slots[from];
+        if (!item) return;
+        const bedrockSlot = slot => (slot >= 36 ? slot - 36 : slot);
+        const crosses = (from >= 36) !== (to >= 36);
+        const opened = crosses && !bot.currentWindow && typeof bot.openInventory === 'function';
+        const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+        if (opened) { bot.openInventory(); await pause(400); }
+        try {
+            bot.moveInventoryItem(bedrockSlot(from), bedrockSlot(to), Math.min(count ?? item.count, item.count));
+            await pause(400);
+        } finally {
+            if (opened && bot.currentWindow) bot.closeWindow(bot.currentWindow);
+        }
     },
 
     /**
