@@ -22,6 +22,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - A resumable action that fails is no longer started again when the bot goes idle, and one that was
   cancelled while waiting its turn to resume doesn't start, or stop the action running then. From
   Mindcraft-CE.
+- On Java Edition 1.21.2 and later, a position update held back in the first moments after login is no
+  longer sent late, in a later tick beside that tick's own update, which a newer server can kick for.
 - On Java Edition 26.3, shears cut wool stairs and slabs as fast as a wool block. The game data the bot
   runs on had them no faster than a hand, so the bot took longer than it should and judged its tools by
   wrong numbers.
