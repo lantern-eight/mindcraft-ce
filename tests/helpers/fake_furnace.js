@@ -9,7 +9,7 @@
 import { Vec3 } from 'vec3';
 import { productOf } from '../../src/agent/smelting/recipes.js';
 
-const BURN_TICKS = { coal: 1600, charcoal: 1600, oak_planks: 300, spruce_planks: 300, oak_log: 300, coal_block: 16000 };
+const BURN_TICKS = { coal: 1600, charcoal: 1600, oak_planks: 300, spruce_planks: 300, oak_log: 300, coal_block: 16000, lava_bucket: 20000 };
 const TICK_MS = 50;
 const ITEM_TICKS = 200;
 
@@ -20,9 +20,12 @@ const stack = (name, count) => (count > 0 ? { name, count } : null);
  * @param {object} options
  * @param {Object<string, number>} options.inventory - what the bot carries
  * @param {{at: number[], input?: object, fuel?: object, output?: object, neverOpens?: boolean}[]} [options.furnaces]
+ * @param {number[][]} [options.lavaCauldrons] - full lava cauldrons (Java's `lava_cauldron`)
  * @param {number[]} [options.botAt]
  */
-export function fakeFurnaceWorld({ inventory = {}, furnaces = [], botAt = [0, 64, 0] } = {}) {
+export function fakeFurnaceWorld({ inventory = {}, furnaces = [], lavaCauldrons = [], botAt = [0, 64, 0] } = {}) {
+    const cauldrons = new Map(lavaCauldrons.map(at => [key(new Vec3(...at)), { position: new Vec3(...at), lava: true }]));
+    let held = null;
     let clock = 0;
     const bag = { ...inventory };
     const logs = [];
@@ -42,7 +45,8 @@ export function fakeFurnaceWorld({ inventory = {}, furnaces = [], botAt = [0, 64
         const canOutput = input && (!output || (output.name === product && output.count < 64));
         if (f.burn <= 0 && canOutput && fuel) {
             f.burn = BURN_TICKS[fuel.name] ?? 300;
-            f.slots[1] = stack(fuel.name, fuel.count - 1);
+            // A bucket of lava leaves its empty bucket in the slot as it catches.
+            f.slots[1] = fuel.name === 'lava_bucket' ? stack('bucket', 1) : stack(fuel.name, fuel.count - 1);
         }
         if (f.burn > 0) {
             f.burn--;
@@ -73,6 +77,15 @@ export function fakeFurnaceWorld({ inventory = {}, furnaces = [], botAt = [0, 64
         interrupt_code: false,
         modes: { pause: () => {} },
         async lookAt() {},
+        async equip(item) { held = item?.name ?? null; },
+        async activateBlock(block) {
+            const c = cauldrons.get(key(block.position));
+            if (!c?.lava || held !== 'bucket' || !(bag.bucket > 0)) return;
+            add('bucket', -1);
+            add('lava_bucket', 1);
+            c.lava = false;
+            held = 'lava_bucket';
+        },
         closeWindow(window) { if (bot.currentWindow === window) bot.currentWindow = null; events.push('close'); },
         openFurnace(block) {
             const f = placed.get(key(block.position));
@@ -108,9 +121,12 @@ export function fakeFurnaceWorld({ inventory = {}, furnaces = [], botAt = [0, 64
         },
     };
 
+    const cauldronBlock = c => ({ name: c.lava ? 'lava_cauldron' : 'cauldron', position: c.position.clone(), boundingBox: 'block', getProperties: () => ({}) });
     const blockAt = (_bot, pos) => {
         const f = placed.get(key(pos));
         if (f) return blockOf(f);
+        const c = cauldrons.get(key(pos));
+        if (c) return cauldronBlock(c);
         // Flat ground: solid below y 64, air from 64 up.
         return { name: pos.y < 64 ? 'stone' : 'air', position: new Vec3(pos.x, pos.y, pos.z), boundingBox: pos.y < 64 ? 'block' : 'empty' };
     };
@@ -127,7 +143,7 @@ export function fakeFurnaceWorld({ inventory = {}, furnaces = [], botAt = [0, 64
                 }
                 return cells.sort((a, b) => a.position.distanceTo(from) - b.position.distanceTo(from)).slice(0, count);
             }
-            return [...placed.values()].map(blockOf).filter(predicate)
+            return [...[...placed.values()].map(blockOf), ...[...cauldrons.values()].map(cauldronBlock)].filter(predicate)
                 .filter(b => b.position.distanceTo(from) <= range)
                 .sort((a, b) => a.position.distanceTo(from) - b.position.distanceTo(from)).slice(0, count);
         },
@@ -163,6 +179,7 @@ export function fakeFurnaceWorld({ inventory = {}, furnaces = [], botAt = [0, 64
     return {
         bot, world, skills, blockAt, logs, events, bag,
         furnaceAt: (...at) => placed.get(key(new Vec3(...at))),
+        cauldronAt: (...at) => cauldrons.get(key(new Vec3(...at))),
         now: () => clock,
         sleep: async ms => { advance(ms); await Promise.resolve(); },
         advance,

@@ -27,7 +27,7 @@ says what works, what doesn't and how to try it.
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
 | **Putting away and fetching** | On by default with chest sorting. "Put your things away", "get me some iron" and "bring me 10 iron": the bot uses its own and shared chests, and a player's when a player asks. `store_and_fetch: false` turns it off |
-| **Smelting** | On by default. The bot loads a free furnace with the fuel it needs, shuts it and comes back for what is done, as a player does. `smelting: false` keeps Mindcraft-CE's own |
+| **Smelting** | On by default. The bot loads a free furnace with the fuel it needs, shuts it and comes back for what is done, as a player does, or loads it and goes off to do something else (`!loadFurnace`, `!collectFurnace`). `smelting: false` keeps Mindcraft-CE's own |
 | **Good neighbor** | On by default. The bot doesn't break what other players built: what isn't natural ground, what it saw someone put up, and logs that aren't part of a tree. `good_neighbor.protect_builds: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
@@ -171,7 +171,7 @@ node tests/live/fairplay_scenarios.js
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
 | `stow_scenarios.js` | Putting away and fetching in a storage room people share: where things go, what the bot keeps, and the chests it may not use left as they were |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
-| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, and a smelt stopped half way |
+| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, a smelt stopped half way and gone on with, a furnace loaded and left and collected, and lava from a lava cauldron, with the empty bucket for it in the bag, in the bot's own chest, or on its shelf |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
 The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VIEW=all` (or `--view=all`)
@@ -211,7 +211,7 @@ all, to look into a world after a run.
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
 | [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, putting away and fetching, what the model can ask, and what happens when things go wrong |
-| [docs/smelting.md](docs/smelting.md) | How the bot smelts: which furnace, which fuel, the wait with the furnace shut, and when it stops |
+| [docs/smelting.md](docs/smelting.md) | How the bot smelts: which furnace, which fuel, the wait with the furnace shut, when it stops, and loading a furnace and coming back |
 | [docs/threat-reflexes.md](docs/threat-reflexes.md) | The threat reflexes: when the bot backs off from a creeper or other mobs, when it fights, what it knows, how it holds other work, and the danger zones its walks go round |
 | [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |

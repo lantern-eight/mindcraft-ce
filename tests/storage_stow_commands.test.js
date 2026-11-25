@@ -9,6 +9,7 @@ import path from 'node:path';
 import { ActionManager } from '../src/agent/action_manager.js';
 import { getCommand } from '../src/agent/commands/index.js';
 import { installStorage } from '../src/agent/storage/install.js';
+import { fetcherOf } from '../src/agent/library/fetch_way.js';
 import { fakeChestBot, stack } from './helpers/fake_chest_bot.js';
 
 const row = (size, stacks = []) => Array.from({ length: size }, (_, i) => stacks[i] ?? null);
@@ -113,6 +114,7 @@ test('the setting is on by default, listed for MindServer, and off leaves the co
     const off = installStorage(other, { config: { chest_sorting: true, store_and_fetch: false, host: 'h', port: 1, world_id: 'w2' },
         bookDir: mkdtempSync(path.join(tmpdir(), 'stow-off-')) });
     assert.ok(!off.commands.includes('!putAway'));
+    assert.equal(fetcherOf(other.bot), null, 'and no fetcher for other modules');
 });
 
 test('putting away keeps out of a chest that is for something else, and out of the inbox', async () => {
@@ -167,4 +169,19 @@ test('bringing: to itself is refused, and a hand-over nobody takes says what the
     const text = await during('Alice', '!bringItem', 'Nobody', 'bread', 2);
     assert.match(text, /^Could not hand it to Nobody: .*\. You carry 6 bread\.$/, text);
     assert.equal(count(room.pockets, 'bread'), 6);
+});
+
+test('another module fetches through the fetcher storage installs: the same rules, and where it took from', async () => {
+    const fetch = fetcherOf(bot);
+    assert.ok(fetch, 'installed with putting away and fetching');
+    // On the bot's own errand: a player's chest is left, as for !fetchItem.
+    const own = await agent.handleMessage('system', () => fetch('iron_ingot', 2));
+    assert.equal(own.status, 'failed');
+    assert.deepEqual(own.taken, []);
+    // For a player: their chest, named.
+    const before = count(room.contents('2,64,0'), 'iron_ingot');
+    const asked = await agent.handleMessage('Alice', () => fetch('iron_ingot', 2));
+    assert.equal(asked.status, 'ok');
+    assert.deepEqual(asked.taken, [{ label: 'chest at 2, 64, 0', owner: 'Alice\'s', count: 2 }]);
+    assert.equal(count(room.contents('2,64,0'), 'iron_ingot'), before - 2);
 });
