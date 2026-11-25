@@ -14,8 +14,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Shelves. The bot remembers what stands on a shelf when it sees the shelf's front, and `!chests` lists shelves
   with what was on them. `!markChest` and `!chestFor` say whose a shelf is and what it is for. Fetching
   (`!fetchItem`, `!bringItem`, `!getTool`) takes from shelves by the same rules as from chests: the bot stands
-  in front, takes the stack with an empty hand, and puts back what it didn't need. A shelf is never sorted,
-  and a powered one is never clicked.
+  in front, takes the stack with an empty hand, and puts back what it didn't need. `!putAway` puts things onto
+  a shelf only when a player has said what it is for, into an empty slot. A shelf is never sorted, and a
+  powered one is never clicked.
 
 ## [1.17.0-bedrock.1.18.0] - 2026-11-25
 

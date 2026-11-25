@@ -33,6 +33,7 @@ function scene({ bag = {}, shelf = [null, null, null], powered = false, at = { x
         async moveInBag(b, from, to, count) {
             const stack = slots[from];
             if (!stack) return;
+            if (slots[to] && slots[to].name !== stack.name) { [slots[from], slots[to]] = [slots[to], stack]; return; }
             const n = Math.min(count, stack.count);
             slots[to] = { name: stack.name, count: (slots[to]?.count ?? 0) + n };
             stack.count -= n;
@@ -127,4 +128,28 @@ test('fetching takes from a shelf as from a chest, through its hands', async () 
     assert.equal(report.total, 4);
     assert.equal(count(slots, 'iron_ingot'), 4);
     assert.deepEqual(onShelf[1], { name: 'iron_ingot', count: 3 });
+});
+
+test('putting: a stack from the bag goes into an empty slot, the hotbar is left as it was, and a part is split off first', async () => {
+    const bag = { 9: { name: 'torch', count: 40 } };
+    for (let slot = 36; slot < 45; slot++) bag[slot] = { name: `item${slot}`, count: 1 };
+    const { slots, onShelf, hands, bot } = scene({ bag, shelf: [{ name: 'torch', count: 64 }, null, null] });
+    const shelf = await hands.open(SHELF);
+    assert.equal(shelf.pockets()[0].name, 'torch');
+    await shelf.putSlot(9, 40);
+    assert.deepEqual(onShelf, [{ name: 'torch', count: 64 }, { name: 'torch', count: 40 }, null], 'into the empty slot, never onto the full one');
+    for (let slot = 36; slot < 45; slot++) assert.equal(slots[slot]?.name, `item${slot}`, `hotbar slot ${slot} is as it was`);
+    assert.equal(count(slots, 'torch'), 0);
+
+    // Part of a stack: the rest stays in the bag. With a free slot to split into, the hotbar is not needed.
+    slots[37] = null;
+    slots[10] = { name: 'apple', count: 10 };
+    await shelf.putSlot(10, 4);
+    assert.deepEqual(onShelf[2], { name: 'apple', count: 4 });
+    assert.equal(count(slots, 'apple'), 6);
+    // Full now: nothing more goes on, and nothing is clicked.
+    await assert.rejects(shelf.putSlot(10, 6), /the shelf is full/);
+    assert.equal(count(slots, 'apple'), 6);
+    await shelf.close();
+    assert.equal(bot.quickBarSlot, 0);
 });

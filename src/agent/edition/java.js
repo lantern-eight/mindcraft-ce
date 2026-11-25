@@ -381,7 +381,8 @@ export const javaEdition = Object.freeze({
 
     /**
      * Moves `count` of the stack in one of the bot's own slots onto another, with no chest open: the whole
-     * stack, or part of it, as a player splits one with the mouse. `to` is empty or holds the same item.
+     * stack, or part of it, as a player splits one with the mouse. Onto an empty slot or the same item it is
+     * put down; a whole stack onto another item swaps the two.
      * Slots are the bot's own numbers, 9 to 44 (the hotbar is 36 to 44). On Java, part of a stack is put
      * down one at a time with right clicks, the only way the game moves a given number.
      */

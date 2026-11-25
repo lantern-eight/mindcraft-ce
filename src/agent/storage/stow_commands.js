@@ -124,7 +124,12 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
 
     const whose = readWhose(whoseText, env);
     forgetGone(bot, env);
-    const found = chestsWithBeliefs(bot, Math.min(distance, PUT_RANGE), env);
+    // A shelf is often a display a player arranged by hand, so things go onto one only when a player has
+    // said what it is for (or a sign on it says): a shelf for torches takes torches. One for anything, or
+    // one nobody has said anything about, is left as it is.
+    const purposeOf = purposesOn(bot, env);
+    const named = shelf => { const { holds, from } = purposeOf(shelf); return from !== null && holds.length > 0 && !isInbox(holds); };
+    const found = chestsWithBeliefs(bot, Math.min(distance, PUT_RANGE), env, { shelves: true }).filter(chest => !chest.shelf || named(chest));
     const allowed = putInto(found, env.book, { whose, asked: env.asked ?? null });
     const leftOut = leftOutText(allowed.left);
     if (!allowed.usable.length) {
@@ -133,7 +138,6 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
     }
     // What each chest is for (a player's word, else its sign): put-away keeps things out of a chest meant
     // for something else, and out of the inbox.
-    const purposeOf = purposesOn(bot, env);
     const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner, holds: purposeOf(chest).holds }));
     const report = await putAway(chests, {
         items: plan.store, hands: hands(bot, env), from: here(bot), stackSize: sizeOf(bot),

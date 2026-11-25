@@ -443,7 +443,7 @@ export const bedrockEdition = Object.freeze({
 
     /**
      * Moves `count` of a stack between two of the bot's own slots (see Java's answer). Bedrock moves a
-     * given number in one request. A move between the hotbar and the main inventory needs the inventory
+     * given number in one request, and swaps two different items. A move between the hotbar and the main inventory needs the inventory
      * screen open, as a player has it open to do it, so it is opened for the move and closed again.
      */
     async moveInBag(bot, from, to, count) {

@@ -8,8 +8,14 @@
 // the slot. To take part of a stack, the whole stack comes off, the part wanted is split off in the bag,
 // and the rest goes back with a second click, as a player would do it.
 //
-// The hands give fetching (stow.js) the same shape a chest's do (bot_hands.js): `open` a shelf, read its
-// `slots`, `takeOut` an item, `settle`, `close`. Nothing is put onto a shelf here.
+// Putting onto a shelf is the same click with the stack in hand, into an empty slot: a click on a full
+// slot would swap the two stacks, so that is never done. Exactly the number to put has to be in the hand
+// first, so a part of a stack is split off in the bag, and one in the main inventory is brought to the
+// hotbar. Which shelves are put onto at all is decided by the caller: one a player has said is for
+// something (see stow_commands.js).
+//
+// The hands give putting away and fetching (stow.js) the same shape a chest's do (bot_hands.js): `open` a
+// shelf, read its `slots` and the bot's `pockets`, `takeOut` an item or `putSlot` one, `settle`, `close`.
 //
 // A powered shelf is never clicked: one click on it swaps the bot's whole hotbar with what is on it.
 //
@@ -124,8 +130,49 @@ export function shelfHands(bot, { goTo, blockAt, edition = null, reach = ARMS_RE
                 return until(() => !slots()[from] || slots()[to]?.count >= count);
             };
 
+            /** One of the bot's slots in its hand, holding exactly `count`. Gives the hotbar slot, and how to undo it. */
+            const inHand = async (slot, count) => {
+                const item = slots()[slot];
+                let hand = slot, swapped = null;
+                if (slot < HOTBAR_START) {
+                    // From the main inventory to the hotbar: into an empty slot of it, or swapped with one.
+                    hand = emptyIn(HOTBAR_START, HOTBAR_END);
+                    if (hand === null) {
+                        if (count < item.count) throw new Error('your inventory has no room to split the stack');
+                        hand = HOTBAR_START + ((selected + 1) % 9);
+                        swapped = { hand, back: slot };
+                    }
+                    await seam().moveInBag(bot, slot, hand, swapped ? item.count : count);
+                    if (!(await until(() => slots()[hand]?.name === item.name && (swapped || slots()[hand].count === count)))) throw new Error('could not bring it to your hand');
+                } else if (count < item.count) {
+                    // Part of a stack in the hotbar: the rest is split off and stays in the bag.
+                    const spare = emptyIn(MAIN_START, HOTBAR_END, [slot]);
+                    if (spare === null) throw new Error('your inventory has no room to split the stack');
+                    if (!(await move(slot, spare, item.count - count)) || slots()[slot]?.count !== count) throw new Error('could not split the stack');
+                }
+                return { hand, swapped };
+            };
+
             return {
                 slots: onShelf,
+                /** All of the bot's own slots: index 0 is its slot 9, the last its slot 44. */
+                pockets: () => Array.from({ length: 36 }, (_, i) => { const item = slots()[MAIN_START + i]; return item ? { name: item.name, count: item.count, key: item.name } : null; }),
+                /**
+                 * Puts `count` from one of the bot's own slots (9 to 44) into an empty slot of the shelf, as
+                 * one stack. Rejects when the shelf has no empty slot, having put nothing.
+                 */
+                async putSlot(slot, count) {
+                    const item = slots()[slot];
+                    if (!item || !(count > 0)) return;
+                    const into = onShelf().findIndex(stack => !stack);
+                    if (into < 0) throw new Error('the shelf is full');
+                    const { hand, swapped } = await inHand(slot, Math.min(count, item.count));
+                    bot.setQuickBarSlot(hand - HOTBAR_START);
+                    await click(into);
+                    await until(() => !slots()[hand]);
+                    // What was in that hotbar slot goes back to it.
+                    if (swapped && !slots()[hand]) await move(swapped.back, hand, slots()[swapped.back]?.count ?? 0);
+                },
                 /**
                  * Takes up to `count` of an item off the shelf into the bot's inventory. Rejects when the
                  * bag has no room, having taken what it could; `slots` then says how much.

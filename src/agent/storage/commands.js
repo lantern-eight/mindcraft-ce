@@ -393,6 +393,9 @@ export function chestFor(bot, pos, whatText, deps = {}) {
         }
         holds = read.holds;
     }
+    // Players leave things in the inbox for the bot to file: a chest's job, not a shelf's, whose three
+    // slots are for showing things.
+    if (chest.shelf && isInbox(holds)) return toolResult('failed', `The ${labelOf(chest)} is a shelf, and a shelf can't be the inbox: name a chest for that.`);
     const was = purposesOn(bot, env)(chest);
     const { changed } = env.book.mark(chest, { holds, by: env.by ?? null });
     let shared = '';
