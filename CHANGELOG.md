@@ -24,6 +24,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ### Fixed
 
+- Mindcraft's chest commands (`!viewChest`, `!takeFromChest`, `!putInChest`) use the nearest chest, trapped
+  chest or barrel. They looked for chests alone, so a bot standing by a barrel said there was no chest nearby.
 - Crafting on Bedrock took a recipe the bot had nothing for. The server lists a stick from bamboo first, and
   the library let it through for a bot with planks and no bamboo, so crafting sticks failed. Only recipes the
   bot holds every ingredient of are handed out now, as on Java.
