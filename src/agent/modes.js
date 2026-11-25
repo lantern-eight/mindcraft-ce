@@ -80,7 +80,8 @@ const modes_list = [
                     });
                 }
             }
-            else if (Date.now() - bot.lastDamageTime < 3000 && (bot.health < 5 || bot.lastDamageTaken >= bot.health)) {
+            else if (!skills.isFleeing(bot) && Date.now() - bot.lastDamageTime < 3000 &&
+                (bot.health < 5 || bot.lastDamageTaken >= bot.health)) {
                 say(agent, 'I\'m dying!');
                 execute(this, agent, async () => {
                     await skills.moveAway(bot, 20);
@@ -128,17 +129,18 @@ const modes_list = [
     },
     {
         name: 'self_defense',
-        description: 'Attack nearby enemies. Interrupts all actions.',
+        description: 'Attack nearby enemies and retreat from creepers. Interrupts all actions.',
         interrupts: ['all'],
         on: true,
         active: false,
         update: async function (agent) {
-            // defendSelf won't fight a creeper (it explodes next to whoever stands there), so starting it for one would do nothing
-            const enemy = world.getNearestEntityWhere(agent.bot, entity => mc.isHostile(entity) && entity.name !== 'creeper', 8);
+            const enemy = world.getNearestEntityWhere(agent.bot, entity => mc.isHostile(entity), 8);
             if (enemy && await world.isClearPath(agent.bot, enemy)) {
-                say(agent, `Fighting ${enemy.name}!`);
+                const creeper = enemy.name === 'creeper';
+                say(agent, creeper ? 'Backing away from a creeper!' : `Fighting ${enemy.name}!`);
                 execute(this, agent, async () => {
-                    await skills.defendSelf(agent.bot, 8);
+                    if (creeper) await skills.avoidEnemies(agent.bot, 8);
+                    else await skills.defendSelf(agent.bot, 8);
                 });
             }
         }

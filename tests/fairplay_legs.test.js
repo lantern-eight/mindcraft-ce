@@ -20,7 +20,6 @@ import { resolvePolicy } from '../src/agent/fairplay/policy.js';
 import { fairLegsOf, installFairLegs } from '../src/agent/fairplay/fair_legs.js';
 import { openMemory } from '../src/agent/memory/store.js';
 import { createRecorder } from '../src/agent/memory/recorder.js';
-import { squareCorners } from '../src/agent/library/skills.js';
 import { installFairPlay } from '../src/agent/fairplay/install.js';
 import { initModes } from '../src/agent/modes.js';
 import { setWorldQueries } from '../src/agent/library/world_queries.js';
@@ -132,10 +131,9 @@ test('a cell never seen counts as open ground: fit to walk through and fit to st
     }
     // A drop to the side lands where the bot can't see, and it looks before it drops (the next test).
     assert.equal(moves['31,5,30'], undefined, 'no drop onto ground never seen');
-    // goToGoal squares its corners. That must not take the slantwise steps over unseen ground away, or a
-    // long trip through the unknown would be searched as a staircase of right angles.
-    const squared = movesFrom(squareCorners(new pf.Movements(bot)), 30, 6, 30);
-    assert.deepEqual(squared['31,6,31'], { cost: flat, dig: 0, place: 0 });
+    // The pathfinder patch squares corners: no slantwise step past a cell that isn't open. That must not
+    // take the slantwise steps over unseen ground away (the ones checked above), or a long trip through the
+    // unknown would be searched as a staircase of right angles.
 
     // The same spot for a bot without fair legs is solid stone: every way out is dug.
     const stock = setup(w => w.fill('stone', [20, 1, 20], [40, 12, 40]), { legs: false });
@@ -171,7 +169,7 @@ test('a drop is planned only onto ground the bot has seen: off a ledge whose foo
 test('a long trip through the unknown is searched straight at the goal, not all around', () => {
     const { bot, lookAround } = setup();
     lookAround();
-    const route = planRoute(bot, squareCorners(new pf.Movements(bot)), near(55, 1, 40));
+    const route = planRoute(bot, new pf.Movements(bot), near(55, 1, 40));
     assert.equal(route.status, 'success');
     // 40 slantwise steps and 15 straight ones. Without level slantwise steps over unseen ground it would be 95.
     assert.ok(route.cost < 75, `the route costs ${route.cost.toFixed(1)}`);

@@ -11,6 +11,7 @@ export class ActionManager {
         this.currentActionFn = null;
         this.resume_func = null;
         this.resume_name = '';
+        this.resumeVersion = 0;
         this.timedout = false;
         this.owner = null;
         this.sequence = 0;
@@ -26,11 +27,19 @@ export class ActionManager {
     }
     resumeAction() {
         if (!this.resume_func || this.executing || this.agent.self_prompter?.isActive()) return Promise.resolve({success: false});
-        return this.runAction(this.resume_name, this.resume_func, {timeout: this.resume_timeout});
+        return this.runAction(this.resume_name, this.resume_func, {timeout: this.resume_timeout, resume: true});
     }
     async runAction(label, fn, {timeout = 10, resume = false} = {}) {
-        if (resume) { this.resume_func = fn; this.resume_name = label; this.resume_timeout = timeout; }
+        if (resume) {
+            this.resume_func = fn;
+            this.resume_name = label;
+            this.resume_timeout = timeout;
+            this.resumeVersion++;
+        }
+        const resumeVersion = this.resumeVersion;
         const stopsWhenAsked = this.stopCount;
+        const cancelledBeforeStart = () => this.stopCount !== stopsWhenAsked ||
+            (resume && this.resumeVersion !== resumeVersion);
         // Fork hook: while a reflex holds starts (action_hold.js), wait for it, or be turned down.
         if (heldFrom(this.agent, label)) { const held = await waitOutHold(this.agent, label); if (held) return held; }
         let release;
@@ -39,12 +48,13 @@ export class ActionManager {
         await previous;
         let owner;
         try {
+            if (cancelledBeforeStart()) return this._cancelledBeforeStart();
             const heldNow = refusedByHold(this.agent, label); // fork hook: a hold that began while this waited its turn
             if (heldNow) return heldNow;
             await this._stopCurrent();
             // A stop that came while this start waited its turn, or while the old action was being
             // stopped, was meant for this one as well.
-            if (this.stopCount !== stopsWhenAsked) return this._cancelledBeforeStart();
+            if (cancelledBeforeStart()) return this._cancelledBeforeStart();
             this.agent.clearBotLogs();
             const controller = new AbortController();
             owner = {id: ++this.sequence, bot: this.agent.bot, controller, signal: controller.signal, cleanups:new Set()};
@@ -78,7 +88,10 @@ export class ActionManager {
             return this._finish(owner, result, output);
         } catch (error) {
             const cancelled = owner.signal.aborted;
-            if (!cancelled) console.error(`Action ${label} failed:`, error.stack || error);
+            if (!cancelled) {
+                if (resume && this.resumeVersion === resumeVersion) this.cancelResume();
+                console.error(`Action ${label} failed:`, error?.stack || error);
+            }
             const result = toolResult(cancelled ? (error?.code === 'timeout' ? 'failed' : 'cancelled') : 'failed',
                 error?.message || String(error), error?.code || (cancelled ? 'interrupted' : 'error'));
             if (!cancelled) withoutAction(() => this.agent.requestInterrupt());
@@ -126,7 +139,11 @@ export class ActionManager {
             this.currentActionFn = null;
         }
     }
-    cancelResume() { this.resume_func = null; this.resume_name = ''; }
+    cancelResume() {
+        this.resumeVersion++;
+        this.resume_func = null;
+        this.resume_name = '';
+    }
     getBotOutputSummary() {
         const output = String(this.agent.bot.output || '');
         this.agent.bot.output = '';
