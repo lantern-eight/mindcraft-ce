@@ -135,7 +135,7 @@ test('a bot without containers is left alone', () => {
 // ---- Recipes ----
 
 // A bot with the adapter's recipe book: its own form of a recipe, and its own calls.
-function recipeBot({ holding = [], more = () => ({}) } = {}) {
+function recipeBot({ holding = [], more = () => ({}), onCraft = () => {} } = {}) {
     const items = { oak_log: 1, oak_planks: 2, birch_planks: 3, stick: 4, wooden_pickaxe: 5, crafting_table: 6 };
     const planksFromLog = { id: 900, type: 'shapeless', result: { type: items.oak_planks, count: 4 }, ingredients: [{ name: 'oak_log', id: items.oak_log, count: 1 }], shape: null, requiresTable: false };
     const pickaxe = { id: 901, type: 'shaped', width: 3, height: 3, result: { type: items.wooden_pickaxe, count: 1 }, requiresTable: true,
@@ -145,15 +145,18 @@ function recipeBot({ holding = [], more = () => ({}) } = {}) {
             null, { name: 'stick', id: items.stick, count: 1 }, null] };
     const book = { [items.oak_planks]: [planksFromLog], [items.wooden_pickaxe]: [pickaxe], ...more(items) };
     const crafted = [];
+    const closed = [];
     const bot = {
         registry: { itemsArray: Object.entries(items).map(([name, id]) => ({ name, id })), itemsByName: Object.fromEntries(Object.entries(items).map(([name, id]) => [name, { id }])) },
         inventory: { items: () => holding.map(name => ({ name, type: items[name], count: 1 })) },
         recipesFor: id => book[id] ?? [],
         recipesAll: id => book[id] ?? [],
-        craft: async (recipe, count, table) => { crafted.push([recipe, count, table]); },
+        craft: async (recipe, count, table) => { crafted.push([recipe, count, table]); onCraft(bot); },
+        closeWindow: window => { closed.push(window); bot.currentWindow = null; },
+        currentWindow: null,
     };
     javaShapes(bot);
-    return { bot, items, crafted, planksFromLog, pickaxe };
+    return { bot, items, crafted, closed, planksFromLog, pickaxe };
 }
 
 test('a recipe without a shape reads as it does on Java: each ingredient once, counted down', () => {
@@ -214,6 +217,21 @@ test('only recipes the bot holds every ingredient of are handed out, as on Java'
     // One plank is not enough for a recipe that takes two.
     const short = recipeBot({ holding: ['oak_planks'], more: sticks });
     assert.deepEqual(short.bot.recipesFor(short.items.stick, null, 1, null), []);
+});
+
+test('a screen the craft opened is closed after it; one open before is left to whoever opened it', async () => {
+    // The adapter opens the inventory screen to craft in the bot's own grid and leaves it open.
+    const opened = recipeBot({ holding: ['oak_log'], onCraft: bot => { bot.currentWindow ??= { id: 1, type: 'inventory' }; } });
+    await opened.bot.craft(opened.bot.recipesFor(opened.items.oak_planks, null, 1, null)[0], 1, null);
+    assert.deepEqual(opened.closed.map(window => window.id), [1]);
+    assert.equal(opened.bot.currentWindow, null);
+
+    const table = { id: 2, type: 'crafting' };
+    const already = recipeBot({ holding: ['oak_log'], onCraft: () => {} });
+    already.bot.currentWindow = table;
+    await already.bot.craft(already.bot.recipesFor(already.items.oak_planks, null, 1, null)[0], 1, null);
+    assert.deepEqual(already.closed, []);
+    assert.equal(already.bot.currentWindow, table);
 });
 
 test('the game data answers "what makes this item" in the layout it has on Java', () => {

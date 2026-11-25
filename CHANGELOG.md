@@ -24,6 +24,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Crafting on Bedrock took a recipe the bot had nothing for. The server lists a stick from bamboo first, and
   the library let it through for a bot with planks and no bamboo, so crafting sticks failed. Only recipes the
   bot holds every ingredient of are handed out now, as on Java.
+- Crafting on Bedrock at a table, right after crafting in the bot's own grid, failed. The library left the
+  inventory screen open after a craft, and the craft at the table took it for the table's. A screen a craft
+  opens is closed after it now, as on Java.
 
 ## [1.16.0-bedrock.1.17.0] - 2026-11-24
 

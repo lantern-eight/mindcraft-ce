@@ -204,8 +204,21 @@ function recipesLikeJava(bot) {
     }
     // Crafting takes back what the two calls above handed out. A recipe in the adapter's own form is
     // passed through as it is.
+    //
+    // The adapter opens a screen to craft in, the bot's inventory for its own grid or the table's, and
+    // leaves it open. On Java crafting leaves no window open. Left open, the next craft at a table found a
+    // window already there, took it for the table's, and put the ingredients into a grid the server did not
+    // have open: an iron axe after a crafting table, both in one go, failed. So a screen the craft opened is
+    // closed after it; one that was open before is left to whoever opened it.
     const craft = bot.craft.bind(bot);
-    bot.craft = (recipe, ...rest) => craft(recipe?.[ADAPTER_RECIPE] ?? recipe, ...rest);
+    bot.craft = async (recipe, ...rest) => {
+        const before = bot.currentWindow;
+        try {
+            return await craft(recipe?.[ADAPTER_RECIPE] ?? recipe, ...rest);
+        } finally {
+            if (!before && bot.currentWindow && typeof bot.closeWindow === 'function') bot.closeWindow(bot.currentWindow);
+        }
+    };
 }
 
 // ---- Clicks -----------------------------------------------------------------------------------------
