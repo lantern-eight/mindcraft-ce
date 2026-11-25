@@ -42,6 +42,27 @@ async function visit(hands, chest, checkpoint, use) {
 }
 
 /**
+ * Opens the chests it has never seen inside, nearest first and at most `lookLimit`, and fills in what each
+ * holds, as a player in a storage room they don't know opens the chests before deciding. Without that,
+ * every chest would look alike to a plan.
+ * @param {object[]} chests - beliefs, changed in place: `items` and `free` filled in for each one looked into
+ * @param {object} options
+ * @param {(chest: object) => boolean} [options.worth] - whether a chest is worth a look at all
+ * @returns {Promise<{looked: number, skipped: {chest: object, reason: string}[]}>} `skipped`: the ones that would not open
+ */
+export async function lookInto(chests, { hands, from, checkpoint = () => {}, lookLimit = LOOK_LIMIT, worth = () => true }) {
+    let looked = 0;
+    const skipped = [];
+    for (const chest of walkOrder(from, chests.filter(c => !c.items && worth(c)))) {
+        if (looked >= lookLimit) break;
+        looked++;
+        const result = await visit(hands, chest, checkpoint, async opened => Object.assign(chest, beliefOf(opened.slots())));
+        if (!result.ok) skipped.push({ chest, reason: result.reason });
+    }
+    return { looked, skipped };
+}
+
+/**
  * Puts things away.
  * @param {object[]} chests - the chests it may put into (take_put.js), each as found plus `rank`, `distance`,
  *   and what the bot believes is in it: `items` and `free`, or null for one it has not looked into
@@ -74,12 +95,9 @@ export async function putAway(chests, { items, hands, from, stackSize = () => 64
     // look alike to the plan and everything would land in the first.
     // A chest that is for something else none of it suits is not worth a look: nothing will go in it.
     const mayTake = chest => items.some(item => fitFor(chest.holds, item.name, groupOf ?? groupByName) >= 0);
-    for (const chest of walkOrder(from, [...beliefs.values()].filter(c => !c.items && mayTake(c)))) {
-        if (looked >= lookLimit) break;
-        looked++;
-        const result = await visit(hands, chest, checkpoint, async opened => Object.assign(chest, beliefOf(opened.slots())));
-        if (!result.ok) { skipped.push({ chest, reason: result.reason }); out.add(chest.id); }
-    }
+    const first = await lookInto([...beliefs.values()], { hands, from, checkpoint, lookLimit, worth: mayTake });
+    looked = first.looked;
+    for (const { chest, reason } of first.skipped) { skipped.push({ chest, reason }); out.add(chest.id); }
 
     // One chest a round. Each round either moves something, or rules a chest out, so this ends.
     for (let round = 0; remaining.size && round < chests.length * 3 + 3; round++) {

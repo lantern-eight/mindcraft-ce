@@ -33,7 +33,7 @@ const step = async (name, fn) => {
 };
 
 const server = await vanillaFixture(port);
-let bot;
+let bot, alice;
 try {
     setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(),
         world_memory: true, chest_sorting: true, store_and_fetch: true });
@@ -241,6 +241,85 @@ try {
         return { text: result.text };
     });
 
+    await step('"bring me 5 iron": the bot fetches what it lacks and hands it to Alice, a real player beside it', async () => {
+        alice = initBot('Alice');
+        alice.on('error', error => console.error('Alice error:', error.message));
+        await once(alice, 'spawn');
+        await cmd('clear Alice');
+        await cmd(`tp ${NAME} 0.5 70 -6.5 0 0`); // facing south, toward where Alice will stand
+        await cmd('tp Alice 0.5 70 -1.5 180 0');
+        await delay(1500);
+        await settled();
+        const had = carried('iron_ingot');
+        const result = await run('Alice', '!bringItem', ['Alice', 'iron_ingot', 5], 120);
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /Gave 5 iron_ingot to Alice\.$/, result.text);
+        await waitFor(() => alice.inventory.items().some(item => item.name === 'iron_ingot'), 5000, () => 'Alice never got the iron');
+        await delay(500);
+        const got = alice.inventory.items().filter(item => item.name === 'iron_ingot').reduce((n, item) => n + item.count, 0);
+        assert.equal(got, 5, `Alice holds ${got}: ${result.text}`);
+        assert.equal(carried('iron_ingot'), Math.max(0, had - 5), 'the bot gave what it carried and fetched the rest');
+        return { text: result.text };
+    });
+
+    await step('gathering with a full bag: the bot empties it into its chests nearby and goes on to the end', async () => {
+        // Three logs beside the storage room, and a bag full of dirt on top of what the bot keeps.
+        for (const y of [70, 71, 72]) await cmd(`setblock 3 ${y} -4 oak_log`);
+        await cmd(`give ${NAME} dirt 2304`);
+        await delay(800);
+        await cmd(`tp ${NAME} 0.5 70 -6.5 -45 10`); // facing the logs
+        await delay(800);
+        await settled();
+        assert.equal(bot.inventory.emptySlotCount(), 0, `the bag is full: ${bot.inventory.items().length} stacks`);
+        const ownBefore = countIn(await read(OWN), 'dirt');
+        const result = await run('Alice', '!collectBlocks', ['oak_log', 3], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(carried('oak_log'), 3, result.text);
+        assert.ok(countIn(await read(OWN), 'dirt') > ownBefore, 'the dirt went into the bot\'s own chest');
+        // What the model reads back says why the bot went to its chests.
+        assert.match(result.text, /\nYour bag was full\. Put away .*dirt/, result.text);
+        return { text: result.text };
+    });
+
+    await step('"get yourself an iron axe": none in the chests, so it fetches iron and logs and crafts one', async () => {
+        await cmd(`clear ${NAME} dirt`);  // what the last step had no room for
+        await cmd(`tp ${NAME} 0.5 70 -6.5 180 10`);
+        await delay(800);
+        await settled();
+        const result = await run('Alice', '!getTool', ['axe', 'iron'], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /Crafted an iron_axe\.$/, result.text);
+        assert.equal(carried('iron_axe'), 1, result.text);
+        // Mindcraft's crafting puts down the table it made, uses it, and picks it up again.
+        assert.equal(carried('crafting_table'), 1, 'the table it made was picked up again');
+        return { text: result.text };
+    });
+
+    // Chest storage treats a barrel as a chest. Sorting is checked with one in storage_scenarios.js; this is
+    // the same for putting away and fetching.
+    const BARREL = [8, 70, -10];
+    await step('a barrel is used as a chest: string joins the string in the bot\'s barrel, and is fetched back out', async () => {
+        const [x, y, z] = BARREL;
+        await cmd(`setblock ${x} ${y} ${z} barrel[facing=up]`);
+        await fill(BARREL, { 0: 'string x4' });
+        await cmd(`tp ${NAME} 0.5 70 -6.5 180 10`);
+        await delay(800);
+        await bot.lookAt(new Vec3(x + 0.5, y + 0.5, z + 0.5), true);
+        await settled();
+        assert.match(await agent.handleMessage('Alice', () => getCommand('!markChest').perform(agent, ...BARREL, NAME, 'same')), /is now|was already/);
+        await cmd(`give ${NAME} string 10`);
+        await delay(500);
+        const put = await run('Alice', '!putAway', ['string', 'any', 16], 120);
+        assert.equal(put.status, 'ok', put.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 14, `the string joins the string in the barrel: ${put.text}`);
+        assert.equal(carried('string'), 0, put.text);
+        const fetched = await run('Alice', '!fetchItem', ['string', 6], 120);
+        assert.equal(fetched.status, 'ok', fetched.text);
+        assert.equal(carried('string'), 6, fetched.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 8, fetched.text);
+        return { text: `${put.text}\n${fetched.text}` };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });
@@ -251,6 +330,7 @@ try {
     console.log(JSON.stringify({ status: 'failed', error: error.message, passedSteps: results.length }));
     process.exitCode = 1;
 } finally {
+    alice?.quit();
     bot?.quit();
     await server.stop();
     process.exit(process.exitCode ?? 0);

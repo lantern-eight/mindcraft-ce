@@ -12,6 +12,10 @@ Bedrock part above it.
 
 ## [Unreleased]
 
+## [1.17.0-bedrock.1.18.0] - 2026-11-25
+
+Released with `main`'s 1.17.0-bedrock.1.18.0, which it brings to `bedrock`: these are the pins that came with it.
+
 ### Changed
 
 - The pinned Bedrock adapter (`lantern-eight/mineflayer` `bedrock-combined`, now at `843e62f`) has four more
@@ -35,5 +39,5 @@ above this one.
   ([Pix3lPirat3/mineflayer#17](https://github.com/Pix3lPirat3/mineflayer/pull/17)). The bot already let go of its
   keys that way since 1.9.0-bedrock.1.10.0, so nothing changes for a player.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.2...bedrock
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...bedrock
 [1.9.0-bedrock.1.10.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.9.0-bedrock.1.10.2

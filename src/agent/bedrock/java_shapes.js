@@ -99,19 +99,51 @@ const ADAPTER_RECIPE = Symbol("the adapter's own form of a recipe");
 // A recipe may ask for "any planks" instead of one kind. For the arithmetic the skills do (do I hold
 // enough?) that has to be one item: the kind the bot is holding if it holds one, else the first kind the
 // game data lists. The match is by name, as the adapter's own is: it has no table of what belongs to a tag.
-function itemForTag(bot, tag) {
+function tagFits(tag) {
     const stem = String(tag).replace(/^minecraft:/, '').replace(/s$/, '');
-    const fits = name => typeof name === 'string' && name.includes(stem);
+    return name => typeof name === 'string' && name.includes(stem);
+}
+
+function itemForTag(bot, tag) {
+    const fits = tagFits(tag);
     const held = bot.inventory?.items?.().find(item => fits(item.name));
     if (held) return held.type;
     const listed = (bot.registry?.itemsArray ?? []).find(item => fits(item.name));
     return listed ? listed.id : -1;
 }
 
+// The item a named ingredient is. The server names a few with a kind number after them ("bamboo:0"), which
+// the adapter finds no item for: without the number it is the item.
+function namedId(bot, ingredient) {
+    const name = String(ingredient.name ?? '').replace(/^minecraft:/, '').replace(/:\d+$/, '');
+    return ingredient.id ?? bot.registry?.itemsByName?.[name]?.id ?? -1;
+}
+
 function ingredientId(bot, ingredient) {
     if (!ingredient) return -1;
     if (ingredient.tag) return itemForTag(bot, ingredient.tag);
-    return ingredient.id ?? bot.registry?.itemsByName?.[ingredient.name]?.id ?? -1;
+    return namedId(bot, ingredient);
+}
+
+// Whether the bot holds every ingredient of a recipe (the adapter's form), as many of each as it takes.
+//
+// On Java `bot.recipesFor` hands out only recipes the bot can make with what it holds, and the skills take
+// the first one. The adapter checks only the ingredients it found an item for, and lets the others through:
+// a stick "from bamboo:0" came first for a bot holding oak planks and no bamboo, and the craft failed on the
+// missing bamboo. Checked here, every ingredient counts: "any planks" against all the planks held, and one
+// that is no item at all against nothing.
+function holdsIngredients(bot, recipe) {
+    const items = bot.inventory?.items?.() ?? [];
+    const need = new Map();
+    for (const ingredient of recipe.ingredients ?? []) {
+        const key = ingredient.tag ? `#${ingredient.tag}` : namedId(bot, ingredient);
+        need.set(key, (need.get(key) ?? 0) + (ingredient.count || 1));
+    }
+    for (const [key, count] of need) {
+        const fits = typeof key === 'string' ? (fitsTag => item => fitsTag(item.name))(tagFits(key.slice(1))) : item => item.type === key;
+        if (items.filter(fits).reduce((n, item) => n + (item.count ?? 1), 0) < count) return false;
+    }
+    return true;
 }
 
 // The grid of a shaped recipe as rows of item numbers, -1 where a cell is empty.
@@ -166,12 +198,27 @@ function recipesLikeJava(bot) {
     if (typeof bot.recipesFor !== 'function' || typeof bot.craft !== 'function') return;
     for (const name of ['recipesFor', 'recipesAll']) {
         const find = bot[name]?.bind(bot);
-        if (find) bot[name] = (...args) => (find(...args) ?? []).map(recipe => recipeLikeJava(bot, recipe));
+        if (!find) continue;
+        const usable = name === 'recipesFor' ? recipe => holdsIngredients(bot, recipe) : () => true;
+        bot[name] = (...args) => (find(...args) ?? []).filter(usable).map(recipe => recipeLikeJava(bot, recipe));
     }
     // Crafting takes back what the two calls above handed out. A recipe in the adapter's own form is
     // passed through as it is.
+    //
+    // The adapter opens a screen to craft in, the bot's inventory for its own grid or the table's, and
+    // leaves it open. On Java crafting leaves no window open. Left open, the next craft at a table found a
+    // window already there, took it for the table's, and put the ingredients into a grid the server did not
+    // have open: an iron axe after a crafting table, both in one go, failed. So a screen the craft opened is
+    // closed after it; one that was open before is left to whoever opened it.
     const craft = bot.craft.bind(bot);
-    bot.craft = (recipe, ...rest) => craft(recipe?.[ADAPTER_RECIPE] ?? recipe, ...rest);
+    bot.craft = async (recipe, ...rest) => {
+        const before = bot.currentWindow;
+        try {
+            return await craft(recipe?.[ADAPTER_RECIPE] ?? recipe, ...rest);
+        } finally {
+            if (!before && bot.currentWindow && typeof bot.closeWindow === 'function') bot.closeWindow(bot.currentWindow);
+        }
+    };
 }
 
 // ---- Clicks -----------------------------------------------------------------------------------------

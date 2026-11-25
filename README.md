@@ -26,7 +26,7 @@ says what works, what doesn't and how to try it.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
-| **Putting away and fetching** | On by default with chest sorting. "Put your things away" and "get me some iron": the bot uses its own and shared chests, and a player's when a player asks. `store_and_fetch: false` turns it off |
+| **Putting away and fetching** | On by default with chest sorting. "Put your things away", "get me some iron" and "bring me 10 iron": the bot uses its own and shared chests, and a player's when a player asks. `store_and_fetch: false` turns it off |
 | **Smelting** | On by default. The bot loads a free furnace with the fuel it needs, shuts it and comes back for what is done, as a player does. `smelting: false` keeps Mindcraft-CE's own |
 | **Good neighbor** | On by default. The bot doesn't break what other players built: what isn't natural ground, what it saw someone put up, and logs that aren't part of a tree. `good_neighbor.protect_builds: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
