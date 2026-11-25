@@ -203,7 +203,9 @@ export async function fetchHere(bot, itemText, num, deps = {}) {
         if (like.length) lines.push(`Chests you remember hold: ${like.slice(0, 6).join(', ')}. Did you mean one of those?`);
     }
     const status = !report.total ? 'failed' : report.total < num ? 'partial' : 'ok';
-    return toolResult(status, lines.join('\n'));
+    // Where it took from, for a module that fetched on its own errand and says so in its own words.
+    const taken = report.taken.map(({ chest, count }) => ({ label: labelOf(chest), owner: ownerLabel(chest.owner), count }));
+    return toolResult(status, lines.join('\n'), null, { taken });
 }
 
 /** How many of an item the bot carries. */

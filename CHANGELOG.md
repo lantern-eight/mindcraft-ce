@@ -9,6 +9,29 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.20.0-bedrock.1.21.0] - 2026-11-25
+
+### Added
+
+- Load and leave: `!loadFurnace` loads a furnace with up to a stack and the fuel for it and leaves it
+  working, `!collectFurnace` goes back for what is done and puts in the rest, and `!furnaces` says what is
+  smelting where. The next result after a furnace should be done says so, once.
+- Lava from a lava farm is smelting's first fuel: with a full lava cauldron near, the bot fills a bucket
+  (its own, an empty one it remembers in a furnace's fuel slot, or one it fetches from the chests and shelves
+  it may take from, as `!fetchItem` does) and smelts on the lava, keeping its coal. It counts the lava still
+  burning, and takes the empty bucket back out.
+- Smelting remembers what it leaves in a furnace, per world. A smelt that was stopped (or a bot that
+  restarted) is gone on with by the next `!smeltItem` of that item, and a furnace holding only the bot's own
+  smelt is no longer taken for someone else's.
+
+### Fixed
+
+- Fuel topped up while a furnace has something in it to smelt catches at once, and smelting counted it as
+  not gone in: it then said it burned less than it did, and could put in more than was needed.
+- Fetching from a shelf the bot had walked up to with its back to it said what was on the shelf had "not come
+  through yet". Through a player's screen the bot knew the shelf only from memory then, which doesn't keep
+  what stands on it. It now turns to look at the shelf first, as a player does before clicking it.
+
 ## [1.19.0-bedrock.1.20.0] - 2026-11-25
 
 A release for both editions that brings this fork level with Mindcraft-CE's `develop` branch, which has
@@ -1274,7 +1297,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.19.0-bedrock.1.20.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...HEAD
+[1.20.0-bedrock.1.21.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.19.0-bedrock.1.20.0...v1.20.0-bedrock.1.21.0
 [1.19.0-bedrock.1.20.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.18.0-bedrock.1.19.0...v1.19.0-bedrock.1.20.0
 [1.18.0-bedrock.1.19.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...v1.18.0-bedrock.1.19.0
 [1.17.0-bedrock.1.18.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.16.0-bedrock.1.17.0...v1.17.0-bedrock.1.18.0
