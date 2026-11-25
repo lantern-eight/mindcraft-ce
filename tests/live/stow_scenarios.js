@@ -295,6 +295,31 @@ try {
         return { text: result.text };
     });
 
+    // Chest storage treats a barrel as a chest. Sorting is checked with one in storage_scenarios.js; this is
+    // the same for putting away and fetching.
+    const BARREL = [8, 70, -10];
+    await step('a barrel is used as a chest: string joins the string in the bot\'s barrel, and is fetched back out', async () => {
+        const [x, y, z] = BARREL;
+        await cmd(`setblock ${x} ${y} ${z} barrel[facing=up]`);
+        await fill(BARREL, { 0: 'string x4' });
+        await cmd(`tp ${NAME} 0.5 70 -6.5 180 10`);
+        await delay(800);
+        await bot.lookAt(new Vec3(x + 0.5, y + 0.5, z + 0.5), true);
+        await settled();
+        assert.match(await agent.handleMessage('Alice', () => getCommand('!markChest').perform(agent, ...BARREL, NAME, 'same')), /is now|was already/);
+        await cmd(`give ${NAME} string 10`);
+        await delay(500);
+        const put = await run('Alice', '!putAway', ['string', 'any', 16], 120);
+        assert.equal(put.status, 'ok', put.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 14, `the string joins the string in the barrel: ${put.text}`);
+        assert.equal(carried('string'), 0, put.text);
+        const fetched = await run('Alice', '!fetchItem', ['string', 6], 120);
+        assert.equal(fetched.status, 'ok', fetched.text);
+        assert.equal(carried('string'), 6, fetched.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 8, fetched.text);
+        return { text: `${put.text}\n${fetched.text}` };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });

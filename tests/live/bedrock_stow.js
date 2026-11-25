@@ -290,6 +290,29 @@ try {
         assert.equal(carried('iron_axe'), 1, result.text);
         return { text: result.text.split('\n').at(-1) };
     });
+    // Chest storage treats a barrel as a chest. Sorting is checked with one in bedrock_storage.js; this is the
+    // same for putting away and fetching. Bedrock names a barrel's slots apart from a chest's.
+    const BARREL = [8, 1, -4];
+    await step('a barrel is used as a chest: string joins the string in the bot\'s barrel, and is fetched back out', async () => {
+        await set(BARREL, 'barrel');
+        await stock(BARREL, { 0: 'string x4' });
+        await tpTo([0, 1, 0], 180);
+        await bot.lookAt(at(...BARREL).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        assert.match(await say('!markChest', BARREL, NAME, 'same'), /is now|was already/);
+        await cmd(`give ${NAME} string 10`, 500);
+        const put = await run('Alice', '!putAway', ['string', 'any', 16], 150);
+        assert.equal(put.status, 'ok', put.text);
+        assert.equal(carried('string'), 0, put.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 14, `the string joins the string in the barrel: ${put.text}`);
+        await tpTo([0, 1, 0], 180);
+        await settled();
+        const fetched = await run('Alice', '!fetchItem', ['string', 6], 150);
+        assert.equal(fetched.status, 'ok', fetched.text);
+        assert.equal(carried('string'), 6, fetched.text);
+        assert.equal(countIn(await read(BARREL), 'string'), 8, fetched.text);
+        return { text: fetched.text.split('\n')[0] };
+    });
 } catch (error) {
     console.error(error);
 } finally {
