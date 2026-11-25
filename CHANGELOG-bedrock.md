@@ -14,8 +14,9 @@ Bedrock part above it.
 
 ### Changed
 
-- The pinned Bedrock adapter (`lantern-eight/mineflayer` `bedrock-combined`, now at `b5d1c88`) has three more
-  fixes of this fork's, each offered to its author: a bot can throw an item from its main inventory, not
+- The pinned Bedrock adapter (`lantern-eight/mineflayer` `bedrock-combined`, now at `843e62f`) has four more
+  fixes of this fork's, each offered to its author: putting away into a barrel and fetching from one work, where
+  a whole stack moved into or out of a barrel was refused; a bot can throw an item from its main inventory, not
   only from the hotbar, so `!bringItem` can hand over what it just took out of a chest; `recipesFor` hands
   out only recipes the bot holds every ingredient of; and `craft` closes the screen it opened. The bot
   already worked round the last two at the edition seam, so crafting doesn't change. It also has
