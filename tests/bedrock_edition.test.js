@@ -218,6 +218,11 @@ test('a Bedrock shelf shows its three slots, from its state and its block entity
     assert.deepEqual(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'west', powered_bit: 0 }, tag('compound', {}))).slots, [null, null, null]);
     assert.equal(bedrockEdition.shelfOf(shelf({}, undefined)).slots, null, 'no block entity: items not known');
     assert.equal(bedrockEdition.shelfOf({ name: 'barrel' }), null);
+    // As a 1.26.60 server sends it: all three slots in order, no Slot field, an empty one blank.
+    const entry = (name, count) => tag('compound', { Count: tag('byte', count), Damage: tag('short', 0), Name: tag('string', name), WasPickedUp: tag('byte', 0) });
+    const sent = tag('compound', { Items: tag('list', tag('compound', [entry('minecraft:iron_ingot', 7), entry('', 0), entry('minecraft:string', 4)].map(e => e.value))), id: tag('string', 'Shelf') });
+    assert.deepEqual(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'south', powered_bit: 0, powered_shelf_type: 0 }, sent)).slots,
+        [{ name: 'iron_ingot', count: 7 }, null, { name: 'string', count: 4 }]);
 });
 
 test('Bedrock clicks a shelf slot through the adapter\'s click with a point, and moves part of a stack in one request', async () => {

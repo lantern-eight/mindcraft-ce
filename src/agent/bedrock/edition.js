@@ -419,9 +419,11 @@ export const bedrockEdition = Object.freeze({
         if (fields && typeof fields === 'object') {
             let items = plain(fields.Items) ?? [];
             if (items && !Array.isArray(items)) items = plain(items) ?? [];   // a tagged list: {type, value: [...]}
-            slots = shelfSlots((Array.isArray(items) ? items : []).map(entry => {
+            // The list holds all three slots in order, an empty one as a blank name and a count of 0, with no
+            // Slot field (checked on a 1.26.60 server): where an entry stands is its slot.
+            slots = shelfSlots((Array.isArray(items) ? items : []).map((entry, index) => {
                 const item = plain(entry) ?? {};
-                return { slot: plain(item.Slot), name: plain(item.Name ?? item.name), count: plain(item.Count ?? item.count) };
+                return { slot: plain(item.Slot) ?? index, name: plain(item.Name ?? item.name), count: plain(item.Count ?? item.count) };
             }));
         }
         const powered = props.powered_bit;
