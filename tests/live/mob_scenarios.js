@@ -225,8 +225,12 @@ try {
 
     await step('two zombies coming: the bot backs away from both, ends 12 or more from each (10 through a player\'s screen), takes little damage', async () => {
         await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
-        await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b}');
-        await cmd('summon zombie 0.5 70 -6.5 {IsBaby:0b,PersistenceRequired:1b}');
+        await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b,Tags:["pair"]}');
+        await cmd('summon zombie 0.5 70 -6.5 {IsBaby:0b,PersistenceRequired:1b,Tags:["pair"]}');
+        // Both come for the bot at once. Left to themselves, each zombie picks its target on its own random
+        // clock, and now and then one came a few seconds after the other, by which time the first was a lone
+        // zombie the bot rightly fought. A zombie hurt by a player turns on that player straight away.
+        await cmd(`damage @e[type=zombie,tag=pair] 1 minecraft:player_attack by ${NAME}`);
         const spawned = performance.now();
         await waitFor(() => decided('mob_safety').length > 0, 10000, () => JSON.stringify(events));
         const first = firstStepAfter(decided('mob_safety')[0].at);
