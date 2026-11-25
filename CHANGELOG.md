@@ -16,6 +16,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   or "Iron ingots" counts too, until a player says otherwise. Putting away puts each thing in the chest for
   it and never in a chest for something else; a sort places things in the chest for them first; the inbox
   is left out of both. `!chests` says what each chest is for, and whether that comes from a sign.
+- Filing the inbox. `!fileInbox("any", 16)` takes what players left in the inbox and puts it where it belongs,
+  by the rules of putting away, a bagful at a time; what fits nowhere goes back into the inbox. Only the
+  inbox's things are filed: the bot keeps its own, even of the same kind.
 
 ## [1.15.0-bedrock.1.16.0] - 2026-11-24
 

@@ -120,3 +120,17 @@ test('putting away keeps out of a chest that is for something else, and out of t
     room.pockets[free] = stack('dirt x20');
     assert.match(await during('Alice', '!putAway', 'dirt', 'any', 16), /^Put away dirt 20 in 1 chest:\n- chest at 0, 64, 0 \(your own\)/);
 });
+
+test('filing the inbox: what players left there goes where it belongs, and the bot keeps its own things', async () => {
+    // The shared chest is still the inbox. Someone drops logs and gold in it.
+    room.chests.set('4,64,0', row(27, ['oak_log x10', 'gold_ingot x3']).map(stack));
+    const bagBefore = room.pockets.map(s => (s ? `${s.name} ${s.count}` : null));
+    const text = await during('Alice', '!fileInbox', 'any', 16);
+    assert.match(text, /^Filed oak_log 10, gold_ingot 3 from the inbox \(chest at 4, 64, 0\) into 1 chest:\n- chest at 0, 64, 0 \(your own\): /);
+    assert.deepEqual(room.contents('4,64,0').filter(Boolean), [], 'the inbox is empty');
+    assert.deepEqual(room.pockets.map(s => (s ? `${s.name} ${s.count}` : null)), bagBefore, 'the bot carries what it did before');
+    assert.match(await during('Alice', '!fileInbox', 'any', 16), /^The inbox \(chest at 4, 64, 0\) is empty: nothing to file\.$/);
+    // No inbox at all: the bot is told how one is named.
+    await during('Alice', '!chestFor', 4, 64, 0, 'unknown');
+    assert.match(await during('Alice', '!fileInbox', 'any', 16), /^You know no inbox within 16 blocks\. A player can name the chest they leave things in with !chestFor/);
+});

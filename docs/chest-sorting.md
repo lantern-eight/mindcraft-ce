@@ -132,6 +132,7 @@ own setting; it needs chest sorting on, which keeps whose each chest is:
 |---|---|
 | `!putAway(what, whose, distance)` | `what` is `all` for everything the bot does not need to keep, or one item's name for all of it. `whose` is `any` (the bot's own chests, then the shared ones), `shared`, the bot's own name, or a player's name. Chests within `distance` blocks (1 to 32) |
 | `!fetchItem(item_name, num)` | Takes up to `num` of an item out of the chests within 64 blocks, from several when one is not enough |
+| `!fileInbox(whose, distance)` | Files what players left in [the inbox](#the-inbox) into the chests where it belongs. `whose` and `distance` as for `!putAway` |
 
 **Which chests:**
 
@@ -231,6 +232,31 @@ that is no group and no item is refused, with what may be said instead.
 | **Fetching** | No change | No change: it may be fetched from like any chest |
 
 A chest's purpose never says whose it is: that still only comes from a player (`!markChest`).
+
+### The Inbox
+
+A shared base often has one chest by the door where everyone empties their bag, and somebody files it
+later. Marked as the inbox, that chest is filed by `!fileInbox`, when a player asks or the model decides to:
+
+1. The bot opens the inbox and takes out what fits in its bag.
+2. It puts those things where they belong, by the rules of [putting away](#putting-away-and-fetching).
+3. What fits nowhere goes back into the inbox, for a player to deal with.
+4. While the bag was what stopped it, it goes back for more, up to 8 trips.
+
+Only what came out of the inbox is filed. The bot keeps all of its own things, even of a kind it is filing:
+the list of what it keeps is not used, since none of it was the bot's to begin with. The inbox is never
+filed on the bot's own, only by the command.
+
+Which inbox, and where it goes, follow whose they are, as for putting away: the bot's own or a shared inbox
+into its own and the shared chests, or a player's inbox into that player's chests when they ask. An inbox
+known only from a sign, with nobody having said whose it is, is left alone and named.
+
+```
+Filed oak_log 10, gold_ingot 3 from the inbox (chest at 4, 70, -10) into 2 chests:
+- chest at 0, 70, -10 (your own): oak_log 10
+- chest at -2, 70, -10 (shared): gold_ingot 3
+Put back in the chest at 4, 70, -10, with no room for it in the chests you may use: dirt 30. Place a chest, or ask a player where it should go.
+```
 
 ```
 - chest at 41, 70, 0: Alice's. Sorted only when asked. For tools
@@ -424,7 +450,8 @@ The code is in `src/agent/storage/`.
 | `take_put.js` | Which chests putting away and fetching may use, and why the others are left. A pure function |
 | `stow_plan.js` | Which chest each thing goes in, and which chests to fetch from, from what the bot believes is in them. A pure function |
 | `stow.js` | Puts away and fetches: one chest at a time, checking it, planning the rest again. Touches no game: it is handed "hands" |
-| `stow_commands.js` | `!putAway` and `!fetchItem` and the text of their results |
+| `inbox.js` | Files the inbox: takes a bagful out, puts it away, returns what fits nowhere, goes back for more. Touches no game |
+| `stow_commands.js` | `!putAway`, `!fetchItem` and `!fileInbox`, and the text of their results |
 | `install.js` | Turns it on for an agent, from the `chest_sorting` setting. Opens and saves the chest book |
 
 The chest book is saved under `bots/<name>/storage/`, one `chests.json` per world and dimension, so a world
@@ -459,7 +486,7 @@ asked for before counting what moved.
 | Layer | Where | Needs |
 |---|---|---|
 | The plan, and who may be sorted | `tests/storage_keep_plan.test.js`, `tests/storage_take_put.test.js`, `tests/storage_stow_plan.test.js`, `tests/storage_sort_plan.test.js`, `tests/storage_item_groups.test.js`, `tests/storage_chest_book.test.js`, `tests/storage_purposes.test.js`, `tests/storage_permit.test.js`, `tests/storage_asker.test.js`, `tests/storage_made_chests.test.js` | Nothing |
-| The doing, in a fake room | `tests/storage_stow.test.js`, `tests/storage_stow_commands.test.js`, `tests/storage_sorter.test.js`, `tests/storage_commands.test.js`, `tests/storage_chest_access.test.js`, `tests/storage_install.test.js`. The room (`tests/helpers/fake_chest_bot.js`) keeps the server's copy of a window apart from the bot's guess | Nothing |
+| The doing, in a fake room | `tests/storage_stow.test.js`, `tests/storage_inbox.test.js`, `tests/storage_stow_commands.test.js`, `tests/storage_sorter.test.js`, `tests/storage_commands.test.js`, `tests/storage_chest_access.test.js`, `tests/storage_install.test.js`. The room (`tests/helpers/fake_chest_bot.js`) keeps the server's copy of a window apart from the bot's guess | Nothing |
 | The doing, for real | `tests/live/stow_scenarios.js` puts away and fetches in a room several people share. `tests/live/storage_scenarios.js`: the server console fills the chests and reads them back itself. Its last steps are a room several players share, where every chest a sort was not approved for must be slot for slot as it was | A throwaway server, no model |
 | The asking | `tests/live/storage_agent_scenarios.js`: the whole agent is told things in plain words ("that chest is mine", "sort my chests", "keep them tidy"), and the console reads the chests and the bot's own file back. On recorded replies it checks that the commands reach the model as tools and that the bot knows who is speaking | A throwaway server, no model |
 | The asking, by a model | The same script with `--live-model --runs=5`. A model's answers vary, so it reports how often each step came out right | A throwaway server and the model in `andy.json`, **which costs money** |
