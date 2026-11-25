@@ -25,6 +25,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 - Fuel topped up while a furnace has something in it to smelt catches at once, and smelting counted it as
   not gone in: it then said it burned less than it did, and could put in more than was needed.
+- Fetching from a shelf the bot had walked up to with its back to it said what was on the shelf had "not come
+  through yet". Through a player's screen the bot knew the shelf only from memory then, which doesn't keep
+  what stands on it. It now turns to look at the shelf first, as a player does before clicking it.
 
 ## [1.19.0-bedrock.1.20.0] - 2026-11-25
 
