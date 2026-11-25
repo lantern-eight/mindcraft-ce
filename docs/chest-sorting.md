@@ -351,8 +351,8 @@ Left alone within 8 blocks:
 ```
 
 **One chest, named by where it is.** The chest commands Mindcraft-CE comes with (`!viewChest`,
-`!takeFromChest`, `!putInChest`) use whichever chest is nearest, and only chests, not barrels. They are
-still there. In a room of chests the model has to say which one, and `!chests` gives it the positions:
+`!takeFromChest`, `!putInChest`) use whichever chest, trapped chest or barrel is nearest. They are still
+there. In a room of chests the model has to say which one, and `!chests` gives it the positions:
 
 ```
 The chest at 41, 70, 4, which is Bob's, holds (2 of 27 slots used):
