@@ -4,7 +4,7 @@ An LLM-driven Minecraft player that plays by the rules a person does. It knows o
 hear or remember, reaches only as far as an arm does, and never runs a command.
 
 This is an **integration fork** of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce), built on
-its `agent-system` branch. Mindcraft-CE stays the core. This fork adds its own modules around it and keeps
+its `develop` branch. Mindcraft-CE stays the core. This fork adds its own modules around it and keeps
 its edits to the core small, so upstream updates stay easy to merge and pieces of this work stay easy to
 offer back.
 
@@ -59,9 +59,9 @@ full guide is [docs/fair-play.md](docs/fair-play.md).
 
 ## What This Fork Changes
 
-Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
+Compared with Mindcraft-CE's `develop` branch, which it is built on:
 
-| Area | Mindcraft-CE `agent-system` | This fork |
+| Area | Mindcraft-CE `develop` | This fork |
 |---|---|---|
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
 | Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
@@ -235,8 +235,8 @@ This fork stands on other people's work, and most of the code here is theirs.
 - **[Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce)** is the community edition, by
   [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip),
   [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors.
-  Its **`agent-system`** branch, the base of this fork, adds native tool calling, the Brain, Task and RP
-  agents, tool narration and model routing.
+  Its **`develop`** branch, the base of this fork, includes its agent system: native tool calling, the
+  Brain, Task and RP agents, tool narration and model routing.
 - **[Mineflayer](https://github.com/PrismarineJS/mineflayer)** and the PrismarineJS libraries speak the
   Minecraft protocol. This fork does not patch them.
 
@@ -257,12 +257,12 @@ If you use Mindcraft in research, please cite the original paper:
 
 ## Staying in Step With Upstream
 
-`main` is Mindcraft-CE's `agent-system` branch plus this fork's work, so an upstream update comes in by
+`main` is Mindcraft-CE's `develop` branch plus this fork's work, so an upstream update comes in by
 merge:
 
 ```bash
 git fetch upstream
-git merge upstream/agent-system
+git merge upstream/develop
 npm install && npm test
 ```
 
@@ -273,9 +273,15 @@ The merge is the easy part. What to expect, and what to do after it:
 | `README.md` | A conflict every time, because this fork's is rewritten | Keep this one. Copy anything useful from theirs into [docs/setup.md](docs/setup.md) |
 | A file this fork hooks | Usually merges by itself. Now and then, a conflict at the hook | Fix it by hand. [docs/core-hooks.md](docs/core-hooks.md) lists every hook and why it is there |
 | New code that searches the bot directly | Merges cleanly | A lint test fails and names the line. Send the search through `world.js` |
+| A change next to one of this fork's own edits | Merges cleanly but can come out wrong: a function both sides added, now there twice, or this fork's condition left in front of their new branch so it never runs | Read `git diff HEAD` of every inherited file that merged by itself |
 | Code this fork has replaced | Merges cleanly, the tests pass, and **their change does nothing here** | Read their change and carry it over by hand. The same page lists the replaced pieces |
 
-The first three announce themselves. The last one is silent, so the list of replaced pieces is worth
+Where both sides changed the same thing, take theirs when it does about what this fork's did, or better.
+Where this fork's was better, take theirs in the merge and put this fork's behavior back in a commit of its
+own afterwards, with a test. Keep this fork's side in the merge itself only where it already holds their
+change and differs just by asking the edition seam or fair play's world queries.
+
+The first three rows announce themselves. The last two are silent, so the list of replaced pieces is worth
 reading against upstream's changes after every merge. This fork keeps that list short by putting its own
 version of something in its own module and leaving a small hook in the inherited file.
 

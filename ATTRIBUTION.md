@@ -28,7 +28,7 @@ trailers say, and CC0 leaves no question about what rights attach to it.
 | Project | What it is here | License |
 |---|---|---|
 | [Mindcraft](https://github.com/mindcraft-bots/mindcraft) | The original LLM agent for Minecraft, by Kolby Nottingham, Max Robinson, Isadora White and its contributors. Described in [Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning](https://arxiv.org/abs/2504.17950) | MIT |
-| [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce) | The community edition, by [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip), [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors. This fork was built on its `agent-system` branch at commit `6a1ce8b`, and takes its later updates by merge (the latest: `ae4b06c`) | MIT |
+| [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce) | The community edition, by [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip), [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors. This fork was built on its `agent-system` branch at commit `6a1ce8b`, and takes its later updates by merge from `develop`, which took that branch in (the latest: `0fb1bd1`) | MIT |
 
 ## Fixes Taken From Other Forks
 
