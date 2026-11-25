@@ -219,14 +219,16 @@ export const real = {
      * a wall or build a bridge, least of all in somebody's base, so this is the walk that neither digs
      * nor places: when there is no such way, the chest counts as one the bot could not get to.
      *
+     * `within` is how near it has to get: a shelf is walked up to the cell in front of it, within a block.
+     *
      * It is also the walk that goes round a corner squarely. Chests stand in rows, and the pathfinder
      * will plan a diagonal step past the corner of one and then stand still for good.
      */
-    async goTo(bot, chest) {
+    async goTo(bot, chest, within = WALK_WITHIN) {
         // A walk across a room of chests takes seconds, so one that is going nowhere is called off.
         const far = bot.entity.position.distanceTo(new Vec3(chest.x + 0.5, chest.y, chest.z + 0.5));
         const legs = pathfinderLegs(bot, { hopTimeoutMs: WALK_MS + WALK_MS_PER_BLOCK * far });
-        try { await legs.walkTo(chest, WALK_WITHIN); }
+        try { await legs.walkTo(chest, within); }
         catch (error) {
             assertActionOwner(bot);     // a sort that was stopped is not a chest that could not be reached
             throw new Error(/no path/i.test(error.message) ? 'there is no way to walk to it without digging or placing a block' : 'the walk to it did not get there');

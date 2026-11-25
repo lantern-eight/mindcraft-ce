@@ -315,10 +315,19 @@ storage it knows of, but never as a chest to sort:
 - **Whose it is and what it is for can be said** with `!markChest` and `!chestFor`, as of a chest. It has no
   sorting to mark: `!markChest` takes `same` for it, and notes only the owner if given more.
 - **It is never sorted,** and never part of a sort of someone's chests.
+- **Fetching takes from it** by the same rules as from a chest (`!fetchItem`, `!bringItem`, `!getTool`): the
+  bot's own and shared shelves freely, a player's when a player asks, and never one nobody has spoken for,
+  even though what is on it is there for anyone to see.
 - **Nothing opens it.** `!sortChest`, `!viewChestAt`, `!takeFromChestAt` and `!putInChestAt` say that a
   shelf has no lid and point to `!chests` instead of saying there is nothing there.
 - **A powered shelf is never touched.** Powered by redstone, a click on one swaps the player's hotbar with
   it, which is not taking or putting one stack.
+
+**Taking from a shelf** is what a player does: the bot walks to the cell in front of it, picks an empty
+hotbar slot (emptying one into its bag for the moment if the hotbar is full), and clicks the slot's third
+of the front. The whole stack comes off. When only part of it was wanted, that part is split off in the
+bag and the rest goes back with a second click; with no room in the bag to split it, all of it goes back
+and the bag counts as full. The slot the bot was holding is held again after.
 
 A list with a shelf in it:
 
@@ -491,7 +500,7 @@ Nothing is lost in any of these.
   differently from the plan. The bot notices and stops after a few tries, with nothing lost.
 - **A trapped chest gives off its redstone signal** when the bot opens it, as it does for a player.
 - **Every sort opens each chest it may sort at least once,** even when nothing needs moving.
-- **The bot does not take from or put on shelves yet.** It knows what is on one, and whose it is.
+- **The bot does not put things on shelves yet.** It takes from them when fetching.
 
 ## For Developers
 
