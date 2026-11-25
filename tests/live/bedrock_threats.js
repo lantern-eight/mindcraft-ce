@@ -426,7 +426,15 @@ try {
         await tpTo([-10, 1, -10], 135, 1500);
         await faceExactly(bot, (180 - 135) * Math.PI / 180, 0);
         await cmd(`effect ${NAME} resistance 30 2 true`);
+        // Both come for the bot at once. Left to themselves, each zombie picks its target on its own clock, and
+        // now and then one came ten seconds after the other, by which time the first was a lone zombie the bot
+        // rightly fought. Zombies leave a player in creative alone: summoned while the bot is in creative, both
+        // turn on it together once it is back in survival. (On Java they are hurt "by the bot" instead; the
+        // console here takes no selectors, so there is no naming the zombies to hurt them.)
+        await cmd(`gamemode creative ${NAME}`);
         for (const cell of [[-16, 1, -10], [-10, 1, -16]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
+        await delay(1000);
+        await cmd(`gamemode survival ${NAME}`, 0);
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 20000, () => JSON.stringify(events));
         const decided = events.filter(e => e.event === 'decided');
         assert.equal(decided.find(e => e.mode === 'mob_safety')?.key, 'crowd', JSON.stringify(decided));
