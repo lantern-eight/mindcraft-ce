@@ -10,6 +10,10 @@
 // The clicking here is written from how the game behaves, not from the sort plan's own idea of a move,
 // so a sort that passes has been checked against something other than itself.
 
+import minecraftData from 'minecraft-data';
+import { GAME_VERSION } from './game_version.js';
+
+const ITEM_NAMES = new Set(Object.keys(minecraftData(GAME_VERSION).itemsByName));
 const clone = stack => (stack ? { ...stack } : null);
 const sameKind = (a, b) => a.name === b.name && (a.tag ?? null) === (b.tag ?? null);
 const idOf = pos => `${Math.floor(pos.x)},${Math.floor(pos.y)},${Math.floor(pos.z)}`;
@@ -131,7 +135,8 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
         output: '',
         currentWindow: null,
         registry: {
-            itemsByName: new Proxy({}, { get: (_, name) => ({ id: name, name, stackSize: clientSize(name) }) }),
+            // The game's own items, as a real registry has them: a name that is no item is not one here either.
+            itemsByName: new Proxy({}, { get: (_, name) => (ITEM_NAMES.has(name) ? { id: name, name, stackSize: clientSize(name) } : undefined) }),
             foodsByName: { bread: {}, apple: {}, cooked_beef: {} },
         },
         inventory: {

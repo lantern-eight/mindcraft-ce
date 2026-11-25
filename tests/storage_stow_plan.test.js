@@ -80,3 +80,29 @@ test('fetching: own and shared before a player\'s, one chest with all of it befo
     assert.deepEqual(planFetch('iron_ingot', 100, chests).short, 26);
     assert.deepEqual(planFetch('gold_ingot', 3, chests), { from: [], short: 3 });
 });
+
+test('a chest for an item takes it first, then a chest for its group, before one that already holds some', () => {
+    const forIron = { ...chest('iron', {}, 27, { distance: 9 }), holds: ['iron_ingot'] };
+    const forMinerals = { ...chest('minerals', {}, 27, { distance: 8 }), holds: ['minerals'] };
+    const holding = chest('holding', { iron_ingot: 5, gold_ingot: 3 }, 20, { distance: 2 });
+    assert.deepEqual(where(plan([{ name: 'iron_ingot', count: 10 }], [holding, forMinerals, forIron])), { iron: { iron_ingot: 10 } });
+    assert.deepEqual(where(plan([{ name: 'gold_ingot', count: 4 }], [holding, forMinerals, forIron])), { minerals: { gold_ingot: 4 } });
+});
+
+test('nothing is put away into a chest for something else, nor the inbox, even an empty one or one already holding it', () => {
+    const tools = { ...chest('tools', { dirt: 3 }, 26, { distance: 1 }), holds: ['tools'] };
+    const inbox = { ...chest('inbox', {}, 27, { distance: 1 }), holds: ['inbox'] };
+    const spare = chest('spare', {}, 27, { distance: 9 });
+    assert.deepEqual(where(plan([{ name: 'dirt', count: 10 }], [tools, inbox, spare])), { spare: { dirt: 10 } });
+    const result = plan([{ name: 'dirt', count: 10 }], [tools, inbox]);
+    assert.deepEqual(result.into, []);
+    assert.deepEqual(result.unplaced, [{ name: 'dirt', count: 10 }], 'named as fitting nowhere');
+});
+
+test('a chest not looked into that is for the thing comes before a nearer one, and one for something else is never tried', () => {
+    const unseenTools = { ...chest('unseen-tools', null, null, { distance: 9 }), holds: ['tools'] };
+    const unseenWood = { ...chest('unseen-wood', null, null, { distance: 1 }), holds: ['wood'] };
+    const unseen = chest('unseen', null, null, { distance: 3 });
+    assert.deepEqual(where(plan([{ name: 'iron_pickaxe', count: 1 }], [unseenWood, unseen, unseenTools])), { 'unseen-tools': { iron_pickaxe: 1 } });
+    assert.deepEqual(where(plan([{ name: 'dirt', count: 5 }], [unseenWood, unseenTools])), {});
+});
