@@ -146,3 +146,20 @@ test('fetch: nothing anywhere takes nothing and opens nothing it knows to be wit
     assert.equal(report.total, 0);
     assert.deepEqual(r.room.opens, []);
 });
+
+test('put away: the chest for a thing takes it, and a chest for something else is not even opened', async () => {
+    const r = room({
+        chests: { '0,64,0': row(27), '2,64,0': row(27), '4,64,0': row(27) },
+        pockets: ['dirt x20', 'iron_ingot x9'],
+        unseen: ['0,64,0', '2,64,0', '4,64,0'],
+    });
+    const holds = { '0,64,0': ['tools'], '2,64,0': ['iron_ingot'], '4,64,0': [] };
+    const chests = r.descriptors.map(chest => ({ ...chest, holds: holds[chest.id] }));
+    const items = [{ name: 'dirt', count: 20, slots: [9] }, { name: 'iron_ingot', count: 9, slots: [10] }];
+    const report = await putAway(chests, { items, hands: r.hands, from: HERE, stackSize: r.sizeOf });
+    r.check();
+    assert.deepEqual(report.left, []);
+    assert.equal(count(r.room.contents('2,64,0'), 'iron_ingot'), 9, 'into the chest for iron');
+    assert.equal(count(r.room.contents('4,64,0'), 'dirt'), 20, 'the dirt into the chest for anything');
+    assert.ok(!r.room.opens.includes('0,64,0'), `the tools chest was never opened: ${r.room.opens}`);
+});

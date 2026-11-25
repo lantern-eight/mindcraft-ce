@@ -71,7 +71,10 @@ function checked(chests, options = {}) {
     }
     for (const [what, n] of Object.entries(parts)) assert.equal(n, 1, `${what} has one part stack at most`);
 
-    assert.deepEqual(planSort(after.chests, opts).moves, [], 'sorting what is already sorted does nothing');
+    // Sorted again with the same purposes, where the chests have any (the moves give back plain chests).
+    const purposes = new Map(chests.map(c => [c.id, c.holds]));
+    const again = after.chests.map(c => (purposes.get(c.id) ? { ...c, holds: purposes.get(c.id) } : c));
+    assert.deepEqual(planSort(again, opts).moves, [], 'sorting what is already sorted does nothing');
     // Each stack is merged at most once, picked up once, put down once and set in its place once.
     assert.ok(plan.moves.length <= 4 * occupied(chests), `${plan.moves.length} moves for ${occupied(chests)} stacks`);
     return { plan, after: after.chests };
@@ -309,4 +312,35 @@ test('any mess of chests sorts: 300 random sets, from nearly empty to completely
     // On average a stack takes well under three moves, though the worst case allowed is four.
     assert.ok(moves <= 3 * stacks, `${moves} moves for ${stacks} stacks over 300 sets, ${visits} chest openings`);
     if (process.env.SORT_PLAN_STATS) console.log(`${moves} moves for ${stacks} stacks over 300 sets, ${visits} chest openings`);
+});
+
+/** A sort with what the chests are for, checked as any sort is. */
+function checkedFor(chests, holds) {
+    const withPurpose = list => list.map(c => ({ ...c, holds: holds[c.id] ?? [] }));
+    return checked(withPurpose(chests)).after;
+}
+const holdsWhere = (after, name) => chestsWith(after, s => s.name === name);
+
+test('a group goes to the chest that is for it, though another chest holds most of it', () => {
+    const after = checkedFor([chest('a', 27, ['cobblestone x64', 'cobblestone x64', 'stone x30', 'oak_log x10']), chest('b', 27, ['stone x2'])], { b: ['stone'] });
+    assert.deepEqual(holdsWhere(after, 'cobblestone'), ['b']);
+    assert.deepEqual(holdsWhere(after, 'stone'), ['b']);
+    assert.deepEqual(holdsWhere(after, 'oak_log'), ['a']);
+});
+
+test('a kind named on a chest goes there; the rest of its group stays with the group', () => {
+    const after = checkedFor([chest('a', 27, ['iron_ingot x20', 'gold_ingot x5', 'coal x40']), chest('b', 27), chest('c', 27, ['dirt x5'])], { b: ['iron_ingot'] });
+    assert.deepEqual(holdsWhere(after, 'iron_ingot'), ['b']);
+    assert.deepEqual(holdsWhere(after, 'gold_ingot'), ['a']);
+    assert.deepEqual(holdsWhere(after, 'coal'), ['a']);
+});
+
+test('what a chest is not for leaves it for an open chest, and goes in only when it fits nowhere else', () => {
+    let after = checkedFor([chest('tools', 27, ['dirt x30', 'iron_pickaxe']), chest('open', 27)], { tools: ['tools'] });
+    assert.deepEqual(holdsWhere(after, 'dirt'), ['open']);
+    assert.deepEqual(holdsWhere(after, 'iron_pickaxe'), ['tools']);
+    // A full open chest: the dirt has nowhere else to be.
+    const full = Array.from({ length: 9 }, () => 'stone x64');
+    after = checkedFor([chest('tools', 9, ['dirt x30', 'iron_pickaxe']), chest('open', 9, full)], { tools: ['tools'] });
+    assert.deepEqual(holdsWhere(after, 'dirt'), ['tools'], 'kept where it is: there is no other room');
 });

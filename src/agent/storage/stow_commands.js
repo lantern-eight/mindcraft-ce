@@ -4,6 +4,7 @@
 //   !putAway(what, whose, distance)    puts what the bot carries into the chests where those things
 //                                      belong: "all" for everything it does not need to keep, or one item
 //   !fetchItem(item_name, num)         takes an item out of the chests the bot remembers holding it
+//   !fileInbox(whose, distance)        files what players left in the inbox into the chests where it belongs
 //
 // Which chests may be used is decided in take_put.js from the chest book, never by the model. Where each
 // thing goes, and which chests to fetch from, is worked out in stow_plan.js and done in stow.js, so the
@@ -14,11 +15,13 @@
 import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { botHands } from './bot_hands.js';
-import { asAction, chestsAround, forgetGone, labelOf, ownerLabel, real } from './commands.js';
+import { asAction, chestsAround, forgetGone, labelOf, ownerLabel, purposesOn, real } from './commands.js';
 import { ME, SHARED } from './chest_book.js';
 import { isSortable } from './chests.js';
 import { grouper } from './item_groups.js';
 import { cleanName, keepPlan } from './keep_plan.js';
+import { fileInbox } from './inbox.js';
+import { isInbox } from './purposes.js';
 import { fetchItem, putAway } from './stow.js';
 import { ANY, putInto, takeFrom } from './take_put.js';
 
@@ -72,6 +75,13 @@ function leftOutText(left) {
     return lines.join('\n');
 }
 
+/** Whose chests a request is about: ANY (the bot's own, then shared), ME, SHARED, or a player's name as the book spells it. */
+function readWhose(whoseText, env) {
+    const word = String(whoseText ?? ANY).trim().replace(/^["']|["']$/g, '').toLowerCase();
+    return !word || word === ANY ? ANY : word === String(env.name).toLowerCase() || ['self', 'own', 'yourself'].includes(word) ? ME
+        : word === SHARED ? SHARED : env.book.spell?.(String(whoseText).trim()) ?? String(whoseText).trim();
+}
+
 const hands = (bot, env) => botHands(bot, { goTo: chest => env.goTo(bot, chest), blockAt: pos => env.blockAt(bot, pos), isChest: isSortable, ...env.hands });
 const sizeOf = bot => name => bot.registry.itemsByName[name]?.stackSize ?? 64;
 const here = bot => bot.entity?.position ?? { x: 0, y: 0, z: 0 };
@@ -93,9 +103,7 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
     if (!everything && !bag.some(item => item.name === what)) return toolResult('failed', `You have no ${what} to put away.`);
     if (!plan.store.length) return toolResult('ok', 'Nothing to put away: everything you carry is something you keep with you.');
 
-    const word = String(whoseText ?? ANY).trim().replace(/^["']|["']$/g, '').toLowerCase();
-    const whose = !word || word === ANY ? ANY : word === String(env.name).toLowerCase() || ['self', 'own', 'yourself'].includes(word) ? ME
-        : word === SHARED ? SHARED : env.book.spell?.(String(whoseText).trim()) ?? String(whoseText).trim();
+    const whose = readWhose(whoseText, env);
     forgetGone(bot, env);
     const found = chestsWithBeliefs(bot, Math.min(distance, PUT_RANGE), env);
     const allowed = putInto(found, env.book, { whose, asked: env.asked ?? null });
@@ -104,7 +112,10 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
         return toolResult('failed', `You know no chest within ${distance} blocks that you may put things in${whose === ANY ? ' (your own or shared ones)' : ''}. `
             + `Nothing was put away.${leftOut ? `\n${leftOut}` : ''}`);
     }
-    const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner }));
+    // What each chest is for (a player's word, else its sign): put-away keeps things out of a chest meant
+    // for something else, and out of the inbox.
+    const purposeOf = purposesOn(bot, env);
+    const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner, holds: purposeOf(chest).holds }));
     const report = await putAway(chests, {
         items: plan.store, hands: hands(bot, env), from: here(bot), stackSize: sizeOf(bot),
         groupOf: grouper({ isFood: name => Boolean(bot.registry.foodsByName?.[name]) }), checkpoint: () => assertActionOwner(bot),
@@ -173,6 +184,62 @@ export async function fetchHere(bot, itemText, num, deps = {}) {
 }
 
 /**
+ * !fileInbox: takes what players left in the inbox and puts it where it belongs, by the rules of putting
+ * away. What fits nowhere goes back into the inbox.
+ * @param {object} bot
+ * @param {string} whoseText - as for putAwayHere: whose inbox, and whose chests it is filed into
+ * @param {number} distance
+ * @param {object} deps - as for putAwayHere
+ */
+export async function fileInboxHere(bot, whoseText, distance, deps = {}) {
+    const env = { ...real, ...deps };
+    const whose = readWhose(whoseText, env);
+    const range = Math.min(distance, PUT_RANGE);
+    forgetGone(bot, env);
+    const purposeOf = purposesOn(bot, env);
+    const found = chestsWithBeliefs(bot, range, env).map(chest => ({ ...chest, holds: purposeOf(chest).holds }));
+    const inboxes = found.filter(chest => isInbox(chest.holds));
+    if (!inboxes.length) {
+        return toolResult('failed', `You know no inbox within ${range} blocks. A player can name the chest they leave things in with !chestFor(x, y, z, "inbox").`);
+    }
+    // The inbox is taken from, and filed into the other chests, by the same rules as putting away: the
+    // bot's own and shared ones, or one player's when that player asks.
+    const mayUse = putInto(found, env.book, { whose, asked: env.asked ?? null });
+    const usable = mayUse.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner }));
+    const fromInboxes = usable.filter(chest => isInbox(chest.holds));
+    const leftOut = leftOutText(mayUse.left.filter(entry => isInbox(entry.chest.holds)));
+    if (!fromInboxes.length) {
+        return toolResult('failed', `No inbox within ${range} blocks is one you may file${whose === ANY ? ' (your own or a shared one)' : ''}. Nothing was filed.`
+            + `${leftOut ? `\n${leftOut}` : ''}`);
+    }
+    const report = await fileInbox(fromInboxes, usable.filter(chest => !isInbox(chest.holds)), {
+        hands: hands(bot, env), from: here(bot), stackSize: sizeOf(bot),
+        groupOf: grouper({ isFood: name => Boolean(bot.registry.foodsByName?.[name]) }), checkpoint: () => assertActionOwner(bot),
+    });
+
+    const filed = {};
+    for (const { items } of report.filed) for (const [name, n] of Object.entries(items)) filed[name] = (filed[name] ?? 0) + n;
+    const n = report.filed.length, lines = [];
+    const where = fromInboxes.map(labelOf).join('; ');
+    if (n) {
+        lines.push(`Filed ${listOf(filed)} from the inbox (${where}) into ${n} ${plural(n, 'chest')}:`);
+        for (const { chest, items } of report.filed) lines.push(`- ${labelOf(chest)} (${ownerLabel(chest.owner)}): ${listOf(items)}`);
+    } else if (!report.back.length && !report.more && !report.skipped.length) {
+        return toolResult('ok', `The inbox (${where}) is empty: nothing to file.`);
+    } else lines.push('Nothing was filed.');
+    for (const { chest, items } of report.back) {
+        lines.push(`Put back in the ${labelOf(chest)}, with no room for it in the chests you may use: ${listOf(items)}. `
+            + 'Place a chest, or ask a player where it should go.');
+    }
+    if (Object.keys(report.carrying).length) lines.push(`Still carrying, since the inbox had no room to take it back: ${listOf(report.carrying)}.`);
+    if (report.more) lines.push('The inbox still holds more: your inventory had no room for it. Put away what you carry (!putAway) and file again.');
+    for (const { chest, reason } of report.skipped) lines.push(`- ${labelOf(chest)} was left out: ${reason}`);
+    if (leftOut) lines.push(`Inboxes left alone:\n${leftOut}`);
+    const status = !n ? 'failed' : report.back.length || report.more || report.skipped.length || Object.keys(report.carrying).length ? 'partial' : 'ok';
+    return toolResult(status, lines.join('\n'));
+}
+
+/**
  * The put-away and fetch commands.
  * @param {object} context - as storageCommands takes it: `book`, `save`, `asker`, `deps`
  */
@@ -204,6 +271,16 @@ export function stowCommands({ book, save = () => {}, asker = () => ({}), deps =
                 'num': { type: 'int', description: 'How many to fetch.', domain: [1, Number.MAX_SAFE_INTEGER] },
             },
             perform: run('fetchItem', (agent, itemName, num) => fetchHere(agent.bot, itemName, num, env(agent))),
+        } },
+        { action: true, command: {
+            name: '!fileInbox',
+            description: 'File what players left in the inbox (the chest marked with !chestFor as the inbox) into the chests where those things belong, '
+                + 'by the same rules as !putAway. Only what was in the inbox is filed: you keep your own things. What fits nowhere goes back into the inbox.',
+            params: {
+                'whose': { type: 'string', description: '"any" for your own or a shared inbox, filed into your own and the shared chests, or a player\'s name for their inbox and chests (only when they ask).' },
+                'distance': { type: 'int', description: 'How far from you to look for the inbox and the chests, in blocks.', domain: [1, PUT_RANGE, '[]'] },
+            },
+            perform: run('fileInbox', (agent, whose, distance) => fileInboxHere(agent.bot, whose, distance, env(agent))),
         } },
     ];
 }
