@@ -320,6 +320,55 @@ try {
         return { text: `${put.text}\n${fetched.text}` };
     });
 
+    // A shelf shows what is on it on its front: the bot learns that by looking, lists it with the chests, and
+    // fetches from it by the same rules, with its hand. A powered shelf is never clicked: one click on it
+    // would swap the bot's whole hotbar.
+    const SHELF = [-8, 70, -10], POWERED = [-10, 70, -10];
+    await step('a shelf is seen from in front and listed; a fetch takes part of a stack off it, and a named shelf takes things back', async () => {
+        const [x, y, z] = SHELF;
+        await cmd(`setblock ${x} ${y} ${z} oak_shelf[facing=south]`);
+        await fill(SHELF, { 0: 'torch x40', 2: 'apple x3' });
+        await cmd(`setblock ${POWERED[0]} ${POWERED[1]} ${POWERED[2] - 1} redstone_block`);
+        await cmd(`setblock ${POWERED[0]} ${POWERED[1]} ${POWERED[2]} oak_shelf[facing=south,powered=true]`);
+        await fill(POWERED, { 1: 'feather x5' });
+        await cmd(`clear ${NAME} torch`);
+        await cmd(`clear ${NAME} feather`);
+        // Out of reach, but in front: it has to walk up to take from it.
+        await cmd(`tp ${NAME} ${x + 0.5} 70 -2.5 180 10`);
+        await delay(800);
+        await bot.lookAt(new Vec3(x - 0.5, y + 0.5, z + 1), true);
+        await settled();
+        const listed = await agent.handleMessage('Alice', () => getCommand('!chests').perform(agent, 16));
+        assert.match(listed, /oak_shelf at -8, 70, -10: owner unknown\. A shelf: never sorted\. On it: 40 torch, 3 apple; one slot free/, listed);
+        assert.match(listed, /oak_shelf at -10, 70, -10: [^\n]*On it: 5 feather; 2 slots free/, listed);
+        for (const shelf of [SHELF, POWERED]) {
+            assert.match(await agent.handleMessage('Alice', () => getCommand('!markChest').perform(agent, ...shelf, NAME, 'same')), /is now|was already/);
+        }
+        const held = bot.heldItem?.name ?? null;
+        const fetched = await run('Alice', '!fetchItem', ['torch', 10], 120);
+        assert.equal(fetched.status, 'ok', fetched.text);
+        assert.equal(carried('torch'), 10, fetched.text);
+        const left = await read(SHELF);
+        assert.equal(left[0], 'torch x30', `the rest went back to its slot: ${JSON.stringify(left.slice(0, 3))}`);
+        assert.equal(left[2], 'apple x3');
+        assert.equal(bot.heldItem?.name ?? null, held, 'the bot holds what it held before');
+
+        // Said to be for torches, the shelf takes them back: into its empty slot, not onto the 30.
+        assert.match(await agent.handleMessage('Alice', () => getCommand('!chestFor').perform(agent, ...SHELF, 'torch')), /For torch/);
+        const put = await run('Alice', '!putAway', ['torch', 'any', 16], 120);
+        assert.equal(put.status, 'ok', put.text);
+        assert.match(put.text, /oak_shelf at -8, 70, -10 \(your own\): torch 10/, put.text);
+        assert.deepEqual((await read(SHELF)).slice(0, 3), ['torch x30', 'torch x10', 'apple x3'], put.text);
+        assert.equal(carried('torch'), 0, put.text);
+
+        const feather = await run('Alice', '!fetchItem', ['feather', 2], 120);
+        assert.equal(feather.status, 'failed', feather.text);
+        assert.match(feather.text, /oak_shelf at -10, 70, -10 was left out: it is powered/, feather.text);
+        assert.equal((await read(POWERED))[1], 'feather x5', 'the powered shelf is as it was');
+        assert.equal(carried('feather'), 0);
+        return { text: `${fetched.text}\n${put.text}\n${feather.text}` };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });

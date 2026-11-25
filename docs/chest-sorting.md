@@ -303,12 +303,53 @@ Put back in the chest at 4, 70, -10, with no room for it in the chests you may u
 - chest at 35, 70, 0: shared. Sorted only when asked. The inbox: players leave things in it for you to file (!fileInbox)
 ```
 
+## Shelves
+
+A shelf holds three stacks on its front, where anyone walking past can see them. Players use them to show
+things off or to keep a few things at hand, and arrange them by hand. So the bot treats a shelf as
+storage it knows of, but never as a chest to sort:
+
+- **It is listed by `!chests`,** with what the bot saw on it: `On it: 9 iron_ingot, 1 diamond_pickaxe; one
+  slot free`. World memory notes what is on a shelf only when the bot stands in front of it, as a player
+  would have to; until then the list says so.
+- **Whose it is and what it is for can be said** with `!markChest` and `!chestFor`, as of a chest. It has no
+  sorting to mark: `!markChest` takes `same` for it, and notes only the owner if given more. It can't be the
+  inbox.
+- **It is never sorted,** and never part of a sort of someone's chests.
+- **Putting away puts onto it only what it is for.** A player arranges a shelf by hand, often to show
+  things off, so `!putAway` (and the bag emptied while gathering) uses a shelf only when a player has said
+  what it is for, or a sign on it says: torches onto the shelf for torches. A shelf for anything, or one
+  nobody has said anything about, is left as it is. Things go into an empty slot as a stack of their own,
+  never onto a stack already there.
+- **Fetching takes from it** by the same rules as from a chest (`!fetchItem`, `!bringItem`, `!getTool`): the
+  bot's own and shared shelves freely, a player's when a player asks, and never one nobody has spoken for,
+  even though what is on it is there for anyone to see.
+- **Nothing opens it.** `!sortChest`, `!viewChestAt`, `!takeFromChestAt` and `!putInChestAt` say that a
+  shelf has no lid and point to `!chests` instead of saying there is nothing there.
+- **A powered shelf is never touched.** Powered by redstone, a click on one swaps the player's hotbar with
+  it, which is not taking or putting one stack.
+
+**Taking from a shelf** is what a player does: the bot walks to the cell in front of it, picks an empty
+hotbar slot (emptying one into its bag for the moment if the hotbar is full), and clicks the slot's third
+of the front. The whole stack comes off. When only part of it was wanted, that part is split off in the
+bag and the rest goes back with a second click; with no room in the bag to split it, all of it goes back
+and the bag counts as full. **Putting onto one** is the same click with exactly the stack to put in hand:
+a part of a stack is split off in the bag first, and a stack in the main inventory is brought to the
+hotbar (swapped with a hotbar slot when none is empty, and swapped back after). The slot the bot was
+holding is held again after.
+
+A list with a shelf in it:
+
+```
+- oak_shelf at 40, 71, 2: Alice's. A shelf: never sorted. On it: 1 diamond_sword, 1 trident; one slot free
+```
+
 ## What the Model Can Ask
 
 | Command | What it does |
 |---|---|
-| `!chests(distance)` | Lists the chests the bot knows of within `distance` blocks (1 to 64): where, whose, the permission, what it is for, when last sorted, and which are out of sight |
-| `!markChest(x, y, z, owner, sorting)` | Says whose one chest is, how it may be sorted, or both |
+| `!chests(distance)` | Lists the chests the bot knows of within `distance` blocks (1 to 64): where, whose, the permission, what it is for, when last sorted, and which are out of sight. [Shelves](#shelves) too, with what was seen on them |
+| `!markChest(x, y, z, owner, sorting)` | Says whose one chest is, how it may be sorted, or both. On a shelf, whose it is |
 | `!chestFor(x, y, z, what)` | Says what one chest is for: a group, items, `inbox`, `anything`, or `unknown` to forget it. See [What a Chest Is For](#what-a-chest-is-for) |
 | `!markChests(which, distance, owner, sorting)` | The same for several chests in view at once. `which` is `unknown` for the ones with no owner yet, or a current owner. It never changes another owner's chests |
 | `!sortChest(x, y, z)` | Sorts one chest by itself |
@@ -468,6 +509,8 @@ Nothing is lost in any of these.
   differently from the plan. The bot notices and stops after a few tries, with nothing lost.
 - **A trapped chest gives off its redstone signal** when the bot opens it, as it does for a player.
 - **Every sort opens each chest it may sort at least once,** even when nothing needs moving.
+- **Nothing is poured onto a stack already on a shelf,** since a click there would swap the two: a shelf
+  whose three slots hold something takes nothing more, even when a stack has room.
 
 ## For Developers
 

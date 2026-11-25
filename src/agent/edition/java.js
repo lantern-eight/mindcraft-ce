@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // The edition seam's answers for Java Edition (see index.js).
+import Vec3 from 'vec3';
 //
 // Java's game data numbers the states of all blocks in one run from 0, and each block type owns the
 // numbers from its minStateId to its maxStateId. So a table with one entry per block state can be a typed
@@ -137,6 +138,50 @@ const BLAZE_CHARGED = 0x01; // a blaze's own flags: it glows and smokes before i
 const BOW_SHOOTERS = new Set(['skeleton', 'stray', 'bogged', 'illusioner']);
 const CROSSBOW_SHOOTERS = new Set(['pillager', 'piglin']);
 const holds = (entity, item) => [entity?.heldItem, entity?.equipment?.[0]].some(held => held?.name === item);
+
+
+/** Is this block a shelf? Every wood's shelf is named `<wood>_shelf`; a `shelf_mushroom` grows on trees. */
+export const isShelfBlock = name => typeof name === 'string' && name.endsWith('_shelf');
+
+/**
+ * A shelf's three slots from its block entity's items, each `{slot, name, count}` in the game's own
+ * spelling: the slots in order, the item names without the `minecraft:` prefix, an empty slot null.
+ * Shared with the Bedrock answer, whose block entity spells the same three fields its own way.
+ */
+export function shelfSlots(items) {
+    const slots = [null, null, null];
+    for (const { slot, name, count } of items) {
+        const at = Number(slot);
+        const n = Number(count);
+        if (!Number.isInteger(at) || at < 0 || at > 2 || typeof name !== 'string' || !(n > 0)) continue;
+        const item = name.replace(/^minecraft:/, '');
+        if (item && item !== 'air') slots[at] = { name: item, count: n };
+    }
+    return slots;
+}
+
+/**
+ * Where a player clicks a shelf to reach one of its slots: its front face, in the third of it that the
+ * slot sits in. Slots run 0 to 2 from left to right as a player standing in front sees them, so on a
+ * shelf facing south (seen looking north) slot 0 is at the west end. The game picks the slot from where
+ * across the face the click lands, so the cursor, not the face's middle, is what matters.
+ * @param {string} facing - the way the shelf's front faces: north, south, east or west
+ * @param {number} slot - 0, 1 or 2
+ * @returns {{face: {x: number, y: number, z: number}, cursor: {x: number, y: number, z: number}}|null}
+ *   the face as a direction out of the block, and the point on it (0 to 1 within the block); null for a
+ *   facing or slot there is no such point for
+ */
+export function shelfClickAt(facing, slot) {
+    const third = [0.17, 0.5, 0.83][slot];
+    if (third === undefined) return null;
+    switch (facing) {
+        case 'south': return { face: { x: 0, y: 0, z: 1 }, cursor: { x: third, y: 0.5, z: 1 } };
+        case 'north': return { face: { x: 0, y: 0, z: -1 }, cursor: { x: 1 - third, y: 0.5, z: 0 } };
+        case 'east': return { face: { x: 1, y: 0, z: 0 }, cursor: { x: 1, y: 0.5, z: 1 - third } };
+        case 'west': return { face: { x: -1, y: 0, z: 0 }, cursor: { x: 0, y: 0.5, z: third } };
+        default: return null;
+    }
+}
 
 export const javaEdition = Object.freeze({
     name: 'java',
@@ -297,6 +342,58 @@ export const javaEdition = Object.freeze({
      */
     signSidesOf(block) {
         return block?.getSignText?.() ?? [];
+    },
+
+    /**
+     * What a shelf shows, as a player in front of it sees: which way its front faces, whether it is
+     * powered (a click on a powered shelf swaps the player's whole hotbar section, not one stack), and the
+     * stack in each of its three slots, left to right as seen from in front. A shelf has no screen: its
+     * items stand on its front for anyone to see, and the game sends them to every player in its block
+     * entity (`Items`, slots 0 to 2), which mineflayer keeps on the block (`blockEntity`).
+     *
+     * @param {object} block - a block the bot can see, or one it remembers
+     * @returns {{facing: string|null, powered: boolean, slots: ({name: string, count: number}|null)[]|null}|null}
+     *   null for a block that is no shelf; `slots` null when its items aren't known (a remembered block,
+     *   or one whose block entity hasn't come yet)
+     */
+    shelfOf(block) {
+        if (!isShelfBlock(block?.name)) return null;
+        let props = {};
+        try { props = block.getProperties?.() ?? {}; } catch { /* a shape without properties: none known */ }
+        const entity = block.blockEntity ?? null;
+        const slots = entity ? shelfSlots((entity.Items ?? []).map(item => ({ slot: item.Slot, name: item.id, count: item.count }))) : null;
+        return { facing: props.facing ?? null, powered: props.powered === true || props.powered === 'true', slots };
+    },
+
+    /**
+     * Clicks one slot of a shelf with whatever the bot holds in its main hand, as a player does: an empty
+     * hand takes the slot's stack, a held stack goes into an empty slot, and two stacks swap whole. On Java
+     * the click carries the point on the face it landed on, and the game picks the slot from that.
+     * @param {object} bot
+     * @param {object} block - the shelf, as the bot sees it now
+     * @param {number} slot - 0, 1 or 2
+     */
+    async clickShelfSlot(bot, block, slot) {
+        const at = shelfClickAt(javaEdition.shelfOf(block)?.facing, slot);
+        if (!at) throw new Error('there is no telling which way the shelf faces');
+        await bot.activateBlock(block, new Vec3(at.face.x, at.face.y, at.face.z), new Vec3(at.cursor.x, at.cursor.y, at.cursor.z));
+    },
+
+    /**
+     * Moves `count` of the stack in one of the bot's own slots onto another, with no chest open: the whole
+     * stack, or part of it, as a player splits one with the mouse. Onto an empty slot or the same item it is
+     * put down; a whole stack onto another item swaps the two.
+     * Slots are the bot's own numbers, 9 to 44 (the hotbar is 36 to 44). On Java, part of a stack is put
+     * down one at a time with right clicks, the only way the game moves a given number.
+     */
+    async moveInBag(bot, from, to, count) {
+        const item = bot.inventory.slots[from];
+        if (!item) return;
+        const n = Math.min(count ?? item.count, item.count);
+        await bot.clickWindow(from, 0, 0);
+        if (n >= item.count) await bot.clickWindow(to, 0, 0);
+        else for (let i = 0; i < n; i++) await bot.clickWindow(to, 1, 0);
+        if (bot.inventory.selectedItem) await bot.clickWindow(from, 0, 0);
     },
 
     /**

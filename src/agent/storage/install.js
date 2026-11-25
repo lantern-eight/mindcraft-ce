@@ -88,7 +88,8 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
         return [...names];
     };
 
-    const commands = storageCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { signNear, ...deps } });
+    // !chests lists shelves with what the bot saw on them, so it is told what memory believes too.
+    const commands = storageCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { contentsOf, signNear, ...deps } });
     // Putting away and fetching have their own setting, and use the same chest book.
     if (config.store_and_fetch === true) {
         commands.push(...stowCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { contentsOf, similar, signNear, ...deps } }));
