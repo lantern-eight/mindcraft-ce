@@ -21,6 +21,7 @@
 //
 // Which point of the shelf's front to click, and how a part of a stack is moved in the bag, depend on
 // the edition of the game, so they are asked of the edition seam (clickShelfSlot, moveInBag).
+import { Vec3 } from 'vec3';
 import { onActionCleanup } from '../action_context.js';
 import { editionOf } from '../edition/index.js';
 
@@ -112,6 +113,13 @@ export function shelfHands(bot, { goTo, blockAt, edition = null, reach = ARMS_RE
                 if (!ready()) throw new Error('could not get in front of it');
             }
             ({ shown } = look());
+            // Walked up with its back to the shelf, the bot knows it only from memory, which keeps the block and
+            // not what stands on it: a player turns to look at what they are about to click.
+            if (!shown.slots && typeof bot.lookAt === 'function') {
+                await bot.lookAt(new Vec3(shelf.x + 0.5, shelf.y + 0.5, shelf.z + 0.5));
+                await until(() => look().shown.slots);
+                ({ shown } = look());
+            }
             if (!shown.slots) throw new Error('what is on it has not come through yet');
 
             const selected = bot.quickBarSlot ?? 0;

@@ -8,8 +8,11 @@
 // the bot stopped waiting is closed again at once: a window left open makes the next open fail.
 //
 // Counts are read from the furnace's slots, before and after: what a call says it did isn't taken on
-// trust. The bot's own inventory is not read while the window is open. On Java mineflayer copies it back
-// only when the window closes, so until then it shows what the bot had before.
+// trust. What goes in is also counted from what left the bot's hands, because fuel put into a furnace with
+// something to smelt catches at once: the slot then shows one less than went in. The bot's hands are read
+// from the window's own copy of its inventory where the window has one (Java), not from `bot.inventory`:
+// on Java mineflayer copies that back only when the window closes, so until then it shows what the bot had
+// before. Where the window has none (Bedrock), `bot.inventory` is kept up to date as items move.
 //
 // On both editions the window offers the same calls (`putInput`, `putFuel`, `takeInput`, `takeFuel`,
 // `takeOutput`): on Bedrock the library makes them item stack requests, so nothing here depends on the
@@ -25,6 +28,18 @@ function within(promise, ms, what) {
     let timer;
     const late = new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error(what), { late: true })), ms); });
     return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * How many of an item the bot holds, as the open window shows it: the window's copy of the bot's inventory
+ * when it has one, else the bot's inventory. Null when neither can be read.
+ */
+function carried(bot, window, name) {
+    const start = window?.inventoryStart;
+    const count = items => items.filter(item => item && cleanName(item.name) === name).reduce((sum, item) => sum + item.count, 0);
+    if (Number.isInteger(start) && Array.isArray(window.slots) && window.slots.length > start) return count(window.slots.slice(start));
+    const items = bot.inventory?.items?.();
+    return Array.isArray(items) ? count(items) : null;
 }
 
 /** A slot's stack as `{name, count}`, or null when it is empty. */
@@ -93,7 +108,8 @@ export function furnaceHands(bot, { openTimeoutMs = 4000, stepTimeoutMs = 4000, 
 
             /**
              * Puts up to `count` of an item from the bot's inventory into the input or the fuel slot. Gives
-             * how many went in, read from the slot.
+             * how many went in: what the slot gained, or what left the bot's hands when that is more (fuel
+             * that caught as it went in).
              * @param {'input'|'fuel'} which
              */
             async put(which, name, count) {
@@ -101,17 +117,25 @@ export function furnaceHands(bot, { openTimeoutMs = 4000, stepTimeoutMs = 4000, 
                 const before = stackIn(window, which);
                 if (before && before.name !== name) return 0;
                 const inSlot = () => { const now = stackIn(window, which); return now?.name === name ? now.count : 0; };
+                const slotBefore = before?.count ?? 0;
+                const handsBefore = carried(bot, window, name);
+                const moved = () => {
+                    const bySlot = inSlot() - slotBefore;
+                    const handsNow = carried(bot, window, name);
+                    const byHands = handsBefore === null || handsNow === null ? 0 : Math.min(count, handsBefore - handsNow);
+                    return Math.max(0, bySlot, byHands);
+                };
                 // One stack at a time: Bedrock's library moves from the first stack of the item it finds,
                 // and is refused when asked for more than that stack holds. Java's takes from several.
-                for (let tries = 0; tries < 4 && inSlot() - (before?.count ?? 0) < count; tries++) {
-                    const left = count - (inSlot() - (before?.count ?? 0));
+                for (let tries = 0; tries < 4 && moved() < count; tries++) {
+                    const left = count - moved();
                     const first = bot.inventory?.items?.().find(item => item.name === name)?.count ?? left;
-                    const was = inSlot();
+                    const was = moved();
                     try { await step(window[PUT[which]](itemId(name), null, Math.min(left, first)), `the ${which} did not go in`); }
                     catch (error) { console.warn(`[smelting] Putting ${left} ${name} in the furnace:`, error?.message ?? error); }
-                    if (inSlot() === was) break;
+                    if (moved() === was) break;
                 }
-                return Math.max(0, inSlot() - (before?.count ?? 0));
+                return moved();
             },
 
             /**

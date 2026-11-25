@@ -121,6 +121,34 @@ test('a powered shelf is never clicked, and one out of reach is walked up to fro
     assert.equal(count(far.slots, 'apple'), 2);
 });
 
+test('walked up with its back to it, the bot turns to the shelf to see what is on it before it takes', async () => {
+    const t = scene({ shelf: [{ name: 'bucket', count: 1 }, null, null] });
+    // Out of view, the bot knows the shelf only from memory, without what stands on it, until it looks.
+    let looked = null;
+    t.bot.lookAt = async point => { looked = point; };
+    const shelfOf = { facing: 'south', powered: false, slots: null };
+    const hands = shelfHands(t.bot, {
+        edition: { shelfOf: () => (looked ? { ...shelfOf, slots: t.onShelf.map(s => s && { ...s }) } : shelfOf),
+            clickShelfSlot: async (b, block, slot) => { [t.slots[36 + b.quickBarSlot], t.onShelf[slot]] = [t.onShelf[slot], t.slots[36 + b.quickBarSlot]]; } },
+        blockAt: () => ({ name: 'oak_shelf' }), goTo: async () => {}, answerMs: 50, wait: async () => {},
+    });
+    const opened = await hands.open(SHELF);
+    assert.deepEqual({ x: looked.x, y: looked.y, z: looked.z }, { x: 0.5, y: 64.5, z: 0.5 }, 'it looked at the shelf');
+    assert.equal(opened.slots()[0]?.name, 'bucket');
+    await opened.takeOut('bucket', 1);
+    assert.equal(count(t.slots, 'bucket'), 1);
+});
+
+test('a shelf that never shows what is on it is left, and said so', async () => {
+    const t = scene();
+    t.bot.lookAt = async () => {};
+    const hands = shelfHands(t.bot, {
+        edition: { shelfOf: () => ({ facing: 'south', powered: false, slots: null }) },
+        blockAt: () => ({ name: 'oak_shelf' }), goTo: async () => {}, answerMs: 20, wait: async () => {},
+    });
+    await assert.rejects(hands.open(SHELF), /has not come through yet/);
+});
+
 test('fetching takes from a shelf as from a chest, through its hands', async () => {
     const { slots, onShelf, hands } = scene({ shelf: [{ name: 'string', count: 10 }, { name: 'iron_ingot', count: 7 }, null] });
     const report = await fetchItem([{ id: '0,64,0', ...SHELF, also: null, name: 'oak_shelf', shelf: true, items: { string: 10, iron_ingot: 7 }, free: 1, distance: 2 }],

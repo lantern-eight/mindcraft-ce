@@ -169,7 +169,9 @@ goes on into the next by the same rules. Room is counted in slots with each item
 **Fetching** takes from one chest that has all of it when there is one, else from the nearest first. When
 no chest it may take from has the item, the result says which chests it was left out of and why, or names
 items with a like name that the bot remembers ("iron" finds `iron_ingot` and `raw_iron`). `!fetchItem` only
-puts it in the bot's bag; `!bringItem` also hands it over.
+puts it in the bot's bag; `!bringItem` also hands it over. Other modules fetch the same way, by these rules:
+smelting fetches an empty bucket for a lava farm ([smelting.md](smelting.md#lava-from-a-lava-farm)), asking
+through `src/agent/library/fetch_way.js`, which chest storage fills in for the bot.
 
 **Bringing** ("bring me 10 iron") hands over what the bot already carries first, as a player gives what is
 in their bag, and fetches only what it is short of. Which chests it may take from follows who asked, never
