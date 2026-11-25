@@ -3,6 +3,8 @@ import { actionContext, assertActionOwner, cancellable } from '../action_context
 import { toolResult } from '../tool_result.js';
 // Fork hook (docs/core-hooks.md, 27): a skill that searches may look around first.
 import { lookBeforeSearch } from './search_look.js';
+// Fork hook (docs/core-hooks.md, 31): stop, or make room, when the bag can't take a block's drop.
+import { makeRoomFor, takeRoomNotes } from './bag_room.js';
 
 const failures = new WeakMap();
 const counts = bot => Object.fromEntries(bot.inventory.items().map(i => [i.name,
@@ -78,6 +80,9 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
                 assertActionOwner(bot);
                 const block = bot.blockAt(target.position);
                 if (!block || !types.has(block.name)) { excluded.add(key); continue; }
+                const room = await makeRoomFor(bot, block); // fork hook 31
+                if (room.stop) { blocker = room.stop; break; }
+                if (room.moved) continue; // it went to empty its bag: back to the block first
                 await bot.tool.equipForBlock(block);
                 if (bot.game.gameMode !== 'creative' && !block.canHarvest(bot.heldItem?.type)) {
                     blocker = `Missing the required tool to harvest ${block.name}.`;
@@ -126,6 +131,6 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
         blocker ||= 'Blocks broke, but their drops were not acquired.';
     const cancelled = interrupt();
     const status = cancelled ? 'cancelled' : broken >= requested && !blocker ? 'ok' : broken ? 'partial' : 'blocked';
-    const text = `Broke ${broken}/${requested} ${type}; acquired ${acquired}.${blocker ? ` Blocker: ${blocker}` : ''}`;
+    const text = `Broke ${broken}/${requested} ${type}; acquired ${acquired}.${blocker ? ` Blocker: ${blocker}` : ''}${takeRoomNotes(bot)}`; // fork hook 31
     return toolResult(status, text, cancelled ? 'interrupted' : status === 'ok' ? null : 'incomplete', {broken, requested, gains, blocker});
 }

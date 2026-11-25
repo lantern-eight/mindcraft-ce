@@ -15,6 +15,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   fetches the rest from the chests, then walks up to the player and throws it to them, and says whether they
   took it. It throws from close by and chest high, so the item lands at their feet; Mindcraft's own hand-over
   threw at the feet from three blocks, which on Bedrock fell short enough for the bot to pick it back up.
+- Gathering with a full bag. Collecting used to go on breaking blocks with a full bag, leaving the drops on the
+  ground. Now it checks for room before each block: with the bot's own or shared chests within 32 blocks it
+  puts things away and goes on, saying so in its result; otherwise it stops with "Inventory full".
 
 ## [1.16.0-bedrock.1.17.0] - 2026-11-24
 

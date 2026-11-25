@@ -201,6 +201,22 @@ Took 12 iron_ingot:
 If Alice wanted it, hand it over with !givePlayer.
 ```
 
+**A full bag while gathering.** Mindcraft's collecting used to go on breaking blocks with a full bag and
+leave the drops on the ground. Now, before each block, it checks that the bag has room for the drop (an
+empty slot, or a stack of it with room). When it hasn't:
+
+- With the bot's own or shared chests within 32 blocks, it puts things away as `!putAway("all", "any", 32)`
+  would, keeping what it needs, walks back to the block and goes on. The job's result says what it put away.
+- With none near, or nothing it may put away, the job stops: "Inventory full", with what to do about it.
+  Walking home from far away is the model's decision.
+
+```
+Broke 3/3 oak_log; acquired 3 oak_log.
+Your bag was full. Put away dirt 1388 in 1 chest:
+- chest at -4, 70, -10 (your own): dirt 1388
+Kept on you: cobblestone 32, bread 6, iron_pickaxe 1, stone_pickaxe 1.
+```
+
 **Fair play.** Chests are found through the bot's senses and memory, as for a sort; it believes only what
 it saw inside. It walks to a chest without digging or placing, opens one only within reach and in view, and
 moves items as a player's clicks would. Unlike a sort, a chest out of sight may be used: putting away means

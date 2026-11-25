@@ -16,7 +16,8 @@ import { adoptFormerScope, scopeDir } from '../memory/files.js';
 import { requestWatcher } from './asker.js';
 import { loadChestBook } from './chest_book.js';
 import { storageCommands } from './commands.js';
-import { stowCommands } from './stow_commands.js';
+import { setRoomMaker } from '../library/bag_room.js';
+import { PUT_RANGE, putAwayHere, stowCommands } from './stow_commands.js';
 import { watchMadeChests } from './made_chests.js';
 
 /**
@@ -91,6 +92,16 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
     // Putting away and fetching have their own setting, and use the same chest book.
     if (config.store_and_fetch === true) {
         commands.push(...stowCommands({ book: bookNow, save, asker: () => watcher.behind(), deps: { contentsOf, similar, signNear, ...deps } }));
+        // A gathering job that fills the bag (library/bag_room.js): with the bot's own or shared chests within
+        // reach of a walk, it empties its bag into them the way !putAway does, keeping what it needs, and goes
+        // on. With none near, the job stops and says the bag is full: a long trip home is the model's call.
+        setRoomMaker(agent.bot, async () => {
+            const env = { contentsOf, similar, signNear, ...deps, book: bookNow(agent), name: agent.name, ...watcher.behind() };
+            try {
+                const result = await putAwayHere(agent.bot, 'all', 'any', PUT_RANGE, env);
+                return `Your bag was full. ${result.text}`;
+            } finally { save(agent); }
+        });
     }
     for (const { command, action } of commands) registerCommand(command, { action });
 

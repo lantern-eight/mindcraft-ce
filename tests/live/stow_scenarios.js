@@ -262,6 +262,25 @@ try {
         return { text: result.text };
     });
 
+    await step('gathering with a full bag: the bot empties it into its chests nearby and goes on to the end', async () => {
+        // Three logs beside the storage room, and a bag full of dirt on top of what the bot keeps.
+        for (const y of [70, 71, 72]) await cmd(`setblock 3 ${y} -4 oak_log`);
+        await cmd(`give ${NAME} dirt 2304`);
+        await delay(800);
+        await cmd(`tp ${NAME} 0.5 70 -6.5 -45 10`); // facing the logs
+        await delay(800);
+        await settled();
+        assert.equal(bot.inventory.emptySlotCount(), 0, `the bag is full: ${bot.inventory.items().length} stacks`);
+        const ownBefore = countIn(await read(OWN), 'dirt');
+        const result = await run('Alice', '!collectBlocks', ['oak_log', 3], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(carried('oak_log'), 3, result.text);
+        assert.ok(countIn(await read(OWN), 'dirt') > ownBefore, 'the dirt went into the bot\'s own chest');
+        // What the model reads back says why the bot went to its chests.
+        assert.match(result.text, /\nYour bag was full\. Put away .*dirt/, result.text);
+        return { text: result.text };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });

@@ -260,6 +260,25 @@ try {
         assert.equal(carried('iron_ingot'), Math.max(0, had - 5), 'the bot gave what it carried and fetched the rest');
         return { text: result.text.split('\n').at(-1) };
     });
+    await step('gathering with a full bag: the bot empties it into its chests nearby and goes on to the end', async () => {
+        // Three logs beside the storage room, and a bag full of dirt on top of what the bot keeps.
+        for (const dy of [1, 2, 3]) await set([3, dy, 2], 'oak_log');
+        await cmd(`give ${NAME} dirt 2304`, 1500);
+        await tpTo([0, 1, 0], -45);                     // facing the logs
+        await bot.lookAt(at(3, 2, 2).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        assert.equal(bot.inventory.emptySlotCount(), 0, `the bag is full: ${bot.inventory.items().length} stacks`);
+        const ownBefore = countIn(await read(OWN), 'dirt');
+        await tpTo([0, 1, 0], -45);
+        await bot.lookAt(at(3, 2, 2).offset(0.5, 0.5, 0.5), true);
+        await settled();
+        const result = await run('Alice', '!collectBlocks', ['oak_log', 3], 240);
+        assert.equal(result.status, 'ok', result.text);
+        assert.equal(carried('oak_log'), 3, result.text);
+        assert.match(result.text, /\nYour bag was full\. Put away .*dirt/, result.text);
+        assert.ok(countIn(await read(OWN), 'dirt') > ownBefore, 'the dirt went into the bot\'s own chest');
+        return { text: result.text.split('\n').slice(0, 3).join(' | ') };
+    });
 } catch (error) {
     console.error(error);
 } finally {
