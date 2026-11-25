@@ -12,6 +12,15 @@ Bedrock part above it.
 
 ## [Unreleased]
 
+### Changed
+
+- The pinned Bedrock adapter (`lantern-eight/mineflayer` `bedrock-combined`, now at `b5d1c88`) has three more
+  fixes of this fork's, each offered to its author: a bot can throw an item from its main inventory, not
+  only from the hotbar, so `!bringItem` can hand over what it just took out of a chest; `recipesFor` hands
+  out only recipes the bot holds every ingredient of; and `craft` closes the screen it opened. The bot
+  already worked round the last two at the edition seam, so crafting doesn't change. It also has
+  PrismarineJS/mineflayer#4103, which `main` pins for Java: each window keeps its own state id.
+
 ## [1.9.0-bedrock.1.10.2] - 2026-11-20
 
 The first release of `bedrock`'s pins alone: the Bedrock adapter it pins now has the fix for letting go of keys,
