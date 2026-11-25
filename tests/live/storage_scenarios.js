@@ -81,7 +81,7 @@ try {
     assert.ok(handle?.memory, 'fair play and world memory are on');
     const bookDir = mkdtempSync(path.join(tmpdir(), 'storage-live-book-'));
     const storage = installStorage(agent, { bookDir });
-    assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt'], 'chest sorting is on');
+    assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!chestFor', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt'], 'chest sorting is on');
     // The last few things the bot did with a chest, kept so that a run that goes wrong can say where.
     const lately = [];
     const note = text => { lately.push(text); if (lately.length > 12) lately.shift(); };
