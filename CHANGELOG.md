@@ -9,6 +9,36 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.17.0-bedrock.1.18.0] - 2026-11-25
+
+### Added
+
+- Bringing a player something. `!bringItem("Alice", "iron_ingot", 10)` hands over what the bot carries and
+  fetches the rest from the chests, then walks up to the player and throws it to them, and says whether they
+  took it. It throws from close by and chest high, so the item lands at their feet; Mindcraft's own hand-over
+  threw at the feet from three blocks, which on Bedrock fell short enough for the bot to pick it back up.
+- Gathering with a full bag. Collecting used to go on breaking blocks with a full bag, leaving the drops on the
+  ground. Now it checks for room before each block: with the bot's own or shared chests within 32 blocks it
+  puts things away and goes on, saying so in its result; otherwise it stops with "Inventory full".
+- Getting a tool. `!getTool("pickaxe", "iron")` uses the one the bot carries, else takes one from the chests,
+  else crafts one: it fetches what the recipe is short of (the head, logs or planks for sticks and a table),
+  then makes the planks, sticks, table and tool. `"any"` tries the best material first.
+
+### Fixed
+
+- Mindcraft's chest commands (`!viewChest`, `!takeFromChest`, `!putInChest`) use the nearest chest, trapped
+  chest or barrel. They looked for chests alone, so a bot standing by a barrel said there was no chest nearby.
+- Crafting just after using a chest lost the crafted item on Java. The pinned mineflayer kept one state number
+  for every window, so the first crafting clicks after a chest closed went out with the chest's, and the
+  server resent the whole inventory in the middle of the craft. It now keeps one for each window, as the
+  game's client does (PrismarineJS/mineflayer#4103, pinned until a release has it).
+- Crafting on Bedrock took a recipe the bot had nothing for. The server lists a stick from bamboo first, and
+  the library let it through for a bot with planks and no bamboo, so crafting sticks failed. Only recipes the
+  bot holds every ingredient of are handed out now, as on Java.
+- Crafting on Bedrock at a table, right after crafting in the bot's own grid, failed. The library left the
+  inventory screen open after a craft, and the craft at the table took it for the table's. A screen a craft
+  opens is closed after it now, as on Java.
+
 ## [1.16.0-bedrock.1.17.0] - 2026-11-24
 
 ### Added
@@ -1206,7 +1236,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.16.0-bedrock.1.17.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...HEAD
+[1.17.0-bedrock.1.18.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.16.0-bedrock.1.17.0...v1.17.0-bedrock.1.18.0
 [1.16.0-bedrock.1.17.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.15.0-bedrock.1.16.0...v1.16.0-bedrock.1.17.0
 [1.15.0-bedrock.1.16.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...v1.15.0-bedrock.1.16.0
 [1.14.0-bedrock.1.15.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...v1.14.0-bedrock.1.15.0

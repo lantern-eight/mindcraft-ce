@@ -132,6 +132,8 @@ own setting; it needs chest sorting on, which keeps whose each chest is:
 |---|---|
 | `!putAway(what, whose, distance)` | `what` is `all` for everything the bot does not need to keep, or one item's name for all of it. `whose` is `any` (the bot's own chests, then the shared ones), `shared`, the bot's own name, or a player's name. Chests within `distance` blocks (1 to 32) |
 | `!fetchItem(item_name, num)` | Takes up to `num` of an item out of the chests within 64 blocks, from several when one is not enough |
+| `!bringItem(player_name, item_name, num)` | Gets an item to a player: hands over what the bot carries, fetches the rest from the chests by the rules of `!fetchItem`, then walks up to the player and throws it to them |
+| `!getTool(kind, material)` | Gets the bot a tool: `kind` is `pickaxe`, `axe`, `shovel`, `hoe` or `sword`, `material` is `wooden`, `stone`, `golden`, `iron`, `diamond`, `netherite` or `any`. The one it carries, else one from the chests, else one crafted from what the bag and the chests hold |
 | `!fileInbox(whose, distance)` | Files what players left in [the inbox](#the-inbox) into the chests where it belongs. `whose` and `distance` as for `!putAway` |
 
 **Which chests:**
@@ -166,8 +168,29 @@ goes on into the next by the same rules. Room is counted in slots with each item
 
 **Fetching** takes from one chest that has all of it when there is one, else from the nearest first. When
 no chest it may take from has the item, the result says which chests it was left out of and why, or names
-items with a like name that the bot remembers ("iron" finds `iron_ingot` and `raw_iron`). Handing the item
-over is the model's next step, with `!givePlayer`.
+items with a like name that the bot remembers ("iron" finds `iron_ingot` and `raw_iron`). `!fetchItem` only
+puts it in the bot's bag; `!bringItem` also hands it over.
+
+**Bringing** ("bring me 10 iron") hands over what the bot already carries first, as a player gives what is
+in their bag, and fetches only what it is short of. Which chests it may take from follows who asked, never
+who gets it. It walks to about two blocks from the player and throws the item at them chest high, so it
+lands at their feet, and the result says whether they took it. A player it can't see or doesn't know is
+near gets nothing, and the result says so.
+
+**Getting a tool** ("get yourself an iron pickaxe") goes the way a player goes about it. A tool the bot
+already carries is enough, of that material or better (gold counts only when gold was asked for: it wears
+out at once). Else it takes one from the chests, by the rules of fetching. Else it crafts one: it works out
+what the tool takes (the head, sticks, a crafting table if none is near or carried), counts what the bag
+and the chests have, fetches what the bag is short of, then makes planks from logs, sticks from planks, the
+table, and the tool. `any` tries the best material first. Netherite is never crafted: it is made at a
+smithing table. When nothing is enough the result says what the tool needs, and a full bag is reported
+before any crafting, since a crafted thing needs a slot to land in.
+
+```
+Took 3 iron_ingot:
+- 3 from the chest at -2, 70, -10 (shared)
+Crafted an iron_axe.
+```
 
 **What it believes and what it checks.** What is in each chest comes from world memory: what the bot saw
 the last time it looked. A chest it knows but has never looked into is opened to see first, at most 12, as
@@ -192,6 +215,22 @@ Took 12 iron_ingot:
 - 5 from the chest at -2, 70, -10 (shared)
 - 7 from the chest at 0, 70, -10 (Alice's)
 If Alice wanted it, hand it over with !givePlayer.
+```
+
+**A full bag while gathering.** Mindcraft's collecting used to go on breaking blocks with a full bag and
+leave the drops on the ground. Now, before each block, it checks that the bag has room for the drop (an
+empty slot, or a stack of it with room). When it hasn't:
+
+- With the bot's own or shared chests within 32 blocks, it puts things away as `!putAway("all", "any", 32)`
+  would, keeping what it needs, walks back to the block and goes on. The job's result says what it put away.
+- With none near, or nothing it may put away, the job stops: "Inventory full", with what to do about it.
+  Walking home from far away is the model's decision.
+
+```
+Broke 3/3 oak_log; acquired 3 oak_log.
+Your bag was full. Put away dirt 1388 in 1 chest:
+- chest at -4, 70, -10 (your own): dirt 1388
+Kept on you: cobblestone 32, bread 6, iron_pickaxe 1, stone_pickaxe 1.
 ```
 
 **Fair play.** Chests are found through the bot's senses and memory, as for a sort; it believes only what
@@ -312,8 +351,8 @@ Left alone within 8 blocks:
 ```
 
 **One chest, named by where it is.** The chest commands Mindcraft-CE comes with (`!viewChest`,
-`!takeFromChest`, `!putInChest`) use whichever chest is nearest, and only chests, not barrels. They are
-still there. In a room of chests the model has to say which one, and `!chests` gives it the positions:
+`!takeFromChest`, `!putInChest`) use whichever chest, trapped chest or barrel is nearest. They are still
+there. In a room of chests the model has to say which one, and `!chests` gives it the positions:
 
 ```
 The chest at 41, 70, 4, which is Bob's, holds (2 of 27 slots used):
@@ -408,7 +447,8 @@ Nothing is lost in any of these.
 - **A chest nobody has spoken for is never used to put away or fetch,** even loot out in the world. Telling
   that from a chest in someone's base is not built.
 - **There is no list of what to keep** beyond the built-in one; a player can ask to put one item away.
-- **Fetching does not hand the item over** by itself, and does not craft what no chest holds.
+- **Fetching does not craft** what no chest holds; only `!getTool` crafts, and only tools. It does not
+  smelt, so iron that is still ore doesn't count, and it never mines what is missing.
 - **An owner is a name.** A player who renames their account keeps their chests under the old name until
   someone says otherwise.
 - **A chest replaced while the bot was away keeps what was said about the old one,** until a player's
@@ -451,7 +491,9 @@ The code is in `src/agent/storage/`.
 | `stow_plan.js` | Which chest each thing goes in, and which chests to fetch from, from what the bot believes is in them. A pure function |
 | `stow.js` | Puts away and fetches: one chest at a time, checking it, planning the rest again. Touches no game: it is handed "hands" |
 | `inbox.js` | Files the inbox: takes a bagful out, puts it away, returns what fits nowhere, goes back for more. Touches no game |
-| `stow_commands.js` | `!putAway`, `!fetchItem` and `!fileInbox`, and the text of their results |
+| `hand_over.js` | Hands an item to a player: walks up close, throws it chest high, sees it taken. Used by `!bringItem`; `!givePlayer` keeps Mindcraft's own |
+| `tool_kit.js` | What a tool takes to craft, what the bag and the chests are short of, and which material "any" tries first. A pure function |
+| `stow_commands.js` | `!putAway`, `!fetchItem`, `!bringItem`, `!getTool` and `!fileInbox`, and the text of their results |
 | `install.js` | Turns it on for an agent, from the `chest_sorting` setting. Opens and saves the chest book |
 
 The chest book is saved under `bots/<name>/storage/`, one `chests.json` per world and dimension, so a world
@@ -485,7 +527,7 @@ asked for before counting what moved.
 
 | Layer | Where | Needs |
 |---|---|---|
-| The plan, and who may be sorted | `tests/storage_keep_plan.test.js`, `tests/storage_take_put.test.js`, `tests/storage_stow_plan.test.js`, `tests/storage_sort_plan.test.js`, `tests/storage_item_groups.test.js`, `tests/storage_chest_book.test.js`, `tests/storage_purposes.test.js`, `tests/storage_permit.test.js`, `tests/storage_asker.test.js`, `tests/storage_made_chests.test.js` | Nothing |
+| The plan, and who may be sorted | `tests/storage_keep_plan.test.js`, `tests/storage_take_put.test.js`, `tests/storage_stow_plan.test.js`, `tests/storage_sort_plan.test.js`, `tests/storage_item_groups.test.js`, `tests/storage_chest_book.test.js`, `tests/storage_purposes.test.js`, `tests/storage_hand_over.test.js`, `tests/storage_permit.test.js`, `tests/storage_asker.test.js`, `tests/storage_made_chests.test.js` | Nothing |
 | The doing, in a fake room | `tests/storage_stow.test.js`, `tests/storage_inbox.test.js`, `tests/storage_stow_commands.test.js`, `tests/storage_sorter.test.js`, `tests/storage_commands.test.js`, `tests/storage_chest_access.test.js`, `tests/storage_install.test.js`. The room (`tests/helpers/fake_chest_bot.js`) keeps the server's copy of a window apart from the bot's guess | Nothing |
 | The doing, for real | `tests/live/stow_scenarios.js` puts away and fetches in a room several people share. `tests/live/storage_scenarios.js`: the server console fills the chests and reads them back itself. Its last steps are a room several players share, where every chest a sort was not approved for must be slot for slot as it was | A throwaway server, no model |
 | The asking | `tests/live/storage_agent_scenarios.js`: the whole agent is told things in plain words ("that chest is mine", "sort my chests", "keep them tidy"), and the console reads the chests and the bot's own file back. On recorded replies it checks that the commands reach the model as tools and that the bot knows who is speaking | A throwaway server, no model |

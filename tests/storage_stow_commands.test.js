@@ -42,8 +42,22 @@ const installed = installStorage(agent, {
         goTo: async (b, chest) => room.goTo(chest),
         inView: () => true,
         hands: { pauseMs: 0, settleMs: 0 },
+        // The hand-over: the player takes what is thrown, unless they are "Nobody", who never does.
+        give: async (b, name, player, n) => {
+            gifts.push({ name, player, count: n });
+            if (player === 'Nobody') return { thrown: 0, taken: false, problem: 'you don\'t know where Nobody is' };
+            let left = n;
+            room.pockets = room.pockets.map(s => {
+                if (!s || s.name !== name || left <= 0) return s;
+                const take = Math.min(left, s.count);
+                left -= take;
+                return s.count === take ? null : { ...s, count: s.count - take };
+            });
+            return { thrown: n, taken: true };
+        },
     },
 });
+const gifts = [];
 const during = (source, command, ...args) => agent.handleMessage(source, () => getCommand(command).perform(agent, ...args));
 
 test('the commands are added with the setting', async () => {
@@ -133,4 +147,24 @@ test('filing the inbox: what players left there goes where it belongs, and the b
     // No inbox at all: the bot is told how one is named.
     await during('Alice', '!chestFor', 4, 64, 0, 'unknown');
     assert.match(await during('Alice', '!fileInbox', 'any', 16), /^You know no inbox within 16 blocks\. A player can name the chest they leave things in with !chestFor/);
+});
+
+test('bringing a player something: what the bot carries first, the rest fetched, then handed over', async () => {
+    const carried = () => count(room.pockets, 'iron_ingot');
+    assert.equal(carried(), 12, 'the iron fetched earlier is still carried');
+    const before = count(room.contents('2,64,0'), 'iron_ingot');
+    const text = await during('Alice', '!bringItem', 'Alice', 'iron_ingot', 15);
+    assert.match(text, /^Took 3 iron_ingot:\n- 3 from the chest at 2, 64, 0 \(Alice's\)/, text);
+    assert.doesNotMatch(text, /!givePlayer/, 'the advice to hand it over is not given: it was handed over');
+    assert.match(text, /Gave 15 iron_ingot to Alice\.$/);
+    assert.deepEqual(gifts.at(-1), { name: 'iron_ingot', player: 'Alice', count: 15 });
+    assert.equal(carried(), 0);
+    assert.equal(count(room.contents('2,64,0'), 'iron_ingot'), before - 3);
+});
+
+test('bringing: to itself is refused, and a hand-over nobody takes says what the bot still carries', async () => {
+    assert.match(await during('Alice', '!bringItem', 'Keeper', 'bread', 1), /can't bring things to yourself/);
+    const text = await during('Alice', '!bringItem', 'Nobody', 'bread', 2);
+    assert.match(text, /^Could not hand it to Nobody: .*\. You carry 6 bread\.$/, text);
+    assert.equal(count(room.pockets, 'bread'), 6);
 });
