@@ -362,6 +362,38 @@ test('the list of chests says whose each is, how it may be sorted, and which are
     assert.match(chestsText(bot, 16, { ...deps(room, { book }), nearestBlocks: () => [] }), /don't see or remember a chest/);
 });
 
+test('shelves are listed with what was seen on them, can be said to be someone\'s, and are never opened or sorted', async () => {
+    const { bot, room, book } = sharedRoom();
+    bot.players = { Alice: {} };
+    const shelfAt = { x: 1, y: 65, z: 2 }, shelf = block('oak_shelf', 1, 65, 2);
+    const seen = new Map([['1,65,2', { items: { iron_ingot: 9, diamond_pickaxe: 1 }, free: 1 }]]);
+    const d = deps(room, {
+        book,
+        nearestBlocks: (b, distance, { shelves = false } = {}) => [...room.chests.keys()].map(id => room.blockAt(posOf(id))).concat(shelves ? [shelf] : []),
+        blockAt: (b, pos) => (pos.x === 1 && pos.y === 65 && pos.z === 2 ? shelf : room.blockAt(pos)),
+        contentsOf: chest => seen.get(chest.id) ?? null,
+    });
+    // A shelf is in the list, with what the bot saw on its front, and says it is never sorted.
+    assert.match(chestsText(bot, 16, d), /^- oak_shelf at 1, 65, 2: owner unknown\. A shelf: never sorted\. On it: 9 iron_ingot, 1 diamond_pickaxe; one slot free$/m);
+    seen.clear();
+    assert.match(chestsText(bot, 16, d), /oak_shelf at 1, 65, 2: owner unknown\. A shelf: never sorted\. What is on it has not been seen from in front/);
+
+    // Whose it is and what it is for can be said, as of a chest. Its sorting can't: there is none.
+    const marked = markChest(bot, shelfAt, 'Alice', 'same', d);
+    assert.equal(marked.text, "The oak_shelf at 1, 65, 2 is now Alice's, a shelf, never sorted. It was owner unknown.");
+    assert.match(markChest(bot, shelfAt, 'Alice', 'always', d).text, /was already Alice's, a shelf, never sorted\. Nothing changed\. Shelves are never sorted/);
+    assert.equal(markChest(bot, shelfAt, 'same', 'always', d).status, 'failed');
+    assert.equal(chestFor(bot, shelfAt, 'tools', d).status, 'ok');
+    assert.match(chestsText(bot, 16, d), /oak_shelf at 1, 65, 2: Alice's\. A shelf: never sorted\. What is on it [^\n]*\. For tools/);
+
+    // Sorting it, or anything that opens it, says why not, instead of claiming there is nothing there.
+    const sorted = await sortChestAt(bot, shelfAt, d);
+    assert.equal(sorted.status, 'failed');
+    assert.match(sorted.text, /is a shelf, which has no lid to open, so it can't be sorted like a chest/);
+    // A shelf never joins a sort of someone's chests.
+    assert.ok(!(await sortChestsHere(bot, 'Alice', 16, d)).text.includes('oak_shelf'));
+});
+
 test('a player says what a chest is for: a group, items, the inbox, anything, or forget it', () => {
     const { bot, room, book } = sharedRoom();
     const d = deps(room, { book, by: 'Alice' });
