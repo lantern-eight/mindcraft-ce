@@ -132,7 +132,7 @@ own setting; it needs chest sorting on, which keeps whose each chest is:
 |---|---|
 | `!putAway(what, whose, distance)` | `what` is `all` for everything the bot does not need to keep, or one item's name for all of it. `whose` is `any` (the bot's own chests, then the shared ones), `shared`, the bot's own name, or a player's name. Chests within `distance` blocks (1 to 32) |
 | `!fetchItem(item_name, num)` | Takes up to `num` of an item out of the chests within 64 blocks, from several when one is not enough |
-| `!bringItem(player_name, item_name, num)` | Gets an item to a player: hands over what the bot carries, fetches the rest from the chests by the rules of `!fetchItem`, then walks up to the player and throws it to them |
+| `!bringItem(player_name, item_name, num)` | Gets an item to a player: hands over what the bot carries, fetches the rest from the chests by the rules of `!fetchItem`, then walks up to the player and throws it to them. A player out of view (behind the bot, as it turns from the chest) is looked round for first |
 | `!getTool(kind, material)` | Gets the bot a tool: `kind` is `pickaxe`, `axe`, `shovel`, `hoe` or `sword`, `material` is `wooden`, `stone`, `golden`, `iron`, `diamond`, `netherite` or `any`. The one it carries, else one from the chests, else one crafted from what the bag and the chests hold |
 | `!fileInbox(whose, distance)` | Files what players left in [the inbox](#the-inbox) into the chests where it belongs. `whose` and `distance` as for `!putAway` |
 

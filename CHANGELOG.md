@@ -14,6 +14,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - A skeleton (or any mob) seen aiming at the bot is remembered as a danger zone whenever the bot takes cover
   from it. The zones were noted once a second, and the walk to cover could take the archer out of view first,
   so the bot then hid from it but later walked back through the spot it shot from.
+- `!bringItem` looks round for the player before handing over. Through a player's screen, the bot came back
+  from the chest facing it, with its back to the player, and said it didn't know where they were.
 
 ## [1.20.0-bedrock.1.21.0] - 2026-11-25
 

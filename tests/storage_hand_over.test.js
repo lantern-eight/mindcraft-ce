@@ -45,3 +45,25 @@ test('a player it does not know is there gets nothing, and one who never picks i
     const untaken = await handOver(fakeBot({ stacks: [['bread', 6]], takes: false }), 'bread', 'Alice', 2, { walk, takeMs: 100 });
     assert.deepEqual(untaken, { thrown: 2, taken: false });
 });
+
+test('a player out of view is looked round for first, as one who fetched something turns back to the asker', async () => {
+    // Alice is behind the bot until it has turned: the second look round brings her into view.
+    const bot = fakeBot({ stacks: [['iron_ingot', 5]] });
+    const alice = bot.entities[7];
+    delete bot.entities[7];
+    let turns = 0;
+    const lookFor = async (b, found) => {
+        while (!found() && turns < 8) if (++turns === 2) bot.entities[7] = alice;
+    };
+    const result = await handOver(bot, 'iron_ingot', 'Alice', 5, { walk, lookFor, takeMs: 500 });
+    assert.deepEqual(result, { thrown: 5, taken: true });
+    assert.equal(turns, 2, 'it stopped turning once she was in view');
+    // Nowhere in view after a whole look round: it says so, and throws nothing.
+    const away = fakeBot({ stacks: [['bread', 6]] });
+    delete away.entities[7];
+    let looked = false;
+    const nobody = await handOver(away, 'bread', 'Alice', 2, { walk, lookFor: async () => { looked = true; }, takeMs: 100 });
+    assert.ok(looked);
+    assert.equal(nobody.thrown, 0);
+    assert.match(nobody.problem, /don't know where Alice is/);
+});
