@@ -16,6 +16,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   so the bot then hid from it but later walked back through the spot it shot from.
 - `!bringItem` looks round for the player before handing over. Through a player's screen, the bot came back
   from the chest facing it, with its back to the player, and said it didn't know where they were.
+- A teleport that turns the bot (a `/tp` with a facing) now sticks. A turn the bot was still making carried on
+  from the new facing toward its old target and swung it back round, so it could end up facing away from
+  what it was turned to see.
 
 ## [1.20.0-bedrock.1.21.0] - 2026-11-25
 

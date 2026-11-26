@@ -96,8 +96,14 @@ export function installTurnSpeed(bot, { getSpeed, wait = ms => new Promise(resol
             // Each step is sent at once: it is no bigger than a player turns in a tick.
             await step(next.yaw, next.pitch, true);
             if (next.there || mine !== turn || stopped) return;
+            // Where this step left the facing (a guard on the step may have moved it from the one asked for).
+            const leftYaw = entity.yaw, leftPitch = entity.pitch;
             await wait(TICK_MS);
             if (mine !== turn || stopped || !bot.entity) return;
+            // The facing moved between steps, and no look did it: the server set it, as a teleport does. The
+            // turn was aimed from where the bot was, and carried on from the new facing it would swing the bot
+            // back round toward the old look, away from what it was turned to face. A player's camera stops there.
+            if (entity !== bot.entity || entity.yaw !== leftYaw || entity.pitch !== leftPitch) return;
         }
     }
 
