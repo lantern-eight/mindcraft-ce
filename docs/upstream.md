@@ -9,7 +9,7 @@ How a fix is made and offered is in [CLAUDE.md](../CLAUDE.md), "Fixes to Inherit
 unreleased work, and the release each waits for, are in
 [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch).
 
-*As of `1.19.0-bedrock.1.20.0`.* A line is removed once its fix is merged upstream and this fork is on a release
+*As of `1.21.0-bedrock.1.23.0`.* A line is removed once its fix is merged upstream and this fork is on a release
 that has it. A fix that is declined stays on `main`, and its line says so.
 
 ## Mindcraft-CE
@@ -82,6 +82,7 @@ fork's `bedrock-combined` branch, which the `bedrock` branch pins.
 | [#19](https://github.com/Pix3lPirat3/mineflayer/pull/19) | `recipesFor` counts every ingredient against what the bot holds. Also put right on the bot in `java_shapes.js` |
 | [#20](https://github.com/Pix3lPirat3/mineflayer/pull/20) | `craft` closes the screen it opened. Also put right on the bot in `java_shapes.js` |
 | [#21](https://github.com/Pix3lPirat3/mineflayer/pull/21) | A whole stack clicked into or out of a barrel or a shulker box names their slots as #8 does |
+| [#22](https://github.com/Pix3lPirat3/mineflayer/pull/22) | A blast furnace and a smoker get the furnace window calls, with their own name for the input slot |
 
 ### Found, Not Offered
 
