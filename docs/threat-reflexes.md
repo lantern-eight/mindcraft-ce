@@ -412,8 +412,9 @@ into, and that it forgets after a while:
 The same danger again keeps its zone longer instead of adding a second one, so illagers that stay in view
 keep theirs as long as they do. Only what the bot saw, heard or felt makes a zone: a stand-in where a mob was
 last seen is not a sighting. They are looked for once a second, apart from the reflexes, so turning a reflex
-off with `!setMode` stops the bot reacting, not remembering. Another dimension forgets them all; a respawn
-doesn't.
+off with `!setMode` stops the bot reacting, not remembering. An archer's zone is also noted the moment the mob
+reflex takes cover from it, where it stood when the reflex saw it aim: the walk to cover can take it out of
+view before the next look. Another dimension forgets them all; a respawn doesn't.
 
 **What a zone does to a walk.** Every route the bot plans, by any skill, command or piece of generated code,
 pays for each step that goes deeper into a zone: a zone of illagers costs as much as 64 blocks of walking at

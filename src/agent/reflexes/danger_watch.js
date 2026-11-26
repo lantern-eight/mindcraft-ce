@@ -7,7 +7,8 @@
 // mob was last seen is not a sighting.
 //
 //   illagers     a pillager, vindicator, evoker, illusioner or ravager in view, looked for once a second
-//   archer       a mob in view aiming at the bot within 16 blocks, at the spot it stands
+//   archer       a mob in view aiming at the bot within 16 blocks, at the spot it stands: seen on a look, or
+//                when the mob reflex takes cover from it (its decision says where the mob was)
 //   explosion    an explosion heard, at the spot rebuilt from its direction and band, grown by how far
 //                off that may be (picture.js pointFromSound)
 //   unseen_hits  where the bot stood when the mob reflex decided to get away from hits it couldn't see
@@ -84,11 +85,21 @@ export function createDangerWatch({ zones, everyMs = LOOK_EVERY_MS }) {
         if (position) zones.note('explosion', position, { slack: slackOfBand(sound.distance) });
     }
 
-    /** A reflex's decision, as it reports it: hits from something unseen make a zone where the bot stands. */
+    /**
+     * A reflex's decision, as it reports it. Hits from something unseen make a zone where the bot stands. Cover
+     * taken from a mob aiming makes one where the mob stood: the reflex decides the moment it sees the bow
+     * raised, and walking to cover can take the mob out of view before the next look, so without this the
+     * bot hid from an archer and kept no memory of where it was.
+     */
     function decided(agent, event) {
-        if (event?.event !== 'decided' || event.reason !== 'unseen hits' || !ready(agent.bot)) return;
-        const p = agent.bot.entity.position;
-        zones.note('unseen_hits', { x: p.x, y: p.y, z: p.z });
+        if (event?.event !== 'decided' || !ready(agent.bot)) return;
+        if (event.reason === 'unseen hits') {
+            const p = agent.bot.entity.position;
+            zones.note('unseen_hits', { x: p.x, y: p.y, z: p.z });
+        } else if (event.reason === 'aiming' && event.from?.[0]) {
+            const { x, y, z } = event.from[0];
+            zones.note('archer', { x, y, z });
+        }
     }
 
     /** Starts looking once a second, and listening to the reflexes' decisions, for one agent. */

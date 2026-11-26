@@ -87,7 +87,8 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
         const line = sayLine(decision, describeDirection(self.position, decision.from[0]).text);
         say(agent, line);
         const report = event => bot.emit?.('threat_reflex', { ...event, stance: decision.stance, key: decision.key, reason: decision.reason, mode: MODE_NAME });
-        report({ event: 'decided', at: performance.now() });
+        // Where the mobs were, as seen: the danger watch keeps a zone where an archer stood (danger_watch.js).
+        report({ event: 'decided', at: performance.now(), from: decision.from.map(({ x, y, z }) => ({ x, y, z })) });
 
         // Where the mobs are now, as the bot knows them: in view, or where last seen. The sides hits came
         // from stay put. Fleeing at low health keeps away from newcomers too.

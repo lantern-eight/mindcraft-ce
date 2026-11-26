@@ -328,6 +328,17 @@ and the arena) take it away when they end, the bot first brought back down. What
 built stays; for that, `bedrock_spawn_check.js --clear`, or a fresh world (stop the server, delete or move its
 world folder, start it again).
 
+### When the Server Goes Quiet
+
+Now and then the bot's connection goes silent part way through a run, with no error and no disconnect: the
+bot hears of nothing more, so a block set, a mob summoned or an item given never reaches it, and every scene
+after that fails as if the bot or the server had done nothing. The server drops the bot some time later. The
+fixture keeps the time of each bot's last packet: a line `{"connection":"quiet",...}` in the log says when a
+bot heard nothing for over 5 seconds (the server sends something every fraction of a second, 300 ms apart at
+most in a normal run), a failed step says so in its `connection` field, and each summary gives the longest
+silence each bot met (`longestQuietMs`). A failure with that note is the connection's, not what the step
+tests: run the script again.
+
 ## Where Things Are
 
 | | |

@@ -58,7 +58,8 @@ Details that matter:
   each game tick: looking round, turning to a block it is about to dig, the fight and the reflexes alike. So a
   look behind takes time, and what it passes over on the way is what it sees. While its head comes round it
   walks the way it means to go on the keys (a step back, aside, a diagonal), as a player does, rather than
-  the way it faces; and it looks down before it jumps to build a pillar under itself.
+  the way it faces; and it looks down before it jumps to build a pillar under itself. A turn ends where the
+  server sets its facing, as a teleport does, rather than swinging it back toward what it was turning to.
 - **While it walks, it looks a little down,** 25° below level, at the ground a few steps ahead, as a player
   does. Looking level, the ground closer than about 2.3 blocks is below the screen, and the bot would step
   onto ground it had never seen. Touch covers the cells around its feet either way.
