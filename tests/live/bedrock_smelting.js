@@ -269,6 +269,46 @@ try {
         assert.deepEqual(onShelf, [], 'the shelf is empty');
         return { text: result.text.trim() };
     });
+
+    // A row of three furnaces: the sand is shared between them, a coal each, and all three work at once.
+    await step('24 sand in a row of three furnaces: 8 in each, done in about a third of the time', async () => {
+        await reset('sand 24', 'coal 3');
+        for (const z of [-2, 0, 2]) await set([3, 1, z], 'furnace');
+        await delay(1200);
+        await lookAt([3, 1, -2], [3, 1, 0], [3, 1, 2]);
+        const started = Date.now();
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 24));
+        const took = Date.now() - started;
+        assert.equal(result.status, 'ok', result.text);
+        for (const z of [-2, 0, 2]) {
+            const cell = at(3, 1, z);
+            assert.ok(result.text.includes(`the furnace at ${cell.x}, ${cell.y}, ${cell.z}`), result.text);
+        }
+        assert.match(result.text, /burning 3 coal/, result.text);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 24, JSON.stringify(have));
+        for (const z of [-2, 0, 2]) assert.deepEqual(await read([3, 1, z]), [null, null, null], `the furnace at z ${z} is left empty`);
+        assert.ok(took < 150000, `three furnaces take about 80 s for 24, one takes 240: ${took} ms`);
+        return { text: result.text.trim(), tookMs: took };
+    });
+
+    // Bedrock's library works only a furnace's window, so raw iron goes to the furnace, not the blast furnace.
+    await step('raw iron goes to the furnace, and the blast furnace beside it is left alone', async () => {
+        await reset('raw_iron 4', 'coal 1');
+        await set([3, 1, 0], 'blast_furnace');
+        await set([3, 1, 2], 'furnace');
+        await delay(1200);
+        await lookAt([3, 1, 0], [3, 1, 2]);
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'raw_iron', 4));
+        assert.equal(result.status, 'ok', result.text);
+        const cell = at(3, 1, 2);
+        assert.ok(result.text.includes(`into iron_ingot in the furnace at ${cell.x}, ${cell.y}, ${cell.z}`), result.text);
+        assert.doesNotMatch(result.text, /blast furnace/);
+        await delay(500);
+        assert.equal(counts().iron_ingot, 4);
+        return { text: result.text.trim() };
+    });
 } catch (error) {
     console.error(error);
     process.exitCode = 1;

@@ -242,7 +242,9 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   `lit_furnace`); a furnace in use left alone for a free one; the bot's own furnace placed and picked back
   up; a furnace cleared; a furnace loaded and left, and collected; and lava from a lava cauldron (Bedrock's
   one cauldron block, read through its states), with the empty bucket for it in the bag, in the bot's own
-  chest, or on its shelf. The Bedrock twin of `smelting_scenarios.js`.
+  chest, or on its shelf; sand shared between a row of three furnaces; and raw iron put in a furnace, with the
+  blast furnace beside it left alone (the library fills only a furnace's window). The Bedrock twin of
+  `smelting_scenarios.js`.
 
 For a server on another machine, `BEDROCK_TEST_CONSOLE` starts with `ssh <that machine>`. The scenes
 send hundreds of console lines, and ssh's connection sharing (`-o ControlMaster=auto -o
