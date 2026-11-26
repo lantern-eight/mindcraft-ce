@@ -8,12 +8,18 @@
 // That is what this does, for !bringItem. `!givePlayer` keeps Mindcraft's own.
 //
 // Finding the player goes through `world.getPlayerEntity`, which fair play limits to a player the bot knows
-// is there; the walk goes through `goToPlayer`, which fair legs plan.
+// is there; the walk goes through `goToPlayer`, which fair legs plan. A bot that has just fetched the thing
+// from a chest faces the chest, with its back to whoever asked, so a player out of view is looked round for
+// first (fair play's look round, a look at a time, stopping once they are seen), as a player turns back.
 import * as world from '../library/world.js';
 import { goToPlayer } from '../library/skills.js';
+import { lookAround } from '../fairplay/look_around.js';
 
 /** How close it walks before it throws: near enough that the throw lands at their feet. */
 export const HAND_OVER_DISTANCE = 2;
+/** Turns the bot every way afresh, a look at a time, until `found` says to stop. Nothing to do seeing all around. */
+const lookRoundFor = (bot, found) => lookAround(bot, { since: Date.now(), stop: found });
+
 /** How long the player has to take it. A thrown item can't be picked up for two seconds. */
 const TAKE_MS = 4000;
 
@@ -28,12 +34,16 @@ const countOf = (bot, name) => (bot.inventory?.items?.() ?? []).filter(item => i
  * @param {number} count
  * @param {object} [options]
  * @param {(bot: object, name: string, distance: number) => Promise<*>} [options.walk] - stands in for goToPlayer in tests
+ * @param {(bot: object, found: () => boolean) => Promise<*>} [options.lookFor] - looks round until `found`; stands
+ *     in for fair play's look round in tests
  * @param {() => boolean} [options.stopped] - whether the action was stopped
  * @param {number} [options.takeMs] - how long the player has to take it
  * @returns {Promise<{thrown: number, taken: boolean, problem?: string}>}
  */
-export async function handOver(bot, name, player, count, { walk = goToPlayer, stopped = () => Boolean(bot.interrupt_code), takeMs = TAKE_MS } = {}) {
-    if (!world.getPlayerEntity(bot, player)) return { thrown: 0, taken: false, problem: `you don't know where ${player} is: they need to be near and in view` };
+export async function handOver(bot, name, player, count, { walk = goToPlayer, lookFor = lookRoundFor, stopped = () => Boolean(bot.interrupt_code), takeMs = TAKE_MS } = {}) {
+    const known = () => Boolean(world.getPlayerEntity(bot, player));
+    if (!known()) await lookFor(bot, () => stopped() || known());
+    if (!known()) return { thrown: 0, taken: false, problem: `you don't know where ${player} is: they need to be near and in view` };
     await walk(bot, player, HAND_OVER_DISTANCE);
     const target = world.getPlayerEntity(bot, player);
     if (!target) return { thrown: 0, taken: false, problem: `${player} went out of sight` };
