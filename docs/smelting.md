@@ -35,7 +35,9 @@ stock Mindcraft does, and with fair play on only the ones the bot has seen or re
    buckets only when nothing else covers it. Short of fuel, it smelts what the fuel covers and says so.
    **Lava from a lava farm comes first** (see below).
 3. **The furnace.** One it knows of within 16 blocks; else its own, if it carries one, placed beside it on
-   ground it can see; else one it knows of within 64 blocks.
+   ground it can see; else one it knows of within 64 blocks. A blast furnace (for ores and raw metal) or a
+   smoker (for food) comes before a furnace, near and among those it carries: they smelt twice as fast (see
+   [Blast Furnaces and Smokers](#blast-furnaces-and-smokers)).
 4. **Only a free one.** A furnace with anything in its input or output is someone else's work: the bot shuts
    it and tries another, and says which it left alone. Fuel alone in a furnace is used, as a player at a
    shared base would; at the end the bot takes back only as much fuel as it put in. A furnace that holds
@@ -88,6 +90,44 @@ The cauldron is found like any block (under fair play, one the bot has seen or r
 the edition seam: Java has a block for each liquid (`lava_cauldron`), Bedrock one `cauldron` block with the
 liquid and how full it is as states.
 
+## Blast Furnaces and Smokers
+
+A blast furnace smelts ores and raw metal, and a smoker food, in half the time a furnace takes: 5 seconds an
+item. Each burns its fuel twice as fast too, so a piece of coal smelts eight items in any of them, and the
+fuel plan is the same. Neither smelts anything else: sand, cobblestone and logs go to a furnace.
+
+So for raw iron the bot takes a free blast furnace within 16 blocks over a furnace, even a nearer one, and
+when it has to place its own it places a blast furnace it carries before a furnace. Its waits, the time it
+says a load will be done, and the reminder that it should be, all go by the block it used, and the result
+names it: "I smelted 16 raw_iron into iron_ingot in the blast furnace at 6, 64, 0."
+
+Which blocks the bot can use depends on the edition, and is asked of the edition seam
+(`usableFurnaceKinds`). On Java all three open the same window. On Bedrock a blast furnace and a smoker open
+windows of their own kind, which the pinned library doesn't put into yet, so a Bedrock bot keeps to
+furnaces and leaves the other two alone.
+
+## Several Furnaces at Once
+
+Sixty glass take ten minutes in one furnace, and about three and a half in three. A player with a row of
+furnaces splits the sand between them; so does the bot.
+
+- **Which.** The furnace it chose first, and the free ones it knows of within 8 blocks of it that smelt the
+  item, faster kinds first, up to four in all. Then furnace blocks it carries, placed beside it, but only
+  when it has a pickaxe to pick them back up after. It never crafts a furnace for this.
+- **Shares.** In proportion to speed, so all are done at about the same time: a blast furnace gets twice a
+  furnace's share of raw iron. A furnace is added only for at least 8 items (what one coal smelts), and only
+  when the fuel the bot carries covers every share in a furnace of its own. Fuel comes in pieces: sixty
+  glass take 8 coal in one furnace and 9 in three, so with 8 coal it uses two.
+- **Tending.** It loads each with its share and the fuel for it, shuts it, and goes back to each when its
+  load should be done or its fuel is nearly spent, as for one. A furnace in use is left alone, and its share
+  goes to the others. Each has its own job, so a stopped smelt leaves all of them working, and the next
+  `!smeltItem` of that item goes on with every furnace of the row that holds some of it.
+- **Loading.** `!loadFurnace` shares a big load the same way, a job for each, and `!collectFurnace` goes
+  round them all.
+
+The result names every furnace used: "I smelted 60 sand into glass in the furnace at 2, 64, 0, the furnace
+at 4, 64, 0 and the furnace at 6, 64, 0, burning 9 coal."
+
 ## Load and Leave
 
 Sixty glass take ten minutes. A player loads the furnace and goes off to do something else; so can the bot.
@@ -133,8 +173,8 @@ furnace itself: anything in its input or output.
 - **The time is worked out, not watched.** A furnace left working is known to be done from the time the
   bot worked out when it loaded it, as a player knows. Someone may have emptied it since; the bot finds out
   when it opens it.
-- **One furnace at a time.** Sixty glass take ten minutes in one furnace; several at once are planned, and so
-  are smokers and blast furnaces (twice as fast for food and ores).
+- **Only furnaces near each other share a smelt** (within 8 blocks of the first), and at most four.
+- **No blast furnace or smoker on Bedrock** yet: the pinned library works only a furnace's window.
 - **A furnace's leftover burn is not counted.** Coal half burned when the last item is done is lost, as it is
   for a player, and the bot may put in one piece of fuel more than a furnace still burning needs; it takes
   that back at the end.
@@ -148,6 +188,7 @@ All of it lives in `src/agent/smelting/`:
 | `recipes.js` | What a furnace makes of what, by exact name. Pure |
 | `fuel.js` | What burns and how far, the fuel plan in stages, and what to add to the slot now. Pure |
 | `furnace_hands.js` | Opening a furnace with a deadline, reading its slots, putting and taking with a deadline each, closing it. The only file that touches a window |
+| `shares.js` | How a big smelt is shared between furnaces: by speed, only where each share is worth a furnace and the fuel covers it. Pure |
 | `lava.js` | Lava from a lava farm: the nearest full lava cauldron, an empty bucket for it (from the bag, a furnace's fuel slot, or the chests through `library/fetch_way.js`), filling it |
 | `jobs.js` | What the bot has left smelting where, per world: one job per furnace, and whether a furnace holds only the bot's own. Pure, with its file |
 | `smelt.js` | `smeltItem`, `clearFurnace`, `loadFurnace`, `collectFurnace` and what is smelting where, on those |
