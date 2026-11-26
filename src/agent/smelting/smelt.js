@@ -12,7 +12,7 @@
 // kept in jobs.js, so a smelt that is stopped can be gone on with, and its own furnace isn't taken for
 // someone else's.
 import { Vec3 } from 'vec3';
-import { cleanName, inputsFor, productOf } from './recipes.js';
+import { SPEED, cleanName, inputsFor, kindName, kindsFor, productOf } from './recipes.js';
 import { LAVA, SMELT_MS, fuelPer, itemsFrom, nextFuel, planFuel } from './fuel.js';
 import { furnaceHands } from './furnace_hands.js';
 import { holdsOnly, leftToLoad, stillInFurnace } from './jobs.js';
@@ -71,8 +71,27 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
     const countOf = (bot, name) => world.getInventoryCounts(bot)[name] ?? 0;
     const lava = lavaSource({ world, skills, blockAt, editionOf, knownBuckets, fetchItem, sleep,
         openFurnace: (bot, block) => reach(bot, block, furnaceHands(bot, { wait: sleep, ...handOptions })) });
-    /** Lava burns this long once it catches, smelting or not: when lava the bot put in at `at` burns out. */
-    const lavaBurnsUntil = at => at + fuelPer(LAVA) * smeltMs;
+    /** How long one item takes in a furnace block of this kind: half as long in a blast furnace or smoker. */
+    const msFor = kind => smeltMs / (SPEED[kind] ?? 1);
+    /**
+     * Lava burns this long once it catches, smelting or not: when lava the bot put in at `at` burns out. It
+     * smelts a hundred items whatever the block, so burns half as long in a faster one.
+     */
+    const lavaBurnsUntil = (at, ms = smeltMs) => at + fuelPer(LAVA) * ms;
+    /**
+     * The furnace blocks to smelt an item in, fastest first: a blast furnace for ores and a smoker for food,
+     * where the edition lets the bot use them, and always a furnace.
+     */
+    const usableKinds = (bot, input) => {
+        const usable = editionOf(bot.registry).usableFurnaceKinds?.() ?? ['furnace'];
+        return kindsFor(input).filter(kind => usable.includes(kind));
+    };
+    /** Furnace blocks as found, the faster kinds first and then the nearest (the list comes nearest first). */
+    const fastestFirst = (bot, blocks) => {
+        const edition = editionOf(bot.registry);
+        const speed = block => SPEED[edition.furnaceOf(block)?.kind] ?? 1;
+        return blocks.map((block, i) => ({ block, i })).sort((a, b) => speed(b.block) - speed(a.block) || a.i - b.i).map(({ block }) => block);
+    };
 
     /** Walks within reach of a furnace, faces it and opens it. `{furnace}` or `{problem}`. */
     async function reach(bot, block, hands) {
@@ -98,10 +117,10 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
     }
 
     /**
-     * Places the furnace the bot carries next to it: on a cell it knows is empty, with a full block under
-     * it, not where the bot itself stands. Gives where, or null.
+     * Places a furnace block the bot carries (`kind`: a furnace, blast furnace or smoker) next to it: on a cell
+     * it knows is empty, with a full block under it, not where the bot itself stands. Gives where, or null.
      */
-    async function placeFurnace(bot) {
+    async function placeFurnace(bot, kind = 'furnace') {
         const feet = bot.entity.position.floored();
         const edition = editionOf(bot.registry);
         const cells = (world.getNearestBlocksWhere(bot, block => block?.name === 'air' || block?.name === 'cave_air', PLACE_RANGE, 64) ?? [])
@@ -112,30 +131,35 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         for (const cell of cells.slice(0, 3)) {
             if (bot.interrupt_code) return null;
             let placed = false;
-            try { placed = await skills.placeBlock(bot, 'furnace', cell.x, cell.y, cell.z); }
-            catch (error) { console.warn('[smelting] Placing a furnace:', error?.message ?? error); }
-            if (placed && edition.furnaceOf(blockAt(bot, cell))) return cell;
+            try { placed = await skills.placeBlock(bot, kind, cell.x, cell.y, cell.z); }
+            catch (error) { console.warn(`[smelting] Placing a ${kindName(kind)}:`, error?.message ?? error); }
+            if (placed && edition.furnaceOf(blockAt(bot, cell))?.kind === kind) return cell;
         }
         return null;
     }
 
     /**
      * A furnace to smelt `input` in, opened: first one where the bot left some of it smelting (its own job),
-     * then one it knows of nearby that is free, else its own, placed, else one farther off. A furnace with
-     * anything in its input or output is someone else's work and is left alone, unless what is in it is
-     * only what the bot put there itself. Gives `{furnace, at, placed, mine}` or `{problem}`; `mine` is
-     * true when the furnace already holds the bot's own job for this item.
+     * then one it knows of nearby that is free, else its own, placed, else one farther off. Among those near,
+     * and among those it carries, a blast furnace (for ores) or a smoker (for food) comes before a furnace:
+     * they smelt twice as fast. A furnace with anything in its input or output is someone else's work and is
+     * left alone, unless what is in it is only what the bot put there itself. Gives `{furnace, at, kind,
+     * placed, mine}` or `{problem}`; `mine` is true when the furnace already holds the bot's own job for
+     * this item.
      */
     async function freeFurnace(bot, hands, input) {
         const book = jobs(bot);
+        const kinds = usableKinds(bot, input);
+        const kindAt = block => editionOf(bot.registry).furnaceOf(block)?.kind ?? 'furnace';
         const tried = new Set();
         const notes = [];
         const key = pos => `${pos.x},${pos.y},${pos.z}`;
         const attempt = async block => {
             tried.add(key(block.position));
+            const kind = kindAt(block);
             const opened = await reach(bot, block, hands);
             if (!opened.furnace) {
-                notes.push(`I couldn't use the furnace at ${where(block.position)}: ${opened.problem}.`);
+                notes.push(`I couldn't use the ${kindName(kind)} at ${where(block.position)}: ${opened.problem}.`);
                 return null;
             }
             const slots = opened.furnace.slots();
@@ -144,8 +168,8 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
             if (slots.input || slots.output) {
                 if (!mine || job.input !== input) {
                     const inside = [slots.input, slots.output].filter(Boolean).map(stack => plural(stack.count, stack.name));
-                    notes.push(mine ? `The furnace at ${where(block.position)} is smelting my ${job.input}, so I left it to that.`
-                        : `The furnace at ${where(block.position)} is in use (${listOf(inside)} in it), so I left it alone.`);
+                    notes.push(mine ? `The ${kindName(kind)} at ${where(block.position)} is smelting my ${job.input}, so I left it to that.`
+                        : `The ${kindName(kind)} at ${where(block.position)} is in use (${listOf(inside)} in it), so I left it alone.`);
                     await opened.furnace.close();
                     return null;
                 }
@@ -153,7 +177,7 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
                 // An old job of the bot's, and the furnace empty: someone took it all, or it was cleared.
                 book.end(block.position);
             }
-            return { furnace: opened.furnace, at: block.position.clone?.() ?? block.position, mine: mine && job.input === input };
+            return { furnace: opened.furnace, at: block.position.clone?.() ?? block.position, kind, mine: mine && job.input === input };
         };
         // A smelt of this item left in a furnace is gone on with first: the bot's things are in it.
         for (const job of book?.list({ from: bot.entity.position, input, maxDistance: FAR_RANGE }) ?? []) {
@@ -164,21 +188,23 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
             if (got) return { ...got, placed: false, notes };
         }
         // A player looks round before deciding there is no furnace near, or before walking to a far one.
-        await lookAround(bot, knownFurnaces(bot, NEAR_RANGE)[0]?.position ?? null);
-        for (const block of knownFurnaces(bot, NEAR_RANGE).filter(block => !tried.has(key(block.position)))) {
+        await lookAround(bot, knownFurnaces(bot, NEAR_RANGE, kinds)[0]?.position ?? null);
+        for (const block of fastestFirst(bot, knownFurnaces(bot, NEAR_RANGE, kinds)).filter(block => !tried.has(key(block.position)))) {
             if (bot.interrupt_code) return { problem: 'I was interrupted.' };
             const got = await attempt(block);
             if (got) return { ...got, placed: false, notes };
         }
-        if (countOf(bot, 'furnace') > 0 && !bot.interrupt_code) {
-            const spot = await placeFurnace(bot);
-            if (!spot) notes.push('I found no spot I could see to place my furnace.');
+        // Its own, the fastest kind it carries.
+        const carried = kinds.find(kind => countOf(bot, kind) > 0);
+        if (carried && !bot.interrupt_code) {
+            const spot = await placeFurnace(bot, carried);
+            if (!spot) notes.push(`I found no spot I could see to place my ${kindName(carried)}.`);
             else {
                 const got = await attempt(blockAt(bot, spot));
                 if (got) return { ...got, placed: true, notes };
             }
         }
-        for (const block of knownFurnaces(bot, FAR_RANGE).filter(block => !tried.has(key(block.position)))) {
+        for (const block of fastestFirst(bot, knownFurnaces(bot, FAR_RANGE, kinds)).filter(block => !tried.has(key(block.position)))) {
             if (bot.interrupt_code) return { problem: 'I was interrupted.' };
             const got = await attempt(block);
             if (got) return { ...got, placed: false, notes };
@@ -221,10 +247,11 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
      *
      * Gives what it did: `{meddled}` when something of someone else's is in it now (nothing is touched
      * then), else `took` (output taken), `inputAtLook` (input there before), `movedIn`, `fuelMoved` (by
-     * name), `inFurnace` (input now), `covered` (how many items the fuel will smelt), `buckets` (empty
+     * name), `inFurnace` (input now), `covered` (how many items the fuel will smelt; `ms` is how long one
+     * item takes in this furnace, for the lava still burning), `buckets` (empty
      * buckets taken out) and `lavaAt` (when lava went in, or null).
      */
-    async function tend(furnace, { input, product, more, bag, lavaFirst = false, lavaUntil = 0 }) {
+    async function tend(furnace, { input, product, more, bag, lavaFirst = false, lavaUntil = 0, ms = smeltMs }) {
         const slots = furnace.slots();
         if ((slots.input && slots.input.name !== input) || (slots.output && slots.output.name !== product)) return { meddled: true };
         const took = slots.output ? (await furnace.take('output'))?.count ?? 0 : 0;
@@ -233,7 +260,7 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         const toLoad = Math.max(0, Math.min(STACK - inputAtLook, more, bag[input] ?? 0));
         const fuel = furnace.slots().fuel;
         const fuelMoved = {};
-        const burning = Math.floor(Math.max(0, lavaUntil - now()) / smeltMs);
+        const burning = Math.floor(Math.max(0, lavaUntil - now()) / ms);
         let covered = (fuel ? itemsFrom(fuelPer(fuel.name), fuel.count) : 0) + burning;
         let lavaAt = null;
         if (inputAtLook + toLoad > covered) {
@@ -258,7 +285,7 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
     const keptFuel = moved => Object.fromEntries(Object.entries(moved).filter(([name]) => name !== LAVA));
 
     /** When a furnace holding `inFurnace` items, with fuel for `covered` of them, will be done or out. */
-    const readyAfter = (inFurnace, covered) => now() + Math.min(inFurnace, covered) * smeltMs;
+    const readyAfter = (inFurnace, covered, ms = smeltMs) => now() + Math.min(inFurnace, covered) * ms;
 
     /**
      * The start of a smelt, and of a load: what the item makes, how many to smelt (counting any of its own
@@ -321,23 +348,25 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         const site = await freeFurnace(bot, hands, input);
         if (!site.furnace) { say([...notes, site.problem].join(' ')); return null; }
         notes.push(...site.notes);
-        if (site.placed) notes.push(`I placed my furnace at ${where(site.at)}.`);
+        const kind = site.kind;
+        const ms = msFor(kind);
+        if (site.placed) notes.push(`I placed my ${kindName(kind)} at ${where(site.at)}.`);
         const at = site.at;
         // What of its own is in this furnace already, counted from the slots, not from belief.
         const first = site.furnace.slots();
         const preloaded = site.mine ? (first.input?.count ?? 0) + (first.output?.count ?? 0) : 0;
-        if (preloaded > 0) notes.push(`I went on with the ${input} I had left in the furnace at ${where(at)}.`);
+        if (preloaded > 0) notes.push(`I went on with the ${input} I had left in the ${kindName(kind)} at ${where(at)}.`);
         // What it believed was left in a furnace isn't here after all: only what it carries, and what is here.
         if (preloaded < inside) target = Math.min(target, have + preloaded);
         const jobBefore = book?.at(at) ?? null;
         const placed = site.placed || (site.mine && (jobBefore?.placed ?? false));
-        book?.start(at, { input, product, total: target, placed });
+        book?.start(at, { kind, input, product, total: target, placed });
         // The fuel of its own in this furnace: what an earlier smelt put in (if this is its job). Only as
         // much as is its own is ever taken back.
         const fuelBefore = site.mine ? { ...(jobBefore?.fuelPut ?? {}) } : {};
         const lavaUntil = site.mine ? (jobBefore?.lavaUntil ?? 0) : 0;
-        return { say, input, product, wanted, notes, book, inventory, target, hands, furnace: site.furnace, at, preloaded, placed, fuelBefore,
-            lavaFirst, lavaUntil };
+        return { say, input, product, wanted, notes, book, inventory, target, hands, furnace: site.furnace, at, kind, ms, preloaded, placed,
+            fuelBefore, lavaFirst, lavaUntil };
     }
 
     /**
@@ -347,13 +376,14 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
     async function smeltItem(bot, itemName, num = 1) {
         const start = await begin(bot, itemName, num);
         if (!start) return false;
-        const { say, input, product, wanted, notes, book, inventory, hands, at, preloaded, placed } = start;
+        const { say, input, product, wanted, notes, book, inventory, hands, at, kind, ms, preloaded, placed } = start;
+        const name = kindName(kind);
         let { target } = start;
         // Standing still beside a furnace for minutes isn't being stuck.
         bot.modes?.pause?.('unstuck');
 
         const baseline = countOf(bot, product);
-        const deadline = now() + target * limitPerItemMs + limitExtraMs;
+        const deadline = now() + target * limitPerItemMs * (ms / smeltMs) + limitExtraMs;
         // The fuel of its own in this furnace, before and now, and what went in this time.
         const fuelPut = { ...start.fuelBefore };
         const fuelNow = {};
@@ -362,14 +392,14 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         let reason = null, problem = null;
         try {
             for (let look = 0; ; look++) {
-                const visit = await tend(furnace, { input, product, more: target - preloaded - loaded, bag, lavaFirst: start.lavaFirst, lavaUntil });
+                const visit = await tend(furnace, { input, product, more: target - preloaded - loaded, bag, lavaFirst: start.lavaFirst, lavaUntil, ms });
                 if (visit.meddled) { reason = 'meddled'; break; }
                 const { took, inputAtLook, movedIn, fuelMoved, inFurnace, covered } = visit;
                 loaded += movedIn;
                 for (const [name, count] of Object.entries(keptFuel(fuelMoved))) fuelPut[name] = (fuelPut[name] ?? 0) + count;
                 for (const [name, count] of Object.entries(fuelMoved)) fuelNow[name] = (fuelNow[name] ?? 0) + count;
-                if (visit.lavaAt !== null) lavaUntil = lavaBurnsUntil(visit.lavaAt);
-                book?.note(at, { loaded: movedIn, collected: took, fuelPut: keptFuel(fuelMoved), readyAt: readyAfter(inFurnace, covered), lavaUntil });
+                if (visit.lavaAt !== null) lavaUntil = lavaBurnsUntil(visit.lavaAt, ms);
+                book?.note(at, { loaded: movedIn, collected: took, fuelPut: keptFuel(fuelMoved), readyAt: readyAfter(inFurnace, covered, ms), lavaUntil });
                 saveJobs(bot);
                 const progressed = took > 0 || inputAtLook < lastInput;
                 stalls = look > 0 && !progressed ? stalls + 1 : 0;
@@ -386,8 +416,8 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
                 furnace = null;
                 smelted = countOf(bot, product) - baseline;
                 const items = Math.min(inFurnace, covered);
-                let waitMs = covered >= inFurnace ? items * smeltMs + slackMs
-                    : covered > 0 ? Math.max(3000, items * smeltMs - 4000) : smeltMs;
+                let waitMs = covered >= inFurnace ? items * ms + slackMs
+                    : covered > 0 ? Math.max(3000, items * ms - 4000) : ms;
                 waitMs = Math.max(1000, Math.min(waitMs, deadline - now() + slackMs));
                 if (await waitAt(bot, at, waitMs) === 'interrupted') { reason = 'interrupted'; break; }
 
@@ -424,18 +454,18 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
             const burned = Object.entries(fuelNow).map(([name, put]) => [name, put - Math.min(put, returned[name] ?? 0)])
                 .filter(([, count]) => count > 0).map(([name, count]) => plural(count, name));
             const did = smelted > 0
-                ? `I smelted ${plural(smelted, input)} into ${product} in the furnace at ${where(at)}${burned.length ? `, burning ${listOf(burned)}` : ''}.`
-                : `I smelted nothing in the furnace at ${where(at)}.`;
+                ? `I smelted ${plural(smelted, input)} into ${product} in the ${name} at ${where(at)}${burned.length ? `, burning ${listOf(burned)}` : ''}.`
+                : `I smelted nothing in the ${name} at ${where(at)}.`;
             const why = {
                 done: null,
                 short: `I had no more ${input} to put in.`,
-                meddled: 'Someone else put something in the furnace, so I stopped and left their things in it.',
-                stalled: 'The furnace stopped making anything, so I took my things back out.',
+                meddled: `Someone else put something in the ${name}, so I stopped and left their things in it.`,
+                stalled: `The ${name} stopped making anything, so I took my things back out.`,
                 timeout: 'It took far longer than it should, so I took my things back out.',
                 no_fuel: 'I ran out of fuel, so I took the rest back out.',
-                gone: `The furnace at ${where(at)} is gone.`,
-                lost: `I couldn't get back into the furnace: ${problem}. My ${input} is still in it; !smeltItem goes on with it.`,
-                interrupted: `I was interrupted. The furnace at ${where(at)} still has ${input} of mine in it and goes on smelting; ` +
+                gone: `The ${name} at ${where(at)} is gone.`,
+                lost: `I couldn't get back into the ${name}: ${problem}. My ${input} is still in it; !smeltItem goes on with it.`,
+                interrupted: `I was interrupted. The ${name} at ${where(at)} still has ${input} of mine in it and goes on smelting; ` +
                     '!smeltItem goes on with it.',
             }[reason];
 
@@ -450,8 +480,8 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
                         if (back) await skills.pickupNearbyItems(bot);
                     } catch (error) { console.warn('[smelting] Picking the furnace back up:', error?.message ?? error); }
                 }
-                notes.push(back ? 'I picked my furnace back up.'
-                    : pickaxe ? `I left my furnace at ${where(at)}.` : `I left my furnace at ${where(at)}: it takes a pickaxe to pick it back up.`);
+                notes.push(back ? `I picked my ${name} back up.`
+                    : pickaxe ? `I left my ${name} at ${where(at)}.` : `I left my ${name} at ${where(at)}: it takes a pickaxe to pick it back up.`);
             }
             say([did, why, ...notes].filter(Boolean).join(' '));
             return smelted >= wanted;
@@ -469,34 +499,35 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
     async function loadFurnace(bot, itemName, num = 1) {
         const start = await begin(bot, itemName, num, { atOnce: STACK });
         if (!start) return false;
-        const { say, input, product, notes, book, inventory, at, preloaded } = start;
+        const { say, input, product, notes, book, inventory, at, ms, preloaded } = start;
+        const name = kindName(start.kind);
         let furnace = start.furnace;
         try {
             const visit = await tend(furnace, { input, product, more: start.target - preloaded, bag: { ...inventory },
-                lavaFirst: start.lavaFirst, lavaUntil: start.lavaUntil });
+                lavaFirst: start.lavaFirst, lavaUntil: start.lavaUntil, ms });
             await furnace.close();
             furnace = null;
             if (visit.meddled) {
                 book?.end(at);
                 saveJobs(bot);
-                say([...notes, `Someone else's things went into the furnace at ${where(at)}, so I left it.`].join(' '));
+                say([...notes, `Someone else's things went into the ${name} at ${where(at)}, so I left it.`].join(' '));
                 return false;
             }
             const { took, movedIn, fuelMoved, inFurnace, covered } = visit;
             const unfueled = Math.max(0, inFurnace - covered);
-            book?.note(at, { loaded: movedIn, collected: took, fuelPut: keptFuel(fuelMoved), readyAt: readyAfter(inFurnace, covered), unfueled,
-                ...(visit.lavaAt !== null ? { lavaUntil: lavaBurnsUntil(visit.lavaAt) } : {}) });
+            book?.note(at, { loaded: movedIn, collected: took, fuelPut: keptFuel(fuelMoved), readyAt: readyAfter(inFurnace, covered, ms), unfueled,
+                ...(visit.lavaAt !== null ? { lavaUntil: lavaBurnsUntil(visit.lavaAt, ms) } : {}) });
             if (inFurnace === 0) book?.end(at);
             saveJobs(bot);
-            if (inFurnace === 0) { say([...notes, `I put nothing in the furnace at ${where(at)}.`].join(' ')); return false; }
+            if (inFurnace === 0) { say([...notes, `I put nothing in the ${name} at ${where(at)}.`].join(' ')); return false; }
             const fuel = Object.entries(fuelMoved).map(([name, count]) => plural(count, name));
             const later = leftToLoad(book?.at(at));
             say([
                 ...notes,
-                movedIn > 0 ? `I put ${plural(movedIn, input)}${fuel.length ? ` and ${listOf(fuel)}` : ''} in the furnace at ${where(at)}.` : null,
+                movedIn > 0 ? `I put ${plural(movedIn, input)}${fuel.length ? ` and ${listOf(fuel)}` : ''} in the ${name} at ${where(at)}.` : null,
                 took > 0 ? `I took out ${plural(took, product)} that was done.` : null,
-                unfueled === 0 ? `The ${inFurnace} ${input} in it will be ${product} in ${about(inFurnace * smeltMs)}.`
-                    : `Its fuel smelts ${covered} of the ${inFurnace} ${input} in it, in ${about(covered * smeltMs)}; the rest need more fuel.`,
+                unfueled === 0 ? `The ${inFurnace} ${input} in it will be ${product} in ${about(inFurnace * ms)}.`
+                    : `Its fuel smelts ${covered} of the ${inFurnace} ${input} in it, in ${about(covered * ms)}; the rest need more fuel.`,
                 later > 0 ? `${later} more ${input} go in when there is room.` : null,
                 '!collectFurnace takes out what is done.',
             ].filter(Boolean).join(' '));
@@ -524,33 +555,35 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         for (const job of list) {
             if (bot.interrupt_code) break;
             const at = new Vec3(job.x, job.y, job.z);
+            const name = kindName(job.kind);
+            const ms = msFor(job.kind);
             const block = blockAt(bot, at);
             if (!editionOf(bot.registry).furnaceOf(block)) {
                 book.end(at);
-                lines.push(`The furnace at ${where(at)} is gone, and the ${job.input} I had in it.`);
+                lines.push(`The ${name} at ${where(at)} is gone, and the ${job.input} I had in it.`);
                 continue;
             }
             const opened = await reach(bot, block, hands);
-            if (!opened.furnace) { lines.push(`I couldn't get into the furnace at ${where(at)}: ${opened.problem}.`); continue; }
+            if (!opened.furnace) { lines.push(`I couldn't get into the ${name} at ${where(at)}: ${opened.problem}.`); continue; }
             let furnace = opened.furnace;
             let over = false;
             try {
                 if (!holdsOnly(job, furnace.slots())) {
                     book.end(at);
-                    lines.push(`The furnace at ${where(at)} has someone else's things in it now, so I left it.`);
+                    lines.push(`The ${name} at ${where(at)} has someone else's things in it now, so I left it.`);
                     continue;
                 }
                 const visit = await tend(furnace, { input: job.input, product: job.product, more: leftToLoad(job), bag: world.getInventoryCounts(bot),
-                    lavaFirst: Boolean(lava.farmNear(bot)), lavaUntil: job.lavaUntil ?? 0 });
+                    lavaFirst: Boolean(lava.farmNear(bot)), lavaUntil: job.lavaUntil ?? 0, ms });
                 const { took, movedIn, fuelMoved, inFurnace, covered } = visit;
                 const unfueled = Math.max(0, inFurnace - covered);
-                const after = book.note(at, { loaded: movedIn, collected: took, fuelPut: keptFuel(fuelMoved), readyAt: readyAfter(inFurnace, covered), unfueled,
-                    ...(visit.lavaAt !== null ? { lavaUntil: lavaBurnsUntil(visit.lavaAt) } : {}) });
+                const after = book.note(at, { loaded: movedIn, collected: took, fuelPut: keptFuel(fuelMoved), readyAt: readyAfter(inFurnace, covered, ms), unfueled,
+                    ...(visit.lavaAt !== null ? { lavaUntil: lavaBurnsUntil(visit.lavaAt, ms) } : {}) });
                 if (took > 0) tookAny = true;
-                const parts = [took > 0 ? `From the furnace at ${where(at)} I took ${plural(took, job.product)}.` : `Nothing in the furnace at ${where(at)} was done yet.`];
+                const parts = [took > 0 ? `From the ${name} at ${where(at)} I took ${plural(took, job.product)}.` : `Nothing in the ${name} at ${where(at)} was done yet.`];
                 if (movedIn > 0) parts.push(`I put in ${plural(movedIn, job.input)} more.`);
                 if (inFurnace > 0) {
-                    parts.push(unfueled === 0 ? `${inFurnace} ${job.input} still smelting, done in ${about(inFurnace * smeltMs)}.`
+                    parts.push(unfueled === 0 ? `${inFurnace} ${job.input} still smelting, done in ${about(inFurnace * ms)}.`
                         : `${inFurnace} ${job.input} still in it; its fuel smelts ${covered} of them, and the rest need more fuel.`);
                 } else {
                     // Nothing of the job left in it: take back what is left of the fuel the bot put in.
@@ -578,7 +611,7 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
                             if (back) await skills.pickupNearbyItems(bot);
                         } catch (error) { console.warn('[smelting] Picking the furnace back up:', error?.message ?? error); }
                     }
-                    if (back) lines.push('I picked my furnace back up.');
+                    if (back) lines.push(`I picked my ${name} back up.`);
                 }
             }
             saveJobs(bot);
@@ -602,7 +635,7 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
                 ? (job.unfueled > 0 ? `; it should have run out of fuel by now, with ${job.unfueled} still to smelt` : '; it should be done by now')
                 : `; done in ${about(left)}${job.unfueled > 0 ? `, but it needs more fuel for ${job.unfueled}` : ''}`;
             const more = leftToLoad(job) > 0 ? `, ${leftToLoad(job)} more to put in` : '';
-            return `- furnace at ${where(job)}: ${inside} ${job.input} into ${job.product}${more}${job.collected ? `, ${job.collected} taken out so far` : ''}${when}`;
+            return `- ${kindName(job.kind)} at ${where(job)}: ${inside} ${job.input} into ${job.product}${more}${job.collected ? `, ${job.collected} taken out so far` : ''}${when}`;
         });
         return `What I left smelting (as of when I last looked in each):\n${lines.join('\n')}\n!collectFurnace takes out what is done.`;
     }
@@ -618,8 +651,8 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
         for (const job of ready) book.toldReady(job);
         if (ready.length) saveJobs(bot);
         return ready.map(job => (job.unfueled > 0
-            ? `The furnace at ${where(job)} has smelted what its fuel covered; ${job.unfueled} ${job.input} wait for more fuel (!collectFurnace).`
-            : `The ${job.product} in the furnace at ${where(job)} should be done (!collectFurnace).`));
+            ? `The ${kindName(job.kind)} at ${where(job)} has smelted what its fuel covered; ${job.unfueled} ${job.input} wait for more fuel (!collectFurnace).`
+            : `The ${job.product} in the ${kindName(job.kind)} at ${where(job)} should be done (!collectFurnace).`));
     }
 
     /**
@@ -628,13 +661,15 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
      */
     async function clearFurnace(bot) {
         const say = text => skills.log(bot, text);
-        const kinds = ['furnace', 'blast_furnace', 'smoker'];
+        // Any furnace block the bot can work on this edition.
+        const kinds = editionOf(bot.registry).usableFurnaceKinds?.() ?? ['furnace'];
         await lookAround(bot, knownFurnaces(bot, CLEAR_RANGE, kinds)[0]?.position ?? null);
         const block = knownFurnaces(bot, CLEAR_RANGE, kinds)[0];
         if (!block) { say('There is no furnace nearby to clear.'); return false; }
         const hands = furnaceHands(bot, { wait: sleep, ...handOptions });
+        const name = kindName(editionOf(bot.registry).furnaceOf(block)?.kind);
         const opened = await reach(bot, block, hands);
-        if (!opened.furnace) { say(`I couldn't open the furnace at ${where(block.position)}: ${opened.problem}.`); return false; }
+        if (!opened.furnace) { say(`I couldn't open the ${name} at ${where(block.position)}: ${opened.problem}.`); return false; }
         const took = [];
         try {
             // The input first: with it gone the furnace stops burning the fuel.
@@ -646,8 +681,8 @@ export function smeltingSkills({ world, skills, blockAt, editionOf, lookAround =
             // Whatever the bot had smelting in it has come out with the rest.
             if (left.length === 0 && jobs(bot)?.at(block.position)) { jobs(bot).end(block.position); saveJobs(bot); }
             say(took.length === 0 && left.length === 0
-                ? `The furnace at ${where(block.position)} was already empty.`
-                : `I cleared the furnace at ${where(block.position)}${took.length ? `, taking ${listOf(took)}` : ''}.` +
+                ? `The ${name} at ${where(block.position)} was already empty.`
+                : `I cleared the ${name} at ${where(block.position)}${took.length ? `, taking ${listOf(took)}` : ''}.` +
                     (left.length ? ` My inventory was too full to take ${listOf(left.map(s => plural(s.count, s.name)))}.` : ''));
             return left.length === 0;
         } finally {

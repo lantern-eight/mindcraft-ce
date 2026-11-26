@@ -207,7 +207,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`, `src/agent/library/bag_room.js`,
   `src/agent/library/fetch_way.js`,
   `src/agent/action_hold.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/edition.test.js`,
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skills_chest_kinds.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/bag_room.test.js`, `tests/goto_path_search.test.js`,
@@ -224,10 +224,10 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
-  `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`
+  `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`, `tests/helpers/fake_furnace.js`
 - `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/stow_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/neighbor_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/bedrock_*.js`,
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/neighbor_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/smelting_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`
