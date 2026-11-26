@@ -9,6 +9,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.21.0-bedrock.1.22.0] - 2026-11-26
+
 ### Added
 
 - Blast furnaces and smokers, on Java Edition. Ores and raw metal go to a free blast furnace and food to a
@@ -1324,7 +1326,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.22.0...HEAD
+[1.21.0-bedrock.1.22.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...v1.21.0-bedrock.1.22.0
 [1.20.1-bedrock.1.21.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...v1.20.1-bedrock.1.21.1
 [1.20.0-bedrock.1.21.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.19.0-bedrock.1.20.0...v1.20.0-bedrock.1.21.0
 [1.19.0-bedrock.1.20.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.18.0-bedrock.1.19.0...v1.19.0-bedrock.1.20.0
