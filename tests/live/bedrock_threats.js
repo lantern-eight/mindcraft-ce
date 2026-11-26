@@ -595,5 +595,9 @@ try {
     } catch { /* the console is gone */ }
     console.log(JSON.stringify(summary()));
     bot?.quit();
-    process.exit(summary().status === 'passed' ? 0 : 1);
+    // A moment for the goodbye to reach the server, as the other scripts give it. Gone at once, the bot
+    // stayed on the server until it timed out, some 15 s, and a bot that joined by this name meanwhile (this
+    // script run again) was turned away with no reason given.
+    process.exitCode = summary().status === 'passed' ? 0 : 1;
+    setTimeout(() => process.exit(), 1000).unref();
 }
