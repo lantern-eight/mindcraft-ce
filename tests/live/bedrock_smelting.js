@@ -293,22 +293,34 @@ try {
         return { text: result.text.trim(), tookMs: took };
     });
 
-    // Bedrock's library works only a furnace's window, so raw iron goes to the furnace, not the blast furnace.
-    await step('raw iron goes to the furnace, and the blast furnace beside it is left alone', async () => {
-        await reset('raw_iron 4', 'coal 1');
-        await set([3, 1, 0], 'blast_furnace');
-        await set([3, 1, 2], 'furnace');
-        await delay(1200);
-        await lookAt([3, 1, 0], [3, 1, 2]);
-        const result = await act('test:smelt', () => skills.smeltItem(bot, 'raw_iron', 4));
-        assert.equal(result.status, 'ok', result.text);
-        const cell = at(3, 1, 2);
-        assert.ok(result.text.includes(`into iron_ingot in the furnace at ${cell.x}, ${cell.y}, ${cell.z}`), result.text);
-        assert.doesNotMatch(result.text, /blast furnace/);
-        await delay(500);
-        assert.equal(counts().iron_ingot, 4);
-        return { text: result.text.trim() };
-    });
+    // A blast furnace and a smoker open windows of their own kind on Bedrock, each with its own name for the
+    // input slot. Ores go to the blast furnace and food to the smoker, though a furnace is nearer: each smelts
+    // in half the time. The test reads each block back with its own hands, so the slots must be where it says.
+    for (const scene of [
+        { kind: 'blast_furnace', name: 'blast furnace', input: 'raw_iron', output: 'iron_ingot' },
+        { kind: 'smoker', name: 'smoker', input: 'beef', output: 'cooked_beef' },
+    ]) {
+        await step(`${scene.input} goes to the ${scene.name} over a nearer furnace, and smelts in half the time`, async () => {
+            await reset(`${scene.input} 8`, 'coal 1');
+            await set([3, 1, 0], 'furnace');
+            await set([4, 1, 2], scene.kind);
+            await delay(1200);
+            await lookAt([3, 1, 0], [4, 1, 2]);
+            const started = Date.now();
+            const result = await act('test:smelt', () => skills.smeltItem(bot, scene.input, 8));
+            const took = Date.now() - started;
+            assert.equal(result.status, 'ok', result.text);
+            const cell = at(4, 1, 2);
+            assert.ok(result.text.includes(`8 ${scene.input} into ${scene.output} in the ${scene.name} at ${cell.x}, ${cell.y}, ${cell.z}`), result.text);
+            assert.match(result.text, /burning 1 coal/, result.text);
+            await delay(500);
+            assert.equal(counts()[scene.output], 8);
+            assert.deepEqual(await read([3, 1, 0]), [null, null, null], 'the furnace was left alone');
+            assert.deepEqual(await read([4, 1, 2]), [null, null, null], `the ${scene.name} is left empty`);
+            assert.ok(took < 70000, `8 in a ${scene.name} take about 40 s, not 80: ${took} ms`);
+            return { text: result.text.trim(), tookMs: took };
+        });
+    }
 } catch (error) {
     console.error(error);
     process.exitCode = 1;

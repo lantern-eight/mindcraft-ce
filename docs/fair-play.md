@@ -144,6 +144,11 @@ player's legs do.
 - A skill that searches (`!collectBlocks`, `!searchForBlock`, `!searchForEntity`, `!attack`) looks round
   first when it found nothing, or only something more than a step or two away, unless the bot has looked
   every way from about there in the last fifteen seconds. What the bot saw before, memory already answers.
+- Gathering picks up only the drops the bot can see. When a block it broke gave nothing, the bot looks at
+  the floor where the block was, and if no item is to be seen there, steps over to the hole when it is at
+  or below its feet, and looks again. A drop at the bottom of a hole beside the feet can hide behind the
+  block the bot stands on, or below the screen, and it was left on the ground. The bot never knows where
+  the drop is, only where the block was.
 - With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model

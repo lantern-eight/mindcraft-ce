@@ -102,9 +102,9 @@ says a load will be done, and the reminder that it should be, all go by the bloc
 names it: "I smelted 16 raw_iron into iron_ingot in the blast furnace at 6, 64, 0."
 
 Which blocks the bot can use depends on the edition, and is asked of the edition seam
-(`usableFurnaceKinds`). On Java all three open the same window. On Bedrock a blast furnace and a smoker open
-windows of their own kind, which the pinned library doesn't put into yet, so a Bedrock bot keeps to
-furnaces and leaves the other two alone.
+(`usableFurnaceKinds`). Today both editions use all three. On Java they open the same window; on Bedrock a
+blast furnace and a smoker open windows of their own kind, with their own name for the input slot, and the
+library gives them the same calls as a furnace's.
 
 ## Several Furnaces at Once
 
@@ -174,7 +174,6 @@ furnace itself: anything in its input or output.
   bot worked out when it loaded it, as a player knows. Someone may have emptied it since; the bot finds out
   when it opens it.
 - **Only furnaces near each other share a smelt** (within 8 blocks of the first), and at most four.
-- **No blast furnace or smoker on Bedrock** yet: the pinned library works only a furnace's window.
 - **A furnace's leftover burn is not counted.** Coal half burned when the last item is done is lost, as it is
   for a player, and the bot may put in one piece of fuel more than a furnace still burning needs; it takes
   that back at the end.
