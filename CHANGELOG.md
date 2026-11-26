@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.20.1-bedrock.1.21.1] - 2026-11-26
+
+Fixes for both editions, found by running the live scenes over and over until each passed every time. No
+fixes to inherited code. Built on the same Mindcraft-CE commit as 1.19.0-bedrock.1.20.0.
+
 ### Fixed
 
 - A skeleton (or any mob) seen aiming at the bot is remembered as a danger zone whenever the bot takes cover
@@ -1308,7 +1313,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...HEAD
+[1.20.1-bedrock.1.21.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...v1.20.1-bedrock.1.21.1
 [1.20.0-bedrock.1.21.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.19.0-bedrock.1.20.0...v1.20.0-bedrock.1.21.0
 [1.19.0-bedrock.1.20.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.18.0-bedrock.1.19.0...v1.19.0-bedrock.1.20.0
 [1.18.0-bedrock.1.19.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...v1.18.0-bedrock.1.19.0
