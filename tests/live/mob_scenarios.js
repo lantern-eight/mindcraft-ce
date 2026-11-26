@@ -56,6 +56,7 @@ try {
     const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
     const { editionOf } = await import('../../src/agent/edition/index.js');
     const skills = await import('../../src/agent/library/skills.js');
+    const world = await import('../../src/agent/library/world.js');
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -379,7 +380,14 @@ try {
         await cmd('summon zombie 0.5 70 -6.5 {IsBaby:0b,PersistenceRequired:1b}');
         const started = Date.now();
         // Over when both are dead, or when the bot has backed away (the order lapsed under half health).
-        await waitFor(() => raw('zombie').length === 0 || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
+        // Said when neither comes: where each zombie left is against the bot, whether it is in view, and what the
+        // bot is doing, so a zombie out of sight can be told apart from a fight that stalled.
+        await waitFor(() => raw('zombie').length === 0 || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify({
+            events: events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - started) })),
+            zombies: raw('zombie').map(z => ({ id: z.id, at: z.position, off: Number(z.position.distanceTo(bot.entity.position).toFixed(1)),
+                inView: world.getNearbyEntities(bot, 48).some(e => e.id === z.id && e.lastSeenAt === undefined), health: z.health ?? null })),
+            bot: bot.entity.position, yaw: Number(bot.entity.yaw.toFixed(2)), health: bot.health, action: agent.actions.currentActionLabel ?? null,
+        }));
         const crowdWhileFit = healthAtDecisions.filter(d => d.mode === 'mob_safety' && d.health >= 10);
         assert.ok(decided('self_defense').length >= 1, `it fought: ${JSON.stringify(decided())}`);
         assert.equal(crowdWhileFit.length, 0, `no retreat at half health or more: ${JSON.stringify(healthAtDecisions)}`);
