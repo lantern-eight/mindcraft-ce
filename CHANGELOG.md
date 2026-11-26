@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.21.1-bedrock.1.23.0] - 2026-11-26
+
+Blast furnaces and smokers for Bedrock Edition, and a fix to gathering for both editions. Built on the same
+Mindcraft-CE commit as 1.21.0-bedrock.1.22.0.
+
 ### Added
 
 - Blast furnaces and smokers on Bedrock Edition too. As on Java, ores and raw metal go to a free blast furnace
@@ -19,8 +24,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 - Gathering picks up a drop that fell out of sight, under fair play's view through a screen. When a block the
   bot broke gave nothing, it looks at the floor where the block was, and steps over to the hole if no item is
-  to be seen. A drop at the bottom of a hole beside its feet could be hidden by the block it stood on, and
-  was left on the ground: four stone dug out of the floor came back as three.
+  to be seen. A drop lying in the hole the bot had just dug, a block from its feet but out of view, was left
+  on the ground: four stone dug out of the floor came back as three.
 
 ## [1.21.0-bedrock.1.22.0] - 2026-11-26
 
@@ -1339,7 +1344,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.22.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...HEAD
+[1.21.1-bedrock.1.23.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.22.0...v1.21.1-bedrock.1.23.0
 [1.21.0-bedrock.1.22.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...v1.21.0-bedrock.1.22.0
 [1.20.1-bedrock.1.21.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...v1.20.1-bedrock.1.21.1
 [1.20.0-bedrock.1.21.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.19.0-bedrock.1.20.0...v1.20.0-bedrock.1.21.0
