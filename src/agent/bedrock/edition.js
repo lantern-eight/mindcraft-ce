@@ -632,6 +632,17 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
+     * Which furnace blocks the bot can smelt in. Bedrock's blast furnace and smoker open windows of their own
+     * kind, with their own name for the input slot, and the pinned library puts into and takes out of only a
+     * furnace's window. So only furnaces, until it does: a smelt then leaves the other two alone.
+     *
+     * @returns {('furnace'|'blast_furnace'|'smoker')[]}
+     */
+    usableFurnaceKinds() {
+        return ['furnace'];
+    },
+
+    /**
      * Whether a block is a furnace (or a blast furnace or a smoker), and whether it is lit. Bedrock swaps a
      * furnace for a block of its own while it burns (`lit_furnace`), and back when it goes out, so the name
      * says both.

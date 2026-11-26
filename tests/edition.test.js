@@ -431,3 +431,7 @@ test('a Java cauldron says what it holds by its name, and how full by its level'
     assert.equal(javaEdition.cauldronOf(block('furnace', { facing: 'north', lit: false })), null);
     assert.equal(javaEdition.cauldronOf(null), null);
 });
+
+test('Java smelts in all three furnace blocks: they open the same window', () => {
+    assert.deepEqual(javaEdition.usableFurnaceKinds(), ['furnace', 'blast_furnace', 'smoker']);
+});

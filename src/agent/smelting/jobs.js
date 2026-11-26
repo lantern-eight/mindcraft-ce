@@ -95,13 +95,15 @@ export function createJobs({ scope, now = Date.now } = {}) {
          * Notes what the bot just did at a furnace: `loaded` and `collected` add to the counts, `fuelPut`
          * adds (or with a negative count takes back) fuel, `readyAt` replaces when the furnace should be done
          * (or out of fuel), `unfueled` how many of what is in it the fuel won't reach, and `lavaUntil` when
-         * lava the bot put in burns out.
+         * lava the bot put in burns out. `total` sets how many it means to smelt there from now on, as for
+         * `start` (a smelt shared between furnaces gives each its share).
          */
-        note(pos, { loaded = 0, collected = 0, fuelPut = {}, readyAt, unfueled, lavaUntil } = {}) {
+        note(pos, { loaded = 0, collected = 0, fuelPut = {}, readyAt, unfueled, lavaUntil, total } = {}) {
             const job = byKey.get(keyOf(pos));
             if (!job) return null;
             job.loaded += loaded;
             job.collected += collected;
+            if (total !== undefined) job.total = job.collected + Math.max(total, stillInFurnace(job));
             for (const [name, count] of Object.entries(fuelPut)) {
                 const left = (job.fuelPut[name] ?? 0) + count;
                 if (left > 0) job.fuelPut[name] = left; else delete job.fuelPut[name];
