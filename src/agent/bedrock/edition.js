@@ -632,14 +632,14 @@ export const bedrockEdition = Object.freeze({
     },
 
     /**
-     * Which furnace blocks the bot can smelt in. Bedrock's blast furnace and smoker open windows of their own
-     * kind, with their own name for the input slot, and the pinned library puts into and takes out of only a
-     * furnace's window. So only furnaces, until it does: a smelt then leaves the other two alone.
+     * Which furnace blocks the bot can smelt in. All three, as on Java. Bedrock's blast furnace and smoker
+     * open windows of their own kind, with their own name for the input slot; the pinned library knows both,
+     * and gives their windows the same calls as a furnace's.
      *
      * @returns {('furnace'|'blast_furnace'|'smoker')[]}
      */
     usableFurnaceKinds() {
-        return ['furnace'];
+        return ['furnace', 'blast_furnace', 'smoker'];
     },
 
     /**

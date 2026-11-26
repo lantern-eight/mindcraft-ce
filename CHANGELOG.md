@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Blast furnaces and smokers on Bedrock Edition too. As on Java, ores and raw metal go to a free blast furnace
+  and food to a smoker before a furnace, and smelt in half the time: the library the bot runs on now fills
+  their windows, which it couldn't before.
+
 ## [1.21.0-bedrock.1.22.0] - 2026-11-26
 
 ### Added
