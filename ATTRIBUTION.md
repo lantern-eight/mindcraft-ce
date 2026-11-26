@@ -118,6 +118,9 @@ No code was copied for these. They are credited because the work builds on them.
   risen** come from the managed smelting in the
   [`FeelsMan/mindcraft-test`](https://github.com/FeelsMan/mindcraft-test) fork (`smelting_plan.js`,
   `managed_smelting.js`). Used by `src/agent/smelting/`.
+- **Sharing a big smelt between several furnaces at once, each fuelled for its share, and collecting from all
+  of them** comes from `smeltItemInParallel` in the [`mateusands/mindcraft`](https://github.com/mateusands/mindcraft)
+  fork (`library/skills.js`); the idea only, no code. Used by `src/agent/smelting/shares.js` and `smelt.js`.
 
 - **Backing off from a creeper by sprinting, how far, and hitting a following creeper once and stepping
   back** come from the creeper procedure in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk)

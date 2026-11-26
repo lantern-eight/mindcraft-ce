@@ -15,6 +15,10 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   smoker before a furnace, and the bot places one it carries before its furnace: they smelt in half the time.
   Its waits, the time it says a load takes, and its results go by the block it used. On Bedrock Edition the
   bot keeps to furnaces, since the library it runs on can't fill the other two yet.
+- Several furnaces at once. A big smelt or load is shared between the free furnaces near the first, up to
+  four, and those the bot carries when it has a pickaxe to pick them back up: 60 glass in about three and a
+  half minutes in three furnaces instead of ten in one. Shares follow each block's speed, and a furnace is
+  added only when the fuel covers every share. A stopped smelt is gone on with in all of them.
 
 ## [1.20.1-bedrock.1.21.1] - 2026-11-26
 
