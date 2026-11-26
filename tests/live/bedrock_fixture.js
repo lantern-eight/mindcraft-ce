@@ -92,6 +92,7 @@ export async function freshStart(server, bots) {
  * @param {object} bot - joined and spawned
  */
 export async function freshBot(server, bot) {
+    watchConnection(bot);
     if (!server.hasConsole) return;
     const name = bot.username;
     for (const line of [`gamemode survival ${name}`, `clear ${name}`, `effect ${name} clear`]) await server.command(line, 100);
@@ -102,6 +103,53 @@ export async function freshBot(server, bot) {
     let ground = null;
     for (let y = feet.y - 1; y >= bottom; y--) if (bot.blockAt(feet.offset(0, y - feet.y, 0))?.name === 'grass_block') ground = y;
     if (ground !== null && ground !== feet.y - 1) await server.command(`tp ${name} ${feet.x + 0.5} ${ground + 1} ${feet.z + 0.5}`, 2500);
+}
+
+// The connection's pulse. A Bedrock server sends something every fraction of a second, and now and then the
+// bot's connection went silent mid-run with no error and no disconnect: the bot heard of nothing more (a
+// block set, a mob summoned, an item given), the scenes failed one after another as if the bot or the
+// server had done nothing, and the server dropped the bot some time later. Each bot's last packet is kept
+// here, so the log says when the server went quiet and a step that fails meanwhile says so, instead of
+// looking like a fault in what it tests.
+const QUIET_MS = 5000;
+const pulses = new Map(); // bot -> { last, quietSince }
+
+/**
+ * Keeps the time of each bot's last packet from the server, and says in the log when it goes quiet for more
+ * than 5 s and when it is heard again. freshBot calls this for every bot, so every script has it.
+ * @param {object} bot - joined and spawned
+ */
+export function watchConnection(bot) {
+    if (pulses.has(bot) || typeof bot?._client?.on !== 'function') return;
+    const pulse = { last: Date.now(), quietSince: null, longestMs: 0 };
+    pulses.set(bot, pulse);
+    bot._client.on('packet', () => {
+        const now = Date.now();
+        pulse.longestMs = Math.max(pulse.longestMs, now - pulse.last);
+        if (pulse.quietSince !== null) console.log(JSON.stringify({ connection: 'heard again', bot: bot.username, quietMs: now - pulse.last }));
+        pulse.last = now;
+        pulse.quietSince = null;
+    });
+    const timer = setInterval(() => {
+        if (pulse.quietSince === null && Date.now() - pulse.last > QUIET_MS) {
+            pulse.quietSince = pulse.last;
+            console.log(JSON.stringify({ connection: 'quiet', bot: bot.username, quietMs: Date.now() - pulse.last }));
+        }
+    }, 1000);
+    timer.unref?.();
+    bot.once?.('end', () => clearInterval(timer));
+}
+
+/** What a failure should know about the connection: each bot that has heard nothing for over 5 s, or null. */
+function quietNote() {
+    const quiet = [...pulses].filter(([, pulse]) => Date.now() - pulse.last > QUIET_MS)
+        .map(([bot, pulse]) => `${bot.username} has heard nothing from the server for ${Math.round((Date.now() - pulse.last) / 1000)} s`);
+    return quiet.length ? quiet.join('; ') : null;
+}
+
+/** The longest silence each bot met, for a script's summary: how near the connection came to stalling. */
+function longestQuiet() {
+    return Object.fromEntries([...pulses].map(([bot, pulse]) => [bot.username, pulse.longestMs]));
 }
 
 /**
@@ -116,7 +164,8 @@ export async function freshBot(server, bot) {
 export function createReport() {
     const results = [];
     const record = (name, status, started, details) => {
-        const result = { name, status, durationMs: Date.now() - started, ...(details || {}) };
+        const connection = status === 'failed' ? quietNote() : null;
+        const result = { name, status, durationMs: Date.now() - started, ...(details || {}), ...(connection ? { connection } : {}) };
         results.push(result);
         console.log(JSON.stringify(result));
     };
@@ -162,6 +211,7 @@ export function createReport() {
             failed: results.filter(result => result.status === 'failed').map(result => result.name),
             skipped: countOf('skipped'),
             knownGaps: results.filter(result => result.status === 'known_gap').map(result => result.name),
+            longestQuietMs: longestQuiet(),
         }),
     };
 }

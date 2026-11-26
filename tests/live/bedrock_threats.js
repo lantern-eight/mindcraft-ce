@@ -70,11 +70,23 @@ try {
     const { editionOf } = await import('../../src/agent/edition/index.js');
     const { heldFrom } = await import('../../src/agent/action_hold.js');
     const skills = await import('../../src/agent/library/skills.js');
+    const world = await import('../../src/agent/library/world.js');
 
     let agent, reflexes, fair;
     const messages = [], events = [];
     let lowestHealth = 20, blocked = 0;
     const rawCreeper = () => Object.values(bot.entities).find(e => e.name === 'creeper') ?? null;
+    // Where the mobs of a kind are, against the bot, and how the bot is: said when a scene's mob never
+    // does what the scene waits for, so a mob that never came, or came and stood, can be told apart from a
+    // bot that missed it.
+    const mobsReport = name => ({
+        [name]: Object.values(bot.entities).filter(e => e.name === name).map(e => ({
+            at: e.position, off: Number(e.position.distanceTo(bot.entity.position).toFixed(1)),
+            inView: world.getNearbyEntities(bot, 48).some(seen => seen.id === e.id && seen.lastSeenAt === undefined),
+        })),
+        bot: bot.entity?.position, health: bot.health, yaw: Number(bot.entity?.yaw?.toFixed(2)),
+        action: agent?.actions.currentActionLabel ?? null,
+    });
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 2 });
 
     // A stone floor 40 blocks above the bot's spawn, 61 wide, with nothing above it.
@@ -238,14 +250,26 @@ try {
             // then be only heard, and a shield goes up only at one seen.
             if (LIVE_VIEW !== 'all') await lookRound(bot, () => fair.recorder.tick({ budgetMs: Infinity }));
             await faceToward(bot, at(-2, 1, 0).offset(0.5, 1.6, 0.5));
-            let gone = null;
+            let gone = null, arrived = null, died = null;
             const onGone = entity => { if (entity.name === 'creeper') gone = performance.now(); };
+            const onSpawn = entity => { if (entity.name === 'creeper') arrived = performance.now(); };
+            const onDeath = () => { died = performance.now(); };
             bot.on('entityGone', onGone);
+            bot.on('entitySpawn', onSpawn);
+            bot.on('death', onDeath);
             const spot = at(-2, 1, 0);
             const lit = performance.now();
             await cmd(`summon creeper ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:start_exploding_forced`, 0);
-            await waitFor(() => gone, 8000, () => JSON.stringify(events));
+            // Said when the creeper never goes: whether it ever reached the bot, where the bot is and how it
+            // is, so a miss can be told apart from a creeper that wasn't there or a bot that wasn't.
+            const since = at => (at === null ? null : Math.round(at - lit));
+            await waitFor(() => gone, 8000, () => JSON.stringify({
+                events, creeperArrivedMs: since(arrived), diedMs: since(died),
+                fusing: rawCreeper() ? editionOf(bot.registry).isFusing(bot.registry, rawCreeper()) : null, ...mobsReport('creeper'),
+            }));
             bot.off('entityGone', onGone);
+            bot.off('entitySpawn', onSpawn);
+            bot.off('death', onDeath);
             await delay(1000);
             const raised = events.filter(e => e.event === 'shield').length;
             // When the shield went up, against when the creeper was lit and when it went.
@@ -409,7 +433,7 @@ try {
         bot.on('threat_reflex', onFelt);
         const spot = at(0, 1, 4); // to the south
         await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
-        await waitFor(() => felt.length >= 1, 12000, () => `no hit felt: ${JSON.stringify(packets).slice(0, 600)}`);
+        await waitFor(() => felt.length >= 1, 12000, () => `no hit felt: ${JSON.stringify(packets).slice(0, 600)} ${JSON.stringify(mobsReport('zombie'))}`);
         await delay(600);
         for (const [name, fn] of listeners) bot._client.off(name, fn);
         bot.off('threat_reflex', onFelt);
@@ -571,5 +595,9 @@ try {
     } catch { /* the console is gone */ }
     console.log(JSON.stringify(summary()));
     bot?.quit();
-    process.exit(summary().status === 'passed' ? 0 : 1);
+    // A moment for the goodbye to reach the server, as the other scripts give it. Gone at once, the bot
+    // stayed on the server until it timed out, some 15 s, and a bot that joined by this name meanwhile (this
+    // script run again) was turned away with no reason given.
+    process.exitCode = summary().status === 'passed' ? 0 : 1;
+    setTimeout(() => process.exit(), 1000).unref();
 }

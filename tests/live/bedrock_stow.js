@@ -132,7 +132,13 @@ try {
     const read = async cell => {
         if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
         await tpTo([cell[0], 1, cell[2] + 2], 180, 600);
-        const window = await rawOpen(bot.blockAt(at(...cell)));
+        // The test's own look, not the bot's work: on a slow server a chest now and then failed to open within
+        // the wait, just after a teleport, and failed a scene whose work was done. Once more, a moment later.
+        const window = await rawOpen(bot.blockAt(at(...cell))).catch(async error => {
+            console.warn(`Reading the chest at ${cell}: ${error.message}; once more`);
+            await delay(1000);
+            return rawOpen(bot.blockAt(at(...cell)));
+        });
         try {
             return Array.from({ length: window.inventoryStart }, (_, i) => stackOf(window.slots[i])).map(s => (s ? `${s.name} x${s.count}` : null));
         } finally {

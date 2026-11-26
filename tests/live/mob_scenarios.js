@@ -56,6 +56,7 @@ try {
     const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
     const { editionOf } = await import('../../src/agent/edition/index.js');
     const skills = await import('../../src/agent/library/skills.js');
+    const world = await import('../../src/agent/library/world.js');
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -225,26 +226,55 @@ try {
 
     await step('two zombies coming: the bot backs away from both, ends 12 or more from each (10 through a player\'s screen), takes little damage', async () => {
         await reset({ facing: 135 }); // facing north-west, between where the two zombies will be
-        await cmd('summon zombie -6.5 70 0.5 {IsBaby:0b,PersistenceRequired:1b,Tags:["pair"]}');
-        await cmd('summon zombie 0.5 70 -6.5 {IsBaby:0b,PersistenceRequired:1b,Tags:["pair"]}');
         // Both come for the bot at once. Left to themselves, each zombie picks its target on its own random
         // clock, and now and then one came a few seconds after the other, by which time the first was a lone
-        // zombie the bot rightly fought. A zombie hurt by a player turns on that player straight away.
-        await cmd(`damage @e[type=zombie,tag=pair] 1 minecraft:player_attack by ${NAME}`);
-        const spawned = performance.now();
+        // zombie the bot rightly fought. A zombie hurt by a player turns on that player straight away, but even
+        // then the server shows one as having come for the bot a round or more before the other, now and then.
+        // So the reflexes and the stock idle look (which turns the bot a random way every few seconds) wait
+        // until the server shows both coming, the bot facing between them.
+        // They stand 22 degrees either side of where the bot faces, not 45: a player's screen reaches 51 each
+        // way, and a zombie that wandered a little off the straight line in from 45 was out of it, so the bot
+        // saw one, and rightly fought it. And 6.5 blocks off, inside the 8 within which zombies make a crowd
+        // with room to spare: the hit that sets them on the bot knocks them back, and one knocked to 8.1 was no
+        // crowd yet. Nearer than that, they reached the bot before it was away.
+        // What the bot saw as it first decided: which zombies were in view, and where they and it were.
+        let atDecision = null;
+        const onDecided = event => {
+            if (event.event !== 'decided' || atDecision) return;
+            const seen = new Set(world.getNearbyEntities(bot, 48).filter(e => e.lastSeenAt === undefined).map(e => e.id));
+            atDecision = { mode: event.mode, yaw: Number(bot.entity.yaw.toFixed(3)), pitch: Number(bot.entity.pitch.toFixed(3)), bot: bot.entity.position.clone(),
+                zombies: raw('zombie').map(z => ({ id: z.id, at: z.position.clone(), seen: seen.has(z.id), aggressive: edition.isAggressive(bot.registry, z) })) };
+        };
+        bot.on('threat_reflex', onDecided);
+        reflexes.mob.mode.on = false; reflexes.fight.mode.on = false;
+        bot.modes.setOn('idle_staring', false);
+        let spawned;
+        try {
+            await cmd('summon zombie -5.5 70 -2 {IsBaby:0b,PersistenceRequired:1b,Tags:["pair"]}');
+            await cmd('summon zombie -2 70 -5.5 {IsBaby:0b,PersistenceRequired:1b,Tags:["pair"]}');
+            await cmd(`damage @e[type=zombie,tag=pair] 1 minecraft:player_attack by ${NAME}`);
+            spawned = performance.now();
+            await waitFor(() => raw('zombie').length === 2 && raw('zombie').every(z => edition.isAggressive(bot.registry, z)), 5000,
+                () => JSON.stringify(raw('zombie').map(z => ({ at: z.position, aggressive: edition.isAggressive(bot.registry, z) }))));
+            await faceExactly(bot, (180 - 135) * Math.PI / 180, 0);
+        } finally {
+            reflexes.mob.mode.on = true; reflexes.fight.mode.on = true;
+            bot.modes.setOn('idle_staring', true);
+        }
         await waitFor(() => decided('mob_safety').length > 0, 10000, () => JSON.stringify(events));
         const first = firstStepAfter(decided('mob_safety')[0].at);
         await waitFor(() => events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 15000, () => JSON.stringify(events));
+        bot.off('threat_reflex', onDecided);
         const zombies = raw('zombie');
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
         assert.equal(decided('mob_safety')[0].key, 'crowd', JSON.stringify(decided()));
-        assert.equal(decided('self_defense').length, 0, `it did not fight two: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - spawned) })))}`);
+        assert.equal(decided('self_defense').length, 0, `it did not fight two: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - spawned) })))}; as it first decided: ${JSON.stringify(atDecision)}`);
         // Through a player's screen the bot backs away facing the way out and goes by where it last saw them,
         // while they come on: it ends nearer than it knows, looks back, and backs away again if they come
         // within the crowd's 8 blocks. All around it sees them the whole way.
         const least = LIVE_VIEW === 'all' ? 12 : 10;
         assert.ok(nearest >= least, `ended ${nearest.toFixed(1)} from the nearest: ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - spawned) })))}`);
-        assert.ok(damage <= 4, `${damage} damage`);
+        assert.ok(damage <= 4, `${damage} damage, deciding ${Math.round(decided()[0].at - spawned)} ms after the zombies were set on the bot; as it first decided: ${JSON.stringify(atDecision)}`);
         return { decidedAfterMs: Math.round(decided('mob_safety')[0].at - spawned), firstStepMs: first ? Math.round(first.at - decided('mob_safety')[0].at) : null,
             how: first?.how, endedFromNearest: Number(nearest.toFixed(1)), damage };
     });
@@ -379,7 +409,14 @@ try {
         await cmd('summon zombie 0.5 70 -6.5 {IsBaby:0b,PersistenceRequired:1b}');
         const started = Date.now();
         // Over when both are dead, or when the bot has backed away (the order lapsed under half health).
-        await waitFor(() => raw('zombie').length === 0 || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
+        // Said when neither comes: where each zombie left is against the bot, whether it is in view, and what the
+        // bot is doing, so a zombie out of sight can be told apart from a fight that stalled.
+        await waitFor(() => raw('zombie').length === 0 || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify({
+            events: events.filter(e => e.event !== 'step').map(e => ({ ...e, at: Math.round(e.at - started) })),
+            zombies: raw('zombie').map(z => ({ id: z.id, at: z.position, off: Number(z.position.distanceTo(bot.entity.position).toFixed(1)),
+                inView: world.getNearbyEntities(bot, 48).some(e => e.id === z.id && e.lastSeenAt === undefined), health: z.health ?? null })),
+            bot: bot.entity.position, yaw: Number(bot.entity.yaw.toFixed(2)), health: bot.health, action: agent.actions.currentActionLabel ?? null,
+        }));
         const crowdWhileFit = healthAtDecisions.filter(d => d.mode === 'mob_safety' && d.health >= 10);
         assert.ok(decided('self_defense').length >= 1, `it fought: ${JSON.stringify(decided())}`);
         assert.equal(crowdWhileFit.length, 0, `no retreat at half health or more: ${JSON.stringify(healthAtDecisions)}`);
