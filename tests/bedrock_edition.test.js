@@ -269,6 +269,10 @@ test('a Bedrock cauldron is one block for every liquid: its states say which, an
     assert.equal(bedrockEdition.cauldronOf(null), null);
 });
 
+test('Bedrock smelts only in furnaces: the library works no blast furnace or smoker window yet', () => {
+    assert.deepEqual(bedrockEdition.usableFurnaceKinds(), ['furnace']);
+});
+
 test('a survival player on Bedrock reaches half a block farther to a block than on Java, and as far to a mob', () => {
     // The keyboard, mouse and controller reach. A touch screen reaches a block 6 away; the bot is held to 5.
     assert.deepEqual(bedrockEdition.survivalReach(), { blocks: 5, entities: 3 });

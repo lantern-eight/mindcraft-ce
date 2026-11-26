@@ -619,6 +619,16 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * Which furnace blocks the bot can smelt in: those whose window it can put into and take out of. On
+     * Java all three open the same furnace window (input, fuel, output), so all three.
+     *
+     * @returns {('furnace'|'blast_furnace'|'smoker')[]}
+     */
+    usableFurnaceKinds() {
+        return ['furnace', 'blast_furnace', 'smoker'];
+    },
+
+    /**
      * Whether a block is a furnace (or a blast furnace or a smoker), and whether it is lit. A lit furnace
      * glows and smokes, so a player who can see it knows it is burning. Java keeps one block for each and
      * says it is burning with its `lit` property.

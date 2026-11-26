@@ -326,6 +326,44 @@ try {
         return { text: result.text.trim() };
     });
 
+    // A row of three furnaces: the sand is shared between them, a coal each, and all three work at once.
+    await step('24 sand in a row of three furnaces: 8 in each, done in about a third of the time', async () => {
+        await reset('sand 24', 'coal 3');
+        for (const z of [-2, 0, 2]) await furnace(3, z);
+        await settle();
+        const started = Date.now();
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 24));
+        const took = Date.now() - started;
+        assert.equal(result.status, 'ok', result.text);
+        for (const z of [-2, 0, 2]) assert.match(result.text, new RegExp(`the furnace at 3, 70, ${z}\\b`), result.text);
+        assert.match(result.text, /burning 3 coal/, result.text);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 24, JSON.stringify(have));
+        assert.equal(have.coal ?? 0, 0);
+        for (const z of [-2, 0, 2]) assert.deepEqual(await furnaceHolds(3, 70, z), {}, `the furnace at z ${z} is left empty`);
+        assert.ok(took < 150000, `three furnaces take about 80 s for 24, one takes 240: ${took} ms`);
+        return { text: result.text.trim(), tookMs: took };
+    });
+
+    // Raw iron goes to the blast furnace, though a furnace is nearer: it smelts in half the time.
+    await step('raw iron goes to the blast furnace over a nearer furnace, and smelts in half the time', async () => {
+        await reset('raw_iron 8', 'coal 1');
+        await furnace(3, 0);
+        await cmd('setblock 4 70 2 blast_furnace[facing=west]');
+        await settle();
+        const started = Date.now();
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'raw_iron', 8));
+        const took = Date.now() - started;
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /smelted 8 raw_iron into iron_ingot in the blast furnace at 4, 70, 2, burning 1 coal/, result.text);
+        await delay(500);
+        assert.equal(counts().iron_ingot, 8);
+        assert.deepEqual(await furnaceHolds(3, 70, 0), {}, 'the furnace was left alone');
+        assert.ok(took < 70000, `8 in a blast furnace take about 40 s, not 80: ${took} ms`);
+        return { text: result.text.trim(), tookMs: took };
+    });
+
     console.log(JSON.stringify({ summary: 'smelting scenarios', passed: results.length }));
 } catch (error) {
     console.error(error);
