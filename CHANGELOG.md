@@ -15,6 +15,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   and food to a smoker before a furnace, and smelt in half the time: the library the bot runs on now fills
   their windows, which it couldn't before.
 
+### Fixed
+
+- Gathering picks up a drop that fell out of sight, under fair play's view through a screen. When a block the
+  bot broke gave nothing, it looks at the floor where the block was, and steps over to the hole if no item is
+  to be seen. A drop at the bottom of a hole beside its feet could be hidden by the block it stood on, and
+  was left on the ground: four stone dug out of the floor came back as three.
+
 ## [1.21.0-bedrock.1.22.0] - 2026-11-26
 
 ### Added
