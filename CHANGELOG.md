@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.30.0-bedrock.1.32.0] - 2026-11-27
+
+A player can let the bot break a protected block, for both editions. Built on the same Mindcraft-CE commit
+as 1.25.0-bedrock.1.27.0.
+
 ### Added
 
 - A player can let the bot break blocks that good-neighbor rules protect, on both editions, by typing
@@ -1508,7 +1513,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...HEAD
+[1.30.0-bedrock.1.32.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...v1.30.0-bedrock.1.32.0
 [1.29.0-bedrock.1.31.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.28.0-bedrock.1.30.0...v1.29.0-bedrock.1.31.0
 [1.28.0-bedrock.1.30.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.27.0-bedrock.1.29.0...v1.28.0-bedrock.1.30.0
 [1.27.0-bedrock.1.29.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.26.0-bedrock.1.28.0...v1.27.0-bedrock.1.29.0
