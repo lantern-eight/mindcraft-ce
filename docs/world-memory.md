@@ -43,10 +43,10 @@ forget.
 |---|---|---|
 | **Cells** | Every block the bot has seen, exactly, in 16-block cubes | "sand, 30 blocks north" |
 | **Things** | Single objects a player uses, with their state and when they were last seen: containers, workstations, doors, beds, signs, portals, spawners, ores | "an oak door, open, seen an hour ago" |
-| **Contents** | What was in a container, taken when the bot opens it and again when it closes it | "chest: iron_ingot 30, bread 6" |
+| **Contents** | What was in a container, taken when the bot opens it and again when it closes it. A shelf has no lid: what stands on it is taken whenever its front is in view, and a shelf seen only from behind, beside or above is one of unknown contents | "chest: iron_ingot 30, bread 6" |
 | **Fields and herds** | Per area: how many plants of a crop and how many were ripe; which animals and how many | "wheat x12, 5 ripe", "cow x4" |
 | **Trail** | Where the bot has walked, as spots joined by links it can route over and walk again | "about 40 seconds on foot by a way you know" |
-| **Places** | Sites it found (things a player uses, close together) or was told the name of | "the base: chest 4, furnace 2, red_bed 1" |
+| **Places** | Sites it found (things a player uses, close together), spots it was told the name of, and places a player told it the position of | "the base: chest 4, furnace 2, red_bed 1" |
 | **Changes** | Short notes for when a place is not as it remembers it | "Gone: chest 2. New: oak_planks 42" |
 
 How it behaves:
@@ -59,6 +59,7 @@ How it behaves:
   a site as soon as they are seen. It can be named later, by the model or a player.
 - **Saved places move in.** `!rememberHere` and `!goToRememberedPlace` work as before, and a name saved
   that way is now a place.
+- **What a player tells it is kept apart from what it saw.** See [Places a Player Told It Of](#places-a-player-told-it-of).
 
 ## What the Model Can Ask
 
@@ -67,20 +68,68 @@ however much the bot remembers.
 
 | Command | What it does |
 |---|---|
-| `!recall(what)` | What the bot remembers, nearest first. `what` can be a block type (`sand`, `iron_ore`), a kind of thing (`chest`, `door`, `bed`, `containers`), an item (`iron`, answered from the containers it opened), an animal (`cow`), a crop (`wheat`), a place name, or `changes` |
+| `!recall(what)` | What the bot remembers, nearest first. `what` can be a block type (`sand`, `iron_ore`), a kind of thing (`chest`, `door`, `bed`, `containers`), an item (`iron`, answered from the containers it opened and the shelves whose fronts it saw), an animal (`cow`), a crop (`wheat`), a place name, or `changes` |
 | `!places` | The places it knows, nearest first, and what is at each |
 | `!namePlace(name)` | Names the place the bot is standing in |
 | `!rememberHere(name)`, `!goToRememberedPlace(name)` | As before, now kept in world memory |
+| `!rememberToldPlace(name, where)` | Remembers a place a player gave the position of: `"300 64 -120"`, or `"300 -120"` when they gave no height |
+| `!goToPlace(name)` | Walks to any place it knows by name: found, named or told |
+| `!forgetPlace(name)` | Forgets a told place it hasn't seen, when a player takes it back |
 
 An answer says where, how far and which way, how long ago, and, when the trail joins the bot to the spot,
 how long the walk is:
 
 ```
-IN CONTAINERS YOU OPENED
+IN CONTAINERS YOU LOOKED INTO
 - chest at 4, 70, 0: iron_ingot 30 (looked 10 minutes ago), 18 blocks east, about 4 seconds on foot by a way you know
 ```
 
 Searches such as `!searchForBlock` use the same memory, for every kind of block.
+
+### Places a Player Told It Of
+
+Players tell each other where things are: "the village is at 300, -120", read off the debug screen or a
+minimap. The bot can remember that with `!rememberToldPlace`, and walk there with `!goToPlace`. But it
+hasn't seen the place, so until it does, the place is kept apart from everything it saw:
+
+- **It is listed as told,** with who said it, when, and the position as it was said: `"village" (told by
+  Steve 2 hours ago, not seen yet) at 300, ?, -120: 323 blocks east`.
+- **Nothing seen joins it or is filed under it.** A chest seen beside it starts a site of its own, and a
+  change seen there is not noted against it.
+- **A name the bot gave something it saw keeps it.** Told a place under that name, the bot says so and
+  saves nothing.
+- **Only a player can tell.** When the bot is acting on its own idea, the command refuses, so the model
+  can't make up a place and call it told.
+
+**It becomes a place like any other once the bot sees the spot,** by the same sight test as everything
+else in memory: after each look-around, a told place within 24 blocks counts as seen when memory holds
+the cells there. When no height was given, the bot must be within 16 blocks across the ground, and the
+highest block it saw in that column gives the height. The model hears of it once, in passing:
+
+> Seen "village", which Steve told you of, at 300, 71, -120. It is the site where you saw chest 2, red_bed 1.
+
+If the bot had found a site there with no name yet, the site takes the told name. If the site already
+has one, the told place stays a spot of its own beside it. A spot the bot had seen before it was told
+is confirmed at once. Seen means the bot has looked at the spot, not that what the player said about
+it is true.
+
+A told place with no height is walked to by its x and z; `!goToRememberedPlace` needs a height, so
+`!goToPlace` is the way there. A player who takes a told place back can have the bot forget it with
+`!forgetPlace`; a place the bot has seen stays.
+
+#### Shared Waypoints
+
+Map mods let a player share a waypoint as a line of chat. Xaero's Minimap posts
+`xaero-waypoint:Base:B:268:64:-160:6:false:0:Internal-overworld-waypoints`, and JourneyMap
+`[name:"Base", x:268, y:64, z:-160, dim:minecraft:overworld]`. A chat message that is one of these and
+nothing else is a player telling the bot where a place is, so `src/agent/memory/waypoints.js` saves it as a
+told place at once, with no model call to read it. The bot answers in a line of chat (`Got it, Steve: "Base"
+at 268, 64, -160. I haven't seen it yet.`), and the model hears of it once, through the change notes.
+
+A waypoint for another dimension goes into that dimension's own places, since each dimension keeps its own
+memory: a Nether fortress shared in the Overworld is listed when the bot is in the Nether. A message with
+anything more than the waypoint goes to the model as before, and the model can save it with
+`!rememberToldPlace`. With world memory off, every message goes to the model.
 
 ## Finding the Way
 
@@ -98,9 +147,20 @@ Nothing new to ask for. Every command and skill that walks does this by itself.
 - **Ordinary travel finishes the trip.** Where the trail stops short of the target, the rest is planned
   as before. Where the bot knows no way, nothing changes. Ordinary travel plans over the blocks the bot
   remembers too, so a wall it has seen is walked round even where it has never walked.
-- **A blocked way is said, once:** "The way you walked before is blocked near 22, 70, 2." The bot then
-  tries an ordinary path past the blockage, which may dig, and after that another way it knows. The
-  blocked stretch is avoided for a day, or until the bot walks it again.
+- **A way walled up since is known before setting off.** Before the first hop, the route is checked
+  against memory: where the bot saw someone put a block up across a stretch it walked, that stretch is
+  marked blocked and the route planned again round it, rather than found by walking up to the wall.
+- **A blocked way is said, once, with what blocks it:** "The way you walked before is blocked near 22,
+  70, 2: oak_planks someone built." Only what the bot remembers seeing is named: "gravel that fell in",
+  "a shut iron_door", or "something I can't see from here".
+- **What happens next depends on whose it is.** A blocker that is natural ground (gravel or sand that fell
+  in, a cave-in) gets an ordinary path past it, which may dig, as a player would dig the gravel out; then
+  another way the bot knows. A blocker that is someone's, by [good-neighbor rules](good-neighbor.md) (seen
+  built, not natural ground, or in a protected area), is not dug past or round: the bot tries another way
+  it knows, and **the rest of the trip digs nothing**, ordinary travel included, so it can't tunnel round
+  the wall into what was built. If no walk is left, the trip stops there and says so: ask whoever built
+  it, or go another way. With good-neighbor rules off, every blocker is handled as natural ground.
+- **A blocked stretch is avoided** for a day, or until the bot walks it again.
 
 When the trail is used:
 
@@ -137,6 +197,19 @@ log that `!recall("changes")` shows. It states what was seen and carries no inst
 Small differences are dropped as noise: a note needs a thing (a chest, a door) or at least eight blocks.
 A double chest, a bed or a door counts once, though it fills two cells.
 
+### Who Changed a Cell
+
+Apart from notes, memory keeps one tag per cell for who last changed it: `placed` and `dug` for the bot's
+own work, and `built` for a block someone else put there. A cell is tagged `built` when a block stands where
+the bot had seen empty space, or in place of a block it remembers, and nothing but a person could have put
+it there. That holds whether or not the bot watched it go up, and whatever it is made of: dirt stacked
+across a tunnel is built. Blocks that grow, fall, flow, freeze or weather into place are not (crops, trees,
+gravel, water, ice, lava meeting water, copper turning green), and neither is the bot's own work. The rest of
+a new wall, first seen in the same look and touching a built block of its kind, is tagged with it. A block
+the bot placed is its own only while it stands: once the bot sees it gone, or someone else's block in its
+place, the `placed` tag goes, and a block set there later is built.
+[Good-neighbor rules](good-neighbor.md) leave built blocks alone.
+
 ## Is It Fair?
 
 World memory holds only what a player in the bot's place could know:
@@ -147,11 +220,13 @@ World memory holds only what a player in the bot's place could know:
   screen starts a new look, as a step does. A look takes a few seconds, done a few milliseconds at a time;
   a turn while one is under way looks again first at the cubes already gone over that the new screen shows,
   so a turn of a second to look at something records it.
-- **Container contents** are only what the bot saw by opening the container.
+- **Container contents** are only what the bot saw by opening the container, or for a shelf, by seeing its
+  front.
 - **The trail** is the bot's own past positions, and a route is made only of spots it has stood on.
   Ordinary travel is held to what the bot has seen as well, but has to guess at what it has not
   ([how the bot plans a route](fair-play.md#how-the-bot-plans-a-route)). The trail guesses at nothing.
 - **A change** is only noticed by looking again.
+- **A told place** is only what a player said, and is never treated as seen until the bot has seen it.
 
 It does remember perfectly, which a person doesn't. A player has coordinates on the debug screen and can
 write things down; the bot's notes are just more thorough.
@@ -199,7 +274,8 @@ load only when something asks about that part of the world.
 
 - **The trail leads only where the bot has been.** To a spot it has only seen from afar, such as sand
   across a valley, travel is planned as before unless the trail happens to lead much closer.
-- **Getting past a blockage may dig.** The bot does not yet tell a cave-in from a wall someone built.
+- **Only a block seen going up marks a way blocked before setting off.** One that was there before the
+  bot first saw the spot, or that it never saw, is found when a hop fails, as before.
 - **It needs fair play on.** Recording with fair play off is planned.
 - **Only names are kept for ordinary blocks,** not which way a stair faces or how grown one plant is.
   Things (chests, doors, beds) keep their full state.
@@ -220,7 +296,8 @@ All of it lives in `src/agent/memory/`:
 | `cells.js` | Every block seen, one byte per cell in 16-block cubes, in region files with an index of which regions hold which names |
 | `things.js` | Single objects with state, container contents, fields and herds |
 | `trail.js` | Crumbs and links, and the quickest route between two crumbs |
-| `places.js` | Sites found or named |
+| `places.js` | Sites found, named or told |
+| `told.js` | Places a player told the bot of: reading the position, and seeing the spot |
 | `changes.js` | Which differences are worth a note, and the notes |
 | `kinds.js` | **The one file that knows what a chest, a door or a crop is,** by name pattern |
 | `block_state.js` | Block states to named properties and back, through the [edition seam](edition-seam.md) (`src/agent/edition/`), since each edition of the game numbers states its own way |

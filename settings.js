@@ -103,8 +103,15 @@ const settings = {
     },
     // Optional USD rates when the provider reports tokens but no cost:
     // {"input_per_million":1, "output_per_million":2, "cached_input_per_million":0.5}
+    // Add "cache_write_per_million" for a model that charges more to write its prompt cache (Claude: 1.25x
+    // the input price, 2x with prompt_caching "1h"); writes cost plain input without it.
     // Use your model's actual rates; roster entries and decisions can have separate pricing.
     "model_pricing": null,
+    // Claude reads the part of a request that repeats (tools, instructions, the conversation so far) from
+    // its prompt cache, at a tenth of the input price or less. "5m" keeps a cached start 5 minutes from its
+    // last use, "1h" an hour (twice the price to write, for a bot spoken to with long pauses), "off" sends no
+    // cache markers. Other providers cache a repeated start by themselves. See docs/prompt-caching.md.
+    "prompt_caching": "5m",
 
     // Bounds for one native conversation/task loop, preventing endless attempts.
     "agent_max_steps": 50, // model turns
@@ -143,6 +150,12 @@ const settings = {
     // merged, each kind of item together, related kinds in the same chest). Works with fair play on or
     // off; false leaves the command out. See docs/chest-sorting.md.
     "chest_sorting": true,
+    // Putting away and fetching: adds !putAway (what the bot carries goes into the chests where those
+    // things belong, keeping what it needs) and !fetchItem (takes an item out of the chests it remembers
+    // holding it). Uses only the bot's own, shared, and (when a player asks) players' chests. Needs
+    // chest_sorting on, which keeps whose each chest is; false leaves the commands out. See
+    // docs/chest-sorting.md.
+    "store_and_fetch": true,
     // Threat reflexes: the bot backs off from a creeper about to explode, even in the middle of another
     // action, and deals with one that keeps following it. Works with fair play on or off; false leaves
     // the reflex out. See docs/threat-reflexes.md.
@@ -151,10 +164,17 @@ const settings = {
     // fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or
     // off; false keeps Mindcraft's own. See docs/smelting.md.
     "smelting": true,
+    // Exploring: adds !explore and !exploreFor, which walk into new ground on a heading kept from one call
+    // to the next, round water and steep ground, and stop on seeing what was looked for. Works with fair play
+    // on or off; false leaves the commands out. See docs/explore.md.
+    "explore": true,
     // Farming: adds !tendField, which harvests the ripe crops of the field nearest the bot, replants them
     // and sows the empty farmland, and !markField, which says whose a field is. Works with fair play on or
     // off; false leaves the commands out. See docs/farming.md.
     "farming": true,
+    // Good-neighbor rules: protect_builds keeps the bot from breaking what other players built; protected_areas
+    // lists places where it breaks nothing, each { name, min, max } or { name, x, z, radius }. protect_chests
+    // and protect_animals are reserved. Works with fair play on or off. See docs/good-neighbor.md.
     "good_neighbor": { "protect_builds": true, "protect_chests": true, "protect_animals": true, "protected_areas": [] },
 
     // Allows generated executable code (newAction/executeCode/augments) with host access.

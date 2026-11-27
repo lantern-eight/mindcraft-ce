@@ -129,13 +129,16 @@ try {
         const deadline = Date.now() + 10000;
         const lying = () => Object.values(bot.entities).find(entity => entity.name === 'item' && entity.position.distanceTo(hole) < 4);
         const where = position => (position ? `${position.x.toFixed(1)} ${position.y.toFixed(1)} ${position.z.toFixed(1)}` : 'nowhere to be seen');
-        while (bot.inventory.items().length === 0 && Date.now() < deadline) {
+        // A block to place next, not whatever is picked up first: an item an earlier run left on the ground (a
+        // stick from leaves that decayed) can be picked up on the way, and a stick can't be placed.
+        const block = () => bot.inventory.items().find(item => bot.registry.blocksByName[item.name]);
+        while (!block() && Date.now() < deadline) {
             const target = lying()?.position.floored() ?? hole;
             await bot.pathfinder.goto(new goals.GoalNear(target.x, target.y, target.z, 0)).catch(() => {});
             await delay(700);
         }
-        assert.ok(bot.inventory.items().length > 0, `nothing was picked up: the bot is at ${where(bot.entity.position)}, the drop is ${where(lying()?.position)}, and the bot takes the hole to hold ${bot.blockAt(hole)?.name}`);
-        carried = bot.inventory.items()[0].name;
+        assert.ok(block(), `no block was picked up (${names().join(', ') || 'nothing'}): the bot is at ${where(bot.entity.position)}, the drop is ${where(lying()?.position)}, and the bot takes the hole to hold ${bot.blockAt(hole)?.name}`);
+        carried = block().name;
         return { inventory: names() };
     });
 

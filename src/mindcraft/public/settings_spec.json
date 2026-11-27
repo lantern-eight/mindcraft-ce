@@ -288,7 +288,17 @@
     "model_pricing": {
         "type": "object",
         "default": {},
-        "description": "Optional input_per_million, output_per_million, cached_input_per_million USD pricing when usage has no cost."
+        "description": "Optional input_per_million, output_per_million, cached_input_per_million, cache_write_per_million USD pricing when usage has no cost."
+    },
+    "prompt_caching": {
+        "type": "string",
+        "default": "5m",
+        "options": [
+            "5m",
+            "1h",
+            "off"
+        ],
+        "description": "Prompt caching for Claude: the part of a request that repeats is read from the cache at a tenth of the input price or less. 5m keeps it 5 minutes from its last use, 1h an hour (twice the price to write), off sends no cache markers. See docs/prompt-caching.md."
     },
     "fair_play": {
         "type": "string",
@@ -315,6 +325,11 @@
         "default": true,
         "description": "Chest sorting: adds !sortChests, which tidies the chests and barrels around the bot (part stacks merged, each kind of item together, related kinds in the same chest). Works with fair play on or off. See docs/chest-sorting.md."
     },
+    "store_and_fetch": {
+        "type": "boolean",
+        "default": true,
+        "description": "Putting away and fetching: adds !putAway, which puts what the bot carries into the chests where those things belong (keeping its best tools, armour, food and torches), and !fetchItem, which takes an item out of the chests it remembers holding it. Uses only its own, shared and, when a player asks, players' chests. Needs chest_sorting on. See docs/chest-sorting.md."
+    },
     "threat_reflexes": {
         "type": "boolean",
         "default": true,
@@ -324,6 +339,11 @@
         "type": "boolean",
         "default": true,
         "description": "Smelting: !smeltItem finds a furnace that isn't in use (or places the bot's own), loads it with the fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or off. See docs/smelting.md."
+    },
+    "explore": {
+        "type": "boolean",
+        "default": true,
+        "description": "Exploring: adds !explore and !exploreFor, which walk into new ground on a heading kept from one call to the next, round water and steep ground, and stop on seeing what was looked for. Works with fair play on or off. See docs/explore.md."
     },
     "farming": {
         "type": "boolean",
@@ -338,6 +358,6 @@
             "protect_animals": true,
             "protected_areas": []
         },
-        "description": "Reserved for good-neighbor rules (not built yet): don't break players' builds, loot their chests, or hurt their animals."
+        "description": "Good-neighbor rules. protect_builds: the bot doesn't break what other players built (anything that isn't natural ground, what it saw someone put up, logs that aren't part of a tree). protected_areas: places where nothing is broken, each { name, min, max } or { name, x, z, radius }. protect_chests and protect_animals are reserved, not built yet. Works with fair play on or off. See docs/good-neighbor.md."
     }
 }

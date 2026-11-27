@@ -13,6 +13,7 @@ import { ActionManager } from '../src/agent/action_manager.js';
 import { heldFrom } from '../src/agent/action_hold.js';
 import { initModes } from '../src/agent/modes.js';
 import { installThreatReflexes } from '../src/agent/reflexes/install.js';
+import { followedTo, FOLLOW_PER_S } from '../src/agent/reflexes/mob_reflex.js';
 import { GAME_VERSION } from './helpers/game_version.js';
 
 const registry = minecraftData(GAME_VERSION);
@@ -115,10 +116,38 @@ test('two zombies coming: the hold goes up first, then the bot backs away from b
     bot.stopWalking();
 });
 
+test('a zombie out of view is taken to keep coming: toward the bot at its pace, never nearer than a block', () => {
+    const seen = { x: 0, y: 64, z: 0 };
+    assert.deepEqual(followedTo(seen, { x: 10, y: 64, z: 0 }, 0), seen, 'just seen: where it was');
+    assert.deepEqual(followedTo(seen, { x: 10, y: 64, z: 0 }, 2000), { x: 2 * FOLLOW_PER_S, y: 64, z: 0 });
+    assert.deepEqual(followedTo(seen, { x: 0, y: 64, z: 3 }, 10000), { x: 0, y: 64, z: 2 }, 'a block short of the bot');
+    assert.deepEqual(followedTo(seen, { x: 0.5, y: 64, z: 0 }, 1000), seen, 'already within a block: it stays');
+});
+
+test('backing away through a player\'s screen from zombies left behind out of view: it goes on until they would be far enough, coming on', async () => {
+    const { agent, bot, installed } = makeAgent();
+    agent.fairPlay = { looks: { getScreen: () => ({}) } };
+    const mobs = put(bot, zombie(-4.5, 0.5), zombie(0.5, -5.5));
+    const started = Date.now();
+    try {
+        installed.mob.round(agent);
+        await delay(100);
+        for (const mob of mobs) delete bot.entities[mob.id]; // behind the bot, out of view
+        await waitUntil(() => !agent.actions.executing, 12000);
+        const p = bot.entity.position, seconds = (Date.now() - started) / 1000;
+        // Each zombie, had it followed at FOLLOW_PER_S since it went out of view, is still 16 or more away.
+        for (const [x, z] of [[-4.5, 0.5], [0.5, -5.5]])
+            assert.ok(Math.hypot(p.x - x, p.z - z) - FOLLOW_PER_S * (seconds - 0.1) >= 15.5, `far enough from a zombie coming on from ${x},${z}: ${p}`);
+    } finally {
+        bot.stopWalking();
+    }
+});
+
 for (const view of ['all around', 'through a player\'s screen']) {
     test(`two zombies that slip out of view while the bot backs away, seeing ${view}`, async () => {
-        // A slow walker: the zombies have been out of view 2 s before it gets far enough.
-        const { agent, bot, installed } = makeAgent(null, { stride: 0.1 });
+        // A slow walker: the zombies have been out of view 2 s before it gets far enough. Not as slow as the
+        // zombies are taken to follow (FOLLOW_PER_S), or it would never get far enough by its reckoning.
+        const { agent, bot, installed } = makeAgent(null, { stride: 0.25 });
         // Through a player's screen the bot backs away facing the way out, so the zombies leave its view at
         // once: that says nothing about whether they have lost it, and it goes on to its distance.
         if (view !== 'all around') agent.fairPlay = { looks: { getScreen: () => ({}) } };

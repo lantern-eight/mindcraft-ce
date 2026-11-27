@@ -207,6 +207,47 @@ test('Bedrock answers every question the edition seam asks', () => {
     assert.deepEqual(missing, []);
 });
 
+test('a Bedrock shelf shows its three slots, from its state and its block entity in tagged values', () => {
+    const tag = (type, value) => ({ type, value });
+    const item = (slot, name, count) => ({ Slot: tag('byte', slot), Name: tag('string', name), Count: tag('byte', count) });
+    const entity = tag('compound', { Items: tag('list', tag('compound', [item(1, 'minecraft:iron_ingot', 7), item(2, 'minecraft:string', 4)])) });
+    const shelf = (props, entity) => ({ name: 'spruce_shelf', getProperties: () => props, entity });
+    assert.deepEqual(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'west', powered_bit: 0, powered_shelf_type: 0 }, entity)),
+        { facing: 'west', powered: false, slots: [null, { name: 'iron_ingot', count: 7 }, { name: 'string', count: 4 }] });
+    assert.equal(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'west', powered_bit: 1 }, tag('compound', {}))).powered, true);
+    assert.deepEqual(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'west', powered_bit: 0 }, tag('compound', {}))).slots, [null, null, null]);
+    assert.equal(bedrockEdition.shelfOf(shelf({}, undefined)).slots, null, 'no block entity: items not known');
+    assert.equal(bedrockEdition.shelfOf({ name: 'barrel' }), null);
+    // As a 1.26.60 server sends it: all three slots in order, no Slot field, an empty one blank.
+    const entry = (name, count) => tag('compound', { Count: tag('byte', count), Damage: tag('short', 0), Name: tag('string', name), WasPickedUp: tag('byte', 0) });
+    const sent = tag('compound', { Items: tag('list', tag('compound', [entry('minecraft:iron_ingot', 7), entry('', 0), entry('minecraft:string', 4)].map(e => e.value))), id: tag('string', 'Shelf') });
+    assert.deepEqual(bedrockEdition.shelfOf(shelf({ 'minecraft:cardinal_direction': 'south', powered_bit: 0, powered_shelf_type: 0 }, sent)).slots,
+        [{ name: 'iron_ingot', count: 7 }, null, { name: 'string', count: 4 }]);
+});
+
+test('Bedrock clicks a shelf slot through the adapter\'s click with a point, and moves part of a stack in one request', async () => {
+    const sent = [];
+    const bot = {
+        _genericPlace: async (block, face, options) => sent.push(['click', face, options]),
+        inventory: { slots: [] },
+        currentWindow: null,
+        openInventory() { sent.push(['open']); this.currentWindow = { id: 'inventory' }; },
+        closeWindow() { sent.push(['close']); this.currentWindow = null; },
+        moveInventoryItem: (from, to, count) => sent.push(['move', from, to, count]),
+    };
+    const shelf = { name: 'oak_shelf', getProperties: () => ({ 'minecraft:cardinal_direction': 'south', powered_bit: 0 }) };
+    await bedrockEdition.clickShelfSlot(bot, shelf, 0);
+    assert.deepEqual(sent, [['click', { x: 0, y: 0, z: 1 }, { delta: { x: 0.17, y: 0.5, z: 1 }, swingArm: 'right', itemUseLifecycle: false }]]);
+
+    sent.length = 0;
+    bot.inventory.slots[36] = { name: 'torch', count: 20 };
+    await bedrockEdition.moveInBag(bot, 36, 40, 3);
+    assert.deepEqual(sent, [['move', 0, 4, 3]], 'hotbar to hotbar: Bedrock slots 0 to 8, no screen');
+    sent.length = 0;
+    await bedrockEdition.moveInBag(bot, 36, 12, 3);
+    assert.deepEqual(sent, [['open'], ['move', 0, 12, 3], ['close']], 'into the main inventory: the inventory screen is opened for it');
+});
+
 test('a Bedrock furnace is another block while it burns', () => {
     assert.deepEqual(bedrockEdition.furnaceOf({ name: 'furnace' }), { kind: 'furnace', lit: false });
     assert.deepEqual(bedrockEdition.furnaceOf({ name: 'lit_furnace' }), { kind: 'furnace', lit: true });
@@ -214,6 +255,22 @@ test('a Bedrock furnace is another block while it burns', () => {
     assert.deepEqual(bedrockEdition.furnaceOf({ name: 'smoker' }), { kind: 'smoker', lit: false });
     assert.equal(bedrockEdition.furnaceOf({ name: 'chest' }), null);
     assert.equal(bedrockEdition.furnaceOf(null), null);
+});
+
+test('a Bedrock cauldron is one block for every liquid: its states say which, and how full', () => {
+    const cauldron = state => ({ name: 'cauldron', getProperties: () => state });
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'lava', fill_level: 6 })), { liquid: 'lava', full: true });
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'lava', fill_level: 3 })), { liquid: 'lava', full: false });
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'water', fill_level: 6 })), { liquid: 'water', full: true });
+    // Empty, it still names a liquid (water, by default), but holds none.
+    assert.deepEqual(bedrockEdition.cauldronOf(cauldron({ cauldron_liquid: 'water', fill_level: 0 })), { liquid: null, full: false });
+    assert.deepEqual(bedrockEdition.cauldronOf({ name: 'cauldron' }), { liquid: null, full: false }, 'remembered without its state');
+    assert.equal(bedrockEdition.cauldronOf({ name: 'lit_furnace' }), null);
+    assert.equal(bedrockEdition.cauldronOf(null), null);
+});
+
+test('Bedrock smelts in furnaces, blast furnaces and smokers, as Java does', () => {
+    assert.deepEqual(bedrockEdition.usableFurnaceKinds(), ['furnace', 'blast_furnace', 'smoker']);
 });
 
 test('a survival player on Bedrock reaches half a block farther to a block than on Java, and as far to a mob', () => {
@@ -368,4 +425,14 @@ test('the operator level comes from the permissions a Bedrock server gives', () 
     assert.deepEqual(levels, [0, 1, 1, 4, 0]);
     stop();
     assert.equal(bot.listenerCount('abilities'), 0);
+});
+
+test('Bedrock leaves a player placed are told from grown ones by their persistent bit', { skip: needsBedrockLibraries }, () => {
+    const registry = bedrockRegistry();
+    const placed = [], grown = [];
+    for (const stateId of bedrockEdition.stateIdsOf(registry.blocksByName.oak_leaves))
+        (bedrockEdition.propsOfState(registry, stateId).persistent_bit === '1' ? placed : grown).push(stateId);
+    assert.ok(placed.length && grown.length);
+    for (const stateId of placed) assert.equal(bedrockEdition.leavesPersist(registry, stateId), true);
+    for (const stateId of grown) assert.equal(bedrockEdition.leavesPersist(registry, stateId), false);
 });

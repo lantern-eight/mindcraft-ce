@@ -1,7 +1,7 @@
 import * as mc from "../../utils/mcdata.js";
 import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
-import { followKnownWay } from './travel_guide.js';
+import { followKnownWay, keepToWay } from './travel_guide.js';
 import { withinAttackReach, faceBeforeHit } from './attack_reach.js';
 // Fork hook (docs/core-hooks.md, 27): a skill that searches may look around first.
 import { lookBeforeSearch } from './search_look.js';
@@ -424,12 +424,11 @@ export async function defendSelf(bot, range=9) {
     bot.modes.pause('self_defense');
     bot.modes.pause('cowardice');
     let attacked = false;
-    // Not a creeper: the combat plugin would follow it to melee range and stay there while it explodes.
-    const isFoe = entity => mc.isHostile(entity) && entity.name !== 'creeper';
-    let enemy = world.getNearestEntityWhere(bot, isFoe, range);
+    const shouldFight = entity => mc.isHostile(entity) && entity.name !== 'creeper';
+    let enemy = world.getNearestEntityWhere(bot, shouldFight, range);
     while (enemy) {
         await equipHighestAttack(bot);
-        if (bot.entity.position.distanceTo(enemy.position) >= 4 && enemy.name !== 'creeper' && enemy.name !== 'phantom') {
+        if (bot.entity.position.distanceTo(enemy.position) >= 4 && enemy.name !== 'phantom') {
             try {
                 bot.pathfinder.setMovements(new pf.Movements(bot));
                 await bot.pathfinder.goto(new pf.goals.GoalFollow(enemy, 3.5), true);
@@ -445,7 +444,7 @@ export async function defendSelf(bot, range=9) {
         bot.pvp.attack(enemy);
         attacked = true;
         await new Promise(resolve => setTimeout(resolve, 500));
-        enemy = world.getNearestEntityWhere(bot, isFoe, range);
+        enemy = world.getNearestEntityWhere(bot, shouldFight, range);
         if (bot.interrupt_code) {
             bot.pvp.stop();
             return false;
@@ -938,6 +937,13 @@ export async function discard(bot, itemName, num=-1) {
     return true;
 }
 
+// The containers the chest skills use: chests, trapped chests and barrels all hold 27 stacks and open the same
+// way. Only chests were searched for, so a bot standing by a barrel said there was no chest nearby.
+const CHEST_BLOCKS = ['chest', 'trapped_chest', 'barrel'];
+function nearestChest(bot) {
+    return world.getNearestBlocks(bot, CHEST_BLOCKS, 32, 1)[0] ?? null;
+}
+
 export async function putInChest(bot, itemName, num=-1) {
     assertActionOwner(bot);
     /**
@@ -949,9 +955,9 @@ export async function putInChest(bot, itemName, num=-1) {
      * @example
      * await skills.putInChest(bot, "oak_log");
      **/
-    let chest = world.getNearestBlock(bot, 'chest', 32);
+    let chest = nearestChest(bot);
     if (!chest) {
-        log(bot, `Could not find a chest nearby.`);
+        log(bot, `Could not find a chest or barrel nearby.`);
         return false;
     }
     let item = bot.inventory.findInventoryItem(itemName);
@@ -979,9 +985,9 @@ export async function takeFromChest(bot, itemName, num=-1) {
      * @example
      * await skills.takeFromChest(bot, "oak_log");
      * **/
-    let chest = world.getNearestBlock(bot, 'chest', 32);
+    let chest = nearestChest(bot);
     if (!chest) {
-        log(bot, `Could not find a chest nearby.`);
+        log(bot, `Could not find a chest or barrel nearby.`);
         return false;
     }
     await goToPosition(bot, chest.position.x, chest.position.y, chest.position.z, 2);
@@ -1024,9 +1030,9 @@ export async function viewChest(bot) {
      * @example
      * await skills.viewChest(bot);
      * **/
-    let chest = world.getNearestBlock(bot, 'chest', 32);
+    let chest = nearestChest(bot);
     if (!chest) {
-        log(bot, `Could not find a chest nearby.`);
+        log(bot, `Could not find a chest or barrel nearby.`);
         return false;
     }
     await goToPosition(bot, chest.position.x, chest.position.y, chest.position.z, 2);
@@ -1165,29 +1171,6 @@ export async function searchPath(bot, movements, goal, timeoutMs) {
     return last;
 }
 
-// Keeps a pathfinder Movements object from planning a diagonal step past a solid corner, and returns it.
-//
-// The pathfinder allows a diagonal step when only one of the two cells beside it is open. Its walker then
-// can't make the step, because the bot is too wide to cut the corner: it stands still, says "stuck" every few
-// seconds, and plans the same step again. In a tunnel one block wide that is every turn, and the bot digs such
-// tunnels itself. With this, a diagonal is planned only when both sides are open; otherwise the bot goes round
-// the corner in two straight steps, which costs almost nothing. It changes this one Movements object, not
-// the pathfinder.
-//
-// The comment sits outside the function body on purpose: only functions with a doc block inside are
-// described to the model as skills, and this is a helper, not a skill.
-export function squareCorners(movements) {
-    const diagonal = movements.getMoveDiagonal;
-    movements.getMoveDiagonal = function (node, dir, neighbors) {
-        // The two cells the bot would brush past, at feet and head height.
-        for (const [dx, dz] of [[dir.x, 0], [0, dir.z]]) {
-            if (this.getBlock(node, dx, 0, dz).physical || this.getBlock(node, dx, 1, dz).physical) return;
-        }
-        return diagonal.call(this, node, dir, neighbors);
-    };
-    return movements;
-}
-
 export async function goToGoal(bot, goal) {
     assertActionOwner(bot);
     /**
@@ -1199,10 +1182,11 @@ export async function goToGoal(bot, goal) {
     if (bot.interrupt_code) return false;
 
     // A trip the bot remembers a walked way for follows that way first, as far as it leads. The
-    // planning below then carries on from wherever that left the bot. See travel_guide.js.
-    await followKnownWay(bot, goal, log);
+    // planning below then carries on from wherever that left the bot, digging nothing if that way was
+    // found blocked by someone's build. See travel_guide.js.
+    const knownWay = await followKnownWay(bot, goal, log);
 
-    const nonDestructiveMovements = squareCorners(new pf.Movements(bot));
+    const nonDestructiveMovements = new pf.Movements(bot);
     const dontBreakBlocks = ['glass', 'glass_pane'];
     for (let block of dontBreakBlocks) {
         nonDestructiveMovements.blocksCantBreak.add(mc.getBlockId(block));
@@ -1210,7 +1194,8 @@ export async function goToGoal(bot, goal) {
     nonDestructiveMovements.placeCost = 2;
     nonDestructiveMovements.digCost = 10;
 
-    const destructiveMovements = squareCorners(new pf.Movements(bot));
+    const destructiveMovements = new pf.Movements(bot);
+    keepToWay(knownWay, nonDestructiveMovements, destructiveMovements);
 
     let final_movements = destructiveMovements;
 
@@ -1589,6 +1574,13 @@ export async function moveAwayFromEntity(bot, entity, distance=16) {
     return true;
 }
 
+const activeFlees = new WeakMap();
+
+// Used by self-preservation to keep an active retreat from being replaced by another low-health retreat.
+export function isFleeing(bot) {
+    return activeFlees.has(bot);
+}
+
 export async function avoidEnemies(bot, distance=16) {
     assertActionOwner(bot);
     /**
@@ -1599,24 +1591,32 @@ export async function avoidEnemies(bot, distance=16) {
      * @example
      * await skills.avoidEnemies(bot, 8);
      **/
-    // self_preservation stays on: a bot fleeing into lava, fire or deep water still needs it to get out.
-    let enemy = world.getNearestEntityWhere(bot, entity => mc.isHostile(entity), distance);
-    while (enemy) {
-        const follow = new pf.goals.GoalFollow(enemy, distance+1); // move a little further away
-        const inverted_goal = new pf.goals.GoalInvert(follow);
-        bot.pathfinder.setMovements(new pf.Movements(bot));
-        bot.pathfinder.setGoal(inverted_goal, true);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        enemy = world.getNearestEntityWhere(bot, entity => mc.isHostile(entity), distance);
-        if (bot.interrupt_code) {
-            break;
+    const flee = {};
+    const clearFlee = () => {
+        if (activeFlees.get(bot) === flee) activeFlees.delete(bot);
+    };
+    activeFlees.set(bot, flee);
+    const unregister = onActionCleanup(bot, clearFlee);
+    try {
+        let enemy = world.getNearestEntityWhere(bot, entity => mc.isHostile(entity), distance);
+        while (enemy && !bot.interrupt_code) {
+            const follow = new pf.goals.GoalFollow(enemy, distance + 1);
+            bot.pathfinder.setMovements(new pf.Movements(bot));
+            bot.pathfinder.setGoal(new pf.goals.GoalInvert(follow), true);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            if (bot.interrupt_code) break;
+            enemy = world.getNearestEntityWhere(bot, entity => mc.isHostile(entity), distance);
+            if (enemy && enemy.name !== 'creeper' && bot.entity.position.distanceTo(enemy.position) < 3) {
+                await attackEntity(bot, enemy, false);
+            }
         }
-        // A creeper this close is about to explode: keep walking away from it rather than stop to hit it.
-        if (enemy && enemy.name !== 'creeper' && bot.entity.position.distanceTo(enemy.position) < 3) {
-            await attackEntity(bot, enemy, false);
+    } finally {
+        unregister();
+        if (activeFlees.get(bot) === flee) {
+            clearFlee();
+            bot.pathfinder.stop();
         }
     }
-    bot.pathfinder.stop();
     log(bot, `Moved ${distance} away from enemies.`);
     return true;
 }

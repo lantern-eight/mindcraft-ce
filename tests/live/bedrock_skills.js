@@ -482,6 +482,12 @@ const walk = [
         // One block over the bot's head. The surface there is its top, and the way up is a pillar of the
         // bot's own blocks, which the pathfinder builds.
         await give('dirt', 8);
+        // Nothing else over the bot, up to the top of the world: the world is shared between runs, and
+        // what an earlier one left overhead (this scene's own pillar, or a floor another script built high
+        // up and never took down) would be the highest ground the bot knows of there, and it would climb
+        // for that instead. reset() clears only the few blocks a scene builds in.
+        const top = (bot.game?.minY ?? -64) + (bot.game?.height ?? 384) - 1;
+        await cmd(`fill ${xyz(at(-1, 3, -1))} ${xyz(at(1, top - origin.y, 1))} air`);
         await setblock(0, 2, 0, 'cobblestone');
         assert.ok(await withinTime(skills.goToSurface(bot), 40000, 'goToSurface'), said());
         assert.ok(bot.entity.position.y >= at(0, 3, 0).y - 0.1, `the bot is ${(bot.entity.position.y - origin.y).toFixed(1)} blocks up, and the top is 3 up; ${said()}`);
@@ -493,7 +499,7 @@ const walk = [
         await cmd('time set midnight');
         await cmd('difficulty normal');
         try {
-            await cmd(`summon zombie ${xyz(at(4, 0, 3))}`, 1500);
+            await cmd(`summon zombie ${xyz(at(4, 0, 3))} 0 0 minecraft:as_adult`, 1500);
             assert.ok(await withinTime(skills.defendSelf(bot, 12), 60000, 'defendSelf'), said());
             await delay(800);
             assert.ok(!nearest('zombie') || nearest('zombie').position.distanceTo(bot.entity.position) > 12, 'the zombie is still there');

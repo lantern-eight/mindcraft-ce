@@ -1,7 +1,8 @@
 # Smelting
 
 The bot smelts the way a player does: it finds a furnace that isn't in use (or places its own), puts in
-the items and the fuel they need, shuts it, and comes back for what is done.
+the items and the fuel they need, shuts it, and comes back for what is done. For a long smelt it can load
+a furnace and go and do something else, and it remembers what it left smelting where.
 
 Mindcraft-CE's `smeltItem` stands at an open furnace for the whole smelt (ten minutes for sixty glass),
 waits for ever on a furnace that never opens, adds fuel only to an empty fuel slot and only of one kind,
@@ -32,11 +33,15 @@ stock Mindcraft does, and with fair play on only the ones the bot has seen or re
    and planks for the rest. It never burns what it is smelting or what it is making (no charcoal burned to
    make charcoal), nor Nether wood, which doesn't burn. Coal blocks, blaze rods, dried kelp blocks and lava
    buckets only when nothing else covers it. Short of fuel, it smelts what the fuel covers and says so.
+   **Lava from a lava farm comes first** (see below).
 3. **The furnace.** One it knows of within 16 blocks; else its own, if it carries one, placed beside it on
-   ground it can see; else one it knows of within 64 blocks.
+   ground it can see; else one it knows of within 64 blocks. A blast furnace (for ores and raw metal) or a
+   smoker (for food) comes before a furnace, near and among those it carries: they smelt twice as fast (see
+   [Blast Furnaces and Smokers](#blast-furnaces-and-smokers)).
 4. **Only a free one.** A furnace with anything in its input or output is someone else's work: the bot shuts
    it and tries another, and says which it left alone. Fuel alone in a furnace is used, as a player at a
-   shared base would; at the end the bot takes back only as much fuel as it put in.
+   shared base would; at the end the bot takes back only as much fuel as it put in. A furnace that holds
+   only what the bot itself left smelting in it is its own (see "What Is Smelting Where").
 5. **Load, shut, wait.** It puts in up to a stack and the fuel for it, and shuts the furnace. It waits beside
    it, window shut, for as long as the load takes (10 s an item), or until the fuel in it is nearly spent,
    or until it sees the furnace go out. Then it opens it again, takes what is done, tops it up, and shuts it
@@ -56,10 +61,100 @@ It stops when:
 | Nothing came out at two looks in a row | Takes its things back out and says the furnace stopped |
 | Much longer than it should take (12 s an item and 30 s more) | Takes its things back out |
 | It ran out of fuel | Takes the rest of its items back out |
-| It was interrupted (`!stop`, a reflex, a new task) | Leaves the furnace working, window shut. A stopped action's result is only "Action cancelled", so nothing more is said; `!clearFurnace` takes out what is left in it later |
+| It was interrupted (`!stop`, a reflex, a new task) | Leaves the furnace working, window shut, and remembers what of its own is in it. A stopped action's result is only "Action cancelled", so nothing more is said; the next `!smeltItem` of that item goes on with it |
 | The furnace never opened (4 s), or is gone | Says so; no window is left open |
 
 `!clearFurnace` empties the nearest furnace the bot knows of within 32 blocks: input, fuel, then output.
+
+## Lava From a Lava Farm
+
+A cauldron full of lava under pointed dripstone fills itself again: a player who built one has fuel without
+end, and one bucket smelts a hundred items. So when the bot knows of a full lava cauldron within 32 blocks,
+lava is its first fuel, before coal.
+
+- **The bucket.** One it carries; else an empty bucket it remembers lying in a furnace's fuel slot (lava
+  leaves its bucket there when it catches), which it takes out; else one from the chests, barrels and
+  shelves it remembers holding one. That last is chest storage's fetch, the same as `!fetchItem`: its own
+  and shared chests, and a player's only when a player asked for the smelt ([chest-sorting.md](chest-sorting.md#putting-away-and-fetching)).
+  With `store_and_fetch` off, chests aren't looked in. When a chest held a bucket the bot may not take, the
+  result names it, so the model can ask whose it is.
+- **Filling it.** It walks up to the cauldron and uses the empty bucket on it, as a player does, and checks
+  that a lava bucket came back. It never places lava.
+- **Burning it.** A bucket goes in only on an empty fuel slot, one at a time. Lava burns on for 1,000
+  seconds once it catches, smelting or not, and the slot then shows only the empty bucket, so the bot counts
+  the time left on its lava as fuel and adds no coal it doesn't need. It takes the empty bucket back out on
+  its next visit.
+- **Without a lava farm** a lava bucket the bot carries is a last resort, as before.
+
+The cauldron is found like any block (under fair play, one the bot has seen or remembers) and read through
+the edition seam: Java has a block for each liquid (`lava_cauldron`), Bedrock one `cauldron` block with the
+liquid and how full it is as states.
+
+## Blast Furnaces and Smokers
+
+A blast furnace smelts ores and raw metal, and a smoker food, in half the time a furnace takes: 5 seconds an
+item. Each burns its fuel twice as fast too, so a piece of coal smelts eight items in any of them, and the
+fuel plan is the same. Neither smelts anything else: sand, cobblestone and logs go to a furnace.
+
+So for raw iron the bot takes a free blast furnace within 16 blocks over a furnace, even a nearer one, and
+when it has to place its own it places a blast furnace it carries before a furnace. Its waits, the time it
+says a load will be done, and the reminder that it should be, all go by the block it used, and the result
+names it: "I smelted 16 raw_iron into iron_ingot in the blast furnace at 6, 64, 0."
+
+Which blocks the bot can use depends on the edition, and is asked of the edition seam
+(`usableFurnaceKinds`). Today both editions use all three. On Java they open the same window; on Bedrock a
+blast furnace and a smoker open windows of their own kind, with their own name for the input slot, and the
+library gives them the same calls as a furnace's.
+
+## Several Furnaces at Once
+
+Sixty glass take ten minutes in one furnace, and about three and a half in three. A player with a row of
+furnaces splits the sand between them; so does the bot.
+
+- **Which.** The furnace it chose first, and the free ones it knows of within 8 blocks of it that smelt the
+  item, faster kinds first, up to four in all. Then furnace blocks it carries, placed beside it, but only
+  when it has a pickaxe to pick them back up after. It never crafts a furnace for this.
+- **Shares.** In proportion to speed, so all are done at about the same time: a blast furnace gets twice a
+  furnace's share of raw iron. A furnace is added only for at least 8 items (what one coal smelts), and only
+  when the fuel the bot carries covers every share in a furnace of its own. Fuel comes in pieces: sixty
+  glass take 8 coal in one furnace and 9 in three, so with 8 coal it uses two.
+- **Tending.** It loads each with its share and the fuel for it, shuts it, and goes back to each when its
+  load should be done or its fuel is nearly spent, as for one. A furnace in use is left alone, and its share
+  goes to the others. Each has its own job, so a stopped smelt leaves all of them working, and the next
+  `!smeltItem` of that item goes on with every furnace of the row that holds some of it.
+- **Loading.** `!loadFurnace` shares a big load the same way, a job for each, and `!collectFurnace` goes
+  round them all.
+
+The result names every furnace used: "I smelted 60 sand into glass in the furnace at 2, 64, 0, the furnace
+at 4, 64, 0 and the furnace at 6, 64, 0, burning 9 coal."
+
+## Load and Leave
+
+Sixty glass take ten minutes. A player loads the furnace and goes off to do something else; so can the bot.
+
+| Command | What it does |
+|---|---|
+| `!loadFurnace("sand", 100)` | Finds a furnace as `!smeltItem` does, puts in up to a stack and the fuel for it, shuts it and leaves. Says when it will be done, or how far its fuel goes when it had too little. The rest of the 100 go in later |
+| `!collectFurnace` | Goes back to each furnace it left smelting, nearest first: takes out what is done, puts in more of the job (and fuel) when it carries them, and when a job is over takes back the fuel of its own left over, and picks up a furnace it placed for the job if it has a pickaxe |
+| `!furnaces` | Says what it left smelting where, and when each should be done. Answers at once, from what it remembers |
+
+When a furnace it left should be done (or has smelted what its fuel covered), the next result the model
+reads says so once: "The glass in the furnace at 3, 64, 0 should be done (!collectFurnace)." `!smeltItem`
+stays as it was, for when the result is needed now.
+
+## What Is Smelting Where
+
+The bot remembers what it leaves in a furnace: which furnace, what it is smelting there, how many it put in
+and took out, the fuel it put in, and when the furnace should be done. It writes this down as soon as
+something goes in, so a smelt that is stopped, or a bot that restarts, still knows. It is kept per world and
+dimension, in `bots/<name>/smelting/`, and needs no world memory.
+
+- **Going on.** `!smeltItem` for an item it left smelting goes to that furnace first, takes what is done,
+  counts what is still in there towards what was asked, and carries on.
+- **Its own furnace.** A furnace holding only the bot's own job, and no more of it than the bot put in, is
+  its own, not "in use". Its own furnace smelting something else is left to that.
+- **A belief, not a fact.** What a furnace holds is known only by opening it. If someone took the bot's sand
+  out, the bot smelts what it carries and forgets the job.
 
 ## Fair Play
 
@@ -75,11 +170,10 @@ furnace itself: anything in its input or output.
 
 ## Known Limits
 
-- **It waits beside the furnace.** A player would load it and go and do something else. Loading and leaving,
-  and remembering what is cooking where, are planned. Until then a smelt that is stopped leaves its items in
-  the furnace with nothing to remind the bot of them.
-- **One furnace at a time.** Sixty glass take ten minutes in one furnace; several at once are planned, and so
-  are smokers and blast furnaces (twice as fast for food and ores).
+- **The time is worked out, not watched.** A furnace left working is known to be done from the time the
+  bot worked out when it loaded it, as a player knows. Someone may have emptied it since; the bot finds out
+  when it opens it.
+- **Only furnaces near each other share a smelt** (within 8 blocks of the first), and at most four.
 - **A furnace's leftover burn is not counted.** Coal half burned when the last item is done is lost, as it is
   for a player, and the bot may put in one piece of fuel more than a furnace still burning needs; it takes
   that back at the end.
@@ -93,7 +187,11 @@ All of it lives in `src/agent/smelting/`:
 | `recipes.js` | What a furnace makes of what, by exact name. Pure |
 | `fuel.js` | What burns and how far, the fuel plan in stages, and what to add to the slot now. Pure |
 | `furnace_hands.js` | Opening a furnace with a deadline, reading its slots, putting and taking with a deadline each, closing it. The only file that touches a window |
-| `smelt.js` | `smeltItem` and `clearFurnace`, on those |
+| `shares.js` | How a big smelt is shared between furnaces: by speed, only where each share is worth a furnace and the fuel covers it. Pure |
+| `lava.js` | Lava from a lava farm: the nearest full lava cauldron, an empty bucket for it (from the bag, a furnace's fuel slot, or the chests through `library/fetch_way.js`), filling it |
+| `jobs.js` | What the bot has left smelting where, per world: one job per furnace, and whether a furnace holds only the bot's own. Pure, with its file |
+| `smelt.js` | `smeltItem`, `clearFurnace`, `loadFurnace`, `collectFurnace` and what is smelting where, on those |
+| `commands.js` | `!loadFurnace`, `!collectFurnace` and `!furnaces`, and the "should be done" line on a result |
 | `install.js` | Turns it on for one agent |
 
 **How it hooks into Mindcraft.** `src/agent/library/smelt_way.js` holds a way of smelting per bot, and the

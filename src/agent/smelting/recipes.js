@@ -44,6 +44,39 @@ export const SMELTS = Object.freeze({
     kelp: 'dried_kelp',
 });
 
+// What smelts twice as fast in a blast furnace (ores and raw metal) and in a smoker (food). A furnace smelts
+// these too, and everything else; the other two smelt nothing else.
+const BLASTS = new Set([
+    'raw_iron', 'iron_ore', 'deepslate_iron_ore', 'raw_gold', 'gold_ore', 'deepslate_gold_ore', 'nether_gold_ore',
+    'raw_copper', 'copper_ore', 'deepslate_copper_ore', 'coal_ore', 'deepslate_coal_ore', 'diamond_ore', 'deepslate_diamond_ore',
+    'emerald_ore', 'deepslate_emerald_ore', 'lapis_ore', 'deepslate_lapis_ore', 'redstone_ore', 'deepslate_redstone_ore',
+    'nether_quartz_ore', 'ancient_debris',
+]);
+const SMOKES = new Set(['beef', 'porkchop', 'chicken', 'mutton', 'rabbit', 'cod', 'salmon', 'potato', 'kelp']);
+
+/**
+ * How many times as fast as a furnace each furnace block smelts. A blast furnace and a smoker also burn their
+ * fuel twice as fast, so a piece of fuel smelts as many items in each.
+ */
+export const SPEED = Object.freeze({ furnace: 1, blast_furnace: 2, smoker: 2 });
+
+/**
+ * The furnace blocks that smelt an item, fastest first: a blast furnace for ores, a smoker for food, and a
+ * furnace for everything. Empty for an item no furnace changes.
+ * @param {string} item
+ * @returns {('furnace'|'blast_furnace'|'smoker')[]}
+ */
+export function kindsFor(item) {
+    const n = cleanName(item);
+    if (!productOf(n)) return [];
+    if (BLASTS.has(n)) return ['blast_furnace', 'furnace'];
+    if (SMOKES.has(n)) return ['smoker', 'furnace'];
+    return ['furnace'];
+}
+
+/** A furnace block's name as a player says it: "furnace", "blast furnace", "smoker". */
+export const kindName = kind => String(kind ?? 'furnace').replace(/_/g, ' ');
+
 // Bedrock's names for the products it names differently.
 const BEDROCK_PRODUCTS = Object.freeze({ nether_brick: 'netherbrick', terracotta: 'hardened_clay' });
 

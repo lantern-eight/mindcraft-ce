@@ -6,6 +6,7 @@
 // already makes a perception service at every spawn. Each server, world and dimension gets its own
 // memory: a spawn in a new dimension closes one and opens another.
 import { createPerception } from '../fairplay/perception.js';
+import { protectorOf } from '../neighbor/enforce.js';
 import { setTravelGuide } from '../library/travel_guide.js';
 import { placeCostAt } from '../library/place_costs.js';
 import { moveKindOf } from './kinds.js';
@@ -18,19 +19,21 @@ import { openMemory } from './store.js';
 const navigators = new WeakMap();
 
 /**
- * The guide travel calls before it plans a walk: follows the trail when this bot knows a way.
+ * The guide travel calls before it plans a walk: follows the trail when this bot knows a way, and says
+ * what it found (see travel_guide.js): `noDigging` when the way was blocked by someone's build.
  * Anything that goes wrong is logged and left to ordinary travel, except an interrupt, which has to
  * reach the caller so the walk really stops.
  */
 async function guide(bot, goal, log) {
     const navigator = navigators.get(bot);
     const target = navigator ? targetOf(goal) : null;
-    if (!target) return;
+    if (!target) return null;
     try {
-        await navigator.follow(target, { say: text => log(bot, text) });
+        return await navigator.follow(target, { say: text => log(bot, text) });
     } catch (error) {
         if (bot.interrupt_code) throw error;
         console.warn('[world memory] Could not follow the trail:', error.message);
+        return null;
     }
 }
 
@@ -59,7 +62,11 @@ export function attachWorldMemory({ bot, policy, scope, baseDir, perceptionOptio
     // A way that leads deeper into a place the bot's routes pay to enter (a danger zone) is left to ordinary
     // travel, which goes round it.
     const priceAt = point => placeCostAt(bot, point.x, point.y, point.z);
-    const navigator = bot.pathfinder ? createNavigator({ memory, legs: pathfinderLegs(bot), blocksWay, priceAt }) : null;
+    // Whether a remembered block is someone's is good-neighbor rules' question, asked of the bot's protector
+    // when the rule is on. With it off, no blocker is anyone's and blocked ways are handled as before.
+    const isDoor = name => moveKindOf(name) === 'door';
+    const ownerOf = cell => protectorOf(bot)?.refusal({ name: cell.name, position: cell, rememberedAt: 0 }) ?? null;
+    const navigator = bot.pathfinder ? createNavigator({ memory, legs: pathfinderLegs(bot), blocksWay, isDoor, ownerOf, priceAt }) : null;
     if (navigator) {
         navigators.set(bot, navigator);
         setTravelGuide(guide);
@@ -91,8 +98,9 @@ export function placeBank(getMemory, bank) {
             memory?.places.remember(name, { x, y, z }, { crumb: memory.trail.current });
         },
         recallPlace(name) {
+            // A told place with no height has no position this call can give; !goToPlace walks to it.
             const spot = getMemory()?.places.byName(name)?.spot;
-            return spot ? [spot.x, spot.y, spot.z] : bank.recallPlace(name);
+            return spot && spot.y !== null ? [spot.x, spot.y, spot.z] : bank.recallPlace(name);
         },
         getJson: () => bank.getJson(),
         loadJson(json) {

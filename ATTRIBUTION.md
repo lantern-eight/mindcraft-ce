@@ -28,7 +28,7 @@ trailers say, and CC0 leaves no question about what rights attach to it.
 | Project | What it is here | License |
 |---|---|---|
 | [Mindcraft](https://github.com/mindcraft-bots/mindcraft) | The original LLM agent for Minecraft, by Kolby Nottingham, Max Robinson, Isadora White and its contributors. Described in [Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning](https://arxiv.org/abs/2504.17950) | MIT |
-| [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce) | The community edition, by [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip), [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors. This fork was built on its `agent-system` branch at commit `6a1ce8b`, and takes its later updates by merge (the latest: `ae4b06c`) | MIT |
+| [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce) | The community edition, by [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip), [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors. This fork was built on its `agent-system` branch at commit `6a1ce8b`, and takes its later updates by merge from `develop`, which took that branch in (the latest: `0fb1bd1`) | MIT |
 
 ## Fixes Taken From Other Forks
 
@@ -38,6 +38,16 @@ adapted here with its own test, and stays under the inherited code's MIT License
 | Fork | What was taken | License |
 |---|---|---|
 | [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`). Listing an agent on the MindServer only after the server check, in `src/mindcraft/mindcraft.js` (`f18b8f6`). `attackNearest` refusing an empty mob type, in `src/agent/library/skills.js` (`6533ada`), and `attackEntity` naming a player it killed (`e16fc01`). The removal of a dead method and unused imports from `src/models/vllm.js` (`f18b8f6`) | MIT |
+| [r77tchan/mindcraft](https://github.com/r77tchan/mindcraft) | Claude 4.6 and later on the text path of `src/models/claude.js` (its commits `b7aa235` and `c10134d`): closing a request that ends on an assistant turn with a user turn, room in `max_tokens` for thinking, saying so when a request is declined, and one more try after an empty reply. | MIT |
+
+## Code Ported From Other Forks
+
+Code taken from another fork's own work, adapted here with its tests. It stays under that fork's license,
+which is the inherited code's MIT License; the file says where it came from.
+
+| Fork | What was taken | License |
+|---|---|---|
+| [akarkin1/mindcraft-fk](https://github.com/akarkin1/mindcraft-fk) | The keep plan (`keepPlan` in its `packs/storage/storage_logic.js`, release `v0.1.4.17-rc`), which decides what the bot keeps on itself when it puts things away: `src/agent/storage/keep_plan.js`, with its test cases in `tests/storage_keep_plan.test.js` | MIT |
 
 ## Code Taken From Other Forks
 
@@ -105,7 +115,19 @@ No code was copied for these. They are credited because the work builds on them.
   (`src/agent/modes.js`). Used by `src/agent/fairplay/idle_look.js`.
 - **Keeping what a player told the bot apart from what the bot has seen** comes from the place registry in
   the [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. Used by world memory's
-  things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw.
+  things in `src/agent/memory/things.js`, which keep a thing the bot was told about apart from one it saw, and
+  by its told places (`src/agent/memory/places.js`, `src/agent/memory/told.js`): a place a player gave the
+  position of, kept as told until the bot sees it.
+- **Never folding a told place into a seen one until it is confirmed, and not letting the model invent a
+  location** come from the memory archive once in the
+  [`milkucha/mindcraft-ce-topography`](https://github.com/milkucha/mindcraft-ce-topography) fork. Ideas only,
+  no code: used by `src/agent/memory/told.js` and `!rememberToldPlace`, which only a player can prompt.
+- **Reading Xaero's Minimap's shared waypoint line from chat, with no model call, and its dimension from the
+  waypoint set's name** come from the protection chat in the [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce)
+  fork (`npc-26.3` branch, `src/agent/library/protection_chat.js`, MIT), and **JourneyMap's pasted
+  `[name:..., x:..., y:..., z:..., dim:...]` form** from the JourneyMap import in the
+  [`luv2crawl/mindcraft-rip`](https://github.com/luv2crawl/mindcraft-rip) fork. The parsing is written afresh.
+  Used by `src/agent/memory/waypoints.js`.
 
 - **The furnace's recipes, fuel by kind (coal and charcoal 8 items, planks and logs 1.5, Nether wood never),
   batches of a stack, a furnace in use being one with another item in it, and emptying only the bot's own
@@ -117,6 +139,9 @@ No code was copied for these. They are credited because the work builds on them.
   risen** come from the managed smelting in the
   [`FeelsMan/mindcraft-test`](https://github.com/FeelsMan/mindcraft-test) fork (`smelting_plan.js`,
   `managed_smelting.js`). Used by `src/agent/smelting/`.
+- **Sharing a big smelt between several furnaces at once, each fuelled for its share, and collecting from all
+  of them** comes from `smeltItemInParallel` in the [`mateusands/mindcraft`](https://github.com/mateusands/mindcraft)
+  fork (`library/skills.js`); the idea only, no code. Used by `src/agent/smelting/shares.js` and `smelt.js`.
 
 - **Backing off from a creeper by sprinting, how far, and hitting a following creeper once and stepping
   back** come from the creeper procedure in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk)
@@ -175,6 +200,34 @@ No code was copied for these. They are credited because the work builds on them.
 - **Taking a bot's starting reactions to threats from its profile** comes from the instincts in the
   [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by the profile's
   `threat_rules` in `src/agent/reflexes/orders.js`.
+- **Exploring that keeps its heading** comes from the [`KojoBarbie/mindcraft`](https://github.com/KojoBarbie/mindcraft)
+  fork (`skills.explore`: a heading kept between calls); **carrying a walk on across short calls, turning by
+  growing offsets instead of reversing, and stopping when the target is seen** from the
+  [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork (`skills.exploreUntilBlock`);
+  **heading for ground not yet visited** from the [`3spress0/mindcraft`](https://github.com/3spress0/mindcraft)
+  fork (`navigation/exploration.js`). All three are MIT. Used by `src/agent/explore/`.
+- **Good-neighbor rules that protect everything except natural ground, a list of the blocks that count as
+  natural ground, a tree told by its trunk running up into grown leaves with nothing a builder would put
+  against it, and enforcing them through the pathfinder's `safeToBreak` on the class** come from the
+  protection rule in the [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork (`src/agent/work/protect.js`
+  and `src/agent/work/data/natural_blocks.json`, MIT). The list of block names in `src/agent/neighbor/natural.js`
+  starts from that list, with the Nether and the End added; the code is written afresh. Used by
+  `src/agent/neighbor/`.
+- **A tree that stays a tree while it is felled, and a refused dig that tells the model why and what to do
+  instead** come from the protection in the [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce)
+  fork (`src/agent/library/natural_tree.js`, `protection.js`). Used by `src/agent/neighbor/trees.js` and
+  `enforce.js`.
+- **Checking a remembered route before setting off, and naming what blocks it** comes from the route dry scan
+  in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk) fork (`packs/routes/dry_scan.js`),
+  and **a known route that never digs without saying so, and names the options** from the route memory in
+  the [`luv2crawl/mindcraft-rip`](https://github.com/luv2crawl/mindcraft-rip) fork (`src/agent/route_memory.js`).
+  Both are MIT. No code was copied: the check here asks memory alone. Used by `src/agent/memory/navigator.js`.
+- **A cached start of the prompt, with the part that changes after the history** comes from the prompt
+  caching in the [`r77tchan/mindcraft`](https://github.com/r77tchan/mindcraft) fork, **a cache marker on the
+  last tool** from [`appendix0/pincercraft`](https://github.com/appendix0/pincercraft), and **putting what
+  never changes first** from the [`siacavazzi/mindcraft`](https://github.com/siacavazzi/mindcraft) fork
+  (branch `prompt-caching-token-usage`). Used by `src/models/prompt_cache.js` and the order of the legacy
+  conversing prompt in `profiles/defaults/`.
 - **Tending a field: a crop table with exact names, the jobs of one cell (cut, replant, sow), the best hoe by
   material, and a step cost that keeps the pathfinder from jumping or dropping onto farmland** come from the
   farming pack in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk) fork
@@ -195,21 +248,24 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 
 - `src/agent/fairplay/` (all files)
 - `src/agent/memory/` (all files)
-- `src/agent/storage/` (all files)
+- `src/agent/storage/` (all files but `keep_plan.js`, which is MIT: see above)
 - `src/agent/edition/` (all files)
 - `src/agent/bedrock/` (all files)
 - `src/agent/reflexes/` (all files)
 - `src/agent/smelting/` (all files)
+- `src/agent/neighbor/` (all files)
+- `src/agent/explore/` (all files)
 - `src/agent/farming/` (all files but `visit_order.js`, which is MIT: see "Code Taken From Other Forks")
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/smelt_way.js`, `src/agent/library/stairs_down.js`,
-  `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`,
-  `src/agent/action_hold.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js`, `tests/reflexes_*.test.js`, `tests/farming_*.test.js`, `tests/edition.test.js`,
+  `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`, `src/agent/library/bag_room.js`,
+  `src/agent/library/fetch_way.js`, `src/agent/library/drop_look.js`, `src/agent/library/explore_way.js`,
+  `src/agent/action_hold.js`, `src/models/prompt_cache.js`
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/explore_*.test.js`, `tests/farming_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
-  `tests/skills_missing_player.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
-  `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/goto_path_search.test.js`,
-  `tests/goto_square_corners.test.js`, `tests/pathfinder_diagonal_corners.test.js`,
+  `tests/skills_missing_player.test.js`, `tests/skills_chest_kinds.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
+  `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/bag_room.test.js`, `tests/goto_path_search.test.js`,
+  `tests/pathfinder_diagonal_corners.test.js`, `tests/game_data_shears.test.js`,
   `tests/pickup_items_from_beside.test.js`, `tests/action_error_privacy.test.js`,
   `tests/action_error_message.test.js`, `tests/action_stop_race.test.js`, `tests/position_throttle.test.js`, `tests/wood_types.test.js`,
   `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/door_search.test.js`, `tests/hunting_babies.test.js`, `tests/idle_staring_babies.test.js`, `tests/baby_villagers.test.js`,
@@ -219,16 +275,19 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,
-  `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`
+  `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`,
+  `tests/tool_docs_once.test.js`, `tests/system_notes_in_place.test.js`,
+  `tests/claude_text_requests.test.js`, `tests/claude_tool_requests.test.js`, `tests/prompt_caching.test.js`, `tests/usage_cache_writes.test.js`,
+  `tests/conversing_prompt_order.test.js`, `tests/prompt_caching_text.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
-  `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`
-- `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
-  `tests/live/storage_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/farming_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/bedrock_*.js`,
+  `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`, `tests/helpers/fake_furnace.js`
+- `tests/live/fairplay_*.js`, `tests/live/prompt_cache_check.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
+  `tests/live/storage_scenarios.js`, `tests/live/stow_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/farming_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/neighbor_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/explore_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/smelting_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
-- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/farming.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
-  `docs/upstream.md`
+- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/explore.md`, `docs/farming.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
+  `docs/upstream.md`, `docs/prompt-caching.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file, and on the `bedrock` branch `CHANGELOG-bedrock.md`
 
 `docs/setup.md` is Mindcraft-CE's setup guide with its links adjusted, and stays under MIT.

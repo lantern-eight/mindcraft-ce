@@ -4,7 +4,7 @@ An LLM-driven Minecraft player that plays by the rules a person does. It knows o
 hear or remember, reaches only as far as an arm does, and never runs a command.
 
 This is an **integration fork** of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce), built on
-its `agent-system` branch. Mindcraft-CE stays the core. This fork adds its own modules around it and keeps
+its `develop` branch. Mindcraft-CE stays the core. This fork adds its own modules around it and keeps
 its edits to the core small, so upstream updates stay easy to merge and pieces of this work stay easy to
 offer back.
 
@@ -26,9 +26,12 @@ says what works, what doesn't and how to try it.
 | **Fair play** | On by default. One setting, `fair_play: "off"`, gives stock Mindcraft-CE behavior back |
 | **World memory** | On by default, with fair play. `world_memory: false` turns it off |
 | **Chest sorting** | On by default. The bot tidies only chests it was approved to sort. `chest_sorting: false` turns it off |
-| **Smelting** | On by default. The bot loads a free furnace with the fuel it needs, shuts it and comes back for what is done, as a player does. `smelting: false` keeps Mindcraft-CE's own |
+| **Putting away and fetching** | On by default with chest sorting. "Put your things away", "get me some iron" and "bring me 10 iron": the bot uses its own and shared chests, and a player's when a player asks. `store_and_fetch: false` turns it off |
+| **Smelting** | On by default. The bot loads a free furnace with the fuel it needs, shuts it and comes back for what is done, as a player does, or loads it and goes off to do something else (`!loadFurnace`, `!collectFurnace`). A big smelt is shared between several furnaces, and ores and food go to a blast furnace or smoker. `smelting: false` keeps Mindcraft-CE's own |
+| **Good neighbor** | On by default. The bot doesn't break what other players built: what isn't natural ground, what it saw someone put up, and logs that aren't part of a tree. `good_neighbor.protect_builds: false` turns it off |
 | **Farming** | On by default. The bot tends a field: cuts what it sees is ripe, replants, sows, never tramples the farmland, and leaves other people's fields alone unless asked. `farming: false` turns it off |
 | **Threat reflexes** | On by default. The bot backs off from a creeper about to explode, gets away from other mobs when it should, and remembers where it met danger to walk round it. A player can give it standing orders (fight zombies, run from spiders), which it follows at once from then on. `threat_reflexes: false` turns it off |
+| **Exploring** | On by default. `!explore` walks into new ground on a heading it keeps from one call to the next, round water and steep ground and never through them; `!exploreFor` stops as soon as what it looks for is in view. `explore: false` turns it off |
 | **Minecraft** | **Java Edition 26.3**, through libraries pinned to unreleased branches until their releases support it ([list](docs/core-hooks.md#dependencies-pinned-to-a-branch)). Older versions may work with `minecraft_version: "auto"`, untested |
 | **Bedrock Edition** | **Bedrock Edition 1.26.60** on the `bedrock` branch, and 1.26.61 to 1.26.63 work the same. Experimental: the bot joins, chats, runs the stock skills, and plays fairly with world memory and chest sorting; [what doesn't work yet](docs/bedrock.md#known-gaps). The code is on `main` too, behind `minecraft_edition`; the `bedrock` branch adds the libraries it needs |
 | **Runs on** | Node 22 |
@@ -58,16 +61,16 @@ full guide is [docs/fair-play.md](docs/fair-play.md).
 
 ## What This Fork Changes
 
-Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
+Compared with Mindcraft-CE's `develop` branch, which it is built on:
 
-| Area | Mindcraft-CE `agent-system` | This fork |
+| Area | Mindcraft-CE `develop` | This fork |
 |---|---|---|
 | Finding blocks and mobs | Searches every loaded block, through walls | Only what the bot touches, sees, remembers seeing, or hears |
-| Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found, and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
+| Memory of the world | Named places the model chooses to save | World memory: every block the bot has seen, what was in the chests it opened, places it found or was told of (kept apart until it sees them), and a note when a place has changed, per world. The model asks with `!recall` and `!places`. See [docs/world-memory.md](docs/world-memory.md) |
 | Travel | Every walk is planned afresh, and digs towards the target when no path is found | A trip to somewhere the bot has been follows the way it walked, in hops that neither dig nor place |
 | Route planning | The pathfinder plans over every loaded block, seen or not | It plans over what the bot has seen, takes what it has not seen for open ground, and plans again as the way ahead comes into view |
-| Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. See [docs/chest-sorting.md](docs/chest-sorting.md) |
-| Smelting | Stands at an open furnace until it is done, with one kind of fuel added to an empty slot, takes whatever is in the output, and digs up the nearest furnace afterwards | Uses only a furnace that isn't in use, plans fuel (coal, then planks, making logs into planks first), shuts the furnace while it works, counts what came out, and picks up only the furnace it placed. See [docs/smelting.md](docs/smelting.md) |
+| Chests | Looks in, takes from or puts into the nearest chest | Can be told which chest. Also sorts them: one instruction merges part stacks and puts each kind of item together. The bot keeps whose each chest is, sorts only what was approved, and never mixes two owners' things. Puts its things away where they belong, keeping what it needs, and fetches things from the chests it remembers holding them. See [docs/chest-sorting.md](docs/chest-sorting.md) |
+| Smelting | Stands at an open furnace until it is done, with one kind of fuel added to an empty slot, takes whatever is in the output, and digs up the nearest furnace afterwards | Uses only a furnace that isn't in use, plans fuel (coal, then planks, making logs into planks first), shuts the furnace while it works, counts what came out, and picks up only the furnace it placed. Shares a big smelt between the furnaces near each other, and uses blast furnaces and smokers. See [docs/smelting.md](docs/smelting.md) |
 | Farming | `tillAndSow` in generated code; `!collectBlocks` breaks any wheat it finds, ripe or not | `!tendField` cuts only crops it sees are ripe, replants and sows, never jumps onto the farmland, and keeps whose each field is. See [docs/farming.md](docs/farming.md) |
 | Reach | The server's distance check | A survival player's reach, and the target must be in view |
 | Commands and cheat mode | Available to the model and to players in chat | Cheat mode stays off, slash commands are dropped, and the bot refuses to act as an operator or outside survival |
@@ -79,8 +82,9 @@ Compared with Mindcraft-CE's `agent-system` branch, which it is built on:
 | Game editions | Java Edition only, its data and packets read where they are needed | One copy of fair play, world memory and chest sorting for Java and Bedrock: what differs by edition is asked of an edition seam. See [Built for Two Editions](#built-for-two-editions) |
 | Fixes | | Fixes to inherited code, each listed in the [changelog](CHANGELOG.md) |
 
-**Not built yet:** good-neighbor rules (don't break other players' builds, loot their chests or hurt their
-animals). The guide lists every [known limit](docs/fair-play.md#known-limits).
+**Good-neighbor rules, in part:** the bot doesn't break what other players built, whatever skill is digging
+([docs/good-neighbor.md](docs/good-neighbor.md)). Not looting their chests and not hurting their animals are
+not built yet. The guide lists every [known limit](docs/fair-play.md#known-limits).
 
 ## Built for Two Editions
 
@@ -159,6 +163,7 @@ node tests/live/fairplay_scenarios.js
 | `narrow_view_scenarios.js` | A player's field of view (`fov_degrees` 70): what is behind the bot unknown to perception and memory until it turns, turning to dig, open and build against a block behind it, refused behind a wall, and turning round toward an enderman without staring |
 | `look_first_scenarios.js` | Skills given a spot by its coordinates look before they decide; `digDown`'s staircase; `goToSurface` |
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
+| `explore_scenarios.js` | `!explore` and `!exploreFor`: a heading kept, a wall gone round, a lake not swum into, sand found and remembered, a lake seen earlier turned from before reaching it, a bending tunnel followed |
 | `turning_scenarios.js` | Work that turns a lot, timed at the bot's turning speed: gathering from a tree ahead, one behind and a boulder beside, a bridge one block wide, a ladder, and a gap to jump; a fall or a stall fails it |
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
@@ -166,22 +171,29 @@ node tests/live/fairplay_scenarios.js
 | `mob_scenarios.js` | The mob reflex, the fight and the enderman gaze guard: what the edition seam reads off a real server (a mob's target and aim, a hit's side), backing away from two zombies, cover from a skeleton, a skeleton in a pen with no cover with a shield and without, hits from something unseen, running at low health, a lone zombie fought, standing orders (an armed bot fighting two zombies, backing away from a zombie when told, ignoring or fighting a skeleton when told), an enderman never stared at, how often a night full of mobs interrupts the bot, and how many path searches the reflexes ask for standing by (`--stock` runs the last two with Mindcraft's own reflexes, to compare) |
 | `danger_scenarios.js` | Danger zones: a walk across an arena going round where illagers were seen, against the same walk with no zone; a walk out of the middle of a zone; the zones a skeleton aiming and an explosion heard leave |
 | `fight_arena.js` | How well the bot fights, measured rather than checked: rounds of zombies, skeletons and spiders against kits from bare hands to iron and shield, each run several times, recording wins, time, damage, swings, swings per kill and hits the shield stopped (`--runs`, `--only`, `--kit`, `--fair=off`, `--orders=none`, `--shield=between`, `--out`). A yardstick for changes to how the bot fights; `arena_meter.js` holds the measures it shares with its Bedrock twin, `bedrock_fight_arena.js` |
+| `neighbor_scenarios.js` | Good-neighbor rules: a plank wall and a dirt wall the bot saw go up are never dug through, a plank it is told to break is refused with the reason, and collecting logs fells a tree and leaves a log cabin standing |
 | `storage_scenarios.js` | Chest sorting, and whose chests may be sorted |
+| `stow_scenarios.js` | Putting away and fetching in a storage room people share: where things go, what the bot keeps, and the chests it may not use left as they were |
 | `farming_scenarios.js` | Tending a field: only ripe crops cut, every cell replanted, nothing trampled, a field behind the bot found by looking, a stranger's field left alone |
 | `storage_agent_scenarios.js` | The whole agent, told about chests in plain words |
-| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, and a smelt stopped half way |
+| `smelting_scenarios.js` | Smelting: the glass test, fuel from logs made into planks, a furnace placed and picked up, a furnace in use left alone, one behind a wall not used, a furnace cleared, a smelt stopped half way and gone on with, a furnace loaded and left and collected, and lava from a lava cauldron, with the empty bucket for it in the bag, in the bot's own chest, or on its shelf, sand shared between a row of three furnaces, and raw iron put in a blast furnace |
 | `agent_scenarios.js`, `narration_scenarios.js` | The whole agent and its automatic behaviours |
 
 The scripts that run fair play use strict's view, a player's screen. `MC_TEST_VIEW=all` (or `--view=all`)
 runs them seeing all around instead, which tells a failure that comes from the view apart from one in what
 the scene is about; a release runs them both ways. `narrow_view_scenarios.js` is about the view itself and
 always uses the screen. `java_all.js` runs every script here both ways, one after another, with a line for each
-and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts).
+and a log in a folder of its own (`--views=narrow` or `--views=all` for one way, `--only=` for some scripts, `--port=` to run beside another
+run on ports of its own).
 `MC_TEST_TURN=instant` (or `--turn=instant`) has the bot turn its head at once, as mineflayer does, instead of
 at strict's speed, to measure what a player's turning costs a scene; the fight arena takes both switches too.
 
 The last three replay recorded model replies, so they cost nothing; `--live-model` makes them call the
 configured model instead. Each run leaves its server's folder under `server_data/`, which can be deleted.
+
+`prompt_cache_check.js` is the one paid script, and needs no server: with `--paid` it plays a short task on
+Claude and checks that the requests are read from Claude's prompt cache (see
+[docs/prompt-caching.md](docs/prompt-caching.md)). `java_all.js` leaves it out.
 
 `fairplay_perception_bench.js` times fair play's perception rather than checking it, once per release. It
 makes a world of normal terrain from a fixed seed, takes each timing five times, and compares the middle
@@ -207,10 +219,12 @@ all, to look into a world after a run.
 |---|---|
 | [docs/fair-play.md](docs/fair-play.md) | What fair play does, every switch, known limits, and the code layout |
 | [docs/world-memory.md](docs/world-memory.md) | What the bot remembers with world memory on, what the model can ask, and how changes are noticed |
-| [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, what the model can ask, and what happens when things go wrong |
-| [docs/smelting.md](docs/smelting.md) | How the bot smelts: which furnace, which fuel, the wait with the furnace shut, and when it stops |
+| [docs/chest-sorting.md](docs/chest-sorting.md) | Whose chests the bot sorts, what a sort does, putting away and fetching, what the model can ask, and what happens when things go wrong |
+| [docs/smelting.md](docs/smelting.md) | How the bot smelts: which furnace, which fuel, the wait with the furnace shut, when it stops, and loading a furnace and coming back |
 | [docs/farming.md](docs/farming.md) | What a round of tending a field does, whose fields the bot tends, and what the model can ask |
 | [docs/threat-reflexes.md](docs/threat-reflexes.md) | The threat reflexes: when the bot backs off from a creeper or other mobs, when it fights, what it knows, how it holds other work, and the danger zones its walks go round |
+| [docs/explore.md](docs/explore.md) | Exploring: the two commands, how the bot keeps its heading and gets round what is in the way, and why it is fair |
+| [docs/prompt-caching.md](docs/prompt-caching.md) | How a model request is laid out so its start repeats, and the cache markers Claude gets |
 | [docs/edition-seam.md](docs/edition-seam.md) | What differs between Java and Bedrock below mineflayer, the one place this fork asks about it, and how to add a question |
 | [docs/setup.md](docs/setup.md) | Setup and configuration: providers, profiles, servers, Docker (inherited from Mindcraft-CE) |
 | [docs/agent-system.md](docs/agent-system.md) | Native tools and the Brain, Task and RP agents (inherited) |
@@ -233,8 +247,8 @@ This fork stands on other people's work, and most of the code here is theirs.
 - **[Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce)** is the community edition, by
   [@Sweaterdog](https://github.com/Sweaterdog), [@riqvip](https://github.com/riqvip),
   [@uukelele](https://github.com/uukelele), [@mrelmida](https://github.com/mrelmida) and its contributors.
-  Its **`agent-system`** branch, the base of this fork, adds native tool calling, the Brain, Task and RP
-  agents, tool narration and model routing.
+  Its **`develop`** branch, the base of this fork, includes its agent system: native tool calling, the
+  Brain, Task and RP agents, tool narration and model routing.
 - **[Mineflayer](https://github.com/PrismarineJS/mineflayer)** and the PrismarineJS libraries speak the
   Minecraft protocol. This fork does not patch them.
 
@@ -255,12 +269,12 @@ If you use Mindcraft in research, please cite the original paper:
 
 ## Staying in Step With Upstream
 
-`main` is Mindcraft-CE's `agent-system` branch plus this fork's work, so an upstream update comes in by
+`main` is Mindcraft-CE's `develop` branch plus this fork's work, so an upstream update comes in by
 merge:
 
 ```bash
 git fetch upstream
-git merge upstream/agent-system
+git merge upstream/develop
 npm install && npm test
 ```
 
@@ -271,9 +285,15 @@ The merge is the easy part. What to expect, and what to do after it:
 | `README.md` | A conflict every time, because this fork's is rewritten | Keep this one. Copy anything useful from theirs into [docs/setup.md](docs/setup.md) |
 | A file this fork hooks | Usually merges by itself. Now and then, a conflict at the hook | Fix it by hand. [docs/core-hooks.md](docs/core-hooks.md) lists every hook and why it is there |
 | New code that searches the bot directly | Merges cleanly | A lint test fails and names the line. Send the search through `world.js` |
+| A change next to one of this fork's own edits | Merges cleanly but can come out wrong: a function both sides added, now there twice, or this fork's condition left in front of their new branch so it never runs | Read `git diff HEAD` of every inherited file that merged by itself |
 | Code this fork has replaced | Merges cleanly, the tests pass, and **their change does nothing here** | Read their change and carry it over by hand. The same page lists the replaced pieces |
 
-The first three announce themselves. The last one is silent, so the list of replaced pieces is worth
+Where both sides changed the same thing, take theirs when it does about what this fork's did, or better.
+Where this fork's was better, take theirs in the merge and put this fork's behavior back in a commit of its
+own afterwards, with a test. Keep this fork's side in the merge itself only where it already holds their
+change and differs just by asking the edition seam or fair play's world queries.
+
+The first three rows announce themselves. The last two are silent, so the list of replaced pieces is worth
 reading against upstream's changes after every merge. This fork keeps that list short by putting its own
 version of something in its own module and leaving a small hook in the inherited file.
 

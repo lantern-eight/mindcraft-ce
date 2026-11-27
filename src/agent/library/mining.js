@@ -3,8 +3,13 @@ import { actionContext, assertActionOwner, cancellable } from '../action_context
 import { toolResult } from '../tool_result.js';
 // Fork hook (docs/core-hooks.md, 27): a skill that searches may look around first.
 import { lookBeforeSearch } from './search_look.js';
+// Fork hook (docs/core-hooks.md, 31): stop, or make room, when the bag can't take a block's drop.
+import { makeRoomFor, takeRoomNotes } from './bag_room.js';
+// Fork hook (docs/core-hooks.md, 32): a drop that didn't come is looked for where its block was.
+import { lookForDrop } from './drop_look.js';
 
 const failures = new WeakMap();
+const held = bot => bot.inventory.items().reduce((sum, item) => sum + item.count, 0);
 const counts = bot => Object.fromEntries(bot.inventory.items().map(i => [i.name,
     bot.inventory.items().filter(x => x.name === i.name).reduce((sum, x) => sum + x.count, 0)]));
 
@@ -76,6 +81,7 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
         }
         const key = target.position.toString();
         perTarget.set(key, (perTarget.get(key) || 0) + 1);
+        let heldBeforeDig = null; // fork hook 32
         try {
             report(`Approaching ${type}; collected ${broken} of ${requested}.`);
             if (type === 'water' || type === 'lava') {
@@ -114,12 +120,16 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
                 assertActionOwner(bot);
                 const block = bot.blockAt(target.position);
                 if (!block || !types.has(block.name) || isUnripeCrop(block)) { excluded.add(key); continue; }
+                const room = await makeRoomFor(bot, block); // fork hook 31
+                if (room.stop) { blocker = room.stop; break; }
+                if (room.moved) continue; // it went to empty its bag: back to the block first
                 await bot.tool.equipForBlock(block);
                 if (bot.game.gameMode !== 'creative' && !block.canHarvest(bot.heldItem?.type)) {
                     blocker = `Missing the required tool to harvest ${block.name}.`;
                     break;
                 }
                 report(`Mining ${block.name}; collected ${broken} of ${requested}.`);
+                heldBeforeDig = held(bot); // fork hook 32
                 await cancellable(bot, () => bot.dig(block, true, 'raycast'), Math.min(bot.digTime(block), 300000) + 8000,
                     () => bot.stopDigging());
                 assertActionOwner(bot);
@@ -130,6 +140,9 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
             if (!confirmed.has(key)) { confirmed.add(key); broken++; }
             report(`Broke ${broken} of ${requested} ${type}; collecting drops.`);
             await cancellable(bot, () => pickup(target), 10000, () => bot.pathfinder.setGoal(null));
+            // Fork hook (docs/core-hooks.md, 32): nothing came of the block, so look where it was, and pick up again.
+            if (heldBeforeDig !== null && held(bot) <= heldBeforeDig && await lookForDrop(bot, target.position))
+                await cancellable(bot, () => pickup(target), 10000, () => bot.pathfinder.setGoal(null));
             if(afterBreak) await afterBreak();
             blocker = '';
         } catch (error) {
@@ -162,6 +175,6 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
         blocker ||= 'Blocks broke, but their drops were not acquired.';
     const cancelled = interrupt();
     const status = cancelled ? 'cancelled' : broken >= requested && !blocker ? 'ok' : broken ? 'partial' : 'blocked';
-    const text = `Broke ${broken}/${requested} ${type}; acquired ${acquired}.${blocker ? ` Blocker: ${blocker}` : ''}`;
+    const text = `Broke ${broken}/${requested} ${type}; acquired ${acquired}.${blocker ? ` Blocker: ${blocker}` : ''}${takeRoomNotes(bot)}`; // fork hook 31
     return toolResult(status, text, cancelled ? 'interrupted' : status === 'ok' ? null : 'incomplete', {broken, requested, gains, blocker});
 }

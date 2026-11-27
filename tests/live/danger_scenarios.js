@@ -53,6 +53,8 @@ try {
     const { installThreatReflexes } = await import('../../src/agent/reflexes/install.js');
     const { placeCostAt } = await import('../../src/agent/library/place_costs.js');
     const skills = await import('../../src/agent/library/skills.js');
+    const world = await import('../../src/agent/library/world.js');
+    const { editionOf } = await import('../../src/agent/edition/index.js');
 
     bot = initBot(NAME);
     bot.on('error', error => console.error('Bot error:', error.message));
@@ -204,7 +206,20 @@ try {
         await reset({ x: -20.5 });
         await cmd('summon skeleton -6.5 70 0.5 {PersistenceRequired:1b,equipment:{head:{id:"minecraft:leather_helmet",count:1},mainhand:{id:"minecraft:bow",count:1}}}');
         const started = Date.now();
-        await waitFor(() => zones.list().some(z => z.kind === 'archer'), 15000, () => JSON.stringify(zones.list()));
+        // Said when no zone comes: whether the skeleton is there, in view, and aiming, and where the bot is
+        // and faces, so a skeleton out of view can be told apart from one that never drew its bow.
+        const why = () => {
+            const skeleton = Object.values(bot.entities).find(e => e.name === 'skeleton');
+            const eye = bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0);
+            return JSON.stringify({
+                zones: zones.list(), skeleton: skeleton?.position ?? null,
+                inView: world.getNearbyEntities(bot, 48).some(e => e.name === 'skeleton' && e.lastSeenAt === undefined),
+                aiming: skeleton ? editionOf(bot.registry).isAiming(bot.registry, skeleton, eye) : null,
+                bot: bot.entity.position, yaw: Number(bot.entity.yaw.toFixed(2)), health: bot.health, damage,
+                action: agent.actions.currentActionLabel ?? null, log: bot.modes.behavior_log.trim().slice(-300),
+            });
+        };
+        await waitFor(() => zones.list().some(z => z.kind === 'archer'), 15000, why);
         const zone = zones.list().find(z => z.kind === 'archer');
         const skeleton = Object.values(bot.entities).find(e => e.name === 'skeleton');
         const off = skeleton ? round1(flat(zone, skeleton.position)) : null;
