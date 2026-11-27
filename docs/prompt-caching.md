@@ -14,7 +14,7 @@ most:
 | Part | Changes when |
 |---|---|
 | The tools | The tool set changes (a blocked action, a new augment), or another role asks (the Brain's tools differ from the Task's) |
-| The system prompt: the profile's instructions, then the current goal and the memory summary at its end | A goal is set or dropped, or the history is summarized |
+| The system prompt: the profile's instructions, then the current goal and the memory summary at its end | A goal is set or dropped, or the history is summarized (for Claude the summary goes with the fresh state instead; see below) |
 | The conversation so far: player messages, the bot's replies and tool calls, tool results, and system notes (deaths, mode changes) where they happened | It only grows during a task; summarizing cuts its start |
 | The fresh state: stats, nearby entities and blocks, inventory | Every call. It is sent once and never kept |
 
@@ -28,13 +28,15 @@ Two things used to break this, for every provider, and are fixed:
 
 OpenAI, DeepSeek and Gemini 2.5 and later cache a repeated start by themselves, and local servers (Ollama,
 llama.cpp, LM Studio, vLLM) reuse the work they did for one. They need nothing more than the layout.
+OpenAI also takes a `prompt_cache_key`, which helps it send requests that share a start to the same
+machine; a profile can set it in its model's `params`, which are passed through to the request.
 
 ## Claude
 
 Claude caches only what a request marks. `src/models/prompt_cache.js` puts three markers (of the four
 allowed) on every native tool request to Claude:
 
-1. the last tool, so a changed goal or memory summary still finds the tools in the cache;
+1. the last tool, so a changed goal still finds the tools in the cache;
 2. the end of the system prompt;
 3. the last block of the conversation that the next call will send again, which leaves the fresh state out.
 
@@ -61,6 +63,22 @@ the same text, the per-turn part after the conversation instead of before it.
 
 Measured on Claude Haiku 5.5, six calls of one task in this mode: the first wrote its 3,200-token start, and
 each later call read 93 to 95% of its prompt from the cache, leaving only the 180-token fresh state uncached.
+
+### The Memory Summary
+
+The stored history keeps `max_messages` turns (15 by default). Past that it cuts the oldest five and rewrites
+the memory summary, and during a task that is every two or three steps, since each step stores two turns.
+With the summary in the system prompt, each rewrite changed the system prompt and lost the cached
+conversation after it. So for Claude the summary, like the stats, leaves the system prompt (a note stays
+where it was) and goes with the fresh state, as `Summarized memory: '...'`, on both paths. A task keeps every
+turn the new summary covers in its own history, so the model loses nothing by reading it at the end. The
+role prompts that hold live stats (the RP agent's) send those the same way.
+
+Measured on Claude Haiku 5.5, one session through the real history (12 earlier turns, a task of eight steps,
+then a second conversation of three): with the summary in the system prompt, 4 of the 11 calls read only the
+tools and rewrote everything after them, and the session read 82% of its prompt tokens from the cache. With
+it in the fresh state, every call after the first read the whole start the call before it marked: 88%,
+most of the rest being the first call's write. The summary adds about 70 uncached tokens to each call.
 
 `prompt_caching` in `settings.js`:
 
