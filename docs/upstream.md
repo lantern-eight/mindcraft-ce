@@ -30,6 +30,8 @@ holds the fix and nothing else.
 | [#153](https://github.com/mindcraft-ce/mindcraft-ce/pull/153) | The same on the native tool path: no request ending on the bot's own turn, 16,000 tokens by default, a refusal raised as declined |
 | [#154](https://github.com/mindcraft-ce/mindcraft-ce/pull/154) | Usage counts prompt cache writes per role and prices them by `cache_write_per_million` when the rates give one |
 | [#155](https://github.com/mindcraft-ce/mindcraft-ce/pull/155) | With native tools off, the conversing prompt puts its fixed instructions and the command list before the parts that change each turn, so providers that cache a repeated start can reuse them |
+| [#156](https://github.com/mindcraft-ce/mindcraft-ce/pull/156) | Collecting a crop takes only fully grown plants, and says the crop is not grown yet when nothing else is there |
+| [#157](https://github.com/mindcraft-ce/mindcraft-ce/pull/157) | Collecting walks up to a plant (it has no collision box for the line-of-sight goal), and that walk and its pickup never dig, place or leap |
 
 ### Merged, With a Difference Kept
 
