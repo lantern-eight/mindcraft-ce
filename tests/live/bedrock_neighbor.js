@@ -152,8 +152,13 @@ try {
         await fill([-10, 1, -1], [9, 2, 1], 'dirt');
         await tpTo([-10, 1, -2], -90);
         const go = cell => act('test:go', () => skills.goToPosition(bot, at(...cell).x, at(...cell).y, at(...cell).z, 0));
-        for (const cell of [[10, 1, -2], [10, 1, 2], [-10, 1, 2], [10, 1, 2], [10, 1, -2], [-10, 1, -2], [-10, 1, 2]]) await go(cell);
-        assert.ok(bot.entity.position.distanceTo(at(-10, 1, 2).offset(0.5, 0, 0.5)) <= 1.5, 'the bot walked the corridor and is at the far end');
+        const walks = [];
+        for (const cell of [[10, 1, -2], [10, 1, 2], [-10, 1, 2], [10, 1, 2], [10, 1, -2], [-10, 1, -2], [-10, 1, 2]]) {
+            const walked = await go(cell);
+            const p = bot.entity.position.minus(origin);
+            walks.push(`${cell} -> ${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}: ${walked.text?.trim().split('\n').at(-1)}`);
+        }
+        assert.ok(bot.entity.position.distanceTo(at(-10, 1, 2).offset(0.5, 0, 0.5)) <= 1.5, `the bot walked the corridor and is at the far end: ${walks.join(' | ')}`);
         await tpTo([-10, 1, 2], -90, 2500); // facing down arm B, as a player watching it would
         await fill([0, 1, 2], [0, 2, 2], 'oak_planks');
         await delay(3000);

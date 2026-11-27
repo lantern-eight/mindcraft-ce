@@ -181,9 +181,19 @@ export function createNavigator({ memory, legs, blocksWay = null, isDoor = () =>
     function walledLink(points) {
         for (let i = 0; i + 1 < points.length; i++) {
             if (points[i].id == null || points[i + 1].id == null) continue;
-            if (wallOnLine(points[i], points[i + 1], { reach: Infinity, solid: builtAt })) return i;
+            if (walledUp(points[i], points[i + 1])) return i;
         }
         return -1;
+    }
+    // A link is walled up when the straight line between its two spots is blocked by something seen built,
+    // and so are both L-shaped ways between them (along x then z, and along z then x). Round a corner the
+    // straight line clips the inside of the bend, but the bot walked one of the L-shaped ways; a wall built
+    // across a corridor blocks all three.
+    function walledUp(a, b) {
+        const blocked = (from, to) => Boolean(wallOnLine(from, to, { reach: Infinity, solid: builtAt }));
+        if (!blocked(a, b)) return false;
+        const viaX = { x: b.x, y: a.y, z: a.z }, viaZ = { x: a.x, y: a.y, z: b.z };
+        return (blocked(a, viaX) || blocked(viaX, b)) && (blocked(a, viaZ) || blocked(viaZ, b));
     }
 
     /**

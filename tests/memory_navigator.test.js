@@ -415,3 +415,22 @@ test('N21: a block the bot remembers on a way, but never saw put up, is not take
     assert.equal(result.reached, 'end');
     assert.deepEqual(said.filter(text => /blocked/.test(text)), []);
 });
+
+test('N22: round a corner, a straight line between two spots clipping a block seen built is no wall: the bot walked round it', async () => {
+    // East along z 0 to x 20, then north to z -20. The inside of the bend is a block someone put up, seen going
+    // up: the straight line between the spots either side of the corner crosses it, the L-shaped way the bot
+    // walked does not.
+    const memory = laid([at(2, 0), at(20, 0), at(20, -20)]);
+    memory.cells = createCells();
+    for (let x = 17; x <= 19; x++) for (let z = -3; z <= -1; z++) for (const y of [64, 65]) {
+        memory.cells.write(x, y, z, 'oak_planks');
+        memory.cells.tag(x, y, z, 'built');
+    }
+    const body = legs(stand(memory, at(2, 0)));
+    const said = [];
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid, ownerOf: someone })
+        .follow({ x: 20, y: 64, z: -20, range: 1 }, { say: text => said.push(text) });
+    assert.equal(result.reached, 'end');
+    assert.deepEqual(said.filter(text => /blocked/.test(text)), []);
+    assert.equal(result.noDigging, false);
+});
