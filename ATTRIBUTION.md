@@ -213,6 +213,10 @@ No code was copied for these. They are credited because the work builds on them.
   and `src/agent/work/data/natural_blocks.json`, MIT). The list of block names in `src/agent/neighbor/natural.js`
   starts from that list, with the Nether and the End added; the code is written afresh. Used by
   `src/agent/neighbor/`.
+- **A player letting the bot break exact protected blocks, one cell at a time and only for a short while**
+  comes from the grant in the [`nengoxx/mindcraft`](https://github.com/nengoxx/mindcraft) fork's protection
+  rule and the `allow_dig_once` of the [`luv2crawl/mindcraft-rip`](https://github.com/luv2crawl/mindcraft-rip)
+  fork. Both are MIT; no code was copied. Used by `src/agent/neighbor/grants.js`.
 - **A tree that stays a tree while it is felled, and a refused dig that tells the model why and what to do
   instead** come from the protection in the [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce)
   fork (`src/agent/library/natural_tree.js`, `protection.js`). Used by `src/agent/neighbor/trees.js` and
