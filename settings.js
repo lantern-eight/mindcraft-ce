@@ -164,6 +164,10 @@ const settings = {
     // fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or
     // off; false keeps Mindcraft's own. See docs/smelting.md.
     "smelting": true,
+    // Exploring: adds !explore and !exploreFor, which walk into new ground on a heading kept from one call
+    // to the next, round water and steep ground, and stop on seeing what was looked for. Works with fair play
+    // on or off; false leaves the commands out. See docs/explore.md.
+    "explore": true,
     // Good-neighbor rules: protect_builds keeps the bot from breaking what other players built; protected_areas
     // lists places where it breaks nothing, each { name, min, max } or { name, x, z, radius }. protect_chests
     // and protect_animals are reserved. Works with fair play on or off. See docs/good-neighbor.md.

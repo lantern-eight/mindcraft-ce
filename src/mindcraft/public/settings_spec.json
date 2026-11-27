@@ -340,6 +340,11 @@
         "default": true,
         "description": "Smelting: !smeltItem finds a furnace that isn't in use (or places the bot's own), loads it with the fuel it needs, shuts it and comes back for what is done, as a player does. Works with fair play on or off. See docs/smelting.md."
     },
+    "explore": {
+        "type": "boolean",
+        "default": true,
+        "description": "Exploring: adds !explore and !exploreFor, which walk into new ground on a heading kept from one call to the next, round water and steep ground, and stop on seeing what was looked for. Works with fair play on or off. See docs/explore.md."
+    },
     "good_neighbor": {
         "type": "object",
         "default": {
