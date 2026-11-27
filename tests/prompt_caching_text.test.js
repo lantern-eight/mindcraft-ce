@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { textCacheLayout, markTextRequest } from '../src/models/prompt_cache.js';
+import { cacheLayout, markTextRequest } from '../src/models/prompt_cache.js';
 import { Prompter } from '../src/models/prompter.js';
 import { setSettings } from '../src/agent/settings.js';
 
@@ -33,16 +33,19 @@ function claude() {
     return {model, packs};
 }
 
-test('the per-turn parts leave the system prompt, in the template\'s order', () => {
-    const layout = textCacheLayout({anthropic: {}}, 'RULES\n$COMMAND_DOCS\n$SELF_PROMPT\n$MEMORY\n$STATS\n$INVENTORY\n$EXAMPLES\nBegin:');
-    assert.equal(layout.system, 'RULES\n$COMMAND_DOCS\n$SELF_PROMPT\n$MEMORY\n(given at the end of the conversation)\n\n\nBegin:');
-    assert.match(layout.fresh, /^CURRENT STATE .*:\n\$STATS\n\$INVENTORY\n\$EXAMPLES$/);
-    assert.deepEqual(textCacheLayout({anthropic: {}}, 'RULES $MEMORY'), {system: 'RULES $MEMORY', fresh: ''});
+test('the parts that change leave the system prompt, in the template\'s order; the goal stays', () => {
+    const layout = cacheLayout({anthropic: {}}, 'RULES\n$COMMAND_DOCS\n$SELF_PROMPT\nMemory: $MEMORY\n$STATS\n$INVENTORY\n$EXAMPLES\nBegin:');
+    assert.equal(layout.system, 'RULES\n$COMMAND_DOCS\n$SELF_PROMPT\nMemory: (given at the end of the conversation)\n\n\n\nBegin:');
+    assert.equal(layout.parts, "Summarized memory: '$MEMORY'\n$STATS\n$INVENTORY\n$EXAMPLES");
+    assert.match(layout.fresh, /^CURRENT STATE .*:\nSummarized memory: '\$MEMORY'\n\$STATS/);
+    assert.deepEqual(cacheLayout({anthropic: {}}, 'RULES $SELF_PROMPT'), {system: 'RULES $SELF_PROMPT', parts: '', fresh: ''});
+    assert.equal(cacheLayout({anthropic: {}}, 'A $MEMORY $EXAMPLES', {keep: ['$EXAMPLES']}).system,
+        'A (given at the end of the conversation) $EXAMPLES');
 });
 
 test('another provider, or prompt caching off, keeps the request as it was', () => {
-    assert.equal(textCacheLayout({}, 'RULES $STATS'), null);
-    assert.equal(textCacheLayout({anthropic: {}}, 'RULES $STATS', 'off'), null);
+    assert.equal(cacheLayout({}, 'RULES $STATS'), null);
+    assert.equal(cacheLayout({anthropic: {}}, 'RULES $STATS', {setting: 'off'}), null);
 });
 
 test('the system prompt and the last repeated turn are marked; the fresh part comes after, unmarked', () => {
@@ -104,8 +107,8 @@ test('the prompter sends Claude the per-turn parts after the conversation, and a
     await prompter(record(true)).promptConvo(turns);
     const [messages, system, options] = calls[0];
     assert.equal(messages, turns);
-    assert.ok(system.includes('MEMORY TEXT') && !system.includes('EXAMPLE TEXT'));
-    assert.match(options.cache.fresh, /EXAMPLE TEXT$/);
+    assert.ok(!system.includes('MEMORY TEXT') && !system.includes('EXAMPLE TEXT'));
+    assert.match(options.cache.fresh, /Summarized memory: 'MEMORY TEXT'\nEXAMPLE TEXT$/);
 
     calls.length = 0;
     await prompter(record(false)).promptConvo(turns);
@@ -115,4 +118,24 @@ test('the prompter sends Claude the per-turn parts after the conversation, and a
     calls.length = 0;
     await prompter(record(true), {prompt_caching: 'off'}).promptConvo(turns);
     assert.equal(calls[0].length, 2);
+});
+
+test('on the tool path, Claude gets the memory summary with the fresh state, not in the system prompt', async () => {
+    setSettings({base_profile: 'assistant', num_examples: 0, blocked_actions: []});
+    const agent = {name: 'TestBot', history: {memory: 'MEMORY TEXT'}, blocked_actions: [], self_prompter: {isStopped: () => true}};
+    const p = new Prompter(agent, {name: 'TestBot', model: 'ollama/test', cooldown: 0});
+    p._saveLog = () => Promise.resolve();
+    const packs = [];
+    p.chat_model = {model_name: 'claude-test', anthropic: {messages: {create: pack => {
+        packs.push(structuredClone(pack));
+        return Promise.resolve({stop_reason: 'end_turn', content: [{type: 'text', text: 'ok'}]});
+    }}}};
+    await p.promptTools([{role: 'user', content: 'Steve: hi'}], []);
+    const system = textOf(packs[0].system);
+    assert.ok(!system.includes('MEMORY TEXT'), 'the summary is not in the system prompt');
+    assert.match(system, /native function interface/, 'the fixed examples line stays in it');
+    const last = packs[0].messages.at(-1);
+    assert.equal(last.role, 'user');
+    assert.match(textOf(last.content), /Summarized memory: 'MEMORY TEXT'/);
+    assert.ok(!JSON.stringify(last).includes('cache_control'), 'the fresh part is not marked');
 });
