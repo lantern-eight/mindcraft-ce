@@ -101,9 +101,11 @@ function asAction(label, fn) {
  * @param {() => void} [context.save] - writes the book down after a change
  * @param {() => {asked?: boolean|null, by?: string|null}} [context.asker] - who is behind the request
  * @param {(agent: object) => object|null} [context.memory] - world memory, when on
+ * @param {(cells: object[]) => () => void} [context.tending] - opens the field a round tends to good-neighbor
+ *   rules, and returns its close (neighborly.js)
  * @returns {{command: object, action: boolean}[]}
  */
-export function farmingCommands({ book, save = () => {}, asker = () => ({}), memory = () => null }) {
+export function farmingCommands({ book, save = () => {}, asker = () => ({}), memory = () => null, tending = () => () => {} }) {
     const players = agent => Object.keys(agent.bot.players ?? {}).filter(p => p !== agent.name);
     return [
         { action: true, command: {
@@ -116,7 +118,7 @@ export function farmingCommands({ book, save = () => {}, asker = () => ({}), mem
                     const wanted = unquote(seed).toLowerCase();
                     const result = await tendField(agent.bot, {
                         seed: wanted && wanted !== 'any' ? wanted : null, book: book(), behind: asker(),
-                        name: agent.name, memory: memory(agent),
+                        name: agent.name, memory: memory(agent), tending,
                     });
                     assertActionOwner(agent.bot);
                     return result.status === 'ok' ? result.text : `[${result.status}] ${result.text}`;

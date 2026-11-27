@@ -18,6 +18,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   field in sight, it walks to the field it remembers. `!markField` says whose a field is and whether the bot
   may tend it unasked; on its own idea it tends only its own, shared, and "always" fields, and a player asking
   is never refused. `farming: false` leaves the commands out. See `docs/farming.md`.
+- Farming and good-neighbor rules agree on crops. With both on, the bot cuts the crops of a field it is
+  tending, or of one it may always tend (its own, a shared one, or a player's who said so), and those its
+  owner asks for; a stranger's crops stay protected, and the refusal points the model to `!tendField`.
 
 ### Fixed
 

@@ -8,6 +8,10 @@
 //
 // What the bot was told about fields (whose each is, and whether it may be tended unasked) is kept in the
 // field book, one file per world and dimension, under the bot's own folder.
+//
+// With good-neighbor rules on, the field book also answers them about crops (neighborly.js): the bot may cut
+// the crops of a field it is tending, or of one it may always tend. good-neighbor rules are installed first
+// (agent.js), so their protector is there to answer.
 import settings from '../settings.js';
 import { registerCommand } from '../commands/index.js';
 import { scopeOf } from '../fairplay/install.js';
@@ -15,14 +19,16 @@ import { scopeDir } from '../memory/files.js';
 import { requestWatcher } from '../storage/asker.js';
 import { farmingCommands } from './commands.js';
 import { loadFieldBook } from './field_book.js';
+import { cropPermits } from './neighborly.js';
+import { protectorOf } from '../neighbor/enforce.js';
 
 /**
  * @param {object} agent - the agent, once it has a bot
  * @param {object} [options]
  * @param {object} [options.config] - the settings to go by
  * @param {string} [options.bookDir] - the folder the field books are kept in
- * @returns {{commands: string[], book: () => object, save: () => void}|null} what was added, or null when
- *   the setting is off
+ * @returns {{commands: string[], book: () => object, save: () => void, stop: () => void}|null} what was added,
+ *   or null when the setting is off
  */
 export function installFarming(agent, { config = settings, bookDir = null } = {}) {
     // Only an outright `true` turns it on, so a config that leaves the key out gets stock behavior.
@@ -49,10 +55,14 @@ export function installFarming(agent, { config = settings, bookDir = null } = {}
     // Who is behind what the bot is doing: on its own idea it tends only fields it may always tend.
     const watcher = requestWatcher(agent);
 
+    // The field book's say over crops, when good-neighbor rules guard the bot.
+    const permits = cropPermits({ book: bookNow, behind: () => watcher.behind() });
+    const unpermit = protectorOf(agent.bot)?.permit(permits.permit) ?? (() => {});
+
     const commands = farmingCommands({
         book: bookNow, save, asker: () => watcher.behind(),
-        memory: a => a.fairPlay?.memory ?? null,
+        memory: a => a.fairPlay?.memory ?? null, tending: permits.tending,
     });
     for (const { command, action } of commands) registerCommand(command, { action });
-    return { commands: commands.map(({ command }) => command.name), book: bookNow, save };
+    return { commands: commands.map(({ command }) => command.name), book: bookNow, save, stop: unpermit };
 }

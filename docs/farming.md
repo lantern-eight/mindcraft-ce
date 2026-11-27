@@ -92,6 +92,20 @@ of what it was told, for each cell of farmland: whose it is, and whether it may 
 
 Who asked is worked out the same way as for [chest sorting](chest-sorting.md#whose-chests-it-sorts).
 
+### With Good-Neighbor Rules
+
+[Good-neighbor rules](good-neighbor.md) protect what players made, and crops are made: someone sowed them.
+The field book is the owner record those rules lack, so it answers them about crops:
+
+- **While a round of `!tendField` lasts,** the crops of the field it tends may be cut. The round only starts
+  when the field may be tended (above), and it leaves the field replanted, as a player tending a friend's
+  field would.
+- **Otherwise** (`!collectBlocks wheat`, say), a crop may be cut when its field is one the bot may always
+  tend, or when the player who asked owns it. Another player asking is not enough: they would be harvesting
+  someone else's field without replanting it.
+- **Anything else stays refused,** and the refusal sends the model to `!tendField` and `!markField`.
+- Only the crop is freed, never the farmland under it, and a protected area from the settings still wins.
+
 ## What the Model Can Ask
 
 | Command | What it does |
@@ -138,7 +152,8 @@ All of it lives in `src/agent/farming/`:
 | `field_book.js` | Whose each field is, and the rule for tending it unasked. A plain store, one file per world |
 | `tend.js` | The round itself: the only part that walks, looks, cuts and plants |
 | `commands.js` | What the model can ask, and how the answers read |
-| `install.js` | Starts it for one agent, behind the setting |
+| `neighborly.js` | Answers good-neighbor rules about crops, from the field book and the round being tended |
+| `install.js` | Starts it for one agent, behind the setting, and hands good-neighbor rules its answer |
 
 **What depends on the edition of the game.** Block names are turned into Java's through the
 [edition seam](edition-seam.md) (`javaNameOf`) before they are looked up, and a crop's ripeness is asked of
