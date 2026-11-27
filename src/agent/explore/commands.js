@@ -33,6 +33,7 @@ function asAction(label, fn) {
 /**
  * @param {object} options
  * @param {(agent: object) => object|null} options.memoryOf - the agent's open world memory, or null
+ * @param {(agent: object) => object|null} [options.recorderOf] - world memory's recorder for the agent, or null
  * @param {(bot: object, options: object) => object} [options.legsFor] - the legs to walk on (tests hand in their own)
  * @returns {object[]} the two commands
  */
@@ -46,7 +47,7 @@ export function exploreCommands(options) {
  * @param {object} options - as for exploreCommands
  * @returns {{commands: object[], run: (agent: object, what: string|null, direction: string, distance: number) => Promise<object>}}
  */
-export function createExploring({ memoryOf, legsFor = realLegs }) {
+export function createExploring({ memoryOf, recorderOf = () => null, legsFor = realLegs }) {
     // Each bot's last walk, and the dimension it was in: a walk in the Nether doesn't carry on in the overworld.
     const lastWalks = new WeakMap();
 
@@ -78,7 +79,7 @@ export function createExploring({ memoryOf, legsFor = realLegs }) {
         const memory = memoryOf(agent);
         const kept = lastWalks.get(bot);
         const last = kept?.dimension === dimension ? kept.trail : savedWalk(memory);
-        const legs = legsFor(bot, { targets, memory });
+        const legs = legsFor(bot, { targets, memory, recorder: recorderOf(agent) });
         const result = await explore({ legs, direction, distance, targets: targets?.all ?? null, last });
         if (result.trail) {
             lastWalks.set(bot, { dimension, trail: result.trail });

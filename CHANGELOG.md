@@ -24,6 +24,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - A bot set down beside its trail, on a spot it never stood on, could join the trail at a spot through a
   wall it remembered, in the next tunnel over, and then go the wrong way or find no known way at all. It
   joins on its own side of the wall now.
+- Exploring underground now and then stopped at a bend, saying every way was blocked: the passage on had
+  come into view but wasn't in memory yet. Underground, a stretch now waits for the look round from where
+  the bot stands to be taken in before choosing where to go.
 
 ## [1.28.0-bedrock.1.30.0] - 2026-11-27
 

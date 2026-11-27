@@ -106,7 +106,7 @@ try {
         handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-explore-')) });
         await delay(1500);
         assert.ok(handle?.memory, 'world memory is on');
-        [exploreCommand, exploreForCommand] = exploreCommands({ memoryOf: () => handle.memory });
+        [exploreCommand, exploreForCommand] = exploreCommands({ memoryOf: () => handle.memory, recorderOf: () => handle.recorder });
     });
 
     await step('1: told east the bot walks east, and told "on" it carries on east', async () => {
