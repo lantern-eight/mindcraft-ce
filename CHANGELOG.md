@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Shared waypoints: a chat line from Xaero's Minimap (`xaero-waypoint:...`) or JourneyMap (`[name:"...", x:..,
+  y:.., z:.., dim:...]`) is saved as a told place at once, with no model call, and the bot answers in chat. A
+  waypoint for another dimension is kept with that dimension's places, for when the bot gets there.
+- `!forgetPlace(name)` forgets a told place the bot hasn't seen, when a player takes it back.
+
 ## [1.25.0-bedrock.1.27.0] - 2026-11-27
 
 Places a player told the bot of, for both editions, and a fix to `!bringItem`. Built on the same Mindcraft-CE
