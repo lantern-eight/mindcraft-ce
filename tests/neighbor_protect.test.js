@@ -255,3 +255,20 @@ test('the install reads the settings, and counts what the bot placed this sessio
         await assert.rejects(bot.dig(bot.blockAt(new Vec3(8, 1, 0))));
     } finally { on.stop(); }
 });
+
+test('installed, a player\'s grant in chat lets the bot break that block, once', async () => {
+    const world = plankWallWorld();
+    const bot = walkerBot(world);
+    bot.dig = async () => {};
+    const said = [];
+    const agent = { bot, name: 'Bot', handleMessage: async () => false, openChat: text => said.push(text) };
+    const on = installGoodNeighbor(agent, { config: { fair_play: 'off', good_neighbor: { protect_builds: true } } });
+    try {
+        await assert.rejects(bot.dig(bot.blockAt(new Vec3(8, 1, 0))), /a player can let you break it by typing !allowBreak 8, 1, 0/);
+        await agent.handleMessage('Steve', '!allowBreak 8 1 0');
+        assert.match(said[0], /^Okay, Steve: I may break the block at 8, 1, 0/);
+        await bot.dig(bot.blockAt(new Vec3(8, 1, 0)));
+        bot.emit('diggingCompleted', bot.blockAt(new Vec3(8, 1, 0)));
+        await assert.rejects(bot.dig(bot.blockAt(new Vec3(8, 1, 0))), 'used up once broken');
+    } finally { on.stop(); }
+});

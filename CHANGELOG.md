@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- A player can let the bot break blocks that good-neighbor rules protect, on both editions, by typing
+  `!allowBreak x y z` in chat, or two corners for a box of up to 64 blocks. Each block may be broken once,
+  in the next ten minutes, whatever protects it. The grant is read from the player's own message before
+  any model sees it, and the model has no command for it, so it can't grant itself; nor can another bot. A
+  refusal now tells the model how a player can allow it. See `docs/good-neighbor.md`.
+
 ## [1.29.0-bedrock.1.31.0] - 2026-11-27
 
 A blocked way is handled by whose blocker it is, for both editions. Built on the same Mindcraft-CE commit as

@@ -13,6 +13,8 @@ import settings from '../settings.js';
 import { resolvePolicy } from '../fairplay/policy.js';
 import { editionOf } from '../edition/index.js';
 import { compileArea, createProtector } from './protect.js';
+import { createGrants, grantListener } from './grants.js';
+import convoManager from '../conversation.js';
 import { guardBot } from './enforce.js';
 
 const SIGHT_RANGE = 32; // how far a cell is checked for being in view right now; farther ones come from memory
@@ -68,7 +70,13 @@ export function installGoodNeighbor(agent, { config = settings } = {}) {
         const p = (newBlock ?? oldBlock)?.position;
         if (p) placed.set(cellKey(p), newBlock?.name ? javaName(newBlock.name) : null);
     };
-    const onDug = block => { if (block?.position) placed.delete(cellKey(block.position)); };
+    // Blocks a player let the bot break (grants.js): a grant is used up once its block is broken.
+    const grants = createGrants();
+    const onDug = block => {
+        if (!block?.position) return;
+        placed.delete(cellKey(block.position));
+        grants.use(Math.floor(block.position.x), Math.floor(block.position.y), Math.floor(block.position.z));
+    };
     const onUpdate = (oldBlock, newBlock) => {
         const p = newBlock?.position;
         if (!p || placed.size === 0) return;
@@ -88,11 +96,15 @@ export function installGoodNeighbor(agent, { config = settings } = {}) {
         tagOf: (x, y, z) => agent.fairPlay?.memory?.cells?.tagOf(x, y, z) ?? null,
         placedNow: (x, y, z) => placed.has(`${x},${y},${z}`),
         dimension: () => bot.game?.dimension ?? 'overworld',
+        grantedBy: (x, y, z) => grants.grantedBy(x, y, z),
     });
     const unguard = guardBot(bot, protector);
+    // A player grants in chat, in their own words: `!allowBreak x y z`. Never the model, never another bot.
+    const listener = grantListener(agent, { grants, isBot: name => convoManager.isOtherAgent(name) });
     console.log(`[good neighbor] Protecting other players' builds${areas.length ? `, and ${areas.length} protected area(s)` : ''}.`);
     return {
         protector,
-        stop() { unguard(); bot.off?.('blockPlaced', onPlaced); bot.off?.('diggingCompleted', onDug); bot.off?.('blockUpdate', onUpdate); bot.off?.('death', onDeath); },
+        grants,
+        stop() { listener.stop(); unguard(); bot.off?.('blockPlaced', onPlaced); bot.off?.('diggingCompleted', onDug); bot.off?.('blockUpdate', onUpdate); bot.off?.('death', onDeath); },
     };
 }
