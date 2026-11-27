@@ -54,6 +54,10 @@ export async function handOver(bot, name, player, count, { walk = goToPlayer, lo
     try {
         // About chest high: the throw goes out level and comes down at their feet.
         await bot.lookAt(target.position.offset(0, 1.1, 0), true);
+        // The server throws an item the way it last heard the bot face, and a turn reaches it only with the
+        // next movement packet. Thrown at once, it went the way the bot faced before: from a chest it had just
+        // emptied, away from the player.
+        await bot.waitForTicks?.(2);
         const before = countOf(bot, name);
         let left = count;
         while (left > 0) {

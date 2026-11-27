@@ -14,6 +14,7 @@
 //   5. Take a snapshot of a container's contents when the bot opens it and again when it closes it, and of
 //      a shelf's whenever its front is in view: a shelf's items are on show, not behind a lid.
 //   6. Tag what the bot digs and places, so its own work is never reported back to it as a change.
+//   7. After each look-around, check whether the bot has now seen a place a player told it of (told.js).
 //
 // The look-around is spread over many short slices (a few milliseconds each), so it never holds up the
 // bot's own movement. Nothing runs while the bot stands still and no block near it changes.
@@ -24,6 +25,7 @@ import { editionOf } from '../edition/index.js';
 import { propsOfState } from './block_state.js';
 import { AIR, OTHER_NAME } from './cells.js';
 import { isCrop, isHerdAnimal, isRipe, isShelf, kindOf, moveKindOf, partnerOffset, startsPlace, wasBuilt } from './kinds.js';
+import { checkTold } from './told.js';
 
 const TAU = 2 * Math.PI;
 const WATCHING_MS = 60_000; // a cell seen this recently was being watched: a change to it is no surprise
@@ -421,6 +423,8 @@ export function createRecorder({ bot, memory, perception = null, now = Date.now,
                 x: Math.floor(h.x / h.count), y: Math.floor(h.y / h.count), z: Math.floor(h.z / h.count) })), how);
         }
         forgetOldLooks(now());
+        // What this look took in may include the spot of a place a player told the bot of.
+        checkTold(memory, bot.entity.position);
     }
 
     /**
