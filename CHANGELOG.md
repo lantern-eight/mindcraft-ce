@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Prompt caching for Claude in the legacy `!command` mode too (`use_function_calling: false`): the system prompt
+  and the conversation so far are marked for the cache, and the stats, inventory and examples of each turn go
+  once after the conversation instead of inside the system prompt. Each step of a task then reads about 95% of
+  its prompt from the cache, where it read none. Coding requests work the same way. `prompt_caching` `"off"`
+  sends the request as before.
+
 ### Changed
 
 - With native tools off (`use_function_calling: false`), the conversing prompt puts its fixed instructions and the
