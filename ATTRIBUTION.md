@@ -38,6 +38,7 @@ adapted here with its own test, and stays under the inherited code's MIT License
 | Fork | What was taken | License |
 |---|---|---|
 | [phwoger/mindcraft-ce](https://github.com/phwoger/mindcraft-ce) | The declared result in the hunting loop of `src/agent/npc/item_goal.js` (its commit `f18b8f6`). In `src/agent/library/skills.js`, `craftRecipe`'s checks that its crafting table found a spot and was placed (`4724168`). Leaving worn armor out of `getInventoryCounts` in `src/agent/library/world.js` (`32a8e91`). The retry in `src/models/novita.js` calling its own method (`f18b8f6`). Listing an agent on the MindServer only after the server check, in `src/mindcraft/mindcraft.js` (`f18b8f6`). `attackNearest` refusing an empty mob type, in `src/agent/library/skills.js` (`6533ada`), and `attackEntity` naming a player it killed (`e16fc01`). The removal of a dead method and unused imports from `src/models/vllm.js` (`f18b8f6`) | MIT |
+| [r77tchan/mindcraft](https://github.com/r77tchan/mindcraft) | Claude 4.6 and later on the text path of `src/models/claude.js` (its commits `b7aa235` and `c10134d`): closing a request that ends on an assistant turn with a user turn, room in `max_tokens` for thinking, saying so when a request is declined, and one more try after an empty reply. | MIT |
 
 ## Code Ported From Other Forks
 
@@ -191,6 +192,11 @@ No code was copied for these. They are credited because the work builds on them.
   instead** come from the protection in the [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce)
   fork (`src/agent/library/natural_tree.js`, `protection.js`). Used by `src/agent/neighbor/trees.js` and
   `enforce.js`.
+- **A cached start of the prompt, with the part that changes after the history** comes from the prompt
+  caching in the [`r77tchan/mindcraft`](https://github.com/r77tchan/mindcraft) fork, **a cache marker on the
+  last tool** from [`appendix0/pincercraft`](https://github.com/appendix0/pincercraft), and **putting what
+  never changes first** from the [`siacavazzi/mindcraft`](https://github.com/siacavazzi/mindcraft) fork
+  (branch `prompt-caching-token-usage`). Used by `src/models/prompt_cache.js`.
 
 ## What This Fork Added
 
@@ -209,7 +215,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/smelt_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`, `src/agent/library/bag_room.js`,
   `src/agent/library/fetch_way.js`, `src/agent/library/drop_look.js`,
-  `src/agent/action_hold.js`
+  `src/agent/action_hold.js`, `src/models/prompt_cache.js`
 - `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skills_chest_kinds.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
@@ -224,16 +230,18 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,
-  `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`
+  `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`,
+  `tests/tool_docs_once.test.js`, `tests/system_notes_in_place.test.js`,
+  `tests/claude_text_requests.test.js`, `tests/claude_tool_requests.test.js`, `tests/prompt_caching.test.js`, `tests/usage_cache_writes.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
   `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`, `tests/helpers/fake_furnace.js`
-- `tests/live/fairplay_*.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
+- `tests/live/fairplay_*.js`, `tests/live/prompt_cache_check.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/stow_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
   `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/neighbor_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/smelting_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
 - `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
-  `docs/upstream.md`
+  `docs/upstream.md`, `docs/prompt-caching.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file, and on the `bedrock` branch `CHANGELOG-bedrock.md`
 
 `docs/setup.md` is Mindcraft-CE's setup guide with its links adjusted, and stays under MIT.

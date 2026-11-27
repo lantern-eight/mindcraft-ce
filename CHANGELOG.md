@@ -9,6 +9,37 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.22.0-bedrock.1.24.0] - 2026-11-26
+
+Prompt caching for Claude, and fixes to how the bot's requests are laid out, for both editions. With native
+tools on (the default) every model call is about 7,000 tokens shorter, and on Claude each step of a task reads
+almost all of its request from the prompt cache. Built on the same Mindcraft-CE commit as 1.21.1-bedrock.1.23.0.
+
+### Added
+
+- Prompt caching for Claude (`prompt_caching`, on by default): native tool requests mark the tools, the
+  system prompt and the conversation so far for Claude's prompt cache, so each step of a task reads all but
+  its newest turn at a tenth of the input price or less. `"1h"` keeps the cache an hour, `"off"` sends no
+  markers. See docs/prompt-caching.md.
+- Model usage counts the input tokens written to a prompt cache per role (`written`, beside `cached`), and
+  `model_pricing` takes a `cache_write_per_million` rate for them.
+
+### Fixed
+
+- With native tools on (the default), the system prompt no longer holds a second copy of the whole tool list,
+  which already reaches the model as its tools: about 7,000 tokens less on every model call.
+- With native tools on, Claude and Gemini read the conversation's system notes (tool results, deaths, mode
+  changes) where they happened, as the other providers do, instead of all of them at the end of the system
+  prompt, out of order.
+- Claude 4.6 and later (Claude 5.x included) on the text path: a request no longer ends on the bot's own turn,
+  which these models reject; long turns are no longer cut off by a 4,096-token limit that their thinking
+  counts toward (the default is now 16,000, and it no longer leaks into the native tool path); a declined
+  request says so instead of "No response from Claude."; and an empty reply is tried once more. From
+  r77tchan's fork.
+- The same on the native tool path (the default): a request no longer ends on the bot's own turn, long turns
+  are no longer reported as "truncated" at 4,096 tokens (the default is now 16,000), and a declined request
+  is logged as declined instead of as an empty reply.
+
 ## [1.21.1-bedrock.1.23.0] - 2026-11-26
 
 Blast furnaces and smokers for Bedrock Edition, and a fix to gathering for both editions. Built on the same
@@ -1344,7 +1375,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.22.0-bedrock.1.24.0...HEAD
+[1.22.0-bedrock.1.24.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...v1.22.0-bedrock.1.24.0
 [1.21.1-bedrock.1.23.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.22.0...v1.21.1-bedrock.1.23.0
 [1.21.0-bedrock.1.22.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...v1.21.0-bedrock.1.22.0
 [1.20.1-bedrock.1.21.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...v1.20.1-bedrock.1.21.1
