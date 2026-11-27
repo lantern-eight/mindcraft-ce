@@ -10,6 +10,10 @@
 // The clicking here is written from how the game behaves, not from the sort plan's own idea of a move,
 // so a sort that passes has been checked against something other than itself.
 
+import minecraftData from 'minecraft-data';
+import { GAME_VERSION } from './game_version.js';
+
+const ITEM_NAMES = new Set(Object.keys(minecraftData(GAME_VERSION).itemsByName));
 const clone = stack => (stack ? { ...stack } : null);
 const sameKind = (a, b) => a.name === b.name && (a.tag ?? null) === (b.tag ?? null);
 const idOf = pos => `${Math.floor(pos.x)},${Math.floor(pos.y)},${Math.floor(pos.z)}`;
@@ -131,7 +135,8 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
         output: '',
         currentWindow: null,
         registry: {
-            itemsByName: new Proxy({}, { get: (_, name) => ({ id: name, name, stackSize: clientSize(name) }) }),
+            // The game's own items, as a real registry has them: a name that is no item is not one here either.
+            itemsByName: new Proxy({}, { get: (_, name) => (ITEM_NAMES.has(name) ? { id: name, name, stackSize: clientSize(name) } : undefined) }),
             foodsByName: { bread: {}, apple: {}, cooked_beef: {} },
         },
         inventory: {
@@ -164,7 +169,11 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
                 get slots() { return client.slots.map(toItem); },
                 get selectedItem() { return toItem(client.cursor, -1); },
                 // mineflayer's own "take out" and "put in": between the chest's slots and the bot's.
-                async withdraw(type, metadata, count) { both(view => transfer(view, type, count, [0, size], [size, size + 36], view.sizeOf)); },
+                async withdraw(type, metadata, count) {
+                    // mineflayer refuses outright when no slot of the bot's is empty, even with room on a stack.
+                    if (client.slots.slice(size).every(Boolean)) throw new Error('Unable to withdraw, Bot inventory is full.');
+                    both(view => transfer(view, type, count, [0, size], [size, size + 36], view.sizeOf));
+                },
                 async deposit(type, metadata, count) { both(view => transfer(view, type, count, [size, size + 36], [0, size], view.sizeOf)); },
                 close() {
                     if (bot.currentWindow !== window) return;
@@ -191,6 +200,16 @@ export function fakeChestBot({ chests = {}, pockets = [], sizes = {}, serverSize
             room.onClick?.(room.clicks);
             leftClick(open.server, slot, serverSize);
             leftClick(open.client, slot, clientSize, clientIgnoresTags ? (a, b) => a.name === b.name : sameKind);
+        },
+        /** mineflayer's `transfer`: moves up to `count` of an item from one run of a window's slots to another. */
+        async transfer({ window, itemType, count, sourceStart, sourceEnd, destStart, destEnd }) {
+            if (!open || open.window !== window) throw new Error('No window is open.');
+            const problems = [];
+            for (const view of [open.server, open.client]) {
+                try { transfer(view, itemType, count, [sourceStart, sourceEnd], [destStart, destEnd], view.sizeOf); }
+                catch (error) { problems.push(error); }
+            }
+            if (problems.length) throw problems[0];
         },
         on(name, fn) { heard.set(name, [...(heard.get(name) ?? []), fn]); },
         off(name, fn) { heard.set(name, (heard.get(name) ?? []).filter(listener => listener !== fn)); },

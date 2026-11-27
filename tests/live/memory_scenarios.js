@@ -64,6 +64,7 @@ try {
     agent.actions = new ActionManager(agent);
     initModes(agent);
     const memoryDir = mkdtempSync(path.join(tmpdir(), 'memory-live-'));
+    const MEMORY_DIR = memoryDir;
     const handle = installFairPlay(agent, { memoryDir });
     assert.ok(handle?.memory, 'world memory is on');
     const memory = () => handle.memory;
@@ -131,7 +132,7 @@ try {
         assert.deepEqual(memory().things.get(4, 70, 0).contents.items, { iron_ingot: 30, bread: 6 });
         await act('test:walk', () => skills.goToPosition(bot, -14, 70, 0, 0));
         const iron = recall('iron');
-        assert.match(iron, /^IN CONTAINERS YOU OPENED\n- chest at 4, 70, [01]: iron_ingot 30 \(looked .*\), 1\d blocks east, about \d+ seconds on foot by a way you know/);
+        assert.match(iron, /^IN CONTAINERS YOU LOOKED INTO\n- chest at 4, 70, [01]: iron_ingot 30 \(looked .*\), 1\d blocks east, about \d+ seconds on foot by a way you know/);
         return { recall: iron.split('\n')[1] };
     });
 
@@ -197,6 +198,55 @@ try {
         assert.doesNotMatch(again.text ?? again.message ?? '', /Noticed/, 'a note is passed on once');
         assert.match(recall('changes'), /^CHANGES YOU NOTICED/);
         return { notes: text.split('\n').filter(line => line.startsWith('Noticed')) };
+    });
+
+    await step('a place a player told it of stays told until it walks there and sees it; a buried one it walks over stays told', async () => {
+        // A walkway south to ground it has never been near, with a chest at the far end. The player gives
+        // the lookout as x and z only, as players do, and a cellar ten blocks under the walkway's middle.
+        await cmd('forceload add -16 16 16 63');
+        await cmd('fill -6 69 21 6 69 60 stone');
+        await cmd('fill -6 70 21 6 75 60 air');
+        await cmd('setblock 1 70 52 chest[facing=north]');
+        await delay(1500);
+        const tell = (name, where) => getCommand('!rememberToldPlace').perform(agent, name, where);
+        assert.match(tell('lookout', '0, 50'), /^Saved "lookout", as you were told: 0, \?, 50, 50 blocks south\./);
+        assert.match(tell('cellar', '0 60 30'), /^Saved "cellar"/);
+        assert.match(getCommand('!places').perform(agent), /- "lookout" \(told just now, not seen yet\) at 0, \?, 50: 50 blocks south/);
+        assert.equal(memory().places.at({ x: 1, y: 70, z: 52 }), null, 'nothing is filed under the told spot');
+
+        const result = await getCommand('!goToPlace').perform(agent, 'lookout');
+        const p = bot.entity.position;
+        assert.ok(Math.hypot(p.x, p.z - 50) <= 3, `it walked there: ${p}`);
+        assert.match(result, /Seen "lookout", which you were told of, at 0, 70, 50\. It is the site where you saw chest 1\./, result);
+        const lookout = memory().places.byName('lookout');
+        assert.equal(lookout.kind, 'found', 'seen, the told name went to the site the chest started');
+        assert.ok(lookout.told?.seenAt);
+        assert.equal(memory().places.byName('cellar').kind, 'told', 'walking over a buried spot is not seeing it');
+        assert.match(recall('cellar'), /not seen yet/);
+        return { answer: result.split('\n').filter(line => /lookout/.test(line)) };
+    });
+
+    await step('a waypoint shared in chat is saved with no model call; one for the Nether goes with the Nether\'s places; a told place taken back is forgotten', async () => {
+        const said = [];
+        agent.openChat = text => said.push(text);
+        try {
+            // A player's message comes in as any chat does; the model (the stand-in agent's own handleMessage) is never asked.
+            await agent.handleMessage('Steve', 'xaero-waypoint:Tower:T:30:~:-40:6:false:0:Internal-overworld-waypoints');
+            assert.deepEqual(said, ['Got it, Steve: "Tower" at 30, ?, -40. I haven\'t seen it yet.']);
+            assert.equal(memory().places.byName('Tower')?.told?.by, 'Steve');
+            await agent.handleMessage('Steve', '[name:"Fortress", x:120, y:70, z:-300, dim:minecraft:the_nether]');
+            assert.equal(said[1], 'Got it, Steve: "Fortress" at 120, 70, -300 in the Nether.');
+            assert.equal(memory().places.byName('Fortress'), null, 'not among this dimension\'s places');
+            const { loadPlaces } = await import('../../src/agent/memory/places.js');
+            const { scopeDir } = await import('../../src/agent/memory/files.js');
+            const nether = handle.scope.replace(/[^/]+$/, 'the_nether');
+            assert.equal(loadPlaces(scopeDir(MEMORY_DIR, nether), { scope: nether }).byName('Fortress')?.kind, 'told');
+            assert.equal(getCommand('!forgetPlace').perform(agent, 'Tower'), 'Forgot "Tower", which Steve told you of.');
+            assert.equal(memory().places.byName('Tower'), null);
+            return { said };
+        } finally {
+            agent.openChat = () => {};
+        }
     });
 
     await step('memory is saved, in small files', async () => {

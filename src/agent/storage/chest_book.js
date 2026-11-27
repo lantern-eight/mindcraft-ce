@@ -6,7 +6,10 @@
 //   - the owner: a player's name, "shared" (everyone, the bot included), "me" (the bot itself), or
 //     nothing at all, which means nobody has said;
 //   - the sorting permission: "asked" (sort it only when a player asks), "always" (the bot may tidy it
-//     whenever), or "never" (leave it as it is, even when its owner's chests are sorted).
+//     whenever), or "never" (leave it as it is, even when its owner's chests are sorted);
+//   - what it is for (`holds`): groups of items ("tools"), items ("iron_ingot"), or "inbox", the chest players
+//     drop things into for the bot to file (purposes.js says what each word means). An empty list is a
+//     player saying "for anything", which also overrides a sign; no list at all is nobody having said.
 // The bot's own chests may always be sorted unless someone says otherwise. Everything else waits to be
 // asked.
 //
@@ -66,9 +69,10 @@ export function createChestBook({ scope, now = Date.now, history = 5 } = {}) {
         if (entry.also) out.also = { ...entry.also };
         if (entry.said) out.said = entry.said.map(word => ({ ...word }));
         if (entry.lastSorted) out.lastSorted = { ...entry.lastSorted };
+        if (entry.holds) out.holds = [...entry.holds];
         return out;
     }
-    const hasSomethingToSay = entry => entry.owner != null || entry.sorting != null || entry.madeBy != null || entry.lastSorted != null;
+    const hasSomethingToSay = entry => entry.owner != null || entry.sorting != null || entry.madeBy != null || entry.lastSorted != null || entry.holds != null;
 
     /**
      * The entry for a chest as the bot finds it now. A chest is found under either of its cells, so a
@@ -125,6 +129,11 @@ export function createChestBook({ scope, now = Date.now, history = 5 } = {}) {
         },
         /** Whose the chest is: a player's name, "shared", "me", or null when nobody has said. */
         ownerOf: chest => find(chest)?.owner ?? null,
+        /** What a player said the chest is for (a copy), [] for "anything", or null when nobody has said. */
+        holdsOf(chest) {
+            const holds = find(chest)?.holds;
+            return holds ? [...holds] : null;
+        },
         /** How the chest may be sorted: "always", "asked" or "never". */
         sortingOf(chest) {
             const entry = find(chest);
@@ -141,12 +150,14 @@ export function createChestBook({ scope, now = Date.now, history = 5 } = {}) {
          *   unless the owner changes, which sets it back to the new owner's default
          * @param {string|null} [word.by] - who said so, when that is known
          * @param {string} [word.madeBy] - set when the bot placed the chest itself
+         * @param {string[]|null} [word.holds] - what the chest is for: words purposes.js reads, [] for
+         *   anything, null to forget what was said. Left out: it stays as it is
          * @returns {{entry: object|null, was: {owner: string|null, sorting: string}, changed: boolean}}
          *   `entry` is null when the chest is left with nothing to say
          */
-        mark(chest, { owner, sorting, by = null, madeBy } = {}) {
+        mark(chest, { owner, sorting, by = null, madeBy, holds } = {}) {
             if (sorting !== undefined && !SORTING.includes(sorting)) throw new Error(`Sorting is always, asked or never, not "${sorting}".`);
-            const was = { owner: book.ownerOf(chest), sorting: book.sortingOf(chest) };
+            const was = { owner: book.ownerOf(chest), sorting: book.sortingOf(chest), holds: book.holdsOf(chest) };
             const entry = entryFor(chest);
             const said = { at: now(), by };
             let changed = false;
@@ -166,9 +177,18 @@ export function createChestBook({ scope, now = Date.now, history = 5 } = {}) {
             // A permission that is only the owner's default is not worth writing down.
             if (entry.sorting === defaultSorting(entry.owner ?? null)) delete entry.sorting;
             if (madeBy !== undefined && entry.madeBy !== madeBy) { entry.madeBy = madeBy; changed = true; }
+            if (holds !== undefined) {
+                const next = holds == null ? null : [...new Set(holds.map(word => String(word)))];
+                if (JSON.stringify(next) !== JSON.stringify(entry.holds ?? null)) {
+                    if (next == null) delete entry.holds;
+                    else entry.holds = next;
+                    said.holds = next;
+                    changed = true;
+                }
+            }
 
             if (changed) {
-                if ('owner' in said || 'sorting' in said) entry.said = [...(entry.said ?? []), said].slice(-history);
+                if ('owner' in said || 'sorting' in said || 'holds' in said) entry.said = [...(entry.said ?? []), said].slice(-history);
                 dirty = true;
             }
             if (!hasSomethingToSay(entry)) {

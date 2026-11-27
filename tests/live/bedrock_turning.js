@@ -52,6 +52,7 @@ try {
     const { initModes } = await import('../../src/agent/modes.js');
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const skills = await import('../../src/agent/library/skills.js');
+    const world = await import('../../src/agent/library/world.js');
 
     let agent, fair;
     const act = (label, fn, minutes = 4) => agent.actions.runAction(label, fn, { timeout: minutes });
@@ -140,7 +141,12 @@ try {
         const startedStone = Date.now();
         const stone = await act('test:stone', () => skills.collectBlock(bot, 'stone', 4));
         const stoneSeconds = Number(((Date.now() - startedStone) / 1000).toFixed(1));
-        const details = { logs: count('oak_log'), logSeconds, stone: count('cobblestone'), stoneSeconds,
+        // Drops still lying about, as the server sent them, against what the bot could see: a drop that came
+        // after the pickup had looked is told apart from one it never saw.
+        const seenIds = new Set(world.getNearbyEntities(bot, 16).filter(e => e.lastSeenAt === undefined).map(e => e.id));
+        const lying = Object.values(bot.entities).filter(e => e.name === 'item' && e.position.distanceTo(bot.entity.position) < 16)
+            .map(e => ({ at: e.position.floored(), off: Number(e.position.distanceTo(bot.entity.position).toFixed(1)), seen: seenIds.has(e.id) }));
+        const details = { logs: count('oak_log'), logSeconds, stone: count('cobblestone'), stoneSeconds, lying,
             logText: (logs?.message ?? '').trim().slice(-300), stoneText: (stone?.message ?? '').trim().slice(-300) };
         assert.ok(details.logs >= 6, `six logs gathered: ${JSON.stringify(details)}`);
         assert.ok(details.stone >= 4, `four stone gathered: ${JSON.stringify(details)}`);

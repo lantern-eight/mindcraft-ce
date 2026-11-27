@@ -8,8 +8,7 @@ import {io} from 'socket.io-client';
 import {vanillaFixture,delay,waitFor} from './vanilla_fixture.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
 
-// --port and --mind-port let a second checkout run this at the same time (java_all.js passes them).
-const arg=name=>process.argv.find(a=>a.startsWith(`--${name}=`))?.split('=')[1];
+const arg=name=>process.argv.find(a=>a.startsWith(`--${name}=`))?.split('=')[1]; // --port, --mind-port: to run beside other test servers
 const fixture=await vanillaFixture(Number(arg('port')||55918));
 const name='CENarration',mindPort=Number(arg('mind-port')||8083);
 let child,socket,log='',state,started=false,finished=false;

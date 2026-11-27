@@ -153,6 +153,19 @@ export function createChanges({ now = Date.now, placeName = () => null, kindOf =
             return made.reverse();
         },
 
+        /**
+         * Adds a note already worded elsewhere, such as a told place the bot has now seen (told.js). It is
+         * handed out once and kept in the log like any other.
+         * @returns {object} the note
+         */
+        note(text, { place = null } = {}) {
+            const note = { id: nextId++, at: now(), place, where: null, shown: false, text: String(text) };
+            log.push(note);
+            while (log.length > keep) log.shift();
+            dirty = true;
+            return { ...note };
+        },
+
         /** Notes not handed out yet, oldest first. Each is handed out once. */
         fresh() {
             const out = log.filter(note => !note.shown);

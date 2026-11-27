@@ -7,16 +7,15 @@
 // is stock Mindcraft's view of the world, as every other command has.
 import pf from 'mineflayer-pathfinder';
 import * as world from '../library/world.js';
-import { squareCorners } from '../library/skills.js';
 import { lookBeforeSearch } from '../library/search_look.js';
 import { newGroundAlong } from './heading.js';
 import { LEG } from './explorer.js';
 
 const STALL_MS = 8000;         // a leg that hasn't moved a block in this long is stuck: end it and try another way
 const SWIM_MS = 5000;          // swimming this long without a break is setting out to sea, not crossing a stream
-const SHORE_MS = 15000;
+const SHORE_MS = 15000;        // how long the swim back to the shore may take before the next try starts anyway
 const BANK_REACH = 16;         // how far off a bank to climb out on is looked for, when the way back is lost
-const DETOUR = 2.5;            // a leg that has walked this many times its length (and a little) is going the long way round        // how long the swim back to the shore may take before the next try starts anyway
+const DETOUR = 2.5;            // a leg that has walked this many times its length (and a little) is going the long way round
 const WATCH_MS = 250;
 const SIGHT = 64;              // how far a thing looked for counts as found: as far as the searches look
 
@@ -28,7 +27,7 @@ const SIGHT = 64;              // how far a thing looked for counts as found: as
  * `goToGoal` is not used: its gentle try still digs, only at a higher price, so an explorer would tunnel.
  */
 export function exploreMovements(bot) {
-    const moves = squareCorners(new pf.Movements(bot));
+    const moves = new pf.Movements(bot);
     moves.exclusionAreasBreak.push(block => (/leaves/.test(block?.name ?? '') ? 0 : 100));
     moves.placeCost = 2;
     moves.liquidCost = 20;

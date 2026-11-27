@@ -18,7 +18,7 @@ import { bedrockTestServer } from './bedrock_fixture.js';
 // The quickest first: if the bot can't join or the console doesn't answer, the smoke test says so in half a
 // minute, before the skills walk spends seven minutes on it.
 const SCRIPTS = ['bedrock_smoke', 'bedrock_perception', 'bedrock_memory', 'bedrock_memory_scenarios',
-    'bedrock_fair_play', 'bedrock_storage', 'bedrock_smelting', 'bedrock_turning', 'bedrock_explore', 'bedrock_threats', 'bedrock_skills'];
+    'bedrock_fair_play', 'bedrock_storage', 'bedrock_stow', 'bedrock_smelting', 'bedrock_neighbor', 'bedrock_turning', 'bedrock_explore', 'bedrock_threats', 'bedrock_skills'];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const logsArg = process.argv.find(arg => arg.startsWith('--logs='))?.slice('--logs='.length);

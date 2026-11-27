@@ -26,8 +26,7 @@ import { fairPlaySettings } from '../helpers/live_view.js';
 const live = process.argv.includes('--live-model');
 const runs = live ? Number(process.argv.find(a => a.startsWith('--runs='))?.split('=')[1] || 3) : 1;
 const NAME = live ? 'ChestLiveModel' : 'ChestReplay';
-// --port and --mind-port let a second checkout run this at the same time (java_all.js passes them).
-const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
+const arg = name => process.argv.find(a => a.startsWith(`--${name}=`))?.split('=')[1]; // --port, --mind-port: to run beside other test servers
 const MIND_PORT = Number(arg('mind-port') || 8084);
 const patience = live ? 180000 : 45000;     // how long one thing a player says gets to take effect
 

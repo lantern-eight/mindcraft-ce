@@ -42,7 +42,7 @@ const step = async (name, fn) => {
 const server = await vanillaFixture(port);
 let bot;
 try {
-    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(), world_memory: true, chest_sorting: true });
+    setSettings({ ...rootSettings, host: '127.0.0.1', port, minecraft_version: GAME_VERSION, minecraft_edition: 'java', auth: 'offline', ...fairPlaySettings(), world_memory: true, chest_sorting: true, store_and_fetch: false });
     const { initBot } = await import('../../src/utils/mcdata.js');
     const { ActionManager } = await import('../../src/agent/action_manager.js');
     const { initModes } = await import('../../src/agent/modes.js');
@@ -81,7 +81,7 @@ try {
     assert.ok(handle?.memory, 'fair play and world memory are on');
     const bookDir = mkdtempSync(path.join(tmpdir(), 'storage-live-book-'));
     const storage = installStorage(agent, { bookDir });
-    assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt'], 'chest sorting is on');
+    assert.deepEqual(storage?.commands, ['!chests', '!markChest', '!chestFor', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt'], 'chest sorting is on');
     // The last few things the bot did with a chest, kept so that a run that goes wrong can say where.
     const lately = [];
     const note = text => { lately.push(text); if (lately.length > 12) lately.shift(); };
@@ -247,7 +247,7 @@ try {
         assert.equal(result.status, 'ok', result.text);
         assert.match(result.text, /^The chest here \(Alice's\) is already in order\. Nothing was moved\./);
         const recall = getCommand('!recall').perform(agent, 'cobblestone');
-        assert.match(recall, /IN CONTAINERS YOU OPENED\n- chest at -12, 70, -14: cobblestone 75 /, recall);
+        assert.match(recall, /IN CONTAINERS YOU LOOKED INTO\n- chest at -12, 70, -14: cobblestone 75 /, recall);
     });
 
     await step('S2: one chest with no free slot and twenty kinds: merged, grouped by category, then by name', async () => {

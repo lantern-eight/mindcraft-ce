@@ -25,7 +25,7 @@ import { holdActions } from '../action_hold.js';
 import { log } from '../library/skills.js';
 import { editionOf } from '../edition/index.js';
 import { describeDirection } from '../fairplay/perception.js';
-import { couldHaveHit, decideMobThreat, ordersAfterGivingUp } from './mob_decide.js';
+import { decideMobThreat, explainsHit, isMelee, ordersAfterGivingUp } from './mob_decide.js';
 import { backAwayFacing, retreatFrom, takeCover } from './moves.js';
 import { mobsAround, mobInView, ordersFor, say, selfOf } from './mobs.js';
 import { CLAIM_MS } from './claims.js';
@@ -37,6 +37,8 @@ const HOLD_AFTER_MS = 1500;   // after a move, how long other starts still wait
 const TELL_AGAIN_MS = 60000;  // the same threat is told about once a minute at most
 const HITS_KEPT_MS = 10000;
 const LOST_SIGHT_MS = 2000;   // all of them out of view this long while retreating: they lost the bot too
+export const FOLLOW_PER_S = 2.5; // a mob out of view that chases is taken to keep coming at about this, in blocks a second
+                                 // (a zombie after a player, measured live on Bedrock: 2.3; a little over, to be sure)
 
 /**
  * @param {object} options
@@ -85,16 +87,29 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
         const line = sayLine(decision, describeDirection(self.position, decision.from[0]).text);
         say(agent, line);
         const report = event => bot.emit?.('threat_reflex', { ...event, stance: decision.stance, key: decision.key, reason: decision.reason, mode: MODE_NAME });
-        report({ event: 'decided', at: performance.now() });
+        // Where the mobs were, as seen: the danger watch keeps a zone where an archer stood (danger_watch.js).
+        report({ event: 'decided', at: performance.now(), from: decision.from.map(({ x, y, z }) => ({ x, y, z })) });
 
         // Where the mobs are now, as the bot knows them: in view, or where last seen. The sides hits came
         // from stay put. Fleeing at low health keeps away from newcomers too.
         const ids = decision.ids ?? [];
         const sides = decision.from.slice(ids.length);
+        // A mob that chases (a zombie, a spider) and is out of view is taken to keep coming: a player running
+        // from zombies knows they follow, and through a player's screen the bot runs with its back to them.
+        // Gone by where it was last seen, the retreat ended 'far enough' with the zombies still coming, a few
+        // blocks behind. For as long as the move lasts: one zombie followed for all of a 5 s retreat. One that
+        // gave up only makes the bot run a little farther, and the look back as it stops shows which.
         let known = decision.from.slice(0, ids.length);
+        const lastAt = [...known], seenAt = ids.map(() => now()), chases = ids.map(() => false);
         const from = () => {
             const around = mobsAround(bot, dying);
-            known = ids.map((id, i) => around.find(mob => mob.id === id)?.position ?? known[i]);
+            const here = bot.entity.position;
+            known = ids.map((id, i) => {
+                const mob = around.find(m => m.id === id);
+                if (mob) { lastAt[i] = mob.position; chases[i] = isMelee(mob); } // a stand-in stands where last seen
+                if (mob?.seenNow) seenAt[i] = now();
+                return chases[i] && !mob?.seenNow ? followedTo(lastAt[i], here, now() - seenAt[i]) : lastAt[i];
+            });
             const points = [...known, ...sides];
             if (decision.stance === 'flee') for (const mob of around) if (!ids.includes(mob.id)) points.push(mob.position);
             return points;
@@ -197,9 +212,11 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
     /** Listens for hits on the bot and mobs dying, on the bot it acts for. */
     function watch(bot) {
         editionOf(bot.registry).onHurt(bot, ({ direction }) => {
-            // Whether something in view could have dealt it, as it lands: a player knows who hit them when
-            // a zombie is right there, and remembers it after the zombie falls.
-            const explained = Boolean(bot.entity) && mobsAround(bot, dying).some(mob => mob.seenNow && couldHaveHit(mob));
+            // Whether something in view could have dealt it, as it lands, on the side it came from: a player knows
+            // who hit them when a zombie is right there, and remembers it after the zombie falls. One hit from
+            // behind while fighting a zombie in front is not that zombie's, and the bot looks round (the glance).
+            const here = bot.entity?.position;
+            const explained = Boolean(here) && mobsAround(bot, dying).some(mob => mob.seenNow && explainsHit(mob, direction, here));
             hits.push({ at: now(), direction, explained });
             bot.emit?.('threat_reflex', { event: 'felt', at: performance.now(), direction, unseen: !explained, mode: MODE_NAME });
         });
@@ -208,6 +225,20 @@ export function createMobReflex({ claims, orders = null, gaveUp = () => false, s
     }
 
     return { mode, round, watch, hits, clear: () => { hits.length = 0; told.clear(); dying.clear(); } };
+}
+
+/**
+ * Where a mob out of view that chases the bot is taken to be: come on from where it was last seen, toward the
+ * bot, at FOLLOW_PER_S for the time since, and never nearer than a block. Pure.
+ * @param {{x:number, y:number, z:number}} lastSeen
+ * @param {{x:number, y:number, z:number}} here - where the bot is
+ * @param {number} ms - since it was last seen
+ */
+export function followedTo(lastSeen, here, ms, perSecond = FOLLOW_PER_S) {
+    const dx = here.x - lastSeen.x, dz = here.z - lastSeen.z, apart = Math.hypot(dx, dz);
+    const step = Math.min(perSecond * Math.max(0, ms) / 1000, apart - 1);
+    if (step <= 0) return { x: lastSeen.x, y: lastSeen.y, z: lastSeen.z };
+    return { x: lastSeen.x + dx / apart * step, y: lastSeen.y, z: lastSeen.z + dz / apart * step };
 }
 
 const NUMBERS = ['no', 'one', 'two', 'three', 'four', 'five'];

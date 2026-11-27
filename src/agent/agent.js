@@ -22,6 +22,7 @@ import { log, validateNameFormat, handleDisconnection } from './connection_handl
 import { installFairPlay } from './fairplay/install.js';
 import { installStorage } from './storage/install.js';
 import { installThreatReflexes } from './reflexes/install.js';
+import { installGoodNeighbor } from './neighbor/install.js';
 import { installSmelting } from './smelting/install.js';
 import { installExplore } from './explore/install.js';
 
@@ -115,6 +116,8 @@ export class Agent {
         // Smelting (off unless settings.smelting is true): smeltItem and clearNearestFurnace load a free
         // furnace, shut it and come back, instead of standing at it.
         installSmelting(this);
+        // Good-neighbor rules (settings.good_neighbor): the bot doesn't break what other players built.
+        installGoodNeighbor(this);
         // Exploring (off unless settings.explore is true): adds !explore and !exploreFor.
         installExplore(this);
 

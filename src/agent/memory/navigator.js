@@ -291,26 +291,13 @@ export function createNavigator({ memory, legs, blocksWay = null, priceAt = null
  *   resort: a hop that is going nowhere is caught much sooner, by the pathfinder saying it is stuck
  */
 export function pathfinderLegs(bot, { hopTimeoutMs = 120000 } = {}) {
-    // The pathfinder will plan a diagonal step past a solid corner when only one side of the corner is
-    // open, and then stand still, because its own walking check knows the bot can't cut that corner.
-    // In a tunnel one block wide that is every turn. So a hop takes a diagonal only when both sides
-    // are open, and otherwise goes round the corner squarely. This changes one Movements object, not
-    // the pathfinder.
-    const squareCorners = movements => {
-        const diagonal = movements.getMoveDiagonal;
-        movements.getMoveDiagonal = function (node, dir, neighbors) {
-            for (const [dx, dz] of [[dir.x, 0], [0, dir.z]]) {
-                if (this.getBlock(node, dx, 0, dz).physical || this.getBlock(node, dx, 1, dz).physical) return;
-            }
-            return diagonal.call(this, node, dir, neighbors);
-        };
-        return movements;
-    };
+    // A hop never plans a slantwise step past a solid corner, which the bot is too wide to cut: Mindcraft-CE's
+    // pathfinder patch refuses those steps for every Movements object.
     // For following the trail: no digging and no placing. The trail is ground the bot walked, so a
     // hop that needs either means the way has changed, and that should be noticed, not dug through.
     // Doors and gates are still opened; the pathfinder does that by itself.
     const strict = () => {
-        const movements = squareCorners(new pf.Movements(bot));
+        const movements = new pf.Movements(bot);
         movements.canDig = false;
         movements.scafoldingBlocks = [];
         movements.allow1by1towers = false;
@@ -319,7 +306,7 @@ export function pathfinderLegs(bot, { hopTimeoutMs = 120000 } = {}) {
     // For getting past a blockage: the same careful settings ordinary travel tries first. Digging and
     // placing are allowed but dear, and glass is left alone.
     const careful = () => {
-        const movements = squareCorners(new pf.Movements(bot));
+        const movements = new pf.Movements(bot);
         for (const name of ['glass', 'glass_pane']) {
             const id = bot.registry.blocksByName[name]?.id;
             if (id != null) movements.blocksCantBreak.add(id);
