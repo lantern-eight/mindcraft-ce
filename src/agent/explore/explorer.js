@@ -34,7 +34,9 @@ export function whereFrom(here, to) {
  *   `lookAround()` look every way if it should; `settle()` (optional) end on dry ground; `newGround(angle)` how much of the ground that way it has
  *   never looked over (0..1), or null when it keeps no record;
  *   with `targets`: `find()` the nearest one in view or remembered close by, {name,x,y,z} or null, and
- *   `recall(maxDistance)` the nearest one remembered farther off, or null
+ *   `recall(maxDistance)` the nearest one remembered farther off, or null;
+ *   optionally `knownHazard(point)` what the bot remembers at a leg's end that it would not walk into ('water',
+ *   'lava', 'drop') or null, and `kinds()` the kinds of ground worth naming that are in view now
  * @param {number|'on'} options.direction - from parseDirection
  * @param {number} options.distance - how far from where it starts to go, in blocks
  * @param {string[]|null} [options.targets] - names of what to look for, or null just to explore
@@ -42,7 +44,8 @@ export function whereFrom(here, to) {
  * @param {number} [options.leg]
  * @param {() => number} [options.random]
  * @returns {Promise<{status: 'explored'|'found'|'known'|'blocked'|'interrupted', text: string,
- *   trail: object|null, found?: object}>}
+ *   trail: object|null, found?: object, newKinds?: string[]}>} `newKinds` are the kinds of ground first seen on
+ *   the way: in view after a stretch, and not in view or remembered where the walk began
  */
 export async function explore(options) {
     const result = await exploreLegs(options);
@@ -70,23 +73,52 @@ async function exploreLegs({ legs, direction, distance, targets = null, last = n
     const { bearing, origin } = plan;
     let heading = plan.heading;
     const blocked = [];
-    const turnedFrom = new Map(); // compass word -> 'water' or 'no way'
+    const turnedFrom = new Map(); // compass word -> 'water', 'lava', 'drop' or 'no way'
     let tries = 0;
     const maxTries = Math.ceil(distance / leg) * 3 + 4;
 
+    // The kinds of ground in view or remembered where the walk begins, so that what turns up on the way can be
+    // named: "came across: sand, birch_log" tells the model what the walk found, not only where it ended.
+    const kindsNow = () => legs.kinds?.() ?? [];
+    const before = new Set(kindsNow());
+    const newKinds = new Set();
+
     const trailNow = () => ({ origin, end: { x: legs.position().x, z: legs.position().z }, heading, bearing });
-    const finish = (status, text, extra = {}) => ({ status, text, trail: trailNow(), ...extra });
+    const kindsText = () => (newKinds.size ? ` Came across: ${[...newKinds].slice(0, 8).join(', ')}.` : '');
+    const finish = (status, text, extra = {}) => ({ status, text: text + kindsText(), trail: trailNow(), newKinds: [...newKinds], ...extra });
     const travelled = () => flat(start, legs.position());
+    // A way turned from for something it is, rather than for finding no way through, says what it was.
+    const turnFrom = (way, why) => { if (!turnedFrom.has(way) || turnedFrom.get(way) === 'no way') turnedFrom.set(way, why); };
     const turnsText = () => {
         if (!turnedFrom.size) return '';
-        const water = [...turnedFrom].filter(([, why]) => why === 'water').map(([way]) => way);
-        const other = [...turnedFrom].filter(([, why]) => why !== 'water').map(([way]) => way);
+        const waysFor = why => [...turnedFrom].filter(([, w]) => w === why).map(([way]) => way);
         const parts = [];
-        if (water.length) parts.push(`water to the ${water.join(', ')}`);
+        for (const [why, words] of [['water', 'water'], ['lava', 'lava'], ['drop', 'a drop']]) {
+            const ways = waysFor(why);
+            if (ways.length) parts.push(`${words} to the ${ways.join(', ')}`);
+        }
+        const other = waysFor('no way');
         // Walled in on most sides, a list of every way says less than a count does.
         if (other.length > 3) parts.push(`no way through ${other.length} ways`);
         else if (other.length) parts.push(`no way through to the ${other.join(', ')}`);
         return ` Turned aside for ${parts.join(' and ')}.`;
+    };
+    const pointAt = (here, angle, length) => ({ x: here.x + Math.cos(angle) * length, y: here.y, z: here.z + Math.sin(angle) * length });
+
+    // The way for the next leg: the first of the ways in order whose end the bot doesn't remember as water,
+    // lava or a drop. A person who saw a lake from the hill doesn't walk down to its shore to find out. A way
+    // whose end is bad may still do at half the length. When memory says every way is bad, the first is
+    // walked anyway: memory can be out of date, and the walk itself turns back from what is really there.
+    const chooseLeg = (here, ways, length) => {
+        const steered = [];
+        for (const angle of ways) {
+            const hazard = legs.knownHazard?.(pointAt(here, angle, length)) ?? null;
+            if (!hazard) return { angle, length, steered };
+            const half = length / 2;
+            if (half >= MIN_LEG && !legs.knownHazard(pointAt(here, angle, half))) return { angle, length: half, steered };
+            steered.push({ angle, hazard });
+        }
+        return { angle: ways[0], length, steered: [] };
     };
     const summary = () => {
         const here = legs.position();
@@ -104,10 +136,12 @@ async function exploreLegs({ legs, direction, distance, targets = null, last = n
             return finish('blocked', `Could not go on from ${spot(here)}: every way${bearing ? ` towards the ${compassName(heading)}` : ''} is blocked.`
                 + `${turnsText()} Explored ${Math.round(travelled())} blocks.${looking ? ` No ${looking} seen.` : ''}`);
         }
-        const angle = ways[0];
-        const length = Math.max(MIN_LEG, Math.min(leg, distance - travelled() + 4));
-        const target = { x: here.x + Math.cos(angle) * length, y: here.y, z: here.z + Math.sin(angle) * length };
-        const outcome = await legs.walk(target);
+        const { angle, length, steered } = chooseLeg(here, ways, Math.max(MIN_LEG, Math.min(leg, distance - travelled() + 4)));
+        for (const way of steered) {
+            blocked.push({ sector: sectorOf(way.angle), at: { x: here.x, z: here.z } });
+            turnFrom(compassName(way.angle), way.hazard);
+        }
+        const outcome = await legs.walk(pointAt(here, angle, length));
         if (legs.interrupted() || outcome === 'interrupted') return finish('interrupted', 'Exploring stopped.');
 
         const now = legs.position();
@@ -118,13 +152,13 @@ async function exploreLegs({ legs, direction, distance, targets = null, last = n
             if (!bearing) heading = angle;
         } else {
             blocked.push({ sector: sectorOf(angle), at: { x: now.x, z: now.z } });
-            const way = compassName(angle);
-            if (turnedFrom.get(way) !== 'water') turnedFrom.set(way, outcome === 'water' ? 'water' : 'no way');
+            turnFrom(compassName(angle), outcome === 'water' ? 'water' : 'no way');
         }
 
         // Stop and look round, as a person does after a stretch, then check for what was looked for.
         await legs.lookAround();
         if (legs.interrupted()) return finish('interrupted', 'Exploring stopped.');
+        for (const kind of kindsNow()) if (!before.has(kind)) newKinds.add(kind);
         if (looking) {
             const hit = legs.find();
             if (hit) return finish('found', `Found ${hit.name} ${whereFrom(legs.position(), hit)}, at ${spot(hit)}, after exploring `

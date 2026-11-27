@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 // The real legs the explorer walks on: the pathfinder for walking, world.js for seeing, world memory (when on)
-// for knowing which land is new.
+// for knowing which land is new, what lies at the end of a leg, and where there is room to walk underground.
 //
 // Nothing here looks at the world except through world.js, so under fair play every answer is what the bot
 // perceives or remembers, and every route is planned by fair legs like any other walk. With fair play off it
@@ -18,6 +18,15 @@ const BANK_REACH = 16;         // how far off a bank to climb out on is looked f
 const DETOUR = 2.5;            // a leg that has walked this many times its length (and a little) is going the long way round
 const WATCH_MS = 250;
 const SIGHT = 64;              // how far a thing looked for counts as found: as far as the searches look
+const KINDS_REACH = 32;        // how far round the bot the kinds of ground worth naming are looked for
+const DROP = 8;                // a leg's end this far below the bot's level, over open air, is a drop
+const ROOF = 24;               // how far above the head a roof makes the bot underground
+const CAVE_MIN = 8;            // underground, a leg ends at least this far off, or the way counts as blocked
+
+// The kinds of ground worth naming when a walk comes across them: what a player exploring would mention.
+// Not every block: stone and grass are everywhere, and a list of them says nothing.
+const NOTABLE = /^(water|lava|sand|red_sand|gravel|clay|snow_block|powder_snow|ice|packed_ice|blue_ice|mycelium|podzol|mud|moss_block|obsidian|magma_block|amethyst_block|dripstone_block|sculk|pumpkin|melon|sugar_cane|bamboo|cactus|[a-z_]*_log|[a-z_]*_ore|[a-z_]*terracotta|[a-z_]*_mushroom_block)$/;
+const WET = /^(water|bubble_column|kelp|kelp_plant|seagrass|tall_seagrass)$/;
 
 /**
  * The movements a leg walks with. Exploring goes over or round what is in the way, as a person does on foot:
@@ -75,6 +84,15 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
 
     async function walk(point) {
         if (bot.interrupt_code) return 'interrupted';
+        // Underground there is no level line to follow: the rock all round is never seen, so a route planned
+        // into it as open ground leads into the wall. A person in a cave follows the open air they can see,
+        // so the leg ends at the farthest spot that way the bot has seen room to stand.
+        let goal = new pf.goals.GoalNearXZ(point.x, point.z, 2);
+        if (memory?.cells && underground()) {
+            const spot = caveSpot(point);
+            if (!spot) return 'no_path';
+            goal = new pf.goals.GoalNear(spot.x, spot.y, spot.z, 2);
+        }
         bot.pathfinder.setMovements(movements(bot));
         let outcome = null;
         let mark = position().clone(), markAt = Date.now();
@@ -93,7 +111,7 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
             if (stop && !outcome) { outcome = stop; bot.pathfinder.setGoal(null); }
         }, watchMs);
         try {
-            await bot.pathfinder.goto(new pf.goals.GoalNearXZ(point.x, point.z, 2));
+            await bot.pathfinder.goto(goal);
             return 'arrived';
         } catch (error) {
             if (bot.interrupt_code) return 'interrupted';
@@ -139,6 +157,83 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
         return null;
     }
 
+    // Under a roof: something solid the bot knows of above its head, other than leaves (a forest is not a
+    // cave). A spot it has never seen ends the look up: it can't tell, so it isn't underground.
+    function underground() {
+        for (let dy = 2; dy <= ROOF; dy++) {
+            const block = world.getBlockAtPosition(bot, 0, dy, 0);
+            const name = block?.name ?? 'unknown';
+            if (name === 'unknown') return false;
+            if (block.boundingBox === 'block' && !/leaves/.test(name)) return true;
+        }
+        return false;
+    }
+
+    // What the bot remembers at a cell, from world memory: a block name, 'air', or null when it never saw it.
+    // Air it only looked through counts as air too (`seenOpen`), as it does for routes.
+    const remembered = (x, y, z) => {
+        const name = memory.cells.read(x, y, z);
+        if (name !== null) return name;
+        return memory.cells.seenOpen(x, y, z) ? 'air' : null;
+    };
+    const isAir = name => name === 'air' || name === 'cave_air';
+    const isFloor = name => Boolean(name) && !isAir(name) && !WET.test(name) && name !== 'lava';
+
+    // The farthest spot towards a leg's end the bot has seen room to stand on: two open cells over a floor,
+    // near the straight line there and within a few blocks of its level. Null when there is none.
+    function caveSpot(point) {
+        const p = position();
+        const angle = Math.atan2(point.z - p.z, point.x - p.x);
+        const length = Math.hypot(point.x - p.x, point.z - p.z);
+        const side = { x: -Math.sin(angle), z: Math.cos(angle) };
+        const y0 = Math.floor(p.y);
+        for (let d = Math.floor(length); d >= CAVE_MIN; d -= 2) {
+            for (const off of [0, 2, -2, 4, -4]) {
+                const x = Math.floor(p.x + Math.cos(angle) * d + side.x * off);
+                const z = Math.floor(p.z + Math.sin(angle) * d + side.z * off);
+                for (const dy of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]) {
+                    const y = y0 + dy;
+                    if (isAir(remembered(x, y, z)) && isAir(remembered(x, y + 1, z)) && isFloor(remembered(x, y - 1, z))) return { x: x + 0.5, y, z: z + 0.5 };
+                }
+            }
+        }
+        return null;
+    }
+
+    // What the bot remembers at a leg's end that it would not walk into: water or lava where the ground should
+    // be, or a drop. Asked of world memory only: what the bot saw from afar, not what is there now. Five
+    // columns round the end must mostly agree, so a puddle or a hole is no reason to turn.
+    function knownHazard(point) {
+        if (!memory?.cells) return null;
+        const x0 = Math.floor(point.x), y0 = Math.floor(point.y), z0 = Math.floor(point.z);
+        const at = (x, z) => {
+            for (let y = y0 + 6; y >= y0 - 16; y--) {
+                const name = remembered(x, y, z);
+                if (name === null || isAir(name)) continue;
+                if (WET.test(name)) return 'water';
+                if (name === 'lava') return 'lava';
+                return y < y0 - DROP && openDown(x, y + 1, y0, z) ? 'drop' : null;
+            }
+            return openDown(x, y0 - DROP, y0, z) ? 'drop' : null;
+        };
+        // Open air all the way from the bot's level down to `bottom`, as far as the bot knows.
+        const openDown = (x, bottom, top, z) => {
+            for (let y = top - 1; y >= bottom; y--) if (!isAir(remembered(x, y, z))) return false;
+            return true;
+        };
+        const middle = at(x0, z0);
+        if (!middle) return null;
+        const agree = [[2, 0], [-2, 0], [0, 2], [0, -2]].filter(([dx, dz]) => at(x0 + dx, z0 + dz) === middle).length;
+        return agree >= 2 ? middle : null;
+    }
+
+    // The kinds of ground worth naming that are in view or remembered near the bot, through world.js.
+    function kinds() {
+        const names = new Set();
+        for (const block of world.getNearestBlocksWhere(bot, block => NOTABLE.test(block?.name ?? ''), KINDS_REACH, 1024)) names.add(block.name);
+        return [...names];
+    }
+
     function find() {
         if (!targets) return null;
         const p = position();
@@ -171,5 +266,7 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
         newGround: memory?.cells ? angle => newGroundAlong((cx, cy, cz) => memory.cells.lookedAt(cx, cy, cz), here(), angle, LEG) : () => null,
         find,
         recall,
+        knownHazard,
+        kinds,
     };
 }
