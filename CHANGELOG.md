@@ -9,6 +9,30 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.29.0-bedrock.1.31.0] - 2026-11-27
+
+A blocked way is handled by whose blocker it is, for both editions. Built on the same Mindcraft-CE commit as
+1.25.0-bedrock.1.27.0.
+
+### Changed
+
+- A way the bot walked before and finds blocked is handled by whose blocker it is, on both editions (world
+  memory on). Before setting off, the route is checked against memory, and a stretch someone has walled up
+  since is gone round without walking up to the wall. What blocks a way is named from what the bot saw
+  ("oak_planks someone built", "gravel that fell in", "a shut iron_door"). Gravel or a cave-in is dug past
+  as before. Someone's build (with good-neighbor rules on) is neither dug past nor round: the bot takes
+  another way it knows, the rest of the trip digs nothing, ordinary travel included, and if no walk is left
+  it stops and says so. Before, getting past any blockage could tunnel round a wall into someone's base.
+
+### Fixed
+
+- A bot set down beside its trail, on a spot it never stood on, could join the trail at a spot through a
+  wall it remembered, in the next tunnel over, and then go the wrong way or find no known way at all. It
+  joins on its own side of the wall now.
+- Exploring underground now and then stopped at a bend, saying every way was blocked: the passage on had
+  come into view but wasn't in memory yet. Underground, a stretch now waits for the look round from where
+  the bot stands to be taken in before choosing where to go.
+
 ## [1.28.0-bedrock.1.30.0] - 2026-11-27
 
 Exploring's second part, for both editions. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.
@@ -1476,7 +1500,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.28.0-bedrock.1.30.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...HEAD
+[1.29.0-bedrock.1.31.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.28.0-bedrock.1.30.0...v1.29.0-bedrock.1.31.0
 [1.28.0-bedrock.1.30.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.27.0-bedrock.1.29.0...v1.28.0-bedrock.1.30.0
 [1.27.0-bedrock.1.29.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.26.0-bedrock.1.28.0...v1.27.0-bedrock.1.29.0
 [1.26.0-bedrock.1.28.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.25.0-bedrock.1.27.0...v1.26.0-bedrock.1.28.0

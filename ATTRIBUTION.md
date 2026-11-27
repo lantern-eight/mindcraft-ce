@@ -209,6 +209,11 @@ No code was copied for these. They are credited because the work builds on them.
   instead** come from the protection in the [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce)
   fork (`src/agent/library/natural_tree.js`, `protection.js`). Used by `src/agent/neighbor/trees.js` and
   `enforce.js`.
+- **Checking a remembered route before setting off, and naming what blocks it** comes from the route dry scan
+  in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk) fork (`packs/routes/dry_scan.js`),
+  and **a known route that never digs without saying so, and names the options** from the route memory in
+  the [`luv2crawl/mindcraft-rip`](https://github.com/luv2crawl/mindcraft-rip) fork (`src/agent/route_memory.js`).
+  Both are MIT. No code was copied: the check here asks memory alone. Used by `src/agent/memory/navigator.js`.
 - **A cached start of the prompt, with the part that changes after the history** comes from the prompt
   caching in the [`r77tchan/mindcraft`](https://github.com/r77tchan/mindcraft) fork, **a cache marker on the
   last tool** from [`appendix0/pincercraft`](https://github.com/appendix0/pincercraft), and **putting what

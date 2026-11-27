@@ -163,3 +163,17 @@ test('the kinds of ground worth naming are the ones in view, each once', () => {
     bot.blockAt = pos => ({ name: blocks.find(([, x]) => x === pos.x)?.[0] ?? 'air', boundingBox: 'block', position: pos });
     assert.deepEqual(realLegs(bot, quick).kinds().sort(), ['birch_log', 'iron_ore', 'sand']);
 });
+
+test('underground, a leg waits for memory to take in what is in view from here before choosing where to go', async () => {
+    const { bot, goals } = pretendBot();
+    bot.blockAt = pos => (pos.y >= 68 ? { name: 'stone', boundingBox: 'block', position: pos } : { name: 'air', boundingBox: 'empty', position: pos });
+    // The tunnel on is only in memory once the look from here, which is still going on, is done.
+    let seen = false;
+    const recorder = { busy: true };
+    setTimeout(() => { seen = true; recorder.busy = false; }, 120);
+    const tunnel = (x, y, z) => (seen && x >= 0 && x <= 20 && z === 0 ? (y === 63 ? 'stone' : y === 64 || y === 65 ? 'air' : null) : null);
+    const legs = realLegs(bot, { ...quick, memory: pretendMemory(tunnel), recorder, takeInMs: 1000 });
+    bot.pathfinder.walkMs = 5;
+    assert.equal(await legs.walk({ x: 32.5, y: 64, z: 0.5 }), 'arrived');
+    assert.deepEqual([goals.at(-1).x, goals.at(-1).z], [20, 0]);
+});

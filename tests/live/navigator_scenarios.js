@@ -10,6 +10,9 @@
 // dirt one block thick between them, so the far end of the corridor is two blocks from the near end
 // through the wall, and 84 on foot. Dirt is quick to dig by hand, so without a known way travel finds
 // it cheaper to go straight through. The last step shows that, for comparison.
+//
+// L3 and L4 use corridors of their own, the same shape, farther along: one walled up with planks someone
+// puts up while the bot watches (good-neighbor rules on), one with gravel fallen across it.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -51,6 +54,8 @@ try {
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { MemoryBank } = await import('../../src/agent/memory_bank.js');
     const { setTravelGuide } = await import('../../src/agent/library/travel_guide.js');
+    const { installGoodNeighbor } = await import('../../src/agent/neighbor/install.js');
+    const { guardBot } = await import('../../src/agent/neighbor/enforce.js');
     const skills = await import('../../src/agent/library/skills.js');
 
     bot = initBot(NAME);
@@ -161,11 +166,76 @@ try {
         // Seeing all around, the bot sees the new wall down the corridor before it sets off, and says where it
         // is. Through a player's screen it faces away from it, walks on, and learns of it when it comes on
         // screen: it says the way is blocked, and may then take the short way through the dirt instead.
-        if (LIVE_VIEW === 'all') assert.match(text, /The way you walked before is blocked near \d+, 70, 2\./);
-        else assert.match(text, /The way you walked before is blocked near -?\d+, 70, -?\d+\./);
+        if (LIVE_VIEW === 'all') assert.match(text, /The way you walked before is blocked near \d+, 70, 2: /);
+        else assert.match(text, /The way you walked before is blocked near -?\d+, 70, -?\d+: /);
         assert.ok(distanceTo(START) <= 1.5, `it stopped ${distanceTo(START).toFixed(1)} blocks short: ${text}`);
         const dug = changed(walled);
         return { said: text.split('\n').filter(line => /blocked|Going around/.test(line)), dug, trip: trips.at(-1), wallStillThere: rawName(20, 70, 2) === 'stone' && rawName(20, 71, 2) === 'stone' };
+    });
+
+    /** The same U-shaped corridor with its near arm along z = Z0, built afresh, walked end to end and back. */
+    const layCorridor = async Z0 => {
+        await cmd(`fill -3 69 ${Z0 - 3} ${LENGTH + 3} 73 ${Z0 + 5} stone`);
+        await cmd(`fill 0 70 ${Z0} ${LENGTH} 71 ${Z0} air`);
+        await cmd(`fill 0 70 ${Z0 + 2} ${LENGTH} 71 ${Z0 + 2} air`);
+        await cmd(`fill ${LENGTH} 70 ${Z0 + 1} ${LENGTH} 71 ${Z0 + 1} air`);
+        await cmd(`fill 0 70 ${Z0 + 1} ${LENGTH - 1} 71 ${Z0 + 1} dirt`);
+        await cmd('kill @e[type=item]');
+        await cmd(`tp ${NAME} 0.5 70 ${Z0 + 0.5} -90 0`);
+        await delay(2000);
+        await settled();
+        const corners = [{ x: LENGTH, y: 70, z: Z0 }, { x: LENGTH, y: 70, z: Z0 + 2 }, { x: 0, y: 70, z: Z0 + 2 }];
+        for (const corner of corners) await walkTo(corner);
+        for (const corner of [corners[1], corners[0], { x: 0, y: 70, z: Z0 }]) await walkTo(corner);
+        await walkTo({ x: 0, y: 70, z: Z0 + 2 }); // to the far end by the known way, to start the scene there
+        assert.ok(distanceTo({ x: 0, y: 70, z: Z0 + 2 }) <= 1.5, 'the bot is at the far end of the corridor');
+    };
+    /** What is not stone, dirt or air where it was built, in the corridor along z = Z0. */
+    const changedAt = (Z0, allowed = () => false) => {
+        const cells = [];
+        for (let x = -3; x <= LENGTH + 3; x++) for (let y = 69; y <= 73; y++) for (let z = Z0 - 3; z <= Z0 + 5; z++) {
+            const expected = inCorridor(x, y, z - Z0) ? 'air' : inWall(x, y, z - Z0) ? 'dirt' : 'stone';
+            const name = rawName(x, y, z);
+            if (name !== expected && !allowed(x, y, z)) cells.push(`${x},${y},${z}:${name}`);
+        }
+        return cells;
+    };
+    /** Turns the bot to face down arm B from its west end, towards x = 20, as a player watching it would. */
+    const faceEast = async () => { await bot.look(-Math.PI / 2, 0, true); await delay(300); await settled(); };
+
+    await step('L3: someone walls up the way back with planks as the bot watches: it digs neither through nor round, and says so', async () => {
+        const Z0 = 20, START3 = { x: 0, y: 70, z: Z0 };
+        const config = { good_neighbor: { protect_builds: true, protect_chests: true, protect_animals: true, protected_areas: [] } };
+        assert.ok(installGoodNeighbor(agent, { config }), 'good-neighbor rules installed');
+        await layCorridor(Z0);
+        await faceEast();
+        await cmd(`fill 20 70 ${Z0 + 2} 20 71 ${Z0 + 2} oak_planks`);
+        await delay(800);
+        await settled();
+        const planks = (x, y, z) => x === 20 && z === Z0 + 2 && (y === 70 || y === 71);
+        const text = await walkTo(START3);
+        assert.match(text, /The way you walked before is blocked near \d+, 70, \d+: oak_planks someone built\./);
+        assert.match(text, /won't dig past or round it/);
+        assert.deepEqual(changedAt(Z0, planks), [], 'nothing dug: not the dirt between the arms, not the stone round the planks');
+        assert.equal(rawName(20, 70, Z0 + 2), 'oak_planks', 'the planks are where they were put');
+        assert.ok(distanceTo(START3) > 1.5, 'so it could not get back');
+        return { said: text.split('\n').filter(line => /blocked|dig|Going around/.test(line)), trip: trips.at(-1) };
+    });
+
+    await step('L4: gravel fallen across the way is named, and the bot gets past it as before', async () => {
+        guardBot(bot, null); // good-neighbor rules off again for the rest
+        const Z0 = 40, START4 = { x: 0, y: 70, z: Z0 };
+        await layCorridor(Z0);
+        await faceEast();
+        await cmd(`setblock 20 70 ${Z0 + 2} gravel`);
+        await cmd(`setblock 20 71 ${Z0 + 2} gravel`);
+        await delay(1500);
+        await settled();
+        const text = await walkTo(START4);
+        assert.match(text, /The way you walked before is blocked near \d+, 70, \d+: gravel that fell in\./);
+        assert.doesNotMatch(text, /won't dig/);
+        assert.ok(distanceTo(START4) <= 1.5, `it got back: ${text}`);
+        return { said: text.split('\n').filter(line => /blocked|dig|Going around/.test(line)), trip: trips.at(-1) };
     });
 
     await step('for comparison: the same trip with no known way goes straight through the wall', async () => {
