@@ -236,7 +236,8 @@ export function createNavigator({ memory, legs, blocksWay = null, isDoor = () =>
         const starts = [];
         const current = trail.current != null ? trail.get(trail.current) : null;
         if (current && dist(here, current) <= startReach) starts.push(current);
-        const near = trail.nearest(here, { maxDistance: startReach, levelWeight: 2, filter: crumb => crumb.id !== current?.id });
+        // Not one the bot remembers a wall between it and: the nearest crumb may be in the next tunnel over.
+        const near = trail.nearest(here, { maxDistance: startReach, levelWeight: 2, filter: crumb => crumb.id !== current?.id && !facesWall(here, crumb, startReach) });
         if (near) starts.push(near);
 
         for (const { crumb: end, arrives } of endsFor(target)) {

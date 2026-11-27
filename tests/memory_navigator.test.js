@@ -434,3 +434,17 @@ test('N22: round a corner, a straight line between two spots clipping a block se
     assert.deepEqual(said.filter(text => /blocked/.test(text)), []);
     assert.equal(result.noDigging, false);
 });
+
+test('N23: set down beside the trail, the bot joins it on its own side of a wall it remembers, not through the wall', async () => {
+    // A U-shaped corridor: east along z 0, back west along z 4, dirt between. The bot is set down at the far
+    // end, on a spot it never stood on; the nearest crumb is the start, four blocks off through the dirt.
+    const memory = laid([at(0, 0), at(40, 0), at(40, 4), at(6, 4)]);
+    memory.cells = createCells();
+    for (let x = 0; x < 40; x++) for (let z = 1; z <= 3; z++) for (const y of [64, 65]) memory.cells.write(x, y, z, 'dirt');
+    const wall = crossesZ(2, -1, 39.5);
+    const body = legs(stand(memory, at(0, 4)), { open: (a, b) => !wall(a, b) });
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid }).follow({ x: 0, y: 64, z: 0, range: 1 });
+    assert.equal(result.reached, 'end', JSON.stringify(result));
+    assert.ok(dist(body.pos, at(0, 0)) <= 1.5);
+    assert.ok(Math.max(...body.walked.map(hop => hop.to.x)) >= 38, 'it went round by the corner');
+});
