@@ -9,6 +9,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.22.0-bedrock.1.24.0] - 2026-11-26
+
+Prompt caching for Claude, and fixes to how the bot's requests are laid out, for both editions. With native
+tools on (the default) every model call is about 7,000 tokens shorter, and on Claude each step of a task reads
+almost all of its request from the prompt cache. Built on the same Mindcraft-CE commit as 1.21.1-bedrock.1.23.0.
+
 ### Added
 
 - Prompt caching for Claude (`prompt_caching`, on by default): native tool requests mark the tools, the
@@ -1369,7 +1375,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.22.0-bedrock.1.24.0...HEAD
+[1.22.0-bedrock.1.24.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...v1.22.0-bedrock.1.24.0
 [1.21.1-bedrock.1.23.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.22.0...v1.21.1-bedrock.1.23.0
 [1.21.0-bedrock.1.22.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...v1.21.0-bedrock.1.22.0
 [1.20.1-bedrock.1.21.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...v1.20.1-bedrock.1.21.1
