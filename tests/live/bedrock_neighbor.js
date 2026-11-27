@@ -153,18 +153,22 @@ try {
         await tpTo([-10, 1, -2], -90);
         const go = cell => act('test:go', () => skills.goToPosition(bot, at(...cell).x, at(...cell).y, at(...cell).z, 0));
         const walks = [];
-        for (const cell of [[10, 1, -2], [10, 1, 2], [-10, 1, 2], [10, 1, 2], [10, 1, -2], [-10, 1, -2], [-10, 1, 2]]) {
+        for (const cell of [[10, 1, -2], [10, 1, 2], [-10, 1, 2], [10, 1, 2], [10, 1, -2], [-10, 1, -2]]) {
             const walked = await go(cell);
             const p = bot.entity.position.minus(origin);
             walks.push(`${cell} -> ${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}: ${walked.text?.trim().split('\n').at(-1)}`);
         }
-        assert.ok(bot.entity.position.distanceTo(at(-10, 1, 2).offset(0.5, 0, 0.5)) <= 1.5, `the bot walked the corridor and is at the far end: ${walks.join(' | ')}`);
-        await tpTo([-10, 1, 2], -90, 2500); // facing down arm B, as a player watching it would
+        assert.ok(bot.entity.position.distanceTo(at(-10, 1, -2).offset(0.5, 0, 0.5)) <= 1.5, `the bot walked the corridor and back: ${walks.join(' | ')}`);
+        // Then to the far end, where it has stood, facing down arm B as a player watching it would. (Put there,
+        // not walked: the scene is about the way back. By way of a spot far off, so that the trail takes it for
+        // the jump it is, not a walk of four blocks through the dirt.)
+        await tpTo([12, 6, 12], -90, 1500);
+        await tpTo([-10, 1, 2], -90, 2500);
         await fill([0, 1, 2], [0, 2, 2], 'oak_planks');
         await delay(3000);
         const dirt = countIn('dirt', [-10, 1, -1], [9, 2, 1]);
         const result = await go([-10, 1, -2]);
-        assert.match(result.text, /The way you walked before is blocked near .*: oak_planks someone built\./);
+        assert.match(result.text, /The way you walked before is blocked near .*: oak_planks someone built\./, result.text.trim().split('\n').join(' / '));
         assert.match(result.text, /won't dig past or round it/);
         assert.equal(countIn('oak_planks', [0, 1, 2], [0, 2, 2]), 2, 'the planks are where they were put');
         assert.equal(countIn('dirt', [-10, 1, -1], [9, 2, 1]), dirt, 'and none of the dirt beside them was dug');
