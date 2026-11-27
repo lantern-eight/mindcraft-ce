@@ -139,6 +139,9 @@ Everything farming knows comes through the same senses as the rest of [fair play
 - **The harvest stays in the bot's inventory.** Taking it to a chest is not built yet.
 - **A village's field** counts as nobody's: the bot leaves it alone on its own idea and tends it when a
   player asks.
+- **With good-neighbor rules on, `!collectBlocks` of a stranger's crop says it found none,** not that the
+  crop is someone's: the search leaves out what the bot may not break before it looks. `!tendField` says whose
+  the field is.
 
 ## For Developers
 

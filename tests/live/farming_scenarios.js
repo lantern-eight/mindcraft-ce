@@ -181,6 +181,38 @@ try {
         return { text };
     });
 
+    await step('with good-neighbor rules on, a stranger\'s wheat is not collected, and a field the bot is asked to tend is tended', async () => {
+        await reset({ kit: ['wheat_seeds 2'] });
+        const { installGoodNeighbor } = await import('../../src/agent/neighbor/install.js');
+        const { installFarming } = await import('../../src/agent/farming/install.js');
+        const { getCommand } = await import('../../src/agent/commands/index.js');
+        const config = { ...rootSettings, ...fairPlaySettings(), world_memory: true, farming: true,
+            good_neighbor: { protect_builds: true, protect_chests: true, protect_animals: true, protected_areas: [] } };
+        // As agent.js does it: good-neighbor rules first, then farming, which answers them about crops.
+        const neighbor = installGoodNeighbor(agent, { config });
+        const farming = installFarming(agent, { config, bookDir: mkdtempSync(path.join(tmpdir(), 'farming-book-')) });
+        assert.ok(neighbor && farming, 'both installed');
+        try {
+            const cells = [];
+            for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z)) cells.push({ x, y: Y, z });
+            farming.book().mark(cells, { owner: 'Alex' });
+            // Alex's field, tended only when asked: the bot's own idea to collect wheat leaves it standing.
+            const refused = await act('test:collect', () => skills.collectBlockResult(bot, 'wheat', 3));
+            const refusedText = refused.text ?? refused.message ?? String(refused);
+            for (let x = X0; x <= X1; x++) assert.equal(ageAt(x, Y + 1, -2), 7, `Alex's ripe wheat at ${x} stands: ${refusedText}`);
+            assert.equal(have('wheat'), 0, refusedText);
+            // A round of tending, as a command, with nobody to tell it was the bot's own idea: it is tended.
+            const tendedText = String(await getCommand('!tendField').perform(agent, 'any') ?? '');
+            assert.ok(have('wheat') > 0, `wheat reached the inventory: ${tendedText}`);
+            for (let x = X0; x <= X1; x++) {
+                assert.equal(raw(x, Y + 1, -2)?.name, 'wheat', `the cut wheat at ${x} was replanted: ${tendedText}`);
+                assert.ok(ageAt(x, Y + 1, -2) < 7, `with a new plant at ${x}`);
+            }
+            assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${tendedText}`);
+            return { refused: refusedText.trim().slice(-200), tended: tendedText.trim().slice(-300) };
+        } finally { neighbor.stop(); farming.stop(); }
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });
