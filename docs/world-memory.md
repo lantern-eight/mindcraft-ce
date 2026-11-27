@@ -147,9 +147,20 @@ Nothing new to ask for. Every command and skill that walks does this by itself.
 - **Ordinary travel finishes the trip.** Where the trail stops short of the target, the rest is planned
   as before. Where the bot knows no way, nothing changes. Ordinary travel plans over the blocks the bot
   remembers too, so a wall it has seen is walked round even where it has never walked.
-- **A blocked way is said, once:** "The way you walked before is blocked near 22, 70, 2." The bot then
-  tries an ordinary path past the blockage, which may dig, and after that another way it knows. The
-  blocked stretch is avoided for a day, or until the bot walks it again.
+- **A way walled up since is known before setting off.** Before the first hop, the route is checked
+  against memory: where the bot saw someone put a block up across a stretch it walked, that stretch is
+  marked blocked and the route planned again round it, rather than found by walking up to the wall.
+- **A blocked way is said, once, with what blocks it:** "The way you walked before is blocked near 22,
+  70, 2: oak_planks someone built." Only what the bot remembers seeing is named: "gravel that fell in",
+  "a shut iron_door", or "something I can't see from here".
+- **What happens next depends on whose it is.** A blocker that is natural ground (gravel or sand that fell
+  in, a cave-in) gets an ordinary path past it, which may dig, as a player would dig the gravel out; then
+  another way the bot knows. A blocker that is someone's, by [good-neighbor rules](good-neighbor.md) (seen
+  built, not natural ground, or in a protected area), is not dug past or round: the bot tries another way
+  it knows, and **the rest of the trip digs nothing**, ordinary travel included, so it can't tunnel round
+  the wall into what was built. If no walk is left, the trip stops there and says so: ask whoever built
+  it, or go another way. With good-neighbor rules off, every blocker is handled as natural ground.
+- **A blocked stretch is avoided** for a day, or until the bot walks it again.
 
 When the trail is used:
 
@@ -263,7 +274,8 @@ load only when something asks about that part of the world.
 
 - **The trail leads only where the bot has been.** To a spot it has only seen from afar, such as sand
   across a valley, travel is planned as before unless the trail happens to lead much closer.
-- **Getting past a blockage may dig.** The bot does not yet tell a cave-in from a wall someone built.
+- **Only a block seen going up marks a way blocked before setting off.** One that was there before the
+  bot first saw the spot, or that it never saw, is found when a hop fails, as before.
 - **It needs fair play on.** Recording with fair play off is planned.
 - **Only names are kept for ordinary blocks,** not which way a stair faces or how grown one plant is.
   Things (chests, doors, beds) keep their full state.

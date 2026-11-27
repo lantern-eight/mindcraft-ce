@@ -323,3 +323,128 @@ test('N16: a way that leads deeper into a priced place (a danger zone) is left t
     assert.equal(out.followed, true, 'from inside, the way out is followed');
     assert.equal(out.reached, 'end');
 });
+
+/** A wall across x = 22, from z -3 to 3, two high, remembered: `tag` marks it as seen put up. */
+function rememberWall(memory, name, { tag = null, x = 22 } = {}) {
+    memory.cells ??= createCells();
+    for (let z = -3; z <= 3; z++) for (const y of [64, 65]) {
+        memory.cells.write(x, y, z, name);
+        if (tag) memory.cells.tag(x, y, z, tag);
+    }
+}
+const someone = cell => (cell.name === 'oak_planks' ? { why: 'built', text: 'I saw someone put it there' } : null);
+const blocksSolid = name => name !== 'oak_door' && name !== 'air';
+
+test('N17: a way someone walled up since the bot walked it is found from memory before setting off, and gone round', async () => {
+    const memory = laid([at(0, 0), at(40, 0), at(40, 12), at(0, 12), at(0, 0)]);
+    rememberWall(memory, 'oak_planks', { tag: 'built' });
+    const wall = crossesX(22, -3, 3);
+    const body = legs(stand(memory, at(0, 0)), { open: (a, b) => !wall(a, b), through: () => true });
+    const said = [];
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid, ownerOf: someone })
+        .follow({ x: 40, y: 64, z: 0, range: 1 }, { say: text => said.push(text) });
+
+    assert.equal(result.reached, 'end');
+    assert.ok(body.plans.every(plan => !(plan.to.x > 22 && plan.to.x < 30 && Math.abs(plan.to.z) < 3)), 'never even planned a hop past it');
+    assert.ok(body.walked.every(hop => !wall(hop.from, hop.to)), 'never went through it');
+    assert.ok(Math.min(...body.walked.map(hop => hop.to.x)) >= 0);
+    assert.equal(body.walked.filter(hop => hop.dug).length, 0, 'dug nothing');
+    assert.match(said.join('\n'), /blocked near 2\d, 64, -?\d: oak_planks someone built\./);
+    assert.match(said.join('\n'), /won't dig past or round it/);
+    assert.equal(result.noDigging, true, 'and the rest of the trip digs nothing either');
+});
+
+test('N18: blocked by someone\'s build with no other way known, it doesn\'t push through, and says why', async () => {
+    const memory = laid([at(0, 0), at(60, 0)]);
+    const wall = crossesX(22, -3, 3);
+    const body = legs(stand(memory, at(0, 0)), { open: (a, b) => !wall(a, b), through: () => true });
+    // Planks across the way, not seen going up: not natural ground, so someone's all the same.
+    rememberWall(memory, 'oak_planks');
+    const said = [];
+    const ownerOf = cell => (cell.name === 'oak_planks' ? { why: 'made', text: "isn't natural ground" } : null);
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid, ownerOf })
+        .follow({ x: 60, y: 64, z: 0, range: 1 }, { say: text => said.push(text) });
+
+    assert.equal(result.reason, 'blocked');
+    assert.equal(result.noDigging, true);
+    assert.equal(body.walked.filter(hop => hop.dug).length, 0, 'no ordinary path that may dig');
+    assert.match(said.join('\n'), /oak_planks, which isn't natural ground, so someone's\./);
+});
+
+test('N19: gravel that fell across the way is pushed through as before, and named', async () => {
+    const memory = laid([at(0, 0), at(60, 0)]);
+    rememberWall(memory, 'gravel');
+    const wall = crossesX(22, -3, 3);
+    const body = legs(stand(memory, at(0, 0)), { open: (a, b) => !wall(a, b), through: () => true });
+    const said = [];
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid, ownerOf: someone })
+        .follow({ x: 60, y: 64, z: 0, range: 1 }, { say: text => said.push(text) });
+
+    assert.equal(result.reached, 'end');
+    assert.equal(result.noDigging, false);
+    assert.equal(body.walked.filter(hop => hop.dug).length, 1);
+    assert.match(said.join('\n'), /blocked near 2\d, 64, -?\d: gravel that fell in\./);
+});
+
+test('N20: a blocker the bot never saw is not named, and a door on the way is called shut', async () => {
+    const wall = crossesX(22, -3, 3);
+    const unseen = laid([at(0, 0), at(60, 0)]);
+    unseen.cells = createCells();
+    const said = [];
+    await createNavigator({ memory: unseen, legs: legs(stand(unseen, at(0, 0)), { open: (a, b) => !wall(a, b) }), blocksWay: blocksSolid })
+        .follow({ x: 60, y: 64, z: 0, range: 1 }, { say: text => said.push(text) });
+    assert.match(said.join('\n'), /: something I can't see from here\./);
+
+    const door = laid([at(0, 0), at(60, 0)]);
+    door.cells = createCells();
+    for (const y of [64, 65]) door.cells.write(22, y, 0, 'oak_door');
+    const told = [];
+    await createNavigator({ memory: door, legs: legs(stand(door, at(0, 0)), { open: (a, b) => !wall(a, b) }), blocksWay: blocksSolid, isDoor: name => name.endsWith('_door') })
+        .follow({ x: 60, y: 64, z: 0, range: 1 }, { say: text => told.push(text) });
+    assert.match(told.join('\n'), /: a shut oak_door\./);
+});
+
+test('N21: a block the bot remembers on a way, but never saw put up, is not taken for a wall before it gets there', async () => {
+    // A straight line between two spots can clip a corner the bot really walked round; only a block seen
+    // going up is a sign the way was walled since.
+    const memory = laid([at(0, 0), at(60, 0)]);
+    rememberWall(memory, 'stone');
+    const body = legs(stand(memory, at(0, 0)));
+    const said = [];
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid }).follow({ x: 60, y: 64, z: 0, range: 1 }, { say: text => said.push(text) });
+    assert.equal(result.reached, 'end');
+    assert.deepEqual(said.filter(text => /blocked/.test(text)), []);
+});
+
+test('N22: round a corner, a straight line between two spots clipping a block seen built is no wall: the bot walked round it', async () => {
+    // East along z 0 to x 20, then north to z -20. The inside of the bend is a block someone put up, seen going
+    // up: the straight line between the spots either side of the corner crosses it, the L-shaped way the bot
+    // walked does not.
+    const memory = laid([at(2, 0), at(20, 0), at(20, -20)]);
+    memory.cells = createCells();
+    for (let x = 17; x <= 19; x++) for (let z = -3; z <= -1; z++) for (const y of [64, 65]) {
+        memory.cells.write(x, y, z, 'oak_planks');
+        memory.cells.tag(x, y, z, 'built');
+    }
+    const body = legs(stand(memory, at(2, 0)));
+    const said = [];
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid, ownerOf: someone })
+        .follow({ x: 20, y: 64, z: -20, range: 1 }, { say: text => said.push(text) });
+    assert.equal(result.reached, 'end');
+    assert.deepEqual(said.filter(text => /blocked/.test(text)), []);
+    assert.equal(result.noDigging, false);
+});
+
+test('N23: set down beside the trail, the bot joins it on its own side of a wall it remembers, not through the wall', async () => {
+    // A U-shaped corridor: east along z 0, back west along z 4, dirt between. The bot is set down at the far
+    // end, on a spot it never stood on; the nearest crumb is the start, four blocks off through the dirt.
+    const memory = laid([at(0, 0), at(40, 0), at(40, 4), at(6, 4)]);
+    memory.cells = createCells();
+    for (let x = 0; x < 40; x++) for (let z = 1; z <= 3; z++) for (const y of [64, 65]) memory.cells.write(x, y, z, 'dirt');
+    const wall = crossesZ(2, -1, 39.5);
+    const body = legs(stand(memory, at(0, 4)), { open: (a, b) => !wall(a, b) });
+    const result = await createNavigator({ memory, legs: body, blocksWay: blocksSolid }).follow({ x: 0, y: 64, z: 0, range: 1 });
+    assert.equal(result.reached, 'end', JSON.stringify(result));
+    assert.ok(dist(body.pos, at(0, 0)) <= 1.5);
+    assert.ok(Math.max(...body.walked.map(hop => hop.to.x)) >= 38, 'it went round by the corner');
+});

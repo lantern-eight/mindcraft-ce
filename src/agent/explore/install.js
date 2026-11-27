@@ -24,7 +24,7 @@ const NPC_STRETCH = 64;  // blocks per call when the NPC's item goal explores fo
 export function installExplore(agent, { config = settings, deps = {} } = {}) {
     // Only an outright `true` turns it on, so a config that leaves the key out gets stock behavior.
     if (config.explore !== true) return null;
-    const { commands, run } = createExploring({ memoryOf: a => a.fairPlay?.memory ?? null, ...deps });
+    const { commands, run } = createExploring({ memoryOf: a => a.fairPlay?.memory ?? null, recorderOf: a => a.fairPlay?.recorder ?? null, ...deps });
     for (const command of commands) registerCommand(command, { action: true });
     // The NPC's item goals explore for what they need, a stretch at a time on a kept heading, instead of
     // stepping a few blocks any way at all. Each call is 64 blocks: the goal checks again after each.

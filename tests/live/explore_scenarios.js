@@ -74,7 +74,7 @@ try {
     initModes(agent);
     const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'explore-live-')) });
     assert.ok(handle?.memory, 'world memory is on');
-    const [exploreCommand, exploreForCommand] = exploreCommands({ memoryOf: () => handle.memory });
+    const [exploreCommand, exploreForCommand] = exploreCommands({ memoryOf: () => handle.memory, recorderOf: () => handle.recorder });
 
     const rawName = (x, y, z) => bot.blockAt(new Vec3(x, y, z))?.name; // the test may peek at the truth
     const settled = async () => { await delay(400); await waitFor(() => !handle.recorder.busy, 20000, () => 'the look-around never finished'); await delay(300); };
