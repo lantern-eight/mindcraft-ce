@@ -18,6 +18,7 @@ A block is someone's unless something says it is free to break. In this order:
 
 | Block | May the bot break it? |
 |---|---|
+| One a player let it break ([below](#letting-the-bot-break-a-block)) | Yes, once |
 | One the bot placed itself (its scaffolding, its crafting table) | Yes |
 | Inside a protected area from the settings | No, whatever it is |
 | One the bot saw turn up where there had been empty space, or in place of another block, with nobody but a person to have put it there ([world memory](world-memory.md#who-changed-a-cell)) | No, even dirt or stone |
@@ -33,7 +34,27 @@ When a route would have to break a protected block, the bot goes round, or the w
 model-written code tries to dig one, the bot is refused with a message that says why:
 
 > Breaking oak_planks at 12, 64, -3 refused: oak_planks isn't natural ground, so someone made it. Leave
-> other players' builds alone: ask them, or go another way.
+> other players' builds alone: ask them (a player can let you break it by typing !allowBreak 12, 64, -3), or
+> go another way.
+
+## Letting the Bot Break a Block
+
+A player lets the bot break protected blocks by typing it in chat:
+
+```
+!allowBreak 12 64 -3                  the block at 12, 64, -3
+!allowBreak 10 64 -3 12 65 -3         every block in the box between two corners, at most 64
+```
+
+The bot answers ("Okay, Steve: I may break the block at 12, 64, -3, once each, in the next 10 minutes.") and
+may then break those blocks, whatever protects them, a protected area included. A grant is narrow on purpose:
+
+- **Exact blocks.** Never "anything round here".
+- **Once each.** Breaking a block uses its grant up; if someone puts a block back there, it is protected again.
+- **Ten minutes.** A grant not used by then lapses.
+- **From a player only.** The grant is read from the player's own chat message, before any model sees it.
+  It is not a command the model has, so the model can't let the bot break someone's build on its own say-so,
+  whatever a player asks it, and neither can another bot.
 
 ## Trees
 
@@ -97,8 +118,8 @@ it started.
   where the bot had seen air.
 - **A post of logs whose top the bot hasn't seen is taken for a tree** when nothing built touches it where
   the bot has looked. A wall of logs is wider than a trunk and stays protected.
-- **There is no way yet to let the bot break a protected block,** even for its owner. Ask a player to break
-  it, or build somewhere else.
+- **Any player can grant, not only the block's owner.** The bot doesn't know whose a block is, only that it
+  is someone's.
 - **Leaves the bot only remembers count as grown.** Memory keeps blocks by name, not by state, so leaves out of
   view are taken for a tree's.
 - **Chests and animals are not covered yet:** `protect_chests` and `protect_animals` are reserved for them.
@@ -112,6 +133,7 @@ The code is in `src/agent/neighbor/`:
 | `natural.js` | Natural ground by name, what a trunk and a canopy are, what grows beside a trunk |
 | `trees.js` | The natural-tree test, over a reader of what the bot knows |
 | `protect.js` | The rule: why a block may not be broken, or nothing |
+| `grants.js` | Blocks a player let the bot break: reading `!allowBreak` from a player's own chat message, keeping each grant for one break and ten minutes |
 | `enforce.js` | Puts the rule under the pathfinder's `safeToBreak` and the bot's `dig` |
 | `install.js` | Reads the settings, builds the reader (fair play's view, or the raw world), and guards the bot |
 
