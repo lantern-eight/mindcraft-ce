@@ -3,11 +3,13 @@
 //
 // Both are actions, so they take over from whatever the bot was doing and stop when it is told to stop, like
 // every walk. The words they answer with are the explorer's; this file reads the arguments, picks the legs,
-// and keeps each bot's last walk so the next call can carry it on.
+// and keeps each bot's last walk so the next call can carry it on: in the process, and with world memory (when
+// it is on) so that it carries on after a restart too.
 import { toolResult } from '../tool_result.js';
 import { explore } from './explorer.js';
 import { parseDirection } from './heading.js';
 import { realLegs, targetsOf } from './legs.js';
+import { loadWalk, saveWalk } from './saved.js';
 
 const STATUS = { explored: 'ok', found: 'ok', known: 'ok', blocked: 'blocked', interrupted: 'cancelled' };
 
@@ -38,6 +40,18 @@ export function exploreCommands({ memoryOf, legsFor = realLegs }) {
     // Each bot's last walk, and the dimension it was in: a walk in the Nether doesn't carry on in the overworld.
     const lastWalks = new WeakMap();
 
+    // World memory's folder is the world and dimension the bot is in now, so a walk saved there is one made here.
+    const savedWalk = memory => {
+        if (!memory?.dir) return null;
+        try { return loadWalk(memory.dir, memory.scope); }
+        catch { return null; }
+    };
+    const keepWalk = (memory, trail) => {
+        if (!memory?.dir) return;
+        try { saveWalk(memory.dir, memory.scope, trail); }
+        catch (error) { console.warn('[explore] Could not save the last walk:', error.message); }
+    };
+
     async function run(agent, what, directionWord, distance) {
         const bot = agent.bot;
         const direction = parseDirection(directionWord);
@@ -51,11 +65,15 @@ export function exploreCommands({ memoryOf, legsFor = realLegs }) {
             if (!targets.all.length) return toolResult('failed', 'Say what to look for: a block or a mob.', 'unknown_target');
         }
         const dimension = bot.game?.dimension ?? null;
+        const memory = memoryOf(agent);
         const kept = lastWalks.get(bot);
-        const last = kept?.dimension === dimension ? kept.trail : null;
-        const legs = legsFor(bot, { targets, memory: memoryOf(agent) });
+        const last = kept?.dimension === dimension ? kept.trail : savedWalk(memory);
+        const legs = legsFor(bot, { targets, memory });
         const result = await explore({ legs, direction, distance, targets: targets?.all ?? null, last });
-        if (result.trail) lastWalks.set(bot, { dimension, trail: result.trail });
+        if (result.trail) {
+            lastWalks.set(bot, { dimension, trail: result.trail });
+            keepWalk(memory, result.trail);
+        }
         // Exploring for something and not finding it is progress made, not a failure.
         const status = what !== null && result.status === 'explored' ? 'partial' : STATUS[result.status];
         return toolResult(status, result.text, status === 'ok' ? null : result.status);

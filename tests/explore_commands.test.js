@@ -6,9 +6,12 @@ import assert from 'node:assert/strict';
 import { exploreCommands } from '../src/agent/explore/commands.js';
 import { installExplore } from '../src/agent/explore/install.js';
 import { getCommand } from '../src/agent/commands/index.js';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 /** An agent whose actions run at once, and legs that walk straight and see nothing unless told. */
-function setup({ sees = null } = {}) {
+function setup({ sees = null, memory = null } = {}) {
     const pos = { x: 0, y: 64, z: 0 };
     const calls = [];
     const legsFor = (bot, options) => {
@@ -25,7 +28,7 @@ function setup({ sees = null } = {}) {
     };
     const bot = { registry: { blocksByName: { sand: {}, red_sand: {}, oak_log: {} }, entitiesByName: { cow: {} } }, game: { dimension: 'overworld' } };
     const agent = {
-        bot, fairPlay: null,
+        bot, fairPlay: memory ? { memory } : null,
         actions: { async runAction(label, fn) { const r = await fn(); return { ...r, message: r.text, interrupted: false, label }; } },
     };
     const [explore, exploreFor] = exploreCommands({ memoryOf: a => a.fairPlay?.memory ?? null, legsFor });
@@ -87,6 +90,47 @@ test('"on" carries the last walk on, in the same dimension only', async () => {
     Math.random = () => 0;   // a fresh start heads east
     try { await explore.perform.structured(agent, 'on', 32); } finally { Math.random = random; }
     assert.ok(pos.x > before.x - 20, 'in another dimension, the old walk is not carried on');
+});
+
+test('with world memory, the last walk is kept in its folder and carried on after a restart', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'explore-walk-'));
+    try {
+        const memory = { dir, scope: 'world-a/overworld' };
+        const first = setup({ memory });
+        await first.explore.perform.structured(first.agent, 'south-west', 32);
+        const saved = JSON.parse(readFileSync(path.join(dir, 'explore.json'), 'utf8'));
+        assert.equal(saved.scope, 'world-a/overworld');
+        assert.equal(saved.trail.bearing, true);
+
+        // A new process: nothing kept in it, the bot standing where the walk ended.
+        const second = setup({ memory });
+        Object.assign(second.pos, first.pos);
+        const before = { ...second.pos };
+        await second.explore.perform.structured(second.agent, 'on', 32);
+        assert.ok(second.pos.x < before.x - 20 && second.pos.z > before.z + 20, 'went on south-west');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a saved walk of another world, or a damaged one, is not carried on', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'explore-walk-'));
+    const quiet = console.warn;
+    console.warn = () => {};
+    try {
+        const trail = { origin: { x: 0, z: 0 }, end: { x: 0, z: 0 }, heading: Math.PI / 2, bearing: false };
+        writeFileSync(path.join(dir, 'explore.json'), JSON.stringify({ scope: 'world-b/overworld', trail }));
+        const random = Math.random;
+        Math.random = () => 0;   // a fresh start heads east
+        try {
+            const { agent, pos, explore } = setup({ memory: { dir, scope: 'world-a/overworld' } });
+            await explore.perform.structured(agent, 'on', 32);
+            assert.ok(pos.x > 20 && Math.abs(pos.z) < 1, `not south, as the other world's walk went: ${JSON.stringify(pos)}`);
+            writeFileSync(path.join(dir, 'explore.json'), '{ not json');
+            const fresh = setup({ memory: { dir, scope: 'world-a/overworld' } });
+            const result = await fresh.explore.perform.structured(fresh.agent, 'on', 32);
+            assert.equal(result.status, 'ok', 'a damaged file is set aside, and the walk starts afresh');
+            assert.ok(fresh.pos.x > 20, JSON.stringify(fresh.pos));
+        } finally { Math.random = random; }
+    } finally { console.warn = quiet; rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('the setting turns the commands on, and leaving it out leaves them out', () => {

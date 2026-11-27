@@ -19,6 +19,8 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   has seen room to stand, so it follows the cave it can see instead of walking into rock. Needs world memory.
 - An exploring answer says what the walk came across: the kinds of ground worth naming (water, sand, ores,
   each kind of log and the like) in view on the way that weren't around where it began.
+- Exploring keeps its heading after a restart: with world memory on, the last walk is saved with the memory
+  of the world and dimension it was made in, and `"on"` carries it on.
 
 ## [1.27.0-bedrock.1.29.0] - 2026-11-27
 
