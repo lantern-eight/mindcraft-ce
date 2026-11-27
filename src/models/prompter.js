@@ -14,6 +14,7 @@ import { getToolDefinitions } from '../agent/commands/tool_registry.js';
 import { responseFormatSchema } from './_response_format.js';
 import { narrationInstructions, narrationConfig } from '../agent/narration.js';
 import { UsageMeter } from './usage.js';
+import { fillTextRequest } from './prompt_cache.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -369,12 +370,14 @@ export class Prompter {
                 return '';
             }
 
-            let prompt = this.profile.conversing;
-            prompt = await this.replaceStrings(prompt, messages, this.convo_examples);
+            // Prompt caching (prompt_cache.js): for Claude, the parts that change each turn go after the conversation.
+            const request = await fillTextRequest(this.chat_model, this.profile.conversing,
+                template => this.replaceStrings(template, messages, this.convo_examples));
+            let prompt = request.logged;
             let generation;
 
             try {
-                generation = await this.usage.run('conversation', () => this.chat_model.sendRequest(messages, prompt));
+                generation = await this.usage.run('conversation', () => request.send(messages));
                 if (typeof generation !== 'string') {
                     console.error('Error: Generated response is not a string', generation);
                     throw new Error('Generated response is not a string');
@@ -416,11 +419,13 @@ export class Prompter {
         }
         this.awaiting_coding = true;
         await this.checkCooldown();
-        let prompt = this.profile.coding;
-        prompt = await this.replaceStrings(prompt, messages, this.coding_examples);
+        // Prompt caching (prompt_cache.js), as in promptConvo.
+        const request = await fillTextRequest(this.code_model, this.profile.coding,
+            template => this.replaceStrings(template, messages, this.coding_examples));
+        let prompt = request.logged;
 
         let resp;
-        try { resp = await this.usage.run('coding', () => this.code_model.sendRequest(messages, prompt)); }
+        try { resp = await this.usage.run('coding', () => request.send(messages)); }
         finally { this.awaiting_coding = false; }
         await this._saveLog(prompt, messages, resp, 'coding');
         return resp;

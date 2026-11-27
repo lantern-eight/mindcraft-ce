@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
-// Prompt caching for Claude's native tool requests.
+// Prompt caching for Claude's requests: the native tool path, and the text path the legacy !command mode
+// uses (see the end of this file).
 //
 // Claude reads a repeated start of a request from its cache, at a tenth of the input price or less, but only
 // up to a block marked with cache_control. A request is laid out from what changes least to what changes
@@ -73,4 +74,61 @@ export function markForCache(body, { uncachedTail = 0, setting } = {}) {
             if (markMessage(body.messages[i], marker)) break;
     }
     return body;
+}
+
+// The text path (legacy !command mode). Its template puts everything in the system prompt, the stats and
+// inventory read this turn and the examples picked for this message included, so a system prompt that
+// changed every turn hid the whole conversation after it from the cache. For Claude those parts are taken
+// out of the system prompt and sent once, after the conversation, like the fresh state on the tool path.
+// Any template works this way, a profile's own included: nothing has to be marked in it.
+
+// Placeholders whose text is new on nearly every request. The goal and the memory summary change only now
+// and then, so they stay in the cached system prompt.
+const perTurn = ['$STATS', '$INVENTORY', '$EXAMPLES', '$CODE_DOCS', '$ACTION'];
+const freshHeading = 'CURRENT STATE (fresh, takes precedence over older observations):';
+
+// How to lay out a text request from `template` for `model`, or null to send it as before: for a model
+// other than Claude, or with prompt_caching off. `system` is the template without its per-turn parts (the
+// first leaves a note in its place), and `fresh` is a template of those parts alone, in the template's own
+// order, to fill in and send after the conversation. A template without any has an empty `fresh`.
+export function textCacheLayout(model, template, setting) {
+    if (!model?.anthropic || typeof template !== 'string' || !cacheMarker(setting)) return null;
+    const found = perTurn.filter(placeholder => template.includes(placeholder))
+        .sort((a, b) => template.indexOf(a) - template.indexOf(b));
+    let system = template;
+    found.forEach((placeholder, i) =>
+        system = system.replaceAll(placeholder, i === 0 ? '(given at the end of the conversation)' : ''));
+    return { system, fresh: found.length ? [freshHeading, ...found].join('\n') : '' };
+}
+
+// Marks a text request body for the cache and puts the filled-in `fresh` text after the conversation, as a
+// last block of its own in the last user turn, past the marker. `uncachedTail` is how many messages at the
+// end are sent once only (a closing turn). Returns the body; its own messages are replaced, not changed.
+export function markTextRequest(body, { fresh = '', uncachedTail = 0, setting } = {}) {
+    body = markForCache(body, { uncachedTail, setting });
+    if (!fresh) return body;
+    const messages = body.messages.map(message => ({ ...message }));
+    const last = messages.at(-1);
+    if (last?.role !== 'user') messages.push({ role: 'user', content: fresh });
+    else last.content = [...(typeof last.content === 'string' ? [{ type: 'text', text: last.content }] : last.content),
+        { type: 'text', text: fresh }];
+    body.messages = messages;
+    return body;
+}
+
+// What the prompter calls for a text request: fills `template` with `fill` (its replaceStrings) and returns
+// the system prompt to send, the text to log, and `send(messages)`, which sends it to `model`. For Claude with
+// prompt caching on, the per-turn parts are filled in separately and go after the conversation; otherwise it
+// is the request the prompter always sent.
+export async function fillTextRequest(model, template, fill) {
+    const layout = textCacheLayout(model, template);
+    const prompt = await fill(layout ? layout.system : template);
+    const fresh = layout?.fresh ? await fill(layout.fresh) : '';
+    return {
+        prompt,
+        logged: fresh ? `${prompt}\n${fresh}` : prompt,
+        send: messages => layout
+            ? model.sendRequest(messages, prompt, { cache: { fresh } })
+            : model.sendRequest(messages, prompt),
+    };
 }
