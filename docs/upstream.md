@@ -9,7 +9,7 @@ How a fix is made and offered is in [CLAUDE.md](../CLAUDE.md), "Fixes to Inherit
 unreleased work, and the release each waits for, are in
 [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch).
 
-*As of `1.21.1-bedrock.1.23.0`.* A line is removed once its fix is merged upstream and this fork is on a release
+*As of `1.22.0-bedrock.1.24.0`.* A line is removed once its fix is merged upstream and this fork is on a release
 that has it. A fix that is declined stays on `main`, and its line says so.
 
 ## Mindcraft-CE
@@ -24,6 +24,11 @@ holds the fix and nothing else.
 |---|---|
 | [#116](https://github.com/mindcraft-ce/mindcraft-ce/pull/116) | Position packets stay in their own tick once the client sends `tick_end` |
 | [#147](https://github.com/mindcraft-ce/mindcraft-ce/pull/147) | `putInChest`, `takeFromChest` and `viewChest` use the nearest chest, trapped chest or barrel, not chests alone |
+| [#150](https://github.com/mindcraft-ce/mindcraft-ce/pull/150) | With native tools on, the system prompt no longer holds a second copy of the tool list, which already goes in the request's tools field: about 7,000 tokens less a call |
+| [#151](https://github.com/mindcraft-ce/mindcraft-ce/pull/151) | With native tools on, Claude and Gemini get the conversation's system notes where they happened, not glued onto the end of the system prompt |
+| [#152](https://github.com/mindcraft-ce/mindcraft-ce/pull/152) | Claude 4.6 and later on the text path: no request ending on the bot's own turn, 16,000 tokens by default (kept out of the tool path's parameters), a refusal said as one, one retry after an empty reply. Ported from r77tchan's fork |
+| [#153](https://github.com/mindcraft-ce/mindcraft-ce/pull/153) | The same on the native tool path: no request ending on the bot's own turn, 16,000 tokens by default, a refusal raised as declined |
+| [#154](https://github.com/mindcraft-ce/mindcraft-ce/pull/154) | Usage counts prompt cache writes per role and prices them by `cache_write_per_million` when the rates give one |
 
 ### Merged, With a Difference Kept
 
