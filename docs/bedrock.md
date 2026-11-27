@@ -158,7 +158,7 @@ one line of JSON for each step:
 export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
 export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 
-node tests/live/bedrock_all.js                         # all ten below, one after another
+node tests/live/bedrock_all.js                         # all thirteen below, one after another
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
@@ -171,6 +171,7 @@ node tests/live/bedrock_stow.js                        # putting away and fetchi
 node tests/live/bedrock_smelting.js                    # smelting
 node tests/live/bedrock_neighbor.js                    # good-neighbor rules
 node tests/live/bedrock_turning.js                     # work that turns a lot, timed
+node tests/live/bedrock_explore.js                     # exploring
 node tests/live/bedrock_threats.js                     # the threat reflexes
 node tests/live/bedrock_fight_arena.js                 # how well the bot fights, measured (not in bedrock_all.js)
 ```
@@ -206,6 +207,9 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   of two blocks to jump. Each must succeed at any turning speed and in either view; slower is fine, a fall
   or a stall is not. The Bedrock twin of `turning_scenarios.js`, less its ladder, which the console can't
   set facing a way.
+- **`bedrock_explore.js`** runs `!explore` and `!exploreFor` on three strips of stone high up: a heading kept
+  from one call to the next, a stone wall gone round and none of it dug, and sand behind the bot found and
+  stopped at. The Bedrock twin of `explore_scenarios.js`, less its lake and its remembered sand.
 - **`bedrock_threats.js`** installs fair play and the creeper reflex, lights creepers with Bedrock's own
   start-exploding event, penned in glass where the bot can see them, and checks that the bot reads the fuse
   from the `ignited` flag, steps away the moment the hiss arrives, is 7 or more blocks off at each blast and
@@ -354,7 +358,7 @@ tests: run the script again.
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, a villager's trade window, and letting go of every key (through `setControlState`, as on Java, so that an action the agent stopped can't let go of the keys of the one after it). A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
-| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js`, `tests/live/bedrock_smelting.js`, `tests/live/bedrock_neighbor.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, putting away and fetching, smelting, and good-neighbor rules |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js`, `tests/live/bedrock_smelting.js`, `tests/live/bedrock_neighbor.js`, `tests/live/bedrock_explore.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, putting away and fetching, smelting, good-neighbor rules, and exploring |
 | `tests/live/bedrock_all.js`, `tests/live/bedrock_spawn_check.js` | Running all of them in turn; what stands at the world spawn, and clearing it |
 | `tests/live/bedrock-server/` | A throwaway server to run them against: its Docker Compose file and a console that works under emulation |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |

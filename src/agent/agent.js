@@ -24,6 +24,7 @@ import { installStorage } from './storage/install.js';
 import { installThreatReflexes } from './reflexes/install.js';
 import { installGoodNeighbor } from './neighbor/install.js';
 import { installSmelting } from './smelting/install.js';
+import { installExplore } from './explore/install.js';
 
 /** The chat command that applies a profile's skin, or null when the profile doesn't set one. */
 export function skinCommand(profile) {
@@ -117,6 +118,8 @@ export class Agent {
         installSmelting(this);
         // Good-neighbor rules (settings.good_neighbor): the bot doesn't break what other players built.
         installGoodNeighbor(this);
+        // Exploring (off unless settings.explore is true): adds !explore and !exploreFor.
+        installExplore(this);
 
         this.bot.on('login', () => {
             console.log(this.name, 'logged in!');

@@ -12,8 +12,8 @@ play**: the bot may only know and do what a human survival player could.
 
 - New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
   the `world_memory` setting), `src/agent/storage/` (chest sorting, behind the `chest_sorting` setting), `src/agent/smelting/` (smelting,
-  behind the `smelting` setting), `src/agent/reflexes/` (the threat reflexes, behind the `threat_reflexes` setting) and `src/agent/neighbor/`
-  (good-neighbor rules, behind the `good_neighbor` setting). `src/agent/edition/`, the edition seam, answers what depends on the edition of the game (how
+  behind the `smelting` setting), `src/agent/reflexes/` (the threat reflexes, behind the `threat_reflexes` setting) `src/agent/neighbor/`
+  (good-neighbor rules, behind the `good_neighbor` setting) and `src/agent/explore/` (exploring, behind the `explore` setting). `src/agent/edition/`, the edition seam, answers what depends on the edition of the game (how
   block states are numbered, how a chunk section lists its blocks, sounds, operator rights, what a block
   entity holds, how a stack is moved); those modules ask it instead of reading game data shapes or packets
   themselves. `docs/edition-seam.md` lists its questions, and says when new code must ask it and how to
@@ -25,7 +25,7 @@ play**: the bot may only know and do what a human survival player could.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
   `src/agent/memory/`, `docs/chest-sorting.md` for `src/agent/storage/`, `docs/smelting.md` for `src/agent/smelting/`, `docs/threat-reflexes.md` for
-  `src/agent/reflexes/`, and `docs/good-neighbor.md` for `src/agent/neighbor/`.
+  `src/agent/reflexes/`, `docs/good-neighbor.md` for `src/agent/neighbor/`, and `docs/explore.md` for `src/agent/explore/`.
 - `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
   changed in each version, for both editions. On `bedrock`, `CHANGELOG-bedrock.md` records what its
   library pins changed.

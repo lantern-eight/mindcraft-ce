@@ -192,7 +192,12 @@ No code was copied for these. They are credited because the work builds on them.
 - **Taking a bot's starting reactions to threats from its profile** comes from the instincts in the
   [`casmint/mindcraft-plus`](https://github.com/casmint/mindcraft-plus) fork. Used by the profile's
   `threat_rules` in `src/agent/reflexes/orders.js`.
-
+- **Exploring that keeps its heading** comes from the [`KojoBarbie/mindcraft`](https://github.com/KojoBarbie/mindcraft)
+  fork (`skills.explore`: a heading kept between calls); **carrying a walk on across short calls, turning by
+  growing offsets instead of reversing, and stopping when the target is seen** from the
+  [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork (`skills.exploreUntilBlock`);
+  **heading for ground not yet visited** from the [`3spress0/mindcraft`](https://github.com/3spress0/mindcraft)
+  fork (`navigation/exploration.js`). All three are MIT. Used by `src/agent/explore/`.
 - **Good-neighbor rules that protect everything except natural ground, a list of the blocks that count as
   natural ground, a tree told by its trunk running up into grown leaves with nothing a builder would put
   against it, and enforcing them through the pathfinder's `safeToBreak` on the class** come from the
@@ -224,12 +229,13 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/reflexes/` (all files)
 - `src/agent/smelting/` (all files)
 - `src/agent/neighbor/` (all files)
+- `src/agent/explore/` (all files)
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/smelt_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`, `src/agent/library/bag_room.js`,
   `src/agent/library/fetch_way.js`, `src/agent/library/drop_look.js`,
   `src/agent/action_hold.js`, `src/models/prompt_cache.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/explore_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skills_chest_kinds.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/bag_room.test.js`, `tests/goto_path_search.test.js`,
@@ -252,9 +258,9 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`, `tests/helpers/fake_furnace.js`
 - `tests/live/fairplay_*.js`, `tests/live/prompt_cache_check.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
   `tests/live/storage_scenarios.js`, `tests/live/stow_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
-  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/neighbor_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/smelting_scenarios.js`, `tests/live/bedrock_*.js`,
+  `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/neighbor_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/explore_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/smelting_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
-- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
+- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/explore.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`, `docs/prompt-caching.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file, and on the `bedrock` branch `CHANGELOG-bedrock.md`
 
