@@ -129,13 +129,14 @@ export function startHeading({ direction, here, last = null, leg, newGround = ()
  * @param {number} options.heading
  * @param {boolean} options.bearing - told a direction: never turn back past a quarter
  * @param {{x:number,z:number}} options.here
- * @param {{sector:number, at:{x:number,z:number}}[]} [options.blocked] - ways found blocked, and where from
+ * @param {{sector:number, at:{x:number,z:number}, reach?:number}[]} [options.blocked] - ways found blocked, and
+ *   where from; `reach`, when given, is how far round that spot the way counts as blocked
  * @param {number} [options.blockedReach] - a way blocked from within this many blocks is blocked from here too
  * @param {(angle: number) => number|null} [options.newGround]
  * @returns {number[]} angles
  */
 export function legOrder({ heading, bearing, here, blocked = [], blockedReach = 24, newGround = () => null }) {
-    const shut = new Set(blocked.filter(b => flat(b.at, here) <= blockedReach).map(b => b.sector));
+    const shut = new Set(blocked.filter(b => flat(b.at, here) <= (b.reach ?? blockedReach)).map(b => b.sector));
     const turns = bearing ? BEARING_TURNS : FREE_TURNS;
     const ways = turns.map(turn => ({ turn, angle: wrap(heading + turn * EIGHTH) }))
         .filter(way => !shut.has(sectorOf(way.angle)));

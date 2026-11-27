@@ -10,7 +10,8 @@ import { ON, parseDirection } from '../src/agent/explore/heading.js';
  * A flat pretend world. `wall(x, z)` and `water(x, z)` say what is at a column. A leg walks one block at a
  * time towards its point and stops in front of the first wall or water. `sees` is how far the bot sees things.
  */
-function world({ wall = () => false, water = () => false, things = [], sees = 20, remembered = [], stopAfter = Infinity } = {}) {
+function world({ wall = () => false, water = () => false, things = [], sees = 20, remembered = [], stopAfter = Infinity,
+    hazard = null, kinds = null } = {}) {
     const pos = { x: 0.5, y: 64, z: 0.5 };
     const log = { walks: [], looks: 0 };
     let walks = 0;
@@ -35,6 +36,8 @@ function world({ wall = () => false, water = () => false, things = [], sees = 20
         find: () => things.find(t => Math.hypot(t.x - pos.x, t.z - pos.z) <= sees) ?? null,
         recall: max => remembered.find(t => Math.hypot(t.x - pos.x, t.z - pos.z) <= max) ?? null,
     };
+    if (hazard) legs.knownHazard = point => { log.asked = (log.asked ?? 0) + 1; return hazard(Math.floor(point.x), Math.floor(point.z)); };
+    if (kinds) legs.kinds = () => kinds(pos);
     return { legs, pos, log };
 }
 
@@ -125,4 +128,82 @@ test('one block is a block', async () => {
     const { whereFrom } = await import('../src/agent/explore/explorer.js');
     assert.equal(whereFrom({ x: 0, y: 64, z: 0 }, { x: 0, y: 63, z: 0 }), '1 block below');
     assert.equal(whereFrom({ x: 0, y: 64, z: 0 }, { x: 0, y: 64, z: -2 }), '2 blocks north');
+});
+
+test('a leg whose end the bot remembers as water is not walked: it turns aside before setting out, and says so', async () => {
+    // A lake to the east from x 30 on, remembered, and no wall: walked into, the pretend legs would not stop.
+    const { legs, log } = world({ hazard: (x, z) => (x >= 30 && Math.abs(z) < 30 ? 'water' : null) });
+    const result = await explore({ legs, direction: parseDirection('east'), distance: 64 });
+    assert.ok(log.walks.every(w => w.to.x < 30 || Math.abs(w.to.z) >= 30), `never set out into it: ${JSON.stringify(log.walks.map(w => w.to))}`);
+    assert.match(result.text, /Turned aside for water to the east/);
+});
+
+test('a bad end may still do at half the length', async () => {
+    const { legs, log } = world({ hazard: x => (x >= 20 ? 'drop' : null) });
+    await explore({ legs, direction: parseDirection('east'), distance: 16 + 4 });
+    assert.ok(log.walks[0].to.x < 20 && log.walks[0].to.x > 10, JSON.stringify(log.walks[0].to));
+    assert.ok(Math.abs(log.walks[0].to.z - 0.5) < 1e-6, 'still east');
+});
+
+test('a drop and lava are named for what they are', async () => {
+    const { legs } = world({ hazard: (x, z) => (x >= 10 ? 'drop' : z >= 10 ? 'lava' : null) });
+    const result = await explore({ legs, direction: parseDirection('east'), distance: 64 });
+    assert.match(result.text, /a drop to the east/);
+    assert.match(result.text, /lava to the south\b/);
+});
+
+test('when memory says every way is bad, the first is walked anyway: memory can be out of date', async () => {
+    const { legs, log } = world({ hazard: () => 'water' });
+    await explore({ legs, direction: parseDirection('north'), distance: 32 });
+    assert.ok(log.walks.length >= 1);
+    assert.ok(log.walks[0].to.z < -20, 'went north');
+});
+
+test('kinds of ground first seen on the way are named, and the ones seen at the start are not', async () => {
+    const kinds = pos => [...(pos.x < 10 ? ['oak_log'] : []), 'grass_block', ...(pos.x > 50 ? ['sand', 'water'] : [])];
+    const { legs } = world({ kinds });
+    const result = await explore({ legs, direction: parseDirection('east'), distance: 100 });
+    assert.match(result.text, / Came across: sand, water\.$/);
+    assert.deepEqual(result.newKinds, ['sand', 'water']);
+});
+
+test('with nothing new on the way, nothing is said of it', async () => {
+    const { legs } = world({ kinds: () => ['grass_block'] });
+    const result = await explore({ legs, direction: parseDirection('east'), distance: 64 });
+    assert.doesNotMatch(result.text, /Came across/);
+});
+
+test('water remembered only partway along a leg, as at a lake\'s near shore, is turned from too', async () => {
+    // Memory reaches about as far as a look round: the lake's near half is remembered, its far half and the
+    // leg's end are not.
+    const { legs, log } = world({ hazard: (x, z) => (x >= 14 && x <= 24 && Math.abs(z) < 12 ? 'water' : null) });
+    const result = await explore({ legs, direction: parseDirection('east'), distance: 32 });
+    assert.ok(!(log.walks[0].to.x > 20 && Math.abs(log.walks[0].to.z) < 12), `didn't set out across it: ${JSON.stringify(log.walks[0].to)}`);
+    assert.match(result.text, /water to the east/);
+});
+
+test('in a cave, a way not seen from one spot is tried again a few steps on, and a short leg that arrives counts', async () => {
+    // A passage east to x 20, north to z -30, then east again. The legs see on only along the passage: from
+    // the bend's foot the way east is unseen, and from the top of the north passage it opens up.
+    const pos = { x: 0.5, y: 64, z: 0.5 };
+    const open = (x, z) => (x >= 0 && x <= 21 && Math.abs(z) <= 1) || (x >= 19 && x <= 21 && z <= 1 && z >= -31) || (x >= 19 && x <= 80 && z >= -31 && z <= -29);
+    const legs = {
+        position: () => ({ ...pos }),
+        interrupted: () => false,
+        async walk(point) {
+            // Walk the open cells straight towards the point, as far as they go; nothing open that way is unseen.
+            const length = Math.hypot(point.x - pos.x, point.z - pos.z);
+            const dx = (point.x - pos.x) / length, dz = (point.z - pos.z) / length;
+            let steps = 0;
+            while (steps < length && open(Math.floor(pos.x + dx * (steps + 1)), Math.floor(pos.z + dz * (steps + 1)))) steps++;
+            if (steps < 3) return 'unseen';
+            pos.x += dx * steps; pos.z += dz * steps;
+            return 'arrived';
+        },
+        async lookAround() {},
+        newGround: () => null,
+        find: () => null,
+    };
+    const result = await explore({ legs, direction: parseDirection('east'), distance: 80 });
+    assert.ok(pos.x > 40 && pos.z < -25, `round both bends: ${JSON.stringify(pos)} ${result.text}`);
 });

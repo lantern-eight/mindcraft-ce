@@ -2,6 +2,7 @@ import * as skills from '../library/skills.js';
 import * as world from '../library/world.js';
 import * as mc from '../../utils/mcdata.js';
 import { itemSatisfied, ownedCounts } from './utils.js';
+import { exploreWayOf } from '../library/explore_way.js';
 
 
 const blacklist = [
@@ -324,7 +325,9 @@ export class ItemGoal {
             if (this.failed.includes(next.name)) {
                 this.failed = this.failed.filter((item) => item !== next.name);
                 await this.agent.actions.runAction('itemGoal:explore', async () => {
-                    await skills.moveAway(this.agent.bot, 8);
+                    const explore = exploreWayOf(this.agent.bot);
+                    if (explore) await explore(next.source);
+                    else await skills.moveAway(this.agent.bot, 8);
                 });
             } else {
                 this.failed.push(next.name);

@@ -9,6 +9,26 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.28.0-bedrock.1.30.0] - 2026-11-27
+
+Exploring's second part, for both editions. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.
+
+### Added
+
+- Exploring steers by what the bot remembers, on both editions: before each stretch it checks what world
+  memory holds at the stretch's end, and doesn't set out for water, lava or a drop of more than 8 blocks it
+  saw from afar. It tries half the stretch, then the next way round, and says what it turned from ("a drop
+  to the west"). When memory says every way is bad, it walks the first anyway.
+- Exploring underground: under a roof, a stretch ends at the farthest spot towards the heading where the bot
+  has seen room to stand, so it follows the cave it can see instead of walking into rock. Needs world memory.
+- An exploring answer says what the walk came across: the kinds of ground worth naming (water, sand, ores,
+  each kind of log and the like) in view or remembered on the way that weren't around where it began.
+- Exploring keeps its heading after a restart: with world memory on, the last walk is saved with the memory
+  of the world and dimension it was made in, and `"on"` carries it on.
+- The NPC's item goals explore for what they need (`explore` on): when the block or mob a goal needs isn't
+  in sight a second time, the bot explores 64 blocks for it on a kept heading, stopping when it is in view,
+  instead of stepping 8 blocks any way at all.
+
 ## [1.27.0-bedrock.1.29.0] - 2026-11-27
 
 Exploring that keeps its heading, for both editions. Built on the same Mindcraft-CE commit as
@@ -1456,7 +1476,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.27.0-bedrock.1.29.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.28.0-bedrock.1.30.0...HEAD
+[1.28.0-bedrock.1.30.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.27.0-bedrock.1.29.0...v1.28.0-bedrock.1.30.0
 [1.27.0-bedrock.1.29.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.26.0-bedrock.1.28.0...v1.27.0-bedrock.1.29.0
 [1.26.0-bedrock.1.28.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.25.0-bedrock.1.27.0...v1.26.0-bedrock.1.28.0
 [1.25.0-bedrock.1.27.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.24.0-bedrock.1.26.0...v1.25.0-bedrock.1.27.0
