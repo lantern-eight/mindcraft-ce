@@ -74,6 +74,7 @@ however much the bot remembers.
 | `!rememberHere(name)`, `!goToRememberedPlace(name)` | As before, now kept in world memory |
 | `!rememberToldPlace(name, where)` | Remembers a place a player gave the position of: `"300 64 -120"`, or `"300 -120"` when they gave no height |
 | `!goToPlace(name)` | Walks to any place it knows by name: found, named or told |
+| `!forgetPlace(name)` | Forgets a told place it hasn't seen, when a player takes it back |
 
 An answer says where, how far and which way, how long ago, and, when the trail joins the bot to the spot,
 how long the walk is:
@@ -113,7 +114,22 @@ is confirmed at once. Seen means the bot has looked at the spot, not that what t
 it is true.
 
 A told place with no height is walked to by its x and z; `!goToRememberedPlace` needs a height, so
-`!goToPlace` is the way there.
+`!goToPlace` is the way there. A player who takes a told place back can have the bot forget it with
+`!forgetPlace`; a place the bot has seen stays.
+
+#### Shared Waypoints
+
+Map mods let a player share a waypoint as a line of chat. Xaero's Minimap posts
+`xaero-waypoint:Base:B:268:64:-160:6:false:0:Internal-overworld-waypoints`, and JourneyMap
+`[name:"Base", x:268, y:64, z:-160, dim:minecraft:overworld]`. A chat message that is one of these and
+nothing else is a player telling the bot where a place is, so `src/agent/memory/waypoints.js` saves it as a
+told place at once, with no model call to read it. The bot answers in a line of chat (`Got it, Steve: "Base"
+at 268, 64, -160. I haven't seen it yet.`), and the model hears of it once, through the change notes.
+
+A waypoint for another dimension goes into that dimension's own places, since each dimension keeps its own
+memory: a Nether fortress shared in the Overworld is listed when the bot is in the Nether. A message with
+anything more than the waypoint goes to the model as before, and the model can save it with
+`!rememberToldPlace`. With world memory off, every message goes to the model.
 
 ## Finding the Way
 

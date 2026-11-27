@@ -258,6 +258,15 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
         },
 
         /** Forgets a found place that has no name and nothing left in it. Named places are kept. */
+        /** Takes back a told place not yet seen. Returns whether there was one. */
+        untell(id) {
+            const place = places.get(resolve(id));
+            if (!place || place.kind !== 'told') return false;
+            places.delete(place.id);
+            dirty = true;
+            return true;
+        },
+
         forget(id) {
             const place = places.get(resolve(id));
             if (!place || place.name) return false;
