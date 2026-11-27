@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.25.0-bedrock.1.27.0] - 2026-11-27
+
+Places a player told the bot of, for both editions, and a fix to `!bringItem`. Built on the same Mindcraft-CE
+commit as 1.24.0-bedrock.1.26.0.
+
 ### Added
 
 - World memory keeps places a player told the bot of. `!rememberToldPlace(name, where)` takes the position
@@ -1424,7 +1429,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.24.0-bedrock.1.26.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.25.0-bedrock.1.27.0...HEAD
+[1.25.0-bedrock.1.27.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.24.0-bedrock.1.26.0...v1.25.0-bedrock.1.27.0
 [1.24.0-bedrock.1.26.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.23.0-bedrock.1.25.0...v1.24.0-bedrock.1.26.0
 [1.23.0-bedrock.1.25.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.22.0-bedrock.1.24.0...v1.23.0-bedrock.1.25.0
 [1.22.0-bedrock.1.24.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...v1.22.0-bedrock.1.24.0
