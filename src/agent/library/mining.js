@@ -5,8 +5,11 @@ import { toolResult } from '../tool_result.js';
 import { lookBeforeSearch } from './search_look.js';
 // Fork hook (docs/core-hooks.md, 31): stop, or make room, when the bag can't take a block's drop.
 import { makeRoomFor, takeRoomNotes } from './bag_room.js';
+// Fork hook (docs/core-hooks.md, 32): a drop that didn't come is looked for where its block was.
+import { lookForDrop } from './drop_look.js';
 
 const failures = new WeakMap();
+const held = bot => bot.inventory.items().reduce((sum, item) => sum + item.count, 0);
 const counts = bot => Object.fromEntries(bot.inventory.items().map(i => [i.name,
     bot.inventory.items().filter(x => x.name === i.name).reduce((sum, x) => sum + x.count, 0)]));
 
@@ -60,6 +63,7 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
         if (!target) { blocker ||= `No reachable ${type} found nearby.`; break; }
         const key = target.position.toString();
         perTarget.set(key, (perTarget.get(key) || 0) + 1);
+        let heldBeforeDig = null; // fork hook 32
         try {
             report(`Approaching ${type}; collected ${broken} of ${requested}.`);
             if (type === 'water' || type === 'lava') {
@@ -89,6 +93,7 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
                     break;
                 }
                 report(`Mining ${block.name}; collected ${broken} of ${requested}.`);
+                heldBeforeDig = held(bot); // fork hook 32
                 await cancellable(bot, () => bot.dig(block, true, 'raycast'), Math.min(bot.digTime(block), 300000) + 8000,
                     () => bot.stopDigging());
                 assertActionOwner(bot);
@@ -99,6 +104,9 @@ export async function collectBlocks(bot, type, requested, {find, pickup, liquid,
             if (!confirmed.has(key)) { confirmed.add(key); broken++; }
             report(`Broke ${broken} of ${requested} ${type}; collecting drops.`);
             await cancellable(bot, () => pickup(), 10000, () => bot.pathfinder.setGoal(null));
+            // Fork hook (docs/core-hooks.md, 32): nothing came of the block, so look where it was, and pick up again.
+            if (heldBeforeDig !== null && held(bot) <= heldBeforeDig && await lookForDrop(bot, target.position))
+                await cancellable(bot, () => pickup(), 10000, () => bot.pathfinder.setGoal(null));
             if(afterBreak) await afterBreak();
             blocker = '';
         } catch (error) {

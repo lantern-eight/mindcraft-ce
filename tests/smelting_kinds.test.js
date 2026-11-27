@@ -79,9 +79,9 @@ test('loaded and left in a blast furnace: it is said to be done in half the time
     assert.match(t.said(), /From the blast furnace at 4, 64, 0 I took 20 gold_ingot/);
 });
 
-test('on Bedrock, whose library works only a furnace\'s window, the blast furnace is left for the furnace', async () => {
-    const bedrockish = { ...javaEdition, usableFurnaceKinds: () => ['furnace'] };
-    const t = setup({ inventory: { raw_iron: 4, coal: 1 }, furnaces: [{ at: [2, 64, 0], kind: 'blast_furnace' }, { at: [6, 64, 0] }] }, { edition: bedrockish });
+test('an edition that can use only furnaces leaves the blast furnace for the furnace', async () => {
+    const furnacesOnly = { ...javaEdition, usableFurnaceKinds: () => ['furnace'] };
+    const t = setup({ inventory: { raw_iron: 4, coal: 1 }, furnaces: [{ at: [2, 64, 0], kind: 'blast_furnace' }, { at: [6, 64, 0] }] }, { edition: furnacesOnly });
     assert.equal(await t.smeltItem(t.bot, 'raw_iron', 4), true, t.said());
     assert.match(t.said(), /in the furnace at 6, 64, 0/);
     assert.deepEqual(t.furnaceAt(2, 64, 0).slots, [null, null, null]);

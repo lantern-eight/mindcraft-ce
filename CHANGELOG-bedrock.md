@@ -12,6 +12,17 @@ Bedrock part above it.
 
 ## [Unreleased]
 
+## [1.21.0-bedrock.1.23.0] - 2026-11-26
+
+Released with `main`'s 1.21.0-bedrock.1.23.0, which it brings to `bedrock`: this is the pin that came with it.
+
+### Changed
+
+- The pinned Bedrock adapter (`lantern-eight/mineflayer` `bedrock-combined`, now at `ca01169`) fills a blast
+  furnace's and a smoker's windows, as it does a furnace's, with the fix offered to its author
+  ([Pix3lPirat3/mineflayer#22](https://github.com/Pix3lPirat3/mineflayer/pull/22)). With it, `main`'s
+  1.21.0-bedrock.1.23.0 lets a Bedrock bot smelt ores in a blast furnace and food in a smoker.
+
 ## [1.17.0-bedrock.1.18.0] - 2026-11-25
 
 Released with `main`'s 1.17.0-bedrock.1.18.0, which it brings to `bedrock`: these are the pins that came with it.
@@ -39,5 +50,5 @@ above this one.
   ([Pix3lPirat3/mineflayer#17](https://github.com/Pix3lPirat3/mineflayer/pull/17)). The bot already let go of its
   keys that way since 1.9.0-bedrock.1.10.0, so nothing changes for a player.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...bedrock
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.23.0...bedrock
 [1.9.0-bedrock.1.10.2]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.9.0-bedrock.1.10.1...v1.9.0-bedrock.1.10.2
