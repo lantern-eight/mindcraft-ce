@@ -19,6 +19,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   another way it knows, the rest of the trip digs nothing, ordinary travel included, and if no walk is left
   it stops and says so. Before, getting past any blockage could tunnel round a wall into someone's base.
 
+### Fixed
+
+- A bot set down beside its trail, on a spot it never stood on, could join the trail at a spot through a
+  wall it remembered, in the next tunnel over, and then go the wrong way or find no known way at all. It
+  joins on its own side of the wall now.
+
 ## [1.28.0-bedrock.1.30.0] - 2026-11-27
 
 Exploring's second part, for both editions. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.
