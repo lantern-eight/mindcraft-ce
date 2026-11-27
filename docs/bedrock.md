@@ -207,9 +207,10 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   of two blocks to jump. Each must succeed at any turning speed and in either view; slower is fine, a fall
   or a stall is not. The Bedrock twin of `turning_scenarios.js`, less its ladder, which the console can't
   set facing a way.
-- **`bedrock_explore.js`** runs `!explore` and `!exploreFor` on three strips of stone high up: a heading kept
-  from one call to the next, a stone wall gone round and none of it dug, and sand behind the bot found and
-  stopped at. The Bedrock twin of `explore_scenarios.js`, less its lake and its remembered sand.
+- **`bedrock_explore.js`** runs `!explore` and `!exploreFor` on four strips of stone high up: a heading kept
+  from one call to the next, a stone wall gone round and none of it dug, sand behind the bot found and
+  stopped at, and a tunnel that bends followed under a stone roof. The Bedrock twin of
+  `explore_scenarios.js`, less its lakes and its remembered sand.
 - **`bedrock_threats.js`** installs fair play and the creeper reflex, lights creepers with Bedrock's own
   start-exploding event, penned in glass where the bot can see them, and checks that the bot reads the fuse
   from the `ignited` flag, steps away the moment the hiss arrives, is 7 or more blocks off at each blast and
