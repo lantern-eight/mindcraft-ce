@@ -44,6 +44,24 @@ wrote its 7,700-token start to the cache, and each later call read 96 to 98% of 
 the ten, input cost about a third of what the same prompts cost uncached. Writing costs a quarter more than plain input (twice as much with
 the one-hour lifetime), and a read a tenth or less, so a cached start pays for itself on the second call.
 
+### The Legacy `!command` Mode
+
+With `use_function_calling: false` the bot answers in text with `!commands`, and the whole prompt is the
+system prompt: the profile's instructions and the command list, then the goal and the memory summary, then
+the stats, inventory and examples of this turn. The default prompt keeps that order (fixed parts first), so
+providers that cache by themselves can reuse everything before the stats: in an offline test, about 8,800
+of its 9,000 characters from one turn to the next, where the old order let them reuse under 800.
+
+For Claude, `src/models/prompt_cache.js` goes further. It takes the parts that change each turn (`$STATS`,
+`$INVENTORY`, `$EXAMPLES`, `$CODE_DOCS`, `$ACTION`) out of the system prompt, leaving a note where the first
+was, and sends them once, as a last block after the conversation, headed `CURRENT STATE`. It marks the end of
+the system prompt and the last turn of the conversation, as on the tool path. This works for any template, a
+profile's own included; nothing has to be marked in it. The coding prompt goes the same way. The model gets
+the same text, the per-turn part after the conversation instead of before it.
+
+Measured on Claude Haiku 5.5, six calls of one task in this mode: the first wrote its 3,200-token start, and
+each later call read 93 to 95% of its prompt from the cache, leaving only the 180-token fresh state uncached.
+
 `prompt_caching` in `settings.js`:
 
 | Value | What it does |
@@ -63,11 +81,12 @@ several steps, `cached` should soon be most of `input`. If it stays at zero:
 - Something early in the request changes on every call. Set `log_all_prompts` and compare two prompts.
 
 To check against the API itself, after changing how a request is put together (`prompter.js`,
-`_tool_request.js`, `prompt_cache.js`, the prompt templates), run
+`_tool_request.js`, `claude.js`, `prompt_cache.js`, the prompt templates), run
 `node tests/live/prompt_cache_check.js --paid`. It is billed, so it won't start without `--paid`. It plays
 one task of six steps on Claude Haiku 5.5 (`--model=`, `--steps=` to change them) through the real prompt and
 tools, prints what each call read from the cache, wrote and left uncached, and fails unless every call after
-the first reads all that the call before it marked, and the fresh state is never marked. Six steps cost a
+the first reads all that the call before it marked, and the fresh state is never marked. `--path=text` plays
+the task through the legacy `!command` mode instead. Six steps cost a
 fraction of a cent. It needs no game server.
 
 To have a model's own rates count cache writes, add `cache_write_per_million` to `model_pricing` (for
@@ -79,7 +98,9 @@ input.
 - Between two conversations the history is stored as text ("Tool call ..." lines and `SYSTEM` results), while
   a task sends tool calls as structured turns. The first call of a new conversation therefore reads only the
   tools and system prompt from the cache, not the turns of the last task.
-- The legacy `!command` mode (`use_function_calling: false`) puts stats and inventory inside its system
-  prompt, so only its start before them can repeat, and Claude's text requests carry no markers yet.
+- In the legacy `!command` mode, providers other than Claude get the whole prompt as their system prompt,
+  per-turn parts included, so they reuse only its start, not the conversation after it.
+- Other text requests (the memory summary, the bot-to-bot responder, image descriptions) are sent once each
+  and carry no markers.
 - A cache belongs to one model. Roles set to different models (`brain_model`, `task_model`) each keep their
   own.
