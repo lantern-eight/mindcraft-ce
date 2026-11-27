@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- With native tools off (`use_function_calling: false`), the conversing prompt puts its fixed instructions and the
+  command list first, and the goal, memory summary, stats, inventory and examples after them. Providers that
+  cache a repeated start of a request by themselves (OpenAI, DeepSeek, Gemini, local servers) can then reuse
+  the command list, the largest part, on every call instead of only the first few lines.
+
 ## [1.22.0-bedrock.1.24.0] - 2026-11-26
 
 Prompt caching for Claude, and fixes to how the bot's requests are laid out, for both editions. With native

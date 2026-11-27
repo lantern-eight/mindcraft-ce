@@ -196,7 +196,8 @@ No code was copied for these. They are credited because the work builds on them.
   caching in the [`r77tchan/mindcraft`](https://github.com/r77tchan/mindcraft) fork, **a cache marker on the
   last tool** from [`appendix0/pincercraft`](https://github.com/appendix0/pincercraft), and **putting what
   never changes first** from the [`siacavazzi/mindcraft`](https://github.com/siacavazzi/mindcraft) fork
-  (branch `prompt-caching-token-usage`). Used by `src/models/prompt_cache.js`.
+  (branch `prompt-caching-token-usage`). Used by `src/models/prompt_cache.js` and the order of the legacy
+  conversing prompt in `profiles/defaults/`.
 
 ## What This Fork Added
 
@@ -232,7 +233,8 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,
   `tests/defend_self_creeper.test.js`, `tests/avoid_enemies_creeper.test.js`, `tests/avoid_enemies_self_preservation.test.js`,
   `tests/tool_docs_once.test.js`, `tests/system_notes_in_place.test.js`,
-  `tests/claude_text_requests.test.js`, `tests/claude_tool_requests.test.js`, `tests/prompt_caching.test.js`, `tests/usage_cache_writes.test.js`
+  `tests/claude_text_requests.test.js`, `tests/claude_tool_requests.test.js`, `tests/prompt_caching.test.js`, `tests/usage_cache_writes.test.js`,
+  `tests/conversing_prompt_order.test.js`
 - `tests/helpers/fixture_world.js`, `tests/helpers/fake_chest_bot.js`, `tests/helpers/server_jar_cache.js`,
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
   `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`, `tests/helpers/fake_furnace.js`
