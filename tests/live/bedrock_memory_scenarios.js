@@ -82,6 +82,7 @@ try {
     let agent, handle;
     const sent = [];
     const memory = () => handle.memory;
+    const MEMORY_DIR = mkdtempSync(path.join(tmpdir(), 'bedrock-memory-live-'));
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 1 });
     const recall = what => getCommand('!recall').perform(agent, what);
     const settled = async () => { await delay(400); await waitFor(() => !handle.recorder.busy, 20000, () => 'the look-around never finished'); await delay(300); };
@@ -125,7 +126,7 @@ try {
         };
         agent.actions = new ActionManager(agent);
         initModes(agent);
-        handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-memory-live-')) });
+        handle = installFairPlay(agent, { memoryDir: MEMORY_DIR });
         assert.ok(handle?.memory, 'world memory is on');
         await delay(1500);
         await settled();
@@ -266,6 +267,29 @@ try {
         assert.equal(memory().places.byName('cellar').kind, 'told', 'walking over a buried spot is not seeing it');
         assert.match(recall('cellar'), /not seen yet/);
         return { answer: result.split('\n').filter(line => /lookout/.test(line)) };
+    });
+
+    await step('a waypoint shared in chat is saved with no model call; one for the Nether goes with the Nether\'s places; a told place taken back is forgotten', async () => {
+        const said = [];
+        agent.openChat = text => said.push(text);
+        try {
+            // A player's message comes in as any chat does; the model (the stand-in agent's own handleMessage) is never asked.
+            await agent.handleMessage('Steve', 'xaero-waypoint:Tower:T:30:~:-40:6:false:0:Internal-overworld-waypoints');
+            assert.deepEqual(said, ['Got it, Steve: "Tower" at 30, ?, -40. I haven\'t seen it yet.']);
+            assert.equal(memory().places.byName('Tower')?.told?.by, 'Steve');
+            await agent.handleMessage('Steve', '[name:"Fortress", x:120, y:70, z:-300, dim:minecraft:the_nether]');
+            assert.equal(said[1], 'Got it, Steve: "Fortress" at 120, 70, -300 in the Nether.');
+            assert.equal(memory().places.byName('Fortress'), null, 'not among this dimension\'s places');
+            const { loadPlaces } = await import('../../src/agent/memory/places.js');
+            const { scopeDir } = await import('../../src/agent/memory/files.js');
+            const nether = handle.scope.replace(/[^/]+$/, 'the_nether');
+            assert.equal(loadPlaces(scopeDir(MEMORY_DIR, nether), { scope: nether }).byName('Fortress')?.kind, 'told');
+            assert.equal(getCommand('!forgetPlace').perform(agent, 'Tower'), 'Forgot "Tower", which Steve told you of.');
+            assert.equal(memory().places.byName('Tower'), null);
+            return { said };
+        } finally {
+            agent.openChat = () => {};
+        }
     });
 
     await step('memory is saved, in small files', () => {

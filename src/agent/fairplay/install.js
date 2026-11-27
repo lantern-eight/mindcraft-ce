@@ -48,7 +48,8 @@ import { installFairLegs } from './fair_legs.js';
 import { withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
 import { adoptFormerScope } from '../memory/files.js';
-import { goToPlace, namePlaceCommand, placesCommand, recallCommand, rememberToldPlaceCommand, withNotes } from '../memory/commands.js';
+import { forgetPlaceCommand, goToPlace, namePlaceCommand, placesCommand, recallCommand, rememberToldPlaceCommand, tellWaypoint, withNotes } from '../memory/commands.js';
+import { waypointListener } from '../memory/waypoints.js';
 import { requestWatcher } from '../storage/asker.js';
 import { registerCommand } from '../commands/index.js';
 import * as skills from '../library/skills.js';
@@ -378,7 +379,17 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         const watcher = requestWatcher(agent);
         handle.asker = () => watcher.behind();
         registerCommand(rememberToldPlaceCommand);
+        registerCommand(forgetPlaceCommand);
         registerCommand(goToPlaceCommandSpec, { action: true });
+        // A waypoint a player shares from a map mod is them telling where a place is: saved at once, answered
+        // in a line of chat, and noted for the model, with no model call to read it.
+        handle.waypoints = waypointListener(agent, (player, waypoint) => {
+            const reply = tellWaypoint({ memory: handle.memory, here: agent.bot?.entity?.position, scope: handle.scope,
+                baseDir: worldDir, player, waypoint });
+            if (!reply) return false;
+            try { agent.openChat?.(reply); } catch { /* chat may not be ready yet */ }
+            return true;
+        });
         // Saved places (!rememberHere, !goToRememberedPlace) now live in world memory, as places.
         if (agent.memory_bank) agent.memory_bank = placeBank(() => handle.memory, agent.memory_bank);
     }
