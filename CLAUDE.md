@@ -6,13 +6,14 @@ details.
 ## What This Is
 
 An integration fork of [Mindcraft-CE](https://github.com/mindcraft-ce/mindcraft-ce), built on its
-`agent-system` branch. `main` is that branch plus this fork's own work. The first addition is **fair
+`develop` branch (which took in its earlier `agent-system` branch). `main` is that branch plus this fork's
+own work. The first addition is **fair
 play**: the bot may only know and do what a human survival player could.
 
 - New code lives in its own folders: `src/agent/fairplay/`, `src/agent/memory/` (world memory, behind
   the `world_memory` setting), `src/agent/storage/` (chest sorting, behind the `chest_sorting` setting), `src/agent/smelting/` (smelting,
-  behind the `smelting` setting)
-  and `src/agent/reflexes/` (the threat reflexes, behind the `threat_reflexes` setting). `src/agent/edition/`, the edition seam, answers what depends on the edition of the game (how
+  behind the `smelting` setting), `src/agent/reflexes/` (the threat reflexes, behind the `threat_reflexes` setting) and `src/agent/neighbor/`
+  (good-neighbor rules, behind the `good_neighbor` setting). `src/agent/edition/`, the edition seam, answers what depends on the edition of the game (how
   block states are numbered, how a chunk section lists its blocks, sounds, operator rights, what a block
   entity holds, how a stack is moved); those modules ask it instead of reading game data shapes or packets
   themselves. `docs/edition-seam.md` lists its questions, and says when new code must ask it and how to
@@ -23,8 +24,8 @@ play**: the bot may only know and do what a human survival player could.
 - Edits to files that came from Mindcraft-CE are small hooks, each listed in `docs/core-hooks.md`.
 - `docs/fair-play.md` explains what fair play does, its switches, its limits and the code layout. Read it
   before changing anything under `src/agent/fairplay/`. `docs/world-memory.md` does the same for
-  `src/agent/memory/`, `docs/chest-sorting.md` for `src/agent/storage/`, `docs/smelting.md` for `src/agent/smelting/`, and `docs/threat-reflexes.md` for
-  `src/agent/reflexes/`.
+  `src/agent/memory/`, `docs/chest-sorting.md` for `src/agent/storage/`, `docs/smelting.md` for `src/agent/smelting/`, `docs/threat-reflexes.md` for
+  `src/agent/reflexes/`, and `docs/good-neighbor.md` for `src/agent/neighbor/`.
 - `README.md` says what the fork is and how it differs from its sources. `CHANGELOG.md` records what
   changed in each version, for both editions. On `bedrock`, `CHANGELOG-bedrock.md` records what its
   library pins changed.
@@ -152,13 +153,12 @@ this repository is a GitHub fork of Mindcraft-CE and holds the fix branches too.
 1. **Make the fix on the working branch, with its test, as a commit of its own,** its changelog and
    `ATTRIBUTION.md` lines in the same commit like any other change. Nothing else from this fork goes in
    it: no fork modules or helpers, no fork docs. Then the fix itself can be taken as it is.
-2. **If it can go upstream, break it off:** a branch named `fix/<what-it-fixes>`, cut from `git merge-base
-   upstream/develop upstream/agent-system` (the last commit the two share), with the fix's commit
-   cherry-picked onto it, less this fork's changelog and `ATTRIBUTION.md` lines (`git cherry-pick -n`,
-   undo those files, commit with the same message). Mindcraft-CE takes pull requests on `develop`, its default branch, while this
-   fork is built on `agent-system`; starting from the commit they share means the branch holds the fix and
-   nothing else and applies to `develop`. If the code being fixed exists only on `agent-system`, branch
-   from `upstream/agent-system` instead and ask the maintainer where to offer it. The test must pass on
+2. **If it can go upstream, break it off:** a branch named `fix/<what-it-fixes>`, cut from
+   `upstream/develop` (fetched first), with the fix's commit cherry-picked onto it, less this fork's
+   changelog and `ATTRIBUTION.md` lines (`git cherry-pick -n`, undo those files, commit with the same
+   message). Mindcraft-CE takes pull requests on `develop`, the branch this fork is built on, so the branch
+   holds the fix and nothing else. If the code being fixed has changed on `develop` since this fork last
+   merged it, make the fix again there by hand rather than carry this fork's version over. The test must pass on
    Mindcraft-CE's code: a test that leans on this fork's code is rewritten there to use only
    Mindcraft-CE's. `develop` has no `npm test` script, so run its tests with `node --test tests/*.test.js`.
    The fix branch is never merged anywhere in this repository; the working branch already has the fix.
@@ -254,8 +254,8 @@ declined.
 
 - **Tests first.** Use Node (see `.nvmrc`), then `npm test`.
 - Fair-play tests are `tests/fairplay_*.test.js`, world-memory tests are `tests/memory_*.test.js`,
-  chest-sorting tests are `tests/storage_*.test.js`, smelting tests are `tests/smelting_*.test.js` and threat-reflex tests are `tests/reflexes_*.test.js`
-  (the runner globs `tests/*.test.js`); helpers go in `tests/helpers/`.
+  chest-sorting tests are `tests/storage_*.test.js`, smelting tests are `tests/smelting_*.test.js`, threat-reflex tests are `tests/reflexes_*.test.js` and
+  good-neighbor tests are `tests/neighbor_*.test.js` (the runner globs `tests/*.test.js`); helpers go in `tests/helpers/`.
 - Live scenarios in `tests/live/` start their own throwaway server and make no model calls, so they are free
   to run. They need Java 25 and a 26.3 server jar: set `MC_TEST_JAVA` and `MC_TEST_SERVER_JAR`.
 - `tests/live/fairplay_perception_bench.js` times perception and is run only when making a release (see

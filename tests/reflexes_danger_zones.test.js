@@ -171,6 +171,19 @@ test('the mob reflex getting away from unseen hits makes a zone where the bot st
     assert.deepEqual(zones.list().map(z => [z.kind, z.x, z.z]), [['unseen_hits', 0.5, 0.5]]);
 });
 
+test('the mob reflex taking cover from a mob aiming makes a zone where the mob stood, between looks', () => {
+    // The reflex decides the moment it sees the bow raised, and its cover can take the archer out of view
+    // before the watch's next look: the decision itself is the sighting.
+    const zones = createDangerZones({ now: clock() });
+    const watch = createDangerWatch({ zones, everyMs: 0 });
+    const agent = makeAgent();
+    watch.watch(agent);
+    agent.bot.emit('threat_reflex', { event: 'decided', reason: 'aiming', mode: 'mob_safety' });
+    assert.equal(zones.list().length, 0, 'not without where the mob was');
+    agent.bot.emit('threat_reflex', { event: 'decided', reason: 'aiming', from: [{ x: 10.5, y: 70, z: -3.5 }], mode: 'mob_safety' });
+    assert.deepEqual(zones.list().map(z => [z.kind, z.x, z.z]), [['archer', 10.5, -3.5]]);
+});
+
 test('nothing is noted in creative mode, and another dimension forgets every zone', () => {
     setWorldQueries(null);
     const zones = createDangerZones({ now: clock() });

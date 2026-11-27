@@ -10,10 +10,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { selectAPI, createModel } from './_model_map.js';
 import { sendToolRequest, supportsNativeTools } from './_tool_request.js';
-import { getToolDocs, getToolDefinitions } from '../agent/commands/tool_registry.js';
+import { getToolDefinitions } from '../agent/commands/tool_registry.js';
 import { responseFormatSchema } from './_response_format.js';
 import { narrationInstructions, narrationConfig } from '../agent/narration.js';
 import { UsageMeter } from './usage.js';
+import { fillTextRequest, cacheLayout } from './prompt_cache.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -214,8 +215,13 @@ export class Prompter {
         if (prompt.includes('$ACTION')) {
             prompt = prompt.replaceAll('$ACTION', this.agent.actions.currentActionLabel);
         }
+        // With native tools the same definitions already go in the request's tools field. Pasting them here
+        // as well sent the whole list twice (about 7,000 tokens a call) and made the system prompt change
+        // whenever the tool set did. The help tool still prints the full list on request.
         if (prompt.includes('$COMMAND_DOCS'))
-            prompt = prompt.replaceAll('$COMMAND_DOCS', this.use_tools ? getToolDocs(this.agent) : getCommandDocs(this.agent));
+            prompt = prompt.replaceAll('$COMMAND_DOCS', this.use_tools
+                ? 'Every available tool is given to you through the native function interface.'
+                : getCommandDocs(this.agent));
         if (prompt.includes('$CODE_DOCS')) {
             const code_task_content = (messages || []).slice().reverse().find(msg =>
                 msg.role !== 'system' && msg.content.includes('!newAction(')
@@ -282,13 +288,17 @@ export class Prompter {
         const key = templates[source];
         if (!key) throw new Error(`Unknown request source: ${source}`);
         const examples = this.use_tools ? {createExampleMessage: () => Promise.resolve('Use the native function interface, not inline !commands.')} : this.convo_examples;
-        let prompt = await this.replaceStrings(this.profile[key] || '', messages, examples);
+        const model = source === 'brain' ? this.brain_model : source === 'rp' ? this.rp_model : this.chat_model;
+        // Prompt caching (prompt_cache.js): for Claude, the parts of the template that change often (the
+        // memory summary, live stats) go with the fresh state after the conversation. The fixed examples line stays.
+        const layout = cacheLayout(model, this.profile[key] || '', { keep: this.use_tools ? ['$EXAMPLES'] : [] });
+        let prompt = await this.replaceStrings(layout ? layout.system : this.profile[key] || '', messages, examples);
+        const fresh = layout?.parts ? await this.replaceStrings(layout.parts, messages, examples) : '';
         if (source === 'brain') prompt += '\nExact Task tool names available for grants (omit tools to grant the normal set): ' +
             getToolDefinitions(this.agent).map(t => t.function.name).join(', ');
         if (source === 'brain' && this.model_selection.enabled) prompt += '\nTask model choices: ' + JSON.stringify(
             (this.model_selection.models || []).filter(m => m.enabled !== false).map(m => ({id:m.id,notes:m.notes,scores:m.scores})));
-        return await this.requestTools(messages, prompt, tools, response_format,
-            source === 'brain' ? this.brain_model : source === 'rp' ? this.rp_model : this.chat_model, source);
+        return await this.requestTools(messages, prompt, tools, response_format, model, source, { fresh });
     }
 
     selectTaskModel(id) {
@@ -304,14 +314,17 @@ export class Prompter {
         return this.task_models.get(id);
     }
 
-    async requestTools(messages, prompt, tools = [], response_format = null, model = this.chat_model, role = 'task') {
+    // `fresh`: more text to send once with the fresh state (prompt caching's parts of the template, above).
+    async requestTools(messages, prompt, tools = [], response_format = null, model = this.chat_model, role = 'task', { fresh = '' } = {}) {
         const epoch = this.cancelEpoch, roleEpoch = this.roleEpochs.get(role) || 0;
         await this.checkCooldown();
         let requestMessages = messages;
+        let state = '';
         if (this.agent.bot?.entity?.position && this.agent.bot?.inventory) {
-            const state = await this.replaceStrings('CURRENT STATE (fresh, takes precedence over older observations):\n$STATS\n$INVENTORY', []);
-            requestMessages = [...messages, {role:'user',content:state}];
+            state = await this.replaceStrings('CURRENT STATE (fresh, takes precedence over older observations):\n$STATS\n$INVENTORY', []);
         }
+        if (fresh) state = state ? `${state}\n${fresh}` : fresh;
+        if (state) requestMessages = [...messages, {role:'user',content:state}];
         if (epoch !== this.cancelEpoch || roleEpoch !== (this.roleEpochs.get(role) || 0)) throw new Error('Request cancelled');
         const seconds = this.profile.request_timeout_seconds ?? settings.request_timeout_seconds ?? 120;
         if (!Number.isFinite(seconds) || seconds <= 0) throw new Error('request_timeout_seconds must be positive');
@@ -323,7 +336,9 @@ export class Prompter {
         let text, calls;
         try {
             [text, calls] = await this.usage.run(role, () => Promise.race([
-                sendToolRequest(model, requestMessages, prompt, tools, response_format, {signal,role}),
+                // The fresh state is sent this once; prompt caching leaves it out of what it stores.
+                sendToolRequest(model, requestMessages, prompt, tools, response_format,
+                    {signal, role, uncachedTail: requestMessages.length - messages.length}),
                 new Promise((_, reject) => {
                     abort = () => reject(signal.reason);
                     signal.addEventListener('abort', abort, {once:true});
@@ -362,12 +377,14 @@ export class Prompter {
                 return '';
             }
 
-            let prompt = this.profile.conversing;
-            prompt = await this.replaceStrings(prompt, messages, this.convo_examples);
+            // Prompt caching (prompt_cache.js): for Claude, the parts that change each turn go after the conversation.
+            const request = await fillTextRequest(this.chat_model, this.profile.conversing,
+                template => this.replaceStrings(template, messages, this.convo_examples));
+            let prompt = request.logged;
             let generation;
 
             try {
-                generation = await this.usage.run('conversation', () => this.chat_model.sendRequest(messages, prompt));
+                generation = await this.usage.run('conversation', () => request.send(messages));
                 if (typeof generation !== 'string') {
                     console.error('Error: Generated response is not a string', generation);
                     throw new Error('Generated response is not a string');
@@ -409,11 +426,13 @@ export class Prompter {
         }
         this.awaiting_coding = true;
         await this.checkCooldown();
-        let prompt = this.profile.coding;
-        prompt = await this.replaceStrings(prompt, messages, this.coding_examples);
+        // Prompt caching (prompt_cache.js), as in promptConvo.
+        const request = await fillTextRequest(this.code_model, this.profile.coding,
+            template => this.replaceStrings(template, messages, this.coding_examples));
+        let prompt = request.logged;
 
         let resp;
-        try { resp = await this.usage.run('coding', () => this.code_model.sendRequest(messages, prompt)); }
+        try { resp = await this.usage.run('coding', () => request.send(messages)); }
         finally { this.awaiting_coding = false; }
         await this._saveLog(prompt, messages, resp, 'coding');
         return resp;

@@ -13,11 +13,15 @@
 // It never burns what is being smelted (logs on their way to charcoal), nor the product (making charcoal
 // doesn't burn charcoal), nor Nether wood, which doesn't burn at all. Coal blocks, blaze rods, dried kelp
 // blocks and lava buckets go only where nothing else covers it: a coal block burned for three items wastes
-// the rest of it.
+// the rest of it. Except lava from a lava farm: a full lava cauldron is filled again by the dripstone over
+// it, so lava from it costs nothing, and with `lavaFirst` it goes before everything else.
 import { cleanName, isBurningLog, isBurningPlanks, planksOf } from './recipes.js';
 
 /** How long a furnace takes to smelt one item, in ms. */
 export const SMELT_MS = 10000;
+
+/** A bucket of lava: one at a time in the fuel slot, and it leaves the empty bucket there when it catches. */
+export const LAVA = 'lava_bucket';
 
 // Fuel that is used before planks and logs, best first.
 const RICH = Object.freeze({ coal: 8, charcoal: 8 });
@@ -78,12 +82,13 @@ const namesWhere = (have, test) => Object.keys(have).filter(test)
  * @param {string} [options.input] - what is being smelted: this many of it are not fuel
  * @param {string} [options.product] - what the smelt makes: never burned
  * @param {boolean} [options.craftPlanks] - make logs into planks rather than burn them (default true)
+ * @param {boolean} [options.lavaFirst] - burn lava buckets before anything else: they came from a lava farm
  * @returns {{stages: {name: string, units: number, covers: number}[], crafts: {log: string, planks: string,
  *   times: number}[], covers: number}} stages to load in order, each one kind of fuel; logs to make into
  *   planks first (each time, one log into four planks); and how many items it all smelts, which is less
  *   than `count` when there isn't enough fuel
  */
-export function planFuel(inventory, count, { input = null, product = null, craftPlanks = true } = {}) {
+export function planFuel(inventory, count, { input = null, product = null, craftPlanks = true, lavaFirst = false } = {}) {
     const wanted = Number.isFinite(count) && count > 0 ? Math.ceil(count) : 0;
     const have = countsOf(inventory);
     const inputName = cleanName(input), productName = cleanName(product);
@@ -104,6 +109,7 @@ export function planFuel(inventory, count, { input = null, product = null, craft
         left -= covers;
     };
 
+    if (lavaFirst) burn(LAVA, LAST_RESORT[LAVA], have[LAVA]);
     for (const name of Object.keys(RICH)) burn(name, RICH[name], have[name]);
     for (const name of namesWhere(have, isBurningPlanks)) burn(name, WOOD_PER, have[name]);
     for (const log of namesWhere(have, isBurningLog)) {
@@ -130,10 +136,10 @@ export function planFuel(inventory, count, { input = null, product = null, craft
  * @param {Object<string, number>|{name: string, count: number}[]} inventory - what the bot carries now
  * @param {number} need - items still to be covered beyond what the slot already covers
  * @param {{name: string, count: number}|null} inSlot
- * @param {{input?: string, product?: string, slotSize?: number}} [options]
+ * @param {{input?: string, product?: string, slotSize?: number, lavaFirst?: boolean}} [options]
  * @returns {{name: string, units: number, covers: number}|null}
  */
-export function nextFuel(inventory, need, inSlot, { input = null, product = null, slotSize = 64 } = {}) {
+export function nextFuel(inventory, need, inSlot, { input = null, product = null, slotSize = 64, lavaFirst = false } = {}) {
     if (!(need > 0)) return null;
     // What is left of the input in the bag is still to be smelted, so none of it is fuel.
     const bag = countsOf(inventory);
@@ -142,9 +148,10 @@ export function nextFuel(inventory, need, inSlot, { input = null, product = null
     // With fuel in the slot, only more of the same can go in; with none, whatever the plan starts with.
     const slotName = inSlot?.count > 0 ? cleanName(inSlot.name) : null;
     const pool = slotName ? { [slotName]: bag[slotName] ?? 0 } : bag;
-    const stage = planFuel(pool, need, { product, craftPlanks: false }).stages[0];
+    const stage = planFuel(pool, need, { product, craftPlanks: false, lavaFirst }).stages[0];
     if (!stage) return null;
-    const room = slotSize - (slotName ? inSlot.count : 0);
+    // A bucket holds one load of lava, and the slot one bucket.
+    const room = (stage.name === LAVA ? 1 : slotSize) - (slotName ? inSlot.count : 0);
     const units = Math.min(stage.units, room);
     if (units <= 0) return null;
     return { name: stage.name, units, covers: Math.min(need, itemsFrom(fuelPer(stage.name), units)) };

@@ -1,0 +1,124 @@
+# Prompt Caching
+
+Every call to the model sends the tool list, the bot's instructions and the conversation so far, and most of
+that is the same as on the call before. Model providers can read a repeated start of a request from a cache
+instead of processing it again: cheaper (a tenth of the input price or less on Claude) and quicker to answer.
+This page says how this fork lays out a request so that its start repeats, and how Claude is told what to
+cache.
+
+## The Layout
+
+A native tool request (the default, `use_function_calling: true`) goes from what changes least to what changes
+most:
+
+| Part | Changes when |
+|---|---|
+| The tools | The tool set changes (a blocked action, a new augment), or another role asks (the Brain's tools differ from the Task's) |
+| The system prompt: the profile's instructions, then the current goal and the memory summary at its end | A goal is set or dropped, or the history is summarized (for Claude the summary goes with the fresh state instead; see below) |
+| The conversation so far: player messages, the bot's replies and tool calls, tool results, and system notes (deaths, mode changes) where they happened | It only grows during a task; summarizing cuts its start |
+| The fresh state: stats, nearby entities and blocks, inventory | Every call. It is sent once and never kept |
+
+Two things used to break this, for every provider, and are fixed:
+
+- The system prompt held a second copy of the whole tool list, about 7,000 tokens, besides the tools field.
+  It now says the tools come through the native interface; the `help` tool still prints the list.
+- For Claude and Gemini, every system note in the history was added to the end of the system prompt, so the
+  system prompt changed on every conversation. The notes now stay where they happened, as user turns
+  marked `SYSTEM:`.
+
+OpenAI, DeepSeek and Gemini 2.5 and later cache a repeated start by themselves, and local servers (Ollama,
+llama.cpp, LM Studio, vLLM) reuse the work they did for one. They need nothing more than the layout.
+OpenAI also takes a `prompt_cache_key`, which helps it send requests that share a start to the same
+machine; a profile can set it in its model's `params`, which are passed through to the request.
+
+## Claude
+
+Claude caches only what a request marks. `src/models/prompt_cache.js` puts three markers (of the four
+allowed) on every native tool request to Claude:
+
+1. the last tool, so a changed goal still finds the tools in the cache;
+2. the end of the system prompt;
+3. the last block of the conversation that the next call will send again, which leaves the fresh state out.
+
+During a task each call is the last one plus a turn or two, so it reads everything up to its newest turn
+from the cache and writes only that turn. Measured on Claude Haiku 5.5, ten calls of one task: the first
+wrote its 7,700-token start to the cache, and each later call read 96 to 98% of its prompt from it; over
+the ten, input cost about a third of what the same prompts cost uncached. Writing costs a quarter more than plain input (twice as much with
+the one-hour lifetime), and a read a tenth or less, so a cached start pays for itself on the second call.
+
+### The Legacy `!command` Mode
+
+With `use_function_calling: false` the bot answers in text with `!commands`, and the whole prompt is the
+system prompt: the profile's instructions and the command list, then the goal and the memory summary, then
+the stats, inventory and examples of this turn. The default prompt keeps that order (fixed parts first), so
+providers that cache by themselves can reuse everything before the stats: in an offline test, about 8,800
+of its 9,000 characters from one turn to the next, where the old order let them reuse under 800.
+
+For Claude, `src/models/prompt_cache.js` goes further. It takes the parts that change each turn (`$STATS`,
+`$INVENTORY`, `$EXAMPLES`, `$CODE_DOCS`, `$ACTION`) out of the system prompt, leaving a note where the first
+was, and sends them once, as a last block after the conversation, headed `CURRENT STATE`. It marks the end of
+the system prompt and the last turn of the conversation, as on the tool path. This works for any template, a
+profile's own included; nothing has to be marked in it. The coding prompt goes the same way. The model gets
+the same text, the per-turn part after the conversation instead of before it.
+
+Measured on Claude Haiku 5.5, six calls of one task in this mode: the first wrote its 3,200-token start, and
+each later call read 93 to 95% of its prompt from the cache, leaving only the 180-token fresh state uncached.
+
+### The Memory Summary
+
+The stored history keeps `max_messages` turns (15 by default). Past that it cuts the oldest five and rewrites
+the memory summary, and during a task that is every two or three steps, since each step stores two turns.
+With the summary in the system prompt, each rewrite changed the system prompt and lost the cached
+conversation after it. So for Claude the summary, like the stats, leaves the system prompt (a note stays
+where it was) and goes with the fresh state, as `Summarized memory: '...'`, on both paths. A task keeps every
+turn the new summary covers in its own history, so the model loses nothing by reading it at the end. The
+role prompts that hold live stats (the RP agent's) send those the same way.
+
+Measured on Claude Haiku 5.5, one session through the real history (12 earlier turns, a task of eight steps,
+then a second conversation of three): with the summary in the system prompt, 4 of the 11 calls read only the
+tools and rewrote everything after them, and the session read 82% of its prompt tokens from the cache. With
+it in the fresh state, every call after the first read the whole start the call before it marked: 88%,
+most of the rest being the first call's write. The summary adds about 70 uncached tokens to each call.
+
+`prompt_caching` in `settings.js`:
+
+| Value | What it does |
+|---|---|
+| `"5m"` (default) | A cached start lasts 5 minutes from its last use. Each call renews it, so a busy bot keeps it |
+| `"1h"` | An hour, for a bot spoken to with long pauses. Writing costs twice the input price instead of 1.25 times |
+| `"off"` | No markers: the request is sent as it was before prompt caching |
+
+## Checking That It Works
+
+Usage is counted per role (conversation, task, brain, and so on) and shown with the bot's state on the
+MindServer: `cached` is the input tokens read from the cache, `written` those written to it. In a task of
+several steps, `cached` should soon be most of `input`. If it stays at zero:
+
+- The request may be shorter than the model's minimum for caching (512 tokens on the newest Claude models,
+  up to 4,096 on some older ones). The API ignores the markers then, with no error.
+- Something early in the request changes on every call. Set `log_all_prompts` and compare two prompts.
+
+To check against the API itself, after changing how a request is put together (`prompter.js`,
+`_tool_request.js`, `claude.js`, `prompt_cache.js`, the prompt templates), run
+`node tests/live/prompt_cache_check.js --paid`. It is billed, so it won't start without `--paid`. It plays
+one task of six steps on Claude Haiku 5.5 (`--model=`, `--steps=` to change them) through the real prompt and
+tools, prints what each call read from the cache, wrote and left uncached, and fails unless every call after
+the first reads all that the call before it marked, and the fresh state is never marked. `--path=text` plays
+the task through the legacy `!command` mode instead. Six steps cost a
+fraction of a cent. It needs no game server.
+
+To have a model's own rates count cache writes, add `cache_write_per_million` to `model_pricing` (for
+Claude, 1.25 times the input price with `"5m"`, twice it with `"1h"`). Without it, writes are priced as plain
+input.
+
+## Known Limits
+
+- Between two conversations the history is stored as text ("Tool call ..." lines and `SYSTEM` results), while
+  a task sends tool calls as structured turns. The first call of a new conversation therefore reads only the
+  tools and system prompt from the cache, not the turns of the last task.
+- In the legacy `!command` mode, providers other than Claude get the whole prompt as their system prompt,
+  per-turn parts included, so they reuse only its start, not the conversation after it.
+- Other text requests (the memory summary, the bot-to-bot responder, image descriptions) are sent once each
+  and carry no markers.
+- A cache belongs to one model. Roles set to different models (`brain_model`, `task_model`) each keep their
+  own.

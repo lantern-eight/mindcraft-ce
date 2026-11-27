@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { smeltingSkills } from '../src/agent/smelting/smelt.js';
 import { javaEdition } from '../src/agent/edition/java.js';
+import { createJobs } from '../src/agent/smelting/jobs.js';
 import { fakeFurnaceWorld } from './helpers/fake_furnace.js';
 
 // The pretend furnace's slots are filled the moment it opens, so the pause real furnaces get after opening
@@ -163,4 +164,72 @@ test('clearing a furnace takes everything out of it', async () => {
     assert.deepEqual(t.bag, { sand: 2, coal: 1, glass: 5 });
     assert.match(t.said(), /cleared the furnace at 3, 64, 0, taking 2 sand, 1 coal and 5 glass/);
     assert.equal(t.bot.currentWindow, null);
+});
+
+// ---- Jobs: what the bot left smelting where ----
+
+/** A smelting set-up with a jobs store, and a sleep the test can stop the bot from. */
+function withJobs(options, { stopAfterMs = Infinity } = {}) {
+    const w = fakeFurnaceWorld(options);
+    const book = createJobs({ scope: 'test/overworld', now: w.now });
+    let waited = 0;
+    const sleep = async ms => { waited += ms; if (waited > stopAfterMs) w.bot.interrupt_code = true; await w.sleep(ms); };
+    const make = s => smeltingSkills({ world: w.world, skills: w.skills, blockAt: w.blockAt, editionOf: () => javaEdition, jobs: () => book,
+        now: w.now, sleep: s, timing: { hands: { openTimeoutMs: 30, stepTimeoutMs: 30, openSettleMs: 0 } } });
+    return { ...w, book, ...make(sleep), again: () => { w.bot.interrupt_code = false; return make(w.sleep); }, said: () => w.logs.join('\n') };
+}
+
+test('a stopped smelt leaves a job, and smelting again goes on with it in the same furnace', async () => {
+    const t = withJobs({ inventory: { sand: 20, coal: 3 }, furnaces: [{ at: [3, 64, 0] }] }, { stopAfterMs: 30000 });
+    assert.equal(await t.smeltItem(t.bot, 'sand', 20), false);
+    const job = t.book.at({ x: 3, y: 64, z: 0 });
+    assert.ok(job, 'the job is kept');
+    assert.equal(job.input, 'sand');
+    assert.equal(job.loaded, 20);
+    assert.deepEqual(job.fuelPut, { coal: 3 });
+    assert.equal(t.bag.sand ?? 0, 0, 'all its sand is in the furnace');
+
+    // All its sand is in there, so it has none to carry: it goes on with what it left.
+    const again = t.again();
+    t.logs.length = 0;
+    assert.equal(await again.smeltItem(t.bot, 'sand', 20), true, t.said());
+    assert.equal(t.bag.glass, 20);
+    assert.match(t.said(), /went on with the sand I had left in the furnace at 3, 64, 0/);
+    assert.deepEqual(t.furnaceAt(3, 64, 0).slots, [null, null, null], 'and took back the coal left over');
+    assert.equal(t.book.at({ x: 3, y: 64, z: 0 }), null, 'the job is over');
+});
+
+test('its own furnace smelting something else is left to that, not called in use', async () => {
+    const t = withJobs({ inventory: { sand: 2, coal: 1 }, furnaces: [{ at: [3, 64, 0], input: { name: 'raw_iron', count: 3 }, fuel: { name: 'coal', count: 1 } }, { at: [5, 64, 2] }] });
+    t.book.start({ x: 3, y: 64, z: 0 }, { input: 'raw_iron', product: 'iron_ingot', total: 3 });
+    t.book.note({ x: 3, y: 64, z: 0 }, { loaded: 3, fuelPut: { coal: 1 } });
+    assert.equal(await t.smeltItem(t.bot, 'sand', 2), true, t.said());
+    assert.match(t.said(), /furnace at 3, 64, 0 is smelting my raw_iron, so I left it to that/);
+    assert.ok(t.book.at({ x: 3, y: 64, z: 0 }), 'the iron job stands');
+});
+
+test('a furnace with more in it than the bot put there is someone else\'s too', async () => {
+    const t = withJobs({ inventory: { sand: 2, coal: 1 }, furnaces: [{ at: [3, 64, 0], input: { name: 'sand', count: 9 } }, { at: [5, 64, 2] }] });
+    t.book.start({ x: 3, y: 64, z: 0 }, { input: 'sand', product: 'glass', total: 4 });
+    t.book.note({ x: 3, y: 64, z: 0 }, { loaded: 4 });
+    assert.equal(await t.smeltItem(t.bot, 'sand', 2), true, t.said());
+    assert.match(t.said(), /furnace at 3, 64, 0 is in use \(9 sand in it\)/);
+    assert.deepEqual(t.furnaceAt(3, 64, 0).slots[0], { name: 'sand', count: 9 });
+});
+
+test('its sand gone from the furnace when it comes back, the bot smelts only what it carries', async () => {
+    const t = withJobs({ inventory: { sand: 3, coal: 1 }, furnaces: [{ at: [3, 64, 0] }] });
+    t.book.start({ x: 3, y: 64, z: 0 }, { input: 'sand', product: 'glass', total: 8 });
+    t.book.note({ x: 3, y: 64, z: 0 }, { loaded: 8 });
+    assert.equal(await t.smeltItem(t.bot, 'sand', 11), false);
+    assert.equal(t.bag.glass, 3);
+    assert.equal(t.book.at({ x: 3, y: 64, z: 0 }), null);
+});
+
+test('clearing a furnace with a job in it ends the job', async () => {
+    const t = withJobs({ furnaces: [{ at: [3, 64, 0], input: { name: 'sand', count: 2 } }] });
+    t.book.start({ x: 3, y: 64, z: 0 }, { input: 'sand', product: 'glass', total: 2 });
+    t.book.note({ x: 3, y: 64, z: 0 }, { loaded: 2 });
+    assert.equal(await t.clearFurnace(t.bot), true);
+    assert.equal(t.book.at({ x: 3, y: 64, z: 0 }), null);
 });

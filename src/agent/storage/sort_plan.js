@@ -21,6 +21,9 @@
 //     which respects a base somebody has organized and keeps the carrying short. Otherwise it goes to
 //     the emptiest chest for its size, which spreads the groups out instead of packing one chest.
 //   - A group too big for any chest is placed kind by kind, and a kind too big, stack by stack.
+//   - A chest that is for something (purposes.js: a player said so, or its sign does) is that thing's home:
+//     a kind named on a chest goes there first, then a group to the chest for it. Other things go into it
+//     only when they fit in no other chest, since a sort has to put everything somewhere.
 // Sorting chests that are already sorted gives no moves.
 import { GROUPS, groupOf as groupByName } from './item_groups.js';
 
@@ -72,7 +75,7 @@ function shift(src, from, dst, to, sizes) {
  * Decides the layout to aim for: which stacks end up in which slot of which chest.
  * @returns {{id: *, slots: (object|null)[]}[]} one entry per chest, in the order given
  */
-function layout(chests, { sizes, groupOf, groupOrder }) {
+function layout(chests, { sizes, groupOf, groupOrder, holdsOf = () => [] }) {
     const rank = group => (groupOrder.includes(group) ? groupOrder.indexOf(group) : groupOrder.length);
 
     // Every kind of item, with how much of it there is and where it is now.
@@ -118,9 +121,12 @@ function layout(chests, { sizes, groupOf, groupOrder }) {
     // earlier one. (Cross-multiplied, to compare the two fractions without rounding.)
     const size = chests.map(chest => chest.slots.length);
     const emptier = (a, b) => free[a] * size[b] - free[b] * size[a] || free[a] - free[b];
-    const roomiest = need => {
+    const roomiest = (need, among = null) => {
         let pick = -1;
-        for (let ci = 0; ci < free.length; ci++) if (free[ci] >= need && (pick < 0 || emptier(ci, pick) > 0)) pick = ci;
+        for (let ci = 0; ci < free.length; ci++) {
+            if (among && !among.includes(ci)) continue;
+            if (free[ci] >= need && (pick < 0 || emptier(ci, pick) > 0)) pick = ci;
+        }
         return pick;
     };
     // The chest for a group or a kind that needs `need` slots: the one already holding most of it, when
@@ -128,31 +134,65 @@ function layout(chests, { sizes, groupOf, groupOrder }) {
     //
     // This rule is what makes a second sort do nothing. Once sorted, everything is wholly in its chest,
     // so "the chest holding most of it" is the chest it is in, and it fits there because it did before.
-    const homeFor = (need, where, total) => {
-        for (const [ci, count] of where) if (count * 2 > total && free[ci] >= need) return ci;
-        return roomiest(need);
+    //
+    // What the chests are for narrows the choice. Among the chests `among` (indices), with none given all.
+    const homeFor = (need, where, total, among = null) => {
+        for (const [ci, count] of where) if ((!among || among.includes(ci)) && count * 2 > total && free[ci] >= need) return ci;
+        return roomiest(need, among);
     };
+    const all = chests.map((_, ci) => ci);
+    const holds = chests.map(chest => holdsOf(chest.id));
+    // The chests for a kind or a group, by what they are for, and the chests that are for nothing in particular.
+    const forKind = kind => all.filter(ci => holds[ci].includes(kind.name));
+    const forGroup = group => all.filter(ci => holds[ci].includes(group));
+    const open = all.filter(ci => !holds[ci].length);
+    // Where a kind may go, best first: the chests named for it, then for its group, then the open ones, then any.
+    const tiers = kind => [forKind(kind), forGroup(kind.group), open, all].filter(list => list.length);
+    const firstFit = (need, where, total, lists) => {
+        for (const list of lists) {
+            const ci = homeFor(need, where, total, list);
+            if (ci >= 0) return ci;
+        }
+        return -1;
+    };
+
+    // Kinds a chest is named for go there first, ahead of their groups.
+    const named = new Set();
+    for (const kind of [...kinds.values()].sort((a, b) => b.stacks - a.stacks || inOrder(a, b))) {
+        const chestsFor = forKind(kind);
+        if (!chestsFor.length) continue;
+        const spot = homeFor(kind.stacks, kind.where, kind.total, chestsFor);
+        if (spot < 0) continue;     // it does not fit whole in its chest: placed with its group below
+        place(spot, kind, kind.fulls, kind.rest);
+        named.add(kind.key);
+    }
 
     // Big groups choose first, while there is still a chest they fit in.
     const bySize = (a, b) => b.stacks - a.stacks || rank(a.group) - rank(b.group) || compare(a.group, b.group);
     for (const group of [...groups.values()].sort(bySize)) {
-        const home = homeFor(group.stacks, group.where, group.total);
+        const kindsLeft = group.kinds.filter(kind => !named.has(kind.key));
+        if (!kindsLeft.length) continue;
+        const stacks = kindsLeft.reduce((n, kind) => n + kind.stacks, 0);
+        const where = new Map(), total = kindsLeft.reduce((n, kind) => n + kind.total, 0);
+        for (const kind of kindsLeft) for (const [ci, count] of kind.where) where.set(ci, (where.get(ci) ?? 0) + count);
+        const home = firstFit(stacks, where, total, [forGroup(group.group), open, all].filter(list => list.length));
         if (home >= 0) {
-            for (const kind of group.kinds) place(home, kind, kind.fulls, kind.rest);
+            for (const kind of kindsLeft) place(home, kind, kind.fulls, kind.rest);
             continue;
         }
         // The group fits in no one chest, so its kinds are placed one at a time.
-        for (const kind of [...group.kinds].sort((a, b) => b.stacks - a.stacks || inOrder(a, b))) {
-            const spot = homeFor(kind.stacks, kind.where, kind.total);
+        for (const kind of [...kindsLeft].sort((a, b) => b.stacks - a.stacks || inOrder(a, b))) {
+            const spot = firstFit(kind.stacks, kind.where, kind.total, tiers(kind));
             if (spot >= 0) {
                 place(spot, kind, kind.fulls, kind.rest);
                 continue;
             }
-            // Not even the kind fits in one chest: fill the roomiest chests with it, full stacks first.
-            // Where it is now is deliberately not looked at here, so the answer cannot change once sorted.
+            // Not even the kind fits in one chest: fill the roomiest chests with it, full stacks first,
+            // the chests for it before the others. Where it is now is deliberately not looked at here, so the
+            // answer cannot change once sorted.
             let fulls = kind.fulls, rest = kind.rest;
             while (fulls > 0 || rest > 0) {
-                const ci = roomiest(1);
+                const ci = tiers(kind).map(list => roomiest(1, list)).find(i => i >= 0);
                 const slots = Math.min(free[ci], fulls + (rest ? 1 : 0));
                 const whole = Math.min(fulls, slots);
                 const withRest = slots > whole;
@@ -383,10 +423,11 @@ function route(state, target, sizes, hands) {
 /**
  * Plans the sorting of a set of chests.
  *
- * @param {{id: *, slots: ({name: string, count: number, key?: string}|null)[]}[]} chests - each chest
- *   with every slot, in order: a stack, or null for an empty slot. `key` tells apart items that share
+ * @param {{id: *, slots: ({name: string, count: number, key?: string}|null)[], holds?: string[]}[]} chests - each
+ *   chest with every slot, in order: a stack, or null for an empty slot. `key` tells apart items that share
  *   a name but are not the same thing (a damaged tool, an enchanted one); stacks pour together only
- *   when their keys match. It defaults to the name.
+ *   when their keys match. It defaults to the name. `holds` is what the chest is for (purposes.js), none
+ *   for anything.
  * @param {object} [options]
  * @param {(name: string) => number} [options.stackSize] - how many of an item fit in a slot (default 64)
  * @param {(name: string) => string} [options.groupOf] - the group an item belongs to (default: by name)
@@ -404,12 +445,14 @@ export function planSort(chests, { stackSize = () => 64, groupOf = groupByName, 
     const state = copyChests(chests);
     const sizes = stackSizes(state, stackSize);
     const hands = handCount(carry);
+    const purposes = new Map(chests.map(chest => [chest.id, chest.holds ?? []]));
+    const holdsOf = id => purposes.get(id) ?? [];
     // With nothing free to carry in, nothing can go from one chest to another: sort each where it is.
     const sets = hands === 0 ? state.map(chest => [chest]) : [state];
     const plan = { moves: [], target: [], visits: 0, complete: true };
     for (const set of sets) {
         if (!set.length) continue;
-        const target = layout(set, { sizes, groupOf, groupOrder });
+        const target = layout(set, { sizes, groupOf, groupOrder, holdsOf });
         const done = route(set, target, sizes, hands);
         plan.moves.push(...done.moves);
         plan.target.push(...target);

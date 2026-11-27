@@ -37,6 +37,8 @@ import { installWalkingGaze } from './walking_gaze.js';
 import { installTurnSpeed } from './turn_speed.js';
 import { lookAroundCommand, lookBeforeSearching, watchLooks } from './look_around.js';
 import { setSearchLook } from '../library/search_look.js';
+import { setDropLook } from '../library/drop_look.js';
+import { lookForMissingDrop } from './missing_drop.js';
 import { createIdleLook } from './idle_look.js';
 import { registerMode } from '../modes.js';
 import { setAttackReach, setFaceBeforeHit } from '../library/attack_reach.js';
@@ -308,6 +310,9 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         handle.looks = watchLooks(bot, { getScreen: () => handle.perception?.screenNow?.() ?? null });
         // And a skill that searches looks round before it gives up, or walks off to a far find.
         setSearchLook(bot, lookBeforeSearching);
+        // And gathering looks where a block was when its drop didn't come, stepping over to the hole if need be:
+        // a drop out of view is never picked up.
+        setDropLook(bot, lookForMissingDrop);
         // A single hit walks within the reach the guard allows first, instead of swinging from where the
         // stock skill would and being refused.
         setAttackReach(bot, entity => handle.reach.withinReach(entity));

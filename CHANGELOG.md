@@ -17,6 +17,262 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   becomes a place like any other (the name of the site found there, if that has none), and the model hears
   of it once. `!goToPlace(name)` walks to any place by name, told ones included.
 
+## [1.24.0-bedrock.1.26.0] - 2026-11-27
+
+Claude's prompt cache keeps hitting through a long task, for both editions: the memory summary, rewritten every
+few steps, no longer sits in the cached start of the request. Built on the same Mindcraft-CE commit as 1.23.0-bedrock.1.25.0.
+
+### Changed
+
+- Claude's prompt cache keeps hitting while the memory summary is rewritten. The summary is rewritten every two
+  or three steps of a task, and it sat in the system prompt, so each rewrite lost the cached conversation after
+  it. For Claude it now goes after the conversation with the fresh state, on both the native tool path and the
+  legacy `!command` path, as do the live stats in the RP agent's prompt. In a measured session, every call
+  after the first read all it could from the cache, where 4 of 11 had read only the tools.
+
+## [1.23.0-bedrock.1.25.0] - 2026-11-27
+
+Prompt caching for the legacy `!command` mode, for both editions: Claude reads each step of a task from its
+cache there too, and other providers can reuse the start of the prompt. Built on the same Mindcraft-CE commit
+as 1.22.0-bedrock.1.24.0.
+
+### Added
+
+- Prompt caching for Claude in the legacy `!command` mode too (`use_function_calling: false`): the system prompt
+  and the conversation so far are marked for the cache, and the stats, inventory and examples of each turn go
+  once after the conversation instead of inside the system prompt. Each step of a task then reads about 95% of
+  its prompt from the cache, where it read none. Coding requests work the same way. `prompt_caching` `"off"`
+  sends the request as before.
+
+### Changed
+
+- With native tools off (`use_function_calling: false`), the conversing prompt puts its fixed instructions and the
+  command list first, and the goal, memory summary, stats, inventory and examples after them. Providers that
+  cache a repeated start of a request by themselves (OpenAI, DeepSeek, Gemini, local servers) can then reuse
+  the command list, the largest part, on every call instead of only the first few lines.
+
+## [1.22.0-bedrock.1.24.0] - 2026-11-26
+
+Prompt caching for Claude, and fixes to how the bot's requests are laid out, for both editions. With native
+tools on (the default) every model call is about 7,000 tokens shorter, and on Claude each step of a task reads
+almost all of its request from the prompt cache. Built on the same Mindcraft-CE commit as 1.21.1-bedrock.1.23.0.
+
+### Added
+
+- Prompt caching for Claude (`prompt_caching`, on by default): native tool requests mark the tools, the
+  system prompt and the conversation so far for Claude's prompt cache, so each step of a task reads all but
+  its newest turn at a tenth of the input price or less. `"1h"` keeps the cache an hour, `"off"` sends no
+  markers. See docs/prompt-caching.md.
+- Model usage counts the input tokens written to a prompt cache per role (`written`, beside `cached`), and
+  `model_pricing` takes a `cache_write_per_million` rate for them.
+
+### Fixed
+
+- With native tools on (the default), the system prompt no longer holds a second copy of the whole tool list,
+  which already reaches the model as its tools: about 7,000 tokens less on every model call.
+- With native tools on, Claude and Gemini read the conversation's system notes (tool results, deaths, mode
+  changes) where they happened, as the other providers do, instead of all of them at the end of the system
+  prompt, out of order.
+- Claude 4.6 and later (Claude 5.x included) on the text path: a request no longer ends on the bot's own turn,
+  which these models reject; long turns are no longer cut off by a 4,096-token limit that their thinking
+  counts toward (the default is now 16,000, and it no longer leaks into the native tool path); a declined
+  request says so instead of "No response from Claude."; and an empty reply is tried once more. From
+  r77tchan's fork.
+- The same on the native tool path (the default): a request no longer ends on the bot's own turn, long turns
+  are no longer reported as "truncated" at 4,096 tokens (the default is now 16,000), and a declined request
+  is logged as declined instead of as an empty reply.
+
+## [1.21.1-bedrock.1.23.0] - 2026-11-26
+
+Blast furnaces and smokers for Bedrock Edition, and a fix to gathering for both editions. Built on the same
+Mindcraft-CE commit as 1.21.0-bedrock.1.22.0.
+
+### Added
+
+- Blast furnaces and smokers on Bedrock Edition too. As on Java, ores and raw metal go to a free blast furnace
+  and food to a smoker before a furnace, and smelt in half the time: the library the bot runs on now fills
+  their windows, which it couldn't before.
+
+### Fixed
+
+- Gathering picks up a drop that fell out of sight, under fair play's view through a screen. When a block the
+  bot broke gave nothing, it looks at the floor where the block was, and steps over to the hole if no item is
+  to be seen. A drop lying in the hole the bot had just dug, a block from its feet but out of view, was left
+  on the ground: four stone dug out of the floor came back as three.
+
+## [1.21.0-bedrock.1.22.0] - 2026-11-26
+
+### Added
+
+- Blast furnaces and smokers, on Java Edition. Ores and raw metal go to a free blast furnace and food to a
+  smoker before a furnace, and the bot places one it carries before its furnace: they smelt in half the time.
+  Its waits, the time it says a load takes, and its results go by the block it used. On Bedrock Edition the
+  bot keeps to furnaces, since the library it runs on can't fill the other two yet.
+- Several furnaces at once. A big smelt or load is shared between the free furnaces near the first, up to
+  four, and those the bot carries when it has a pickaxe to pick them back up: 60 glass in about three and a
+  half minutes in three furnaces instead of ten in one. Shares follow each block's speed, and a furnace is
+  added only when the fuel covers every share. A stopped smelt is gone on with in all of them.
+
+## [1.20.1-bedrock.1.21.1] - 2026-11-26
+
+Fixes for both editions, found by running the live scenes over and over until each passed every time. No
+fixes to inherited code. Built on the same Mindcraft-CE commit as 1.19.0-bedrock.1.20.0.
+
+### Fixed
+
+- A skeleton (or any mob) seen aiming at the bot is remembered as a danger zone whenever the bot takes cover
+  from it. The zones were noted once a second, and the walk to cover could take the archer out of view first,
+  so the bot then hid from it but later walked back through the spot it shot from.
+- `!bringItem` looks round for the player before handing over. Through a player's screen, the bot came back
+  from the chest facing it, with its back to the player, and said it didn't know where they were.
+- A teleport that turns the bot (a `/tp` with a facing) now sticks. A turn the bot was still making carried on
+  from the new facing toward its old target and swung it back round, so it could end up facing away from
+  what it was turned to see.
+
+## [1.20.0-bedrock.1.21.0] - 2026-11-25
+
+### Added
+
+- Load and leave: `!loadFurnace` loads a furnace with up to a stack and the fuel for it and leaves it
+  working, `!collectFurnace` goes back for what is done and puts in the rest, and `!furnaces` says what is
+  smelting where. The next result after a furnace should be done says so, once.
+- Lava from a lava farm is smelting's first fuel: with a full lava cauldron near, the bot fills a bucket
+  (its own, an empty one it remembers in a furnace's fuel slot, or one it fetches from the chests and shelves
+  it may take from, as `!fetchItem` does) and smelts on the lava, keeping its coal. It counts the lava still
+  burning, and takes the empty bucket back out.
+- Smelting remembers what it leaves in a furnace, per world. A smelt that was stopped (or a bot that
+  restarted) is gone on with by the next `!smeltItem` of that item, and a furnace holding only the bot's own
+  smelt is no longer taken for someone else's.
+
+### Fixed
+
+- Fuel topped up while a furnace has something in it to smelt catches at once, and smelting counted it as
+  not gone in: it then said it burned less than it did, and could put in more than was needed.
+- Fetching from a shelf the bot had walked up to with its back to it said what was on the shelf had "not come
+  through yet". Through a player's screen the bot knew the shelf only from memory then, which doesn't keep
+  what stands on it. It now turns to look at the shelf first, as a player does before clicking it.
+
+## [1.19.0-bedrock.1.20.0] - 2026-11-25
+
+A release for both editions that brings this fork level with Mindcraft-CE's `develop` branch, which has
+taken in the `agent-system` branch this fork was built on and is now Mindcraft-CE's one working branch. It
+has every fix this fork offered except two still open, and the maintainer combined two of them into a new
+creeper retreat. Also vanilla's shears speeds on Java Edition 26.3's new shears tags. Built on Mindcraft-CE's
+`develop` branch at commit `0fb1bd1`.
+
+### Changed
+
+- With the threat reflexes off, Mindcraft's `self_defense` reflex backs away from a nearby creeper instead
+  of leaving it alone, cowardice on or off. From Mindcraft-CE's maintainer, who combined this fork's two
+  creeper and retreat fixes into one.
+- While the bot runs from mobs (`avoidEnemies`), fire and lava still make it get out, as before, but low
+  health alone no longer cuts the retreat short to run somewhere else. From the same change.
+
+### Fixed
+
+- A resumable action that fails is no longer started again when the bot goes idle, and one that was
+  cancelled while waiting its turn to resume doesn't start, or stop the action running then. From
+  Mindcraft-CE.
+- On Java Edition 1.21.2 and later, a position update held back in the first moments after login is no
+  longer sent late, in a later tick beside that tick's own update, which a newer server can kick for.
+- On Java Edition 26.3, shears cut wool stairs and slabs as fast as a wool block. The game data the bot
+  runs on had them no faster than a hand, so the bot took longer than it should and judged its tools by
+  wrong numbers.
+
+## [1.18.0-bedrock.1.19.0] - 2026-11-25
+
+### Added
+
+- Shelves. The bot remembers what stands on a shelf when it sees the shelf's front, and `!chests` lists shelves
+  with what was on them. `!markChest` and `!chestFor` say whose a shelf is and what it is for. Fetching
+  (`!fetchItem`, `!bringItem`, `!getTool`) takes from shelves by the same rules as from chests: the bot stands
+  in front, takes the stack with an empty hand, and puts back what it didn't need. `!putAway` puts things onto
+  a shelf only when a player has said what it is for, into an empty slot. A shelf is never sorted, and a
+  powered one is never clicked.
+
+## [1.17.0-bedrock.1.18.0] - 2026-11-25
+
+### Added
+
+- Bringing a player something. `!bringItem("Alice", "iron_ingot", 10)` hands over what the bot carries and
+  fetches the rest from the chests, then walks up to the player and throws it to them, and says whether they
+  took it. It throws from close by and chest high, so the item lands at their feet; Mindcraft's own hand-over
+  threw at the feet from three blocks, which on Bedrock fell short enough for the bot to pick it back up.
+- Gathering with a full bag. Collecting used to go on breaking blocks with a full bag, leaving the drops on the
+  ground. Now it checks for room before each block: with the bot's own or shared chests within 32 blocks it
+  puts things away and goes on, saying so in its result; otherwise it stops with "Inventory full".
+- Getting a tool. `!getTool("pickaxe", "iron")` uses the one the bot carries, else takes one from the chests,
+  else crafts one: it fetches what the recipe is short of (the head, logs or planks for sticks and a table),
+  then makes the planks, sticks, table and tool. `"any"` tries the best material first.
+
+### Fixed
+
+- Mindcraft's chest commands (`!viewChest`, `!takeFromChest`, `!putInChest`) use the nearest chest, trapped
+  chest or barrel. They looked for chests alone, so a bot standing by a barrel said there was no chest nearby.
+- Crafting just after using a chest lost the crafted item on Java. The pinned mineflayer kept one state number
+  for every window, so the first crafting clicks after a chest closed went out with the chest's, and the
+  server resent the whole inventory in the middle of the craft. It now keeps one for each window, as the
+  game's client does (PrismarineJS/mineflayer#4103, pinned until a release has it).
+- Crafting on Bedrock took a recipe the bot had nothing for. The server lists a stick from bamboo first, and
+  the library let it through for a bot with planks and no bamboo, so crafting sticks failed. Only recipes the
+  bot holds every ingredient of are handed out now, as on Java.
+- Crafting on Bedrock at a table, right after crafting in the bot's own grid, failed. The library left the
+  inventory screen open after a craft, and the craft at the table took it for the table's. A screen a craft
+  opens is closed after it now, as on Java.
+
+## [1.16.0-bedrock.1.17.0] - 2026-11-24
+
+### Added
+
+- What a chest is for. `!chestFor(x, y, z, "tools")` says a chest is for a group of items, an item, several
+  of those, or the inbox, where players drop things for the bot to file; a sign over a chest saying "Ores"
+  or "Iron ingots" counts too, until a player says otherwise. Putting away puts each thing in the chest for
+  it and never in a chest for something else; a sort places things in the chest for them first; the inbox
+  is left out of both. `!chests` says what each chest is for, and whether that comes from a sign.
+- Filing the inbox. `!fileInbox("any", 16)` takes what players left in the inbox and puts it where it belongs,
+  by the rules of putting away, a bagful at a time; what fits nowhere goes back into the inbox. Only the
+  inbox's things are filed: the bot keeps its own, even of the same kind.
+
+## [1.15.0-bedrock.1.16.0] - 2026-11-24
+
+### Added
+
+- Putting away and fetching (`store_and_fetch`, on by default with chest sorting). `!putAway("all", "any", 16)`
+  puts what the bot carries into the chests where those things belong: each kind with its own kind, else with
+  related things, else into an empty chest, keeping what it needs out in the world (its best tools and a spare
+  pickaxe, armour, food, torches, a few blocks). `!fetchItem("iron_ingot", 10)` takes an item out of the chests
+  it remembers holding it, from several if one is not enough. Both use the bot's own and shared chests, and
+  players' chests when a player asks; a chest nobody has said is anyone's is left alone and named, so the bot
+  asks. Each chest is checked on opening, so a chest someone changed since the bot looked is no surprise.
+
+### Fixed
+
+- Backing away from a skeleton behind a shield, with nowhere to go, the bot no longer lowers the shield just
+  as an arrow comes: when the move runs out of time, it ends just after a shot lands, not in the middle of one
+  or just before the next.
+- Backing away from zombies through a player's screen, the bot no longer stops while they are still close behind:
+  it takes a mob that chases to keep coming while out of view, as a player running from zombies does, instead of
+  going by where it last saw them.
+- Fighting one mob through a player's screen, the bot now turns to look when it is hit from another side, and
+  backs away from the second mob it finds there. Before, it kept fighting while the other hit it from behind.
+
+## [1.14.0-bedrock.1.15.0] - 2026-11-24
+
+### Added
+
+- Good-neighbor rules, first part: the bot doesn't break what other players built. Planks, glass,
+  cobblestone and everything else that isn't natural ground are left alone, and so is any block it saw
+  someone put up, even dirt. Logs are felled only from trees, never from a cabin. Routes go round, block
+  collecting skips them, and a dig of one is refused with the reason. Places listed in
+  `good_neighbor.protected_areas` are left alone entirely. On by default; `good_neighbor.protect_builds: false`
+  turns it off. See docs/good-neighbor.md.
+- World memory tags each cell someone else built, beside the bot's own placed and dug cells.
+
+### Fixed
+
+- A block the bot placed no longer stays its own after someone takes it away or puts another block in its
+  place: world memory notes the change, and the new block is theirs.
+
 ## [1.13.0-bedrock.1.14.0] - 2026-11-24
 
 ### Added
@@ -1161,7 +1417,20 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.24.0-bedrock.1.26.0...HEAD
+[1.24.0-bedrock.1.26.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.23.0-bedrock.1.25.0...v1.24.0-bedrock.1.26.0
+[1.23.0-bedrock.1.25.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.22.0-bedrock.1.24.0...v1.23.0-bedrock.1.25.0
+[1.22.0-bedrock.1.24.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...v1.22.0-bedrock.1.24.0
+[1.21.1-bedrock.1.23.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.22.0...v1.21.1-bedrock.1.23.0
+[1.21.0-bedrock.1.22.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...v1.21.0-bedrock.1.22.0
+[1.20.1-bedrock.1.21.1]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.0-bedrock.1.21.0...v1.20.1-bedrock.1.21.1
+[1.20.0-bedrock.1.21.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.19.0-bedrock.1.20.0...v1.20.0-bedrock.1.21.0
+[1.19.0-bedrock.1.20.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.18.0-bedrock.1.19.0...v1.19.0-bedrock.1.20.0
+[1.18.0-bedrock.1.19.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.17.0-bedrock.1.18.0...v1.18.0-bedrock.1.19.0
+[1.17.0-bedrock.1.18.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.16.0-bedrock.1.17.0...v1.17.0-bedrock.1.18.0
+[1.16.0-bedrock.1.17.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.15.0-bedrock.1.16.0...v1.16.0-bedrock.1.17.0
+[1.15.0-bedrock.1.16.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.14.0-bedrock.1.15.0...v1.15.0-bedrock.1.16.0
+[1.14.0-bedrock.1.15.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.13.0-bedrock.1.14.0...v1.14.0-bedrock.1.15.0
 [1.13.0-bedrock.1.14.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.12.0-bedrock.1.13.0...v1.13.0-bedrock.1.14.0
 [1.12.0-bedrock.1.13.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.11.0-bedrock.1.12.0...v1.12.0-bedrock.1.13.0
 [1.11.0-bedrock.1.12.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.10.0-bedrock.1.11.0...v1.11.0-bedrock.1.12.0

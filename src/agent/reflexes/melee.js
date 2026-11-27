@@ -43,6 +43,7 @@ import { isRanged } from './mob_decide.js';
 import { safeCell } from './moves.js';
 import { EATING } from './item_use.js';
 import { shieldTuning } from './shield.js';
+import { looksOf } from '../fairplay/look_around.js';
 
 const BEAT_MS = 50;                 // a game tick: how often the fight looks again
 const TICK_MS = 50;                 // the margin a swing waits beyond the recharge, for the server's clock
@@ -223,6 +224,15 @@ export async function fightMelee(bot, { first, see, foes = () => [], onTarget = 
         while (!ended) {
             if (bot.interrupt_code || stop()) { ended = 'stopped'; break; }
             if (now() - startedAt > maxMs) { ended = 'out of time'; break; }
+            // A glance has the head (glance.js): a hit from a side the target isn't on turns it, for a moment, to
+            // see what dealt it. The fight stands meanwhile, neither turning back nor swinging, and the moment
+            // doesn't count against it as not getting closer. What the glance shows, the mob reflex weighs.
+            if ((looksOf(bot)?.holdUntil ?? 0) > Date.now()) {
+                halt();
+                closestAt = now();
+                await wait(BEAT_MS);
+                continue;
+            }
             const eating = use?.owner() === EATING;
             if (!eating) holdWeapon();
 

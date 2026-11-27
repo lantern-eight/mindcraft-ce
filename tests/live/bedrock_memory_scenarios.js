@@ -188,7 +188,7 @@ try {
         assert.deepEqual(memory().things.get(c.x, c.y, c.z).contents.items, { iron_ingot: 30, bread: 6 });
         await walkTo([-14, 1, 0]);
         const iron = recall('iron');
-        assert.match(iron, /^IN CONTAINERS YOU OPENED\n- chest at .*: iron_ingot 30 \(looked .*\), 1\d blocks east, about \d+ seconds on foot by a way you know/, iron);
+        assert.match(iron, /^IN CONTAINERS YOU LOOKED INTO\n- chest at .*: iron_ingot 30 \(looked .*\), 1\d blocks east, about \d+ seconds on foot by a way you know/, iron);
         return { recall: iron.split('\n')[1] };
     });
 

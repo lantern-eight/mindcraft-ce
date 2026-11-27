@@ -131,7 +131,7 @@ try {
         assert.deepEqual(memory().things.get(4, 70, 0).contents.items, { iron_ingot: 30, bread: 6 });
         await act('test:walk', () => skills.goToPosition(bot, -14, 70, 0, 0));
         const iron = recall('iron');
-        assert.match(iron, /^IN CONTAINERS YOU OPENED\n- chest at 4, 70, [01]: iron_ingot 30 \(looked .*\), 1\d blocks east, about \d+ seconds on foot by a way you know/);
+        assert.match(iron, /^IN CONTAINERS YOU LOOKED INTO\n- chest at 4, 70, [01]: iron_ingot 30 \(looked .*\), 1\d blocks east, about \d+ seconds on foot by a way you know/);
         return { recall: iron.split('\n')[1] };
     });
 

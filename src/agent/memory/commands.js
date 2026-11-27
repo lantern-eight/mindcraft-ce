@@ -140,16 +140,16 @@ export function recallText(memory, here, what, { limit = 5, now = Date.now } = {
         }
     }
 
-    // Items: what was in the containers it opened.
+    // Items: what was in the containers it opened, or on the shelves whose fronts it saw.
     const holders = memory.things.findItem(key, here, { limit });
     if (holders.length) {
-        sections.push(`IN CONTAINERS YOU OPENED\n${holders.map((hit, i) => `- ${hit.name} at ${hit.x}, ${hit.y}, ${hit.z}: ${contentsOf(hit.items)} `
+        sections.push(`IN CONTAINERS YOU LOOKED INTO\n${holders.map((hit, i) => `- ${hit.name} at ${hit.x}, ${hit.y}, ${hit.z}: ${contentsOf(hit.items)} `
             + `(looked ${ago(t - hit.lookedAt)}), ${whereFrom(here, { x: hit.x + 0.5, y: hit.y + 0.5, z: hit.z + 0.5 })}${i === 0 ? walkText(memory, here, hit) : ''}`).join('\n')}`);
     }
 
     if (sections.length) return sections.join('\n');
     return `You don't remember any "${query}". You remember every block you have seen, things like chests and doors, what was in `
-        + 'the containers you opened, places, fields, animals, and "changes". Explore to see more.';
+        + 'the containers you looked into, places, fields, animals, and "changes". Explore to see more.';
 }
 
 /** Text for !places. */
@@ -241,7 +241,7 @@ const OFF = 'World memory is off (set world_memory to true in settings.js).';
 export const recallCommand = {
     name: '!recall',
     description: 'Ask what you remember, however far away: a block type ("sand", "iron_ore"), a kind of thing ("chest", "door", "bed"), '
-        + 'an item to find in the containers you opened ("iron"), an animal, a crop, a place name, or "changes" for what you noticed had changed.',
+        + 'an item to find in the containers you looked into ("iron"), an animal, a crop, a place name, or "changes" for what you noticed had changed.',
     params: { 'what': { type: 'string', description: 'What to recall.' } },
     perform: (agent, what) => (memoryOf(agent) ? recallText(memoryOf(agent), agent.bot.entity.position, what) : OFF),
 };

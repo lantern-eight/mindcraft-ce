@@ -39,10 +39,14 @@ try {
     const { initModes } = await import('../../src/agent/modes.js');
     const { installFairPlay } = await import('../../src/agent/fairplay/install.js');
     const { installSmelting } = await import('../../src/agent/smelting/install.js');
+    const { installGoodNeighbor } = await import('../../src/agent/neighbor/install.js');
+    const { installStorage } = await import('../../src/agent/storage/install.js');
+    const { getCommand } = await import('../../src/agent/commands/index.js');
+    const { editionOf } = await import('../../src/agent/edition/index.js');
     const skills = await import('../../src/agent/library/skills.js');
     const world = await import('../../src/agent/library/world.js');
 
-    let agent, rawOpenFurnace;
+    let agent, rawOpenFurnace, smelting;
     const counts = () => world.getInventoryCounts(bot);
     const act = (label, fn) => agent.actions.runAction(label, fn, { timeout: 6 });
 
@@ -84,7 +88,7 @@ try {
             name: NAME, bot, task: null, shut_up: true, last_sender: null, blocked_actions: [],
             prompter: { profile: {}, getInitModes: () => ({}) },
             self_prompter: { isActive: () => false, stopLoop: () => {} },
-            openChat: () => {}, handleMessage: () => {},
+            openChat: () => {}, handleMessage: async (source, run) => (typeof run === 'function' ? run() : undefined),
             clearBotLogs: () => { bot.output = ''; bot.interrupt_code = false; },
             requestInterrupt: () => {
                 bot.interrupt_code = true; bot.stopDigging(); bot.pathfinder.setGoal(null); bot.clearControlStates(); bot.pvp?.stop();
@@ -95,7 +99,12 @@ try {
         initModes(agent);
         const handle = installFairPlay(agent, { memoryDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-')) });
         assert.ok(handle?.memory, 'fair play and world memory are on');
-        assert.ok(installSmelting(agent), 'smelting is on');
+        smelting = installSmelting(agent, { jobsDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-jobs-')) });
+        assert.ok(smelting, 'smelting is on');
+        // As in a real bot, where both are on by default: the furnace the bot placed is its own to pick up again.
+        assert.ok(installGoodNeighbor(agent), 'good-neighbor rules installed');
+        // Chest storage, for an empty bucket fetched from the bot's own chest or shelf for a lava farm.
+        assert.ok(installStorage(agent, { bookDir: mkdtempSync(path.join(tmpdir(), 'bedrock-smelting-book-')) })?.commands.includes('!fetchItem'), 'fetching is on');
     });
 
     await step('sand and coal make glass, and the bot finds its furnace again while it burns', async () => {
@@ -155,6 +164,163 @@ try {
         assert.equal(counts().raw_iron, 3, result.text);
         return { text: result.text.trim() };
     });
+
+    await step('loaded and left: the bot walks off, is told when it is done, and collects', async () => {
+        await reset('sand 3', 'coal 1');
+        await set([3, 1, 0], 'furnace');
+        await delay(1200);
+        await lookAt([3, 1, 0]);
+        const loaded = await act('test:load', () => smelting.loadFurnace(bot, 'sand', 3));
+        assert.equal(loaded.status, 'ok', loaded.text);
+        assert.match(loaded.text, /put 3 sand and 1 coal in the furnace/);
+        await cmd(`tp ${NAME} ${at(-6, 1, 0).x + 0.5} ${at(-6, 1, 0).y} ${at(-6, 1, 0).z + 0.5} 90 20`, 1500);
+        await delay(32000);
+        const busy = await act('test:other', async () => {});
+        assert.match(busy.message, /The glass in the furnace at .* should be done \(!collectFurnace\)/);
+        const collected = await act('test:collect', () => smelting.collectFurnace(bot));
+        assert.equal(collected.status, 'ok', collected.text);
+        assert.match(collected.text, /I took 3 glass/);
+        await delay(500);
+        assert.equal(counts().glass, 3, JSON.stringify(counts()));
+        return { text: collected.text.trim() };
+    });
+
+    await step('a lava farm near: the bot fills its bucket and smelts on the lava, keeping its coal', async () => {
+        await reset('sand 2', 'coal 2', 'lava_bucket 1');
+        await set([3, 1, -1], 'furnace');
+        // Bedrock has one cauldron block, with the liquid and how full it is as states, and the console here
+        // takes no state list. So the lava goes in as a player's would: poured from a bucket, which leaves
+        // the bot the empty bucket the smelt fills again.
+        await set([3, 1, 1], 'cauldron');
+        await delay(1200);
+        await lookAt([3, 1, 1]);
+        await bot.equip(bot.inventory.items().find(item => item.name === 'lava_bucket'), 'hand');
+        await bot.activateBlock(bot.blockAt(at(3, 1, 1)));
+        await delay(1000);
+        assert.equal(counts().bucket, 1, `poured: ${JSON.stringify(counts())}`);
+        await lookAt([3, 1, -1], [3, 1, 1]);
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 2));
+        assert.equal(result.status, 'ok', result.text);
+        assert.match(result.text, /filled a bucket with lava from the cauldron/);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 2, JSON.stringify(have));
+        assert.equal(have.coal, 2, 'no coal burned');
+        assert.equal(have.bucket, 1, 'its bucket came back');
+        return { text: result.text.trim() };
+    });
+
+    /** A player tells the bot that a chest or shelf is its own. */
+    const ownChest = async cell => {
+        const c = at(...cell);
+        assert.match(await agent.handleMessage('Alice', () => getCommand('!markChest').perform(agent, c.x, c.y, c.z, NAME, 'same')), /is now|was already/);
+    };
+    const stock = (cell, slot, item) => cmd(`replaceitem block ${xyz(at(...cell))} slot.container ${slot} ${item} 1 0`, 300);
+    /** A full lava cauldron, poured as a player would (the console takes no state list), and the empty bucket that leaves taken away. */
+    async function lavaFarm(cell) {
+        await reset('sand 2', 'coal 2', 'lava_bucket 1');
+        await set([3, 1, -1], 'furnace');
+        await set(cell, 'cauldron');
+        await delay(1200);
+        await lookAt(cell);
+        await bot.equip(bot.inventory.items().find(item => item.name === 'lava_bucket'), 'hand');
+        await bot.activateBlock(bot.blockAt(at(...cell)));
+        await delay(1000);
+        await cmd(`clear ${NAME} bucket`, 800);
+        assert.equal(counts().bucket ?? 0, 0, `no bucket left on it: ${JSON.stringify(counts())}`);
+    }
+
+    // No bucket on it and none in a furnace: a player goes and gets one from their chests.
+    await step('a lava farm near and no bucket: the bot takes one from its own chest and smelts on the lava', async () => {
+        await lavaFarm([3, 1, 1]);
+        await set([4, 1, 3], 'chest');
+        await stock([4, 1, 3], 0, 'bucket');
+        await lookAt([3, 1, -1], [4, 1, 3], [3, 1, 1]);
+        await ownChest([4, 1, 3]);
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 2));
+        assert.equal(result.status, 'ok', result.text);
+        const chest = at(4, 1, 3);
+        assert.ok(result.text.includes(`took an empty bucket from the chest at ${chest.x}, ${chest.y}, ${chest.z} (your own). I filled a bucket with lava`), result.text);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 2, JSON.stringify(have));
+        assert.equal(have.coal, 2, 'no coal burned');
+        assert.equal(have.bucket, 1, 'the bucket came back out of the fuel slot');
+        return { text: result.text.trim() };
+    });
+
+    // The same from a shelf, which shows its bucket on its front (a shelf placed here faces south, toward the bot).
+    await step('a lava farm near and a bucket on the bot\'s shelf: it takes the bucket off the shelf and smelts on the lava', async () => {
+        await lavaFarm([3, 1, 1]);
+        await set([2, 1, -3], 'oak_shelf');
+        await stock([2, 1, -3], 1, 'bucket');
+        await lookAt([3, 1, -1], [2, 1, -3], [3, 1, 1]);
+        await ownChest([2, 1, -3]);
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 2));
+        assert.equal(result.status, 'ok', result.text);
+        const shelf = at(2, 1, -3);
+        assert.ok(result.text.includes(`took an empty bucket from the oak_shelf at ${shelf.x}, ${shelf.y}, ${shelf.z} (your own). I filled a bucket with lava`), result.text);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 2, JSON.stringify(have));
+        assert.equal(have.coal, 2, 'no coal burned');
+        assert.equal(have.bucket, 1);
+        const onShelf = (editionOf(bot.registry).shelfOf(bot.blockAt(shelf))?.slots ?? []).filter(Boolean);
+        assert.deepEqual(onShelf, [], 'the shelf is empty');
+        return { text: result.text.trim() };
+    });
+
+    // A row of three furnaces: the sand is shared between them, a coal each, and all three work at once.
+    await step('24 sand in a row of three furnaces: 8 in each, done in about a third of the time', async () => {
+        await reset('sand 24', 'coal 3');
+        for (const z of [-2, 0, 2]) await set([3, 1, z], 'furnace');
+        await delay(1200);
+        await lookAt([3, 1, -2], [3, 1, 0], [3, 1, 2]);
+        const started = Date.now();
+        const result = await act('test:smelt', () => skills.smeltItem(bot, 'sand', 24));
+        const took = Date.now() - started;
+        assert.equal(result.status, 'ok', result.text);
+        for (const z of [-2, 0, 2]) {
+            const cell = at(3, 1, z);
+            assert.ok(result.text.includes(`the furnace at ${cell.x}, ${cell.y}, ${cell.z}`), result.text);
+        }
+        assert.match(result.text, /burning 3 coal/, result.text);
+        await delay(500);
+        const have = counts();
+        assert.equal(have.glass, 24, JSON.stringify(have));
+        for (const z of [-2, 0, 2]) assert.deepEqual(await read([3, 1, z]), [null, null, null], `the furnace at z ${z} is left empty`);
+        assert.ok(took < 150000, `three furnaces take about 80 s for 24, one takes 240: ${took} ms`);
+        return { text: result.text.trim(), tookMs: took };
+    });
+
+    // A blast furnace and a smoker open windows of their own kind on Bedrock, each with its own name for the
+    // input slot. Ores go to the blast furnace and food to the smoker, though a furnace is nearer: each smelts
+    // in half the time. The test reads each block back with its own hands, so the slots must be where it says.
+    for (const scene of [
+        { kind: 'blast_furnace', name: 'blast furnace', input: 'raw_iron', output: 'iron_ingot' },
+        { kind: 'smoker', name: 'smoker', input: 'beef', output: 'cooked_beef' },
+    ]) {
+        await step(`${scene.input} goes to the ${scene.name} over a nearer furnace, and smelts in half the time`, async () => {
+            await reset(`${scene.input} 8`, 'coal 1');
+            await set([3, 1, 0], 'furnace');
+            await set([4, 1, 2], scene.kind);
+            await delay(1200);
+            await lookAt([3, 1, 0], [4, 1, 2]);
+            const started = Date.now();
+            const result = await act('test:smelt', () => skills.smeltItem(bot, scene.input, 8));
+            const took = Date.now() - started;
+            assert.equal(result.status, 'ok', result.text);
+            const cell = at(4, 1, 2);
+            assert.ok(result.text.includes(`8 ${scene.input} into ${scene.output} in the ${scene.name} at ${cell.x}, ${cell.y}, ${cell.z}`), result.text);
+            assert.match(result.text, /burning 1 coal/, result.text);
+            await delay(500);
+            assert.equal(counts()[scene.output], 8);
+            assert.deepEqual(await read([3, 1, 0]), [null, null, null], 'the furnace was left alone');
+            assert.deepEqual(await read([4, 1, 2]), [null, null, null], `the ${scene.name} is left empty`);
+            assert.ok(took < 70000, `8 in a ${scene.name} take about 40 s, not 80: ${took} ms`);
+            return { text: result.text.trim(), tookMs: took };
+        });
+    }
 } catch (error) {
     console.error(error);
     process.exitCode = 1;

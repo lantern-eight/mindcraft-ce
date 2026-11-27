@@ -12,7 +12,7 @@ import { ActionManager } from '../src/agent/action_manager.js';
 import { getCommand, getCommands, isAction, parseCommandMessage } from '../src/agent/commands/index.js';
 import { createChestBook, loadChestBook } from '../src/agent/storage/chest_book.js';
 import { chestsFrom, isSortable } from '../src/agent/storage/chests.js';
-import { chestsText, leftText, markChest, markChests, readOwner, readSorting, sortChestAt, sortChestsHere, sortText } from '../src/agent/storage/commands.js';
+import { chestFor, chestsText, leftText, markChest, markChests, readOwner, readSorting, sortChestAt, sortChestsHere, sortText } from '../src/agent/storage/commands.js';
 import { scopeDir } from '../src/agent/memory/files.js';
 import { installStorage } from '../src/agent/storage/install.js';
 import { fakeChestBot } from './helpers/fake_chest_bot.js';
@@ -362,6 +362,98 @@ test('the list of chests says whose each is, how it may be sorted, and which are
     assert.match(chestsText(bot, 16, { ...deps(room, { book }), nearestBlocks: () => [] }), /don't see or remember a chest/);
 });
 
+test('shelves are listed with what was seen on them, can be said to be someone\'s, and are never opened or sorted', async () => {
+    const { bot, room, book } = sharedRoom();
+    bot.players = { Alice: {} };
+    const shelfAt = { x: 1, y: 65, z: 2 }, shelf = block('oak_shelf', 1, 65, 2);
+    const seen = new Map([['1,65,2', { items: { iron_ingot: 9, diamond_pickaxe: 1 }, free: 1 }]]);
+    const d = deps(room, {
+        book,
+        nearestBlocks: (b, distance, { shelves = false } = {}) => [...room.chests.keys()].map(id => room.blockAt(posOf(id))).concat(shelves ? [shelf] : []),
+        blockAt: (b, pos) => (pos.x === 1 && pos.y === 65 && pos.z === 2 ? shelf : room.blockAt(pos)),
+        contentsOf: chest => seen.get(chest.id) ?? null,
+    });
+    // A shelf is in the list, with what the bot saw on its front, and says it is never sorted.
+    assert.match(chestsText(bot, 16, d), /^- oak_shelf at 1, 65, 2: owner unknown\. A shelf: never sorted\. On it: 9 iron_ingot, 1 diamond_pickaxe; one slot free$/m);
+    seen.clear();
+    assert.match(chestsText(bot, 16, d), /oak_shelf at 1, 65, 2: owner unknown\. A shelf: never sorted\. What is on it has not been seen from in front/);
+
+    // Whose it is and what it is for can be said, as of a chest. Its sorting can't: there is none.
+    const marked = markChest(bot, shelfAt, 'Alice', 'same', d);
+    assert.equal(marked.text, "The oak_shelf at 1, 65, 2 is now Alice's, a shelf, never sorted. It was owner unknown.");
+    assert.match(markChest(bot, shelfAt, 'Alice', 'always', d).text, /was already Alice's, a shelf, never sorted\. Nothing changed\. Shelves are never sorted/);
+    assert.equal(markChest(bot, shelfAt, 'same', 'always', d).status, 'failed');
+    assert.equal(chestFor(bot, shelfAt, 'tools', d).status, 'ok');
+    assert.match(chestsText(bot, 16, d), /oak_shelf at 1, 65, 2: Alice's\. A shelf: never sorted\. What is on it [^\n]*\. For tools/);
+
+    // Sorting it, or anything that opens it, says why not, instead of claiming there is nothing there.
+    const sorted = await sortChestAt(bot, shelfAt, d);
+    assert.equal(sorted.status, 'failed');
+    assert.match(sorted.text, /is a shelf, which has no lid to open, so it can't be sorted like a chest/);
+    // A shelf never joins a sort of someone's chests.
+    assert.ok(!(await sortChestsHere(bot, 'Alice', 16, d)).text.includes('oak_shelf'));
+});
+
+test('a player says what a chest is for: a group, items, the inbox, anything, or forget it', () => {
+    const { bot, room, book } = sharedRoom();
+    const d = deps(room, { book, by: 'Alice' });
+    const where = { x: 0, y: 64, z: 0 };
+    assert.equal(chestFor(bot, where, 'tools', d).text, 'The chest at 0, 64, 0: For tools.');
+    assert.deepEqual(book.holdsOf(found('0,64,0')), ['tools']);
+    assert.equal(book.of(found('0,64,0')).said.at(-1).by, 'Alice');
+    // A sign's words and plain words a player uses are read the same way.
+    assert.match(chestFor(bot, where, 'Iron ingots, ores', d).text, /: For iron ingot and minerals\. It was: For tools\.$/);
+    assert.match(chestFor(bot, where, 'iron_ingot / minerals', d).text, /was already so\. For iron ingot and minerals\. Nothing changed\./);
+    assert.match(chestFor(bot, where, 'anything', d).text, /: For anything \(a player said so\)\./);
+    assert.deepEqual(book.holdsOf(found('0,64,0')), []);
+    chestFor(bot, where, 'unknown', d);
+    assert.equal(book.holdsOf(found('0,64,0')), null, 'forgotten');
+    // A word that is no group and no item is refused, with what may be said.
+    const refused = chestFor(bot, where, 'tools, shiny things', d);
+    assert.equal(refused.status, 'failed');
+    assert.match(refused.text, /^"shiny things" is not a group of items or an item you know\. Say a group \(tools, /);
+    assert.equal(book.holdsOf(found('0,64,0')), null, 'nothing was marked');
+    // The inbox: a chest nobody has claimed becomes shared, so anyone may drop things in it.
+    const inbox = chestFor(bot, { x: 6, y: 64, z: 0 }, 'drop off', d);
+    assert.match(inbox.text, /: The inbox: players leave things in it for you to file \(!fileInbox\)\. Nobody had said whose it is, so it is now shared/);
+    assert.equal(book.ownerOf(found('6,64,0')), 'shared');
+    // One a player owns stays theirs.
+    chestFor(bot, { x: 4, y: 64, z: 0 }, 'inbox', d);
+    assert.equal(book.ownerOf(found('4,64,0')), 'Bob');
+    assert.match(chestFor(bot, { x: 99, y: 64, z: 0 }, 'tools', d).text, /don't know of a chest or barrel at 99, 64, 0/);
+});
+
+test('the list says what each chest is for, by a player\'s word or by its sign, and a word beats a sign', () => {
+    const { bot, room, book } = sharedRoom();
+    const signs = { '2,64,0': 'Wood', '4,64,0': 'Bob  keep out', '6,64,0': 'Ores' };
+    const d = deps(room, { book, signNear: (b, c) => signs[c.id] ?? null });
+    book.mark(found('0,64,0'), { holds: ['tools'] });
+    book.mark(found('6,64,0'), { holds: [] });
+    const lines = chestsText(bot, 16, d).split('\n');
+    assert.match(lines[1], /^- chest at 0, 64, 0: Alice's\. Sorted only when asked\. For tools$/);
+    assert.match(lines[2], /\. For wood, going by its sign\. A sign beside it says "Wood"$/);
+    assert.ok(!/For /.test(lines[3]), `a sign that names nothing is no purpose: ${lines[3]}`);
+    assert.match(lines[4], /For anything \(a player said so\)\. A sign beside it says "Ores"$/);
+});
+
+test('sorting puts each kind in the chest that is for it, and leaves the inbox out', async () => {
+    const { bot, room, book } = sharedRoom();
+    // Alice's first chest is for wood: the logs go there and the dirt to her other chest, the other way
+    // round from a sort that knows nothing of it.
+    book.mark(found('0,64,0'), { holds: ['wood'] });
+    const result = await sortChestsHere(bot, 'alice', 8, deps(room, { book, by: 'Alice' }));
+    assert.equal(result.status, 'ok');
+    assert.deepEqual(stacks(room, '0,64,0'), [{ name: 'oak_log', count: 8 }]);
+    assert.deepEqual(stacks(room, '2,64,0'), [{ name: 'dirt', count: 21 }]);
+
+    // A shared inbox is not sorted with the shared chests: what is in it is waiting to be filed.
+    book.mark(found('6,64,0'), { owner: 'shared', holds: ['inbox'], sorting: 'always' });
+    const before = room.contents('6,64,0');
+    const approved = await sortChestsHere(bot, 'approved', 8, deps(room, { book }));
+    assert.deepEqual(room.contents('6,64,0'), before);
+    assert.match(approved.text, /Not sorted: the inbox \(chest at 6, 64, 0\)\. What players leave there is filed with !fileInbox\./);
+});
+
 test('what was said about a chest is forgotten once the bot sees the chest is gone', () => {
     const { bot, room, book } = sharedRoom();
     room.chests.delete('4,64,0');
@@ -392,10 +484,10 @@ test('the setting turns the chest commands on, and what the bot is told about ch
     const config = { chest_sorting: true, host: 'localhost', port: 25565, world_id: 'test' };
     const { book: _, name: __, ...finding } = deps(room);
     const installed = installStorage(agent, { config, deps: finding, bookDir });
-    assert.deepEqual(installed.commands, ['!chests', '!markChest', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt']);
+    assert.deepEqual(installed.commands, ['!chests', '!markChest', '!chestFor', '!markChests', '!sortChest', '!sortChests', '!viewChestAt', '!takeFromChestAt', '!putInChestAt']);
     for (const name of installed.commands) assert.ok(getCommands().includes(getCommand(name)), name);
     // Sorting takes over from what the bot is doing; listing and marking answer at once.
-    assert.deepEqual(installed.commands.map(isAction), [false, false, false, true, true, true, true, true]);
+    assert.deepEqual(installed.commands.map(isAction), [false, false, false, false, true, true, true, true, true]);
     assert.deepEqual(parseCommandMessage('!sortChests("Alice", 8)'), { commandName: '!sortChests', args: ['Alice', 8] });
     assert.match(parseCommandMessage('!sortChests("Alice", 200)'), /must be an element of/);
     assert.deepEqual(parseCommandMessage('!markChest(0, 64, 0, "Alice", "always")'), { commandName: '!markChest', args: [0, 64, 0, 'Alice', 'always'] });

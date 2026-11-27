@@ -173,7 +173,7 @@ try {
         // lip, the bot places a block in front to stand level with it. Which one is the game's chance.
         const dirt = count('dirt');
         const before = await act('test:chest', () => skills.putInChest(bot, 'dirt', 1));
-        assert.match(before.text, /Could not find a chest nearby/);
+        assert.match(before.text, /Could not find a chest( or barrel)? nearby/);
         assert.equal(count('dirt'), dirt);
         await cmd('fill 0 70 6 0 71 6 air'); // a doorway facing the bot
         await delay(800);
