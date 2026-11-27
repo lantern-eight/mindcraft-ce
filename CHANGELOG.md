@@ -18,7 +18,7 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 - Exploring underground: under a roof, a stretch ends at the farthest spot towards the heading where the bot
   has seen room to stand, so it follows the cave it can see instead of walking into rock. Needs world memory.
 - An exploring answer says what the walk came across: the kinds of ground worth naming (water, sand, ores,
-  each kind of log and the like) in view on the way that weren't around where it began.
+  each kind of log and the like) in view or remembered on the way that weren't around where it began.
 - Exploring keeps its heading after a restart: with world memory on, the last walk is saved with the memory
   of the world and dimension it was made in, and `"on"` carries it on.
 - The NPC's item goals explore for what they need (`explore` on): when the block or mob a goal needs isn't

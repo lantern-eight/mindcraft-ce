@@ -75,10 +75,10 @@ You remember sand 180 blocks west, at -40, 63, 2. Go there, or explore another w
   step back and forth round a bend. A way it can see no room along is shut from that spot only: a few steps
   on, round a corner, it may open up. This needs world memory; without it, a stretch underground is a level
   line as on the surface.
-- **It says what it came across.** After each stretch it notes the kinds of ground worth naming in view
-  (water, sand, gravel, clay, snow, ice, ores, each kind of log, mushrooms, pumpkins, terracotta and the
-  like), and the answer lists those that weren't in view or remembered where the walk began: "Came across:
-  sand, birch_log."
+- **It says what it came across.** After each stretch it notes the kinds of ground worth naming within 32
+  blocks, in view or remembered (water, sand, gravel, clay, snow, ice, ores, each kind of log, mushrooms,
+  pumpkins, terracotta and the like), and the answer lists those that weren't there where the walk began:
+  "Came across: sand, birch_log."
 - **It keeps its heading after a restart.** With world memory on, the last walk is saved with the memory of
   the world and dimension it was made in, so `"on"` carries it on after the bot restarts.
 - **It stops when it can't go on:** every way from where it stands was tried and blocked.
