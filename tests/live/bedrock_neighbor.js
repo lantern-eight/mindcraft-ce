@@ -120,6 +120,32 @@ try {
         return { text: result.text.trim() };
     });
 
+    await step('a player lets it break one plank of two: it breaks that one, once, and the other stands', async () => {
+        await reset();
+        await set([0, 1, 2], 'oak_planks');
+        await set([1, 1, 2], 'oak_planks');
+        await delay(1500);
+        const granted = at(0, 1, 2), other = at(1, 1, 2);
+        // What the bot says back, caught for the test; the grant itself is read from the player's own message.
+        const said = [];
+        const openChat = agent.openChat;
+        agent.openChat = text => { said.push(text); };
+        try { await agent.handleMessage('Steve', `!allowBreak ${granted.x} ${granted.y} ${granted.z}`); }
+        finally { agent.openChat = openChat; }
+        assert.match(said.join(' / '), new RegExp(`Okay, Steve: I may break the block at ${granted.x}, ${granted.y}, ${granted.z}, once each`));
+        const broke = await act('test:break', () => skills.breakBlockAt(bot, granted.x, granted.y, granted.z));
+        assert.notEqual(rawName([0, 1, 2]), 'oak_planks', `the granted plank is broken: ${broke.text}`);
+        const refused = await act('test:break', () => skills.breakBlockAt(bot, other.x, other.y, other.z));
+        assert.equal(rawName([1, 1, 2]), 'oak_planks', `the other plank stands: ${refused.text}`);
+        assert.match(refused.text, new RegExp(`refused: .*!allowBreak ${other.x}, ${other.y}, ${other.z}`));
+        // Put back, the granted plank is someone's build again: the grant was used up.
+        await set([0, 1, 2], 'oak_planks');
+        await delay(1500);
+        const again = await act('test:break', () => skills.breakBlockAt(bot, granted.x, granted.y, granted.z));
+        assert.equal(rawName([0, 1, 2]), 'oak_planks', `the grant was used up: ${again.text}`);
+        return { said: said.join(' / '), refused: refused.text.trim() };
+    });
+
     await step('collecting logs fells the tree, and leaves the log cabin beside it standing', async () => {
         await reset(-90); // east
         // A tree to the east: a trunk on grass under a blob of grown leaves.
