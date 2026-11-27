@@ -167,7 +167,9 @@ node tests/live/bedrock_memory.js                      # world memory's look-aro
 node tests/live/bedrock_memory_scenarios.js            # world memory as the agent runs it (about 3 minutes)
 node tests/live/bedrock_fair_play.js                   # fair play as a whole, as the agent runs it
 node tests/live/bedrock_storage.js                     # chest sorting
+node tests/live/bedrock_stow.js                        # putting away and fetching
 node tests/live/bedrock_smelting.js                    # smelting
+node tests/live/bedrock_neighbor.js                    # good-neighbor rules
 node tests/live/bedrock_turning.js                     # work that turns a lot, timed
 node tests/live/bedrock_threats.js                     # the threat reflexes
 node tests/live/bedrock_fight_arena.js                 # how well the bot fights, measured (not in bedrock_all.js)
@@ -221,6 +223,13 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   fights, so `bedrock_all.js` doesn't run it. It changes the world's rules for its run (the bot keeps its
   inventory, respawns at once) and puts them back when it ends; if it was killed before that, start the
   other scripts on a fresh world.
+- **`bedrock_stow.js`** puts things away and fetches them in a storage room of the bot's own chests, a
+  shared one, a player's and one nobody has claimed, and reads the chests back with the test's own hands.
+  The Bedrock twin of `stow_scenarios.js`. On Bedrock a move between a chest and the bot is an item stack
+  request, and part of a stack moved slot to slot goes whole, so a part goes by count.
+- **`bedrock_neighbor.js`** installs good-neighbor rules with fair play and world memory: a player's plank wall
+  that is the only way on stays whole, a plank the bot is told to break is refused with the reason, and
+  collecting logs fells a tree and leaves a log cabin standing. The Bedrock twin of `neighbor_scenarios.js`.
 - **`bedrock_storage.js`** installs chest sorting with fair play and world memory, fills containers from
   the console, has the bot sort them, and reads them back by opening them with the test's own hands: a
   chest of part stacks, a full chest of twenty kinds, and a chest, a double chest, a barrel and a trapped
@@ -231,7 +240,11 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
 - **`bedrock_smelting.js`** installs smelting with fair play and world memory: glass from sand and coal, with
   the bot finding its furnace again while it burns (a burning furnace is another block on Bedrock,
   `lit_furnace`); a furnace in use left alone for a free one; the bot's own furnace placed and picked back
-  up; and a furnace cleared. The Bedrock twin of `smelting_scenarios.js`.
+  up; a furnace cleared; a furnace loaded and left, and collected; and lava from a lava cauldron (Bedrock's
+  one cauldron block, read through its states), with the empty bucket for it in the bag, in the bot's own
+  chest, or on its shelf; sand shared between a row of three furnaces; raw iron taken to a blast furnace over
+  a nearer furnace, and raw beef to a smoker, each in half a furnace's time. The Bedrock twin of
+  `smelting_scenarios.js`.
 
 For a server on another machine, `BEDROCK_TEST_CONSOLE` starts with `ssh <that machine>`. The scenes
 send hundreds of console lines, and ssh's connection sharing (`-o ControlMaster=auto -o
@@ -317,6 +330,17 @@ and the arena) take it away when they end, the bot first brought back down. What
 built stays; for that, `bedrock_spawn_check.js --clear`, or a fresh world (stop the server, delete or move its
 world folder, start it again).
 
+### When the Server Goes Quiet
+
+Now and then the bot's connection goes silent part way through a run, with no error and no disconnect: the
+bot hears of nothing more, so a block set, a mob summoned or an item given never reaches it, and every scene
+after that fails as if the bot or the server had done nothing. The server drops the bot some time later. The
+fixture keeps the time of each bot's last packet: a line `{"connection":"quiet",...}` in the log says when a
+bot heard nothing for over 5 seconds (the server sends something every fraction of a second, 300 ms apart at
+most in a normal run), a failed step says so in its `connection` field, and each summary gives the longest
+silence each bot met (`longestQuietMs`). A failure with that note is the connection's, not what the step
+tests: run the script again.
+
 ## Where Things Are
 
 | | |
@@ -330,7 +354,7 @@ world folder, start it again).
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, a villager's trade window, and letting go of every key (through `setControlState`, as on Java, so that an action the agent stopped can't let go of the keys of the one after it). A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
-| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_smelting.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, and smelting |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js`, `tests/live/bedrock_smelting.js`, `tests/live/bedrock_neighbor.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, putting away and fetching, smelting, and good-neighbor rules |
 | `tests/live/bedrock_all.js`, `tests/live/bedrock_spawn_check.js` | Running all of them in turn; what stands at the world spawn, and clearing it |
 | `tests/live/bedrock-server/` | A throwaway server to run them against: its Docker Compose file and a console that works under emulation |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |

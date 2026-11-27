@@ -63,6 +63,24 @@ test('the newest look wins: an older turn stops where it is, the new one carries
     assert.ok(Math.abs(angleBetween(bot.entity.yaw, -Math.PI / 2)) < 1e-9);
 });
 
+test('a turn ends where the server sets the facing (a teleport): it does not swing the bot back toward the old look', async () => {
+    const { bot, tick } = turner();
+    let done = false;
+    const turning = bot.look(Math.PI, 0).then(() => { done = true; });
+    await new Promise(r => setImmediate(r));
+    await tick();
+    // The server turns the bot east as it moves it, as mineflayer applies a teleport: straight onto the facing.
+    bot.entity.yaw = -Math.PI / 2;
+    for (let i = 0; i < 5 && !done; i++) await tick();
+    await turning;
+    assert.equal(bot.entity.yaw, -Math.PI / 2, 'the facing the server set stands');
+    // A look asked for after the teleport turns as ever, from there.
+    const after = bot.look(-Math.PI / 2 + 0.3, 0);
+    for (let i = 0; i < 10; i++) await tick();
+    await after;
+    assert.ok(Math.abs(angleBetween(bot.entity.yaw, -Math.PI / 2 + 0.3)) < 1e-9);
+});
+
 test('"instant" turns as mineflayer does: one look, at once', async () => {
     const { bot, steps } = turner({ speed: 'instant' });
     await bot.look(Math.PI, 0.2);

@@ -58,7 +58,8 @@ Details that matter:
   each game tick: looking round, turning to a block it is about to dig, the fight and the reflexes alike. So a
   look behind takes time, and what it passes over on the way is what it sees. While its head comes round it
   walks the way it means to go on the keys (a step back, aside, a diagonal), as a player does, rather than
-  the way it faces; and it looks down before it jumps to build a pillar under itself.
+  the way it faces; and it looks down before it jumps to build a pillar under itself. A turn ends where the
+  server sets its facing, as a teleport does, rather than swinging it back toward what it was turning to.
 - **While it walks, it looks a little down,** 25° below level, at the ground a few steps ahead, as a player
   does. Looking level, the ground closer than about 2.3 blocks is below the screen, and the bot would step
   onto ground it had never seen. Touch covers the cells around its feet either way.
@@ -143,6 +144,11 @@ player's legs do.
 - A skill that searches (`!collectBlocks`, `!searchForBlock`, `!searchForEntity`, `!attack`) looks round
   first when it found nothing, or only something more than a step or two away, unless the bot has looked
   every way from about there in the last fifteen seconds. What the bot saw before, memory already answers.
+- Gathering picks up only the drops the bot can see. When a block it broke gave nothing, the bot looks at
+  the floor where the block was, and if no item is to be seen there, steps over to the hole when it is at
+  or below its feet, and looks again. A drop at the bottom of a hole beside the feet can hide behind the
+  block the bot stands on, or below the screen, and it was left on the ground. The bot never knows where
+  the drop is, only where the block was.
 - With world memory on, `!recall("sand")` lists the nearest sand the bot remembers seeing: where, how far,
   which way, how long ago. Searches like `!searchForBlock` use the same memory.
 - "Could not find any sand" now means "haven't seen any". An empty-handed search says so, so the model
@@ -238,8 +244,9 @@ Fair play is honest about what it doesn't cover yet:
 - **The vision camera (`allow_vision`) is Mindcraft's own:** 75° tall on an 800 by 512 picture, about 100°
   across, against fair play's screen of 70° tall at 16:9, about 102° across. Across it is the same; it shows a
   few degrees more above and below.
-- **Good-neighbor rules** (don't break players' builds, loot their chests, or hurt their animals) are
-  planned and not built yet. The `good_neighbor` setting is reserved for them.
+- **Good-neighbor rules** are part built: the bot doesn't break other players' builds
+  ([good-neighbor.md](good-neighbor.md)). Not looting their chests and not hurting their animals are planned,
+  and `protect_chests` and `protect_animals` are reserved for them.
 - **The code runner isn't a CPU sandbox.** Model-written code that loops forever without waiting stalls
   the agent. Keep `allow_insecure_coding` off unless you need it.
 

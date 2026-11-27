@@ -225,7 +225,7 @@ try {
     await step('V6: the chest in the sealed room is not found; once a doorway is opened it is, and the skill works', async () => {
         const dirt = count('dirt');
         const before = await act('test:chest', () => skills.putInChest(bot, 'dirt', 1));
-        assert.match(before.text, /Could not find a chest nearby/);
+        assert.match(before.text, /Could not find a chest( or barrel)? nearby/);
         assert.equal(count('dirt'), dirt);
         await fill([0, 1, 6], [0, 2, 6], 'air'); // a doorway facing the bot
         await delay(800);
@@ -247,7 +247,7 @@ try {
         await cmd('time set midnight'); // so it doesn't burn
         await tpTo([0, 1, -3], 180);
         const bottom = at(0, low[1], (low[2] + high[2]) / 2);
-        await cmd(`summon zombie ${bottom.x + 0.5} ${bottom.y} ${bottom.z + 0.5}`, 1500);
+        await cmd(`summon zombie ${bottom.x + 0.5} ${bottom.y} ${bottom.z + 0.5} 0 0 minecraft:as_adult`, 1500);
         const zombies = () => Object.values(bot.entities).filter(e => e.name === 'zombie' && e.position.distanceTo(bottom) < 3);
         assert.equal(zombies().length, 1, 'the raw bot knows about the zombie');
         const start = bot.entity.position.clone();

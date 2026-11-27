@@ -136,10 +136,21 @@ try {
         await cmd(`clear ${NAME}`);
         await cmd(`effect clear ${NAME}`);
         await cmd(`effect give ${NAME} instant_health 1 5`);
+        // Idle before the bot is put on its spot, and on it still once the last scene's hold has ended: a move
+        // still running took it off again. Once the bot began a creeper scene against the arena's east wall,
+        // 19 blocks from its spot and past where the creeper came in, so the creeper came at it from behind,
+        // unseen, and hissed with no way left to run.
+        await waitFor(() => !agent.actions.executing, 15000, () => `still running ${agent.actions.currentActionLabel}`);
         await cmd(`tp ${NAME} ${x} 70 ${z} ${facing} 0`);
         await cmd(`tp ${OTHER} 30.5 70 30.5`);
         await waitFor(() => !agent.actions.executing, 15000, () => `still running ${agent.actions.currentActionLabel}`);
         await delay(2000); // the hold from the last scene has ended, and the bot has looked around
+        if (flat(bot.entity.position, { x, z }) > 1) {
+            console.log(`The bot was off its spot after the reset, at ${bot.entity.position}: put back.`);
+            await cmd(`tp ${NAME} ${x} 70 ${z} ${facing} 0`);
+            await delay(500);
+        }
+        assert.ok(flat(bot.entity.position, { x, z }) <= 1, `the bot is on its spot: ${bot.entity.position}`);
         // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
         // and through a player's screen which way it faces decides what it sees.
         await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);
