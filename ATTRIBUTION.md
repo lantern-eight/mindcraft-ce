@@ -114,6 +114,12 @@ No code was copied for these. They are credited because the work builds on them.
   location** come from the memory archive once in the
   [`milkucha/mindcraft-ce-topography`](https://github.com/milkucha/mindcraft-ce-topography) fork. Ideas only,
   no code: used by `src/agent/memory/told.js` and `!rememberToldPlace`, which only a player can prompt.
+- **Reading Xaero's Minimap's shared waypoint line from chat, with no model call, and its dimension from the
+  waypoint set's name** come from the protection chat in the [`LarsHamb/mindcraft-ce`](https://github.com/LarsHamb/mindcraft-ce)
+  fork (`npc-26.3` branch, `src/agent/library/protection_chat.js`, MIT), and **JourneyMap's pasted
+  `[name:..., x:..., y:..., z:..., dim:...]` form** from the JourneyMap import in the
+  [`luv2crawl/mindcraft-rip`](https://github.com/luv2crawl/mindcraft-rip) fork. The parsing is written afresh.
+  Used by `src/agent/memory/waypoints.js`.
 
 - **The furnace's recipes, fuel by kind (coal and charcoal 8 items, planks and logs 1.5, Nether wood never),
   batches of a stack, a furnace in use being one with another item in it, and emptying only the bot's own

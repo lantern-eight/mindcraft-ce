@@ -14,6 +14,8 @@
 // Everything here is text built from the store. Nothing reads the live world.
 import { isCrop, isHerdAnimal, kindOf } from './kinds.js';
 import { confirm, parseWhere, seenSpot } from './told.js';
+import { loadPlaces } from './places.js';
+import { scopeDir } from './files.js';
 
 export const ago = ms => {
     const seconds = Math.round(ms / 1000);
@@ -187,6 +189,59 @@ export function tellPlace(memory, here, name, where, behind = {}) {
         + `You haven't seen it; it will count as seen once you have. !goToPlace("${label}") goes there.`;
 }
 
+const DIMENSION_LABELS = { overworld: 'the Overworld', the_nether: 'the Nether', the_end: 'the End' };
+
+/**
+ * A waypoint a player shared in chat (waypoints.js) becomes a told place, as if they had said where it is.
+ * One in another dimension goes into that dimension's places, for when the bot is there.
+ * @param {object} options
+ * @param {object|null} options.memory - the open memory; null when world memory is off
+ * @param {object} options.here - the bot's position
+ * @param {string} options.scope - the open memory's scope, ending in its dimension (fairplay/install.js `scopeOf`)
+ * @param {string} options.baseDir - the folder holding every scope's memory
+ * @param {string} options.player - who shared it
+ * @param {{name: string, spot: object, dimension: string|null, format: string}} options.waypoint
+ * @returns {string|null} the chat answer, or null to leave the message to the model
+ */
+export function tellWaypoint({ memory, here, scope, baseDir, player, waypoint }) {
+    if (!memory || !scope) return null;
+    const { name, spot, format } = waypoint;
+    const current = scope.split('/').at(-1);
+    const dimension = waypoint.dimension ?? current;
+    if (dimension !== current) {
+        // Another dimension's memory is shut while the bot is here: open its places, tell, and save.
+        const other = scope.replace(/[^/]+$/, dimension);
+        const dir = scopeDir(baseDir, other);
+        const places = loadPlaces(dir, { scope: other });
+        const { taken } = places.tell(name, spot, { by: player });
+        const label = DIMENSION_LABELS[dimension] ?? dimension;
+        if (taken) return `I already have a place called "${name}" in ${label}. Share it under another name to keep it too.`;
+        places.save(dir);
+        memory.changes.note(`${player} shared a ${format} waypoint: "${name}" at ${toldAt(spot)} in ${label}. It is saved with `
+            + `that dimension's places, as told, for when you are there.`);
+        return `Got it, ${player}: "${name}" at ${toldAt(spot)} in ${label}.`;
+    }
+    const text = tellPlace(memory, here, name, `${spot.x} ${spot.y ?? ''} ${spot.z}`, { asked: true, by: player });
+    const place = memory.places.byName(name);
+    memory.changes.note(`${player} shared a ${format} waypoint. ${text}`);
+    if (place?.kind === 'told') return `Got it, ${player}: "${name}" at ${toldAt(spot)}. I haven't seen it yet.`;
+    if (place?.told?.by === player) return `Got it, ${player}: "${name}" at ${toldAt(spot)}. I've seen that spot already.`;
+    return `I already have a place called "${name}". Share it under another name to keep it too.`;
+}
+
+/**
+ * !forgetPlace: takes back a place the bot was told of and hasn't seen. A place it saw is kept: a name can be
+ * given to it again with !namePlace, but what it saw stays in memory.
+ */
+export function forgetPlace(memory, name) {
+    const place = memory.places.byName(name);
+    const label = String(name ?? '').trim();
+    if (!place) return `You don't know a place called "${label}". !places lists the ones you know.`;
+    if (place.kind !== 'told') return `"${place.name}" is a place you have seen yourself, so it stays. Only a told place you haven't seen yet can be forgotten.`;
+    memory.places.untell(place.id);
+    return `Forgot "${place.name}"${place.told?.by ? `, which ${place.told.by} told you of` : ''}.`;
+}
+
 /**
  * !goToPlace: walks to a place by name, whether the bot saw it or was told of it.
  * @param {object} agent
@@ -262,6 +317,13 @@ export const rememberToldPlaceCommand = {
     },
     perform: (agent, name, where) => (memoryOf(agent)
         ? tellPlace(memoryOf(agent), agent.bot.entity.position, name, where, agent.fairPlay?.asker?.() ?? {}) : OFF),
+};
+
+export const forgetPlaceCommand = {
+    name: '!forgetPlace',
+    description: 'Forget a place you were told of and haven\'t seen, when a player takes it back or it was a mistake.',
+    params: { 'name': { type: 'string', description: 'The name of the told place.' } },
+    perform: (agent, name) => (memoryOf(agent) ? forgetPlace(memoryOf(agent), name) : OFF),
 };
 
 export const namePlaceCommand = {
