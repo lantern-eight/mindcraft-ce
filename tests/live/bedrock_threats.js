@@ -164,7 +164,8 @@ try {
         // Standing orders given in a scene are kept in a folder of its own, never the bot's real one.
         reflexes = installThreatReflexes(agent, { ordersDir: mkdtempSync(path.join(tmpdir(), 'bedrock-threat-orders-')) });
         assert.ok(reflexes, 'the threat reflexes installed');
-        bot.on('threat_reflex', event => events.push(event));
+        // With where the bot stood at each, so a retreat that went the wrong way says where it set out from.
+        bot.on('threat_reflex', event => events.push({ ...event, here: bot.entity?.position?.clone() }));
         bot.on('health', () => { lowestHealth = Math.min(lowestHealth, bot.health); });
         // A hit the bot's shield stopped: the shield's block sound, where the bot stands.
         bot._client.on('level_sound_event', packet => {
@@ -466,7 +467,10 @@ try {
         const nearest = Math.min(...zombies.map(z => flat(bot.entity.position, z.position)));
         const ended = events.find(e => e.event === 'done' && e.mode === 'mob_safety')?.ended;
         const where = p => `${(p.x - origin.x).toFixed(1)},${(p.z - origin.z).toFixed(1)}`;
-        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest (${ended}), the bot at ${where(bot.entity.position)} and the zombies at ${zombies.map(z => where(z.position)).join(' and ')}; moves: ${JSON.stringify(events.filter(e => e.event === 'step').map(e => e.how))}; zones: ${JSON.stringify(reflexes.zones.list().map(z => z.kind))}`);
+        // How the retreat was decided: from where, against which threats, as the bot believed them.
+        const retreat = decided.find(e => e.mode === 'mob_safety');
+        const setOut = retreat ? `set out from ${where(retreat.here)} away from ${retreat.from.map(where).join(' and ')}` : 'no retreat decided';
+        assert.ok(nearest >= 10, `ended ${nearest.toFixed(1)} from the nearest (${ended}), the bot at ${where(bot.entity.position)} and the zombies at ${zombies.map(z => where(z.position)).join(' and ')}; ${setOut}; decided: ${JSON.stringify(decided.map(e => `${e.mode}:${e.stance ?? e.key}`))}; moves: ${JSON.stringify(events.filter(e => e.event === 'step').map(e => `${e.how} at ${e.here ? where(e.here) : '?'}`))}; zones: ${JSON.stringify(reflexes.zones.list().map(z => z.kind))}`);
         return { endedFromNearest: Number(nearest.toFixed(1)), ended, stances: decided.map(e => `${e.mode}:${e.stance}`) };
     });
 

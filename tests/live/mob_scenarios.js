@@ -335,7 +335,11 @@ try {
             await lookAbout(); // the bot sees its pen
             const blocksBefore = blocked;
             await cmd('summon skeleton 5.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
-            await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => JSON.stringify(events));
+            // When no cover is ever looked for: where the bot is and faces, where the skeleton is, and whether the bot
+            // sees it, beside what the reflexes did.
+            const skeletons = () => Object.values(bot.entities).filter(e => e.name === 'skeleton')
+                .map(e => `(${e.position.x.toFixed(1)}, ${e.position.z.toFixed(1)}${fair.perception.seesEntity(e) ? ', in view' : ', not in view'})`);
+            await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => `the bot at (${bot.entity.position.x.toFixed(1)}, ${bot.entity.position.z.toFixed(1)}) facing ${Math.round(bot.entity.yaw * 180 / Math.PI)}, skeletons at ${skeletons().join(', ') || 'none'}, damage ${damage.toFixed(1)}: ${JSON.stringify(events)}`);
             await delay(12000);
             const raised = events.filter(e => e.event === 'shield').length;
             const fell = events.filter(e => e.event === 'cover').map(e => e.ended);
@@ -397,7 +401,18 @@ try {
     // The health the bot had at each reflex's decision, to tell a crowd retreat the order allowed (under its
     // minimum) from one it should have prevented.
     const healthAtDecisions = [];
-    bot.on('threat_reflex', event => { if (event.event === 'decided') healthAtDecisions.push({ mode: event.mode, key: event.key, health: bot.health }); });
+    // With, for a decision to back away, what the bot was doing and which zombies it could see: a retreat while
+    // fit says whether the bot was chasing, glancing, or blind to the one behind it.
+    bot.on('threat_reflex', event => {
+        if (event.event !== 'decided') return;
+        const decision = { mode: event.mode, key: event.key, health: bot.health };
+        if (event.mode === 'mob_safety') Object.assign(decision, {
+            yaw: Math.round(bot.entity.yaw * 180 / Math.PI), pathing: Boolean(bot.pathfinder.isMoving?.()), action: agent.actions.currentActionLabel ?? null,
+            zombies: raw('zombie').map(z => `${z.id} ${z.position.distanceTo(bot.entity.position).toFixed(1)} off${fair.perception.seesEntity(z) ? ', in view' : ''}`),
+            glances: events.filter(e => e.event === 'glance').map(e => e.why),
+        });
+        healthAtDecisions.push(decision);
+    });
     const { getCommand } = await import('../../src/agent/commands/index.js');
     const order = (...args) => getCommand('!setThreatRule').perform(agent, ...args);
 
