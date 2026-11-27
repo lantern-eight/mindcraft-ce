@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { strictFormat } from '../utils/text.js';
 import { getKey } from '../utils/keys.js';
+import { markTextRequest } from './prompt_cache.js';
 
 export class Claude {
     static prefix = 'anthropic';
@@ -17,11 +18,14 @@ export class Claude {
         this.anthropic = new Anthropic(config);
     }
 
-    async sendRequest(turns, systemMessage) {
+    // `cache`, given only by the prompter's prompt caching (prompt_cache.js): { fresh }, the text sent once after
+    // the conversation. Without it the request is sent as before.
+    async sendRequest(turns, systemMessage, { cache } = {}) {
         const messages = strictFormat(turns);
         // Claude 4.6 and later reject a request that ends on an assistant turn (a prefill), so close it with
         // a user turn. Ported from r77tchan/mindcraft (MIT), as are the retry and refusal handling below.
-        if (messages[messages.length - 1].role === 'assistant')
+        const closed = messages[messages.length - 1].role === 'assistant';
+        if (closed)
             messages.push({role: 'user', content: '_'});
         // The default goes in a copy: the native tool path reads this.params as well, and a default written
         // into it here used to become that path's limit too.
@@ -31,17 +35,20 @@ export class Claude {
             // think by default and that thinking counts toward max_tokens, so 4,096 cut long turns short.
             params.max_tokens = params.thinking?.budget_tokens ? params.thinking.budget_tokens + 1000 : 16000;
         }
+        let request = {
+            model: this.model_name || "claude-sonnet-4-6",
+            system: systemMessage,
+            messages: messages,
+            ...params
+        };
+        // The closing turn is sent once only, so it stays out of the cache.
+        if (cache) request = markTextRequest(request, { ...cache, uncachedTail: closed ? 1 : 0 });
         let res = null;
         try {
             console.log(`Awaiting anthropic response from ${this.model_name}...`)
             // Newer models now and then end a turn with no text at all; one more try fixes it.
             for (let attempt = 1; attempt <= 2; attempt++) {
-                const resp = await this.anthropic.messages.create({
-                    model: this.model_name || "claude-sonnet-4-6",
-                    system: systemMessage,
-                    messages: messages,
-                    ...params
-                });
+                const resp = await this.anthropic.messages.create(request);
 
                 console.log('Received.')
                 if (resp.stop_reason === 'refusal') {

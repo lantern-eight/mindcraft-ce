@@ -9,7 +9,7 @@ How a fix is made and offered is in [CLAUDE.md](../CLAUDE.md), "Fixes to Inherit
 unreleased work, and the release each waits for, are in
 [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch).
 
-*As of `1.22.0-bedrock.1.24.0`.* A line is removed once its fix is merged upstream and this fork is on a release
+*As of `1.23.0-bedrock.1.25.0`.* A line is removed once its fix is merged upstream and this fork is on a release
 that has it. A fix that is declined stays on `main`, and its line says so.
 
 ## Mindcraft-CE
@@ -29,6 +29,7 @@ holds the fix and nothing else.
 | [#152](https://github.com/mindcraft-ce/mindcraft-ce/pull/152) | Claude 4.6 and later on the text path: no request ending on the bot's own turn, 16,000 tokens by default (kept out of the tool path's parameters), a refusal said as one, one retry after an empty reply. Ported from r77tchan's fork |
 | [#153](https://github.com/mindcraft-ce/mindcraft-ce/pull/153) | The same on the native tool path: no request ending on the bot's own turn, 16,000 tokens by default, a refusal raised as declined |
 | [#154](https://github.com/mindcraft-ce/mindcraft-ce/pull/154) | Usage counts prompt cache writes per role and prices them by `cache_write_per_million` when the rates give one |
+| [#155](https://github.com/mindcraft-ce/mindcraft-ce/pull/155) | With native tools off, the conversing prompt puts its fixed instructions and the command list before the parts that change each turn, so providers that cache a repeated start can reuse them |
 
 ### Merged, With a Difference Kept
 

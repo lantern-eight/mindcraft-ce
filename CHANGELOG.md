@@ -9,6 +9,27 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.23.0-bedrock.1.25.0] - 2026-11-27
+
+Prompt caching for the legacy `!command` mode, for both editions: Claude reads each step of a task from its
+cache there too, and other providers can reuse the start of the prompt. Built on the same Mindcraft-CE commit
+as 1.22.0-bedrock.1.24.0.
+
+### Added
+
+- Prompt caching for Claude in the legacy `!command` mode too (`use_function_calling: false`): the system prompt
+  and the conversation so far are marked for the cache, and the stats, inventory and examples of each turn go
+  once after the conversation instead of inside the system prompt. Each step of a task then reads about 95% of
+  its prompt from the cache, where it read none. Coding requests work the same way. `prompt_caching` `"off"`
+  sends the request as before.
+
+### Changed
+
+- With native tools off (`use_function_calling: false`), the conversing prompt puts its fixed instructions and the
+  command list first, and the goal, memory summary, stats, inventory and examples after them. Providers that
+  cache a repeated start of a request by themselves (OpenAI, DeepSeek, Gemini, local servers) can then reuse
+  the command list, the largest part, on every call instead of only the first few lines.
+
 ## [1.22.0-bedrock.1.24.0] - 2026-11-26
 
 Prompt caching for Claude, and fixes to how the bot's requests are laid out, for both editions. With native
@@ -1375,7 +1396,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.22.0-bedrock.1.24.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.23.0-bedrock.1.25.0...HEAD
+[1.23.0-bedrock.1.25.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.22.0-bedrock.1.24.0...v1.23.0-bedrock.1.25.0
 [1.22.0-bedrock.1.24.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...v1.22.0-bedrock.1.24.0
 [1.21.1-bedrock.1.23.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.0-bedrock.1.22.0...v1.21.1-bedrock.1.23.0
 [1.21.0-bedrock.1.22.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.20.1-bedrock.1.21.1...v1.21.0-bedrock.1.22.0
