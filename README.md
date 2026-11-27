@@ -161,7 +161,7 @@ node tests/live/fairplay_scenarios.js
 | `narrow_view_scenarios.js` | A player's field of view (`fov_degrees` 70): what is behind the bot unknown to perception and memory until it turns, turning to dig, open and build against a block behind it, refused behind a wall, and turning round toward an enderman without staring |
 | `look_first_scenarios.js` | Skills given a spot by its coordinates look before they decide; `digDown`'s staircase; `goToSurface` |
 | `travel_scenarios.js` | Ordinary travel and picking items up, with fair play off |
-| `explore_scenarios.js` | `!explore` and `!exploreFor`: a heading kept, a wall gone round, a lake not swum into, sand found and remembered |
+| `explore_scenarios.js` | `!explore` and `!exploreFor`: a heading kept, a wall gone round, a lake not swum into, sand found and remembered, a lake seen earlier turned from before reaching it, a bending tunnel followed |
 | `turning_scenarios.js` | Work that turns a lot, timed at the bot's turning speed: gathering from a tree ahead, one behind and a boulder beside, a bridge one block wide, a ladder, and a gap to jump; a fall or a stall fails it |
 | `mining_scenarios.js` | Mining and digging |
 | `villager_scenarios.js` | A villager's job, level and age, as a real server sends them |
