@@ -11,6 +11,8 @@ import { lookBeforeSearch } from '../library/search_look.js';
 import { newGroundAlong } from './heading.js';
 import { LEG } from './explorer.js';
 
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 const STALL_MS = 8000;         // a leg that hasn't moved a block in this long is stuck: end it and try another way
 const SWIM_MS = 5000;          // swimming this long without a break is setting out to sea, not crossing a stream
 const SHORE_MS = 15000;        // how long the swim back to the shore may take before the next try starts anyway
@@ -23,6 +25,7 @@ const DROP = 8;                // a leg's end this far below the bot's level, ov
 const ROOF = 24;               // how far above the head a roof makes the bot underground
 const CAVE_MIN = 3;            // underground, a spot nearer than this is no way on
 const BEEN = 4;                // underground, a spot this near one where the bot has stood or been sent is not gone to again
+const TAKE_IN_MS = 5000;       // the longest a leg underground waits for memory to take in what is in view
 const LOOK_DEPTH = 16;         // how far down open air is known over ground the bot looked at (as route planning asks)
 
 // The kinds of ground worth naming when a walk comes across them: what a player exploring would mention.
@@ -62,11 +65,13 @@ export function targetsOf(registry, what) {
  * @param {object} [options]
  * @param {{blocks: string[], mobs: string[]}|null} [options.targets] - what to look for
  * @param {object|null} [options.memory] - world memory, open for this world, or null
+ * @param {object|null} [options.recorder] - world memory's recorder (its `busy`), so that underground a leg is
+ *   chosen from what the bot sees where it stands, not from what memory held before it got there
  * @param {number} [options.swimMs], [options.stallMs], [options.watchMs], [options.shoreMs] - the limits above, shorter in tests
  * @param {(bot: object) => object} [options.movements] - the pathfinder movements to walk with (tests hand in a stand-in)
  */
-export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS, stallMs = STALL_MS, watchMs = WATCH_MS, shoreMs = SHORE_MS,
-    movements = exploreMovements } = {}) {
+export function realLegs(bot, { targets = null, memory = null, recorder = null, swimMs = SWIM_MS, stallMs = STALL_MS, watchMs = WATCH_MS,
+    shoreMs = SHORE_MS, movements = exploreMovements, takeInMs = TAKE_IN_MS } = {}) {
     const position = () => bot.entity.position;
     const here = () => ({ x: position().x, y: position().y, z: position().z });
 
@@ -92,6 +97,8 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
         let goal = new pf.goals.GoalNearXZ(point.x, point.z, 2);
         if (memory?.cells && underground()) {
             stood.push(here());
+            await takeIn();
+            if (bot.interrupt_code) return 'interrupted';
             const spot = caveSpot(point);
             if (!spot) return 'unseen';
             goal = new pf.goals.GoalNear(spot.x, spot.y, spot.z, 1);
@@ -159,6 +166,19 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
             if (room) return { x: at.x, y: at.y + 1, z: at.z };
         }
         return null;
+    }
+
+    // Memory takes in what is in view a slice at a time, on a timer, and a look begun before the bot got here
+    // covers where it was. Round a bend the passage on is only in memory once a look from here is done, so
+    // this waits for that, as `!goToPlace` does after arriving: the look begun before, then the one from here.
+    async function takeIn() {
+        if (!recorder) return;
+        const until = async (done, ms) => {
+            for (let waited = 0; !done() && waited < ms && !bot.interrupt_code; waited += 100) await delay(100);
+        };
+        await until(() => !recorder.busy, takeInMs);
+        await until(() => recorder.busy, 400);   // starts on the recorder's next slice, if anything is new
+        await until(() => !recorder.busy, takeInMs);
     }
 
     // Under a roof: something solid the bot knows of above its head, other than leaves (a forest is not a

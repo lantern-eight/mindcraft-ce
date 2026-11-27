@@ -54,6 +54,7 @@ take it, until the bot sees its top bare.
 | Where | What it covers |
 |---|---|
 | The pathfinder's "may I break this block?" | Every route by every skill: walks, block collecting, getting past a blockage on a remembered way. It also decides which blocks `!collectBlocks` may take, so it fells trees and leaves cabins |
+| A remembered way that is blocked | With [world memory](world-memory.md) on: when someone's block stands across a way the bot walked before, the bot neither digs past it nor round it, and the rest of that trip digs nothing at all, so it can't tunnel through the natural ground beside a wall into someone's base. It says what blocks the way and goes by another way it knows, or stops |
 | The bot's own dig | Commands, skills and model-written code, and the pathfinder's digging when its plan was made before the bot could see what it was digging |
 
 ## Is It Fair?

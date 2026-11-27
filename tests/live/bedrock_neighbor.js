@@ -6,7 +6,8 @@
 //
 // The Bedrock twin of neighbor_scenarios.js: a player's plank wall that is the only way on stays whole, a
 // plank the bot is told to break is refused with the reason, and collecting logs fells a tree and leaves a
-// log cabin beside it standing. Bedrock names blocks and keeps leaves' state its own way, which the edition
+// log cabin beside it standing; and a way the bot walked that someone walls up with planks as it watches is
+// neither dug through nor round on the way back. Bedrock names blocks and keeps leaves' state its own way, which the edition
 // seam answers; this checks the answers hold on a real server. The tree is built from the console, since a
 // Bedrock console can't be trusted to pass a feature's name: leaves set there are grown leaves, as a tree's are.
 import assert from 'node:assert/strict';
@@ -138,6 +139,40 @@ try {
         const felled = treeLogs - countIn('oak_log', ...tree);
         assert.ok(felled >= 1, `some of the tree was felled: ${result.text}`);
         return { felled, text: result.text.trim().slice(-200) };
+    });
+    await step('a way walked before, walled up with planks as the bot watches, is neither dug through nor round', async () => {
+        await reset(-90);
+        // A U-shaped corridor in stone, roofed: arm A east along z -2, arm B back west along z 2, joined at
+        // x 10, with dirt between the arms. The far end of arm B is four blocks from the near end of arm A
+        // through the dirt.
+        await fill([-12, 1, -5], [12, 4, 5], 'stone');
+        await fill([-10, 1, -2], [10, 2, -2], 'air');
+        await fill([-10, 1, 2], [10, 2, 2], 'air');
+        await fill([10, 1, -2], [10, 2, 2], 'air');
+        await fill([-10, 1, -1], [9, 2, 1], 'dirt');
+        await tpTo([-10, 1, -2], -90);
+        const go = cell => act('test:go', () => skills.goToPosition(bot, at(...cell).x, at(...cell).y, at(...cell).z, 0));
+        const walks = [];
+        for (const cell of [[10, 1, -2], [10, 1, 2], [-10, 1, 2], [10, 1, 2], [10, 1, -2], [-10, 1, -2]]) {
+            const walked = await go(cell);
+            const p = bot.entity.position.minus(origin);
+            walks.push(`${cell} -> ${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}: ${walked.text?.trim().split('\n').at(-1)}`);
+        }
+        assert.ok(bot.entity.position.distanceTo(at(-10, 1, -2).offset(0.5, 0, 0.5)) <= 1.5, `the bot walked the corridor and back: ${walks.join(' | ')}`);
+        // Then to the far end, where it has stood, facing down arm B as a player watching it would. (Put there,
+        // not walked: the scene is about the way back. By way of a spot far off, so that the trail takes it for
+        // the jump it is, not a walk of four blocks through the dirt.)
+        await tpTo([12, 6, 12], -90, 1500);
+        await tpTo([-10, 1, 2], -90, 2500);
+        await fill([0, 1, 2], [0, 2, 2], 'oak_planks');
+        await delay(3000);
+        const dirt = countIn('dirt', [-10, 1, -1], [9, 2, 1]);
+        const result = await go([-10, 1, -2]);
+        assert.match(result.text, /The way you walked before is blocked near .*: oak_planks someone built\./, result.text.trim().split('\n').join(' / '));
+        assert.match(result.text, /won't dig past or round it/);
+        assert.equal(countIn('oak_planks', [0, 1, 2], [0, 2, 2]), 2, 'the planks are where they were put');
+        assert.equal(countIn('dirt', [-10, 1, -1], [9, 2, 1]), dirt, 'and none of the dirt beside them was dug');
+        return { said: result.text.split('\n').filter(line => /blocked|dig/.test(line)) };
     });
 } catch (error) {
     console.error(error);
