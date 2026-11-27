@@ -143,7 +143,7 @@ test('underground with no room seen that way, the way counts as blocked without 
     const { bot, goals } = pretendBot();
     bot.blockAt = pos => (pos.y >= 68 ? { name: 'stone', boundingBox: 'block', position: pos } : { name: 'air', boundingBox: 'empty', position: pos });
     const legs = realLegs(bot, { ...quick, memory: pretendMemory(() => null) });
-    assert.equal(await legs.walk({ x: -32, y: 64, z: 0 }), 'no_path');
+    assert.equal(await legs.walk({ x: -32, y: 64, z: 0 }), 'unseen');
     assert.equal(goals.length, 0);
 });
 

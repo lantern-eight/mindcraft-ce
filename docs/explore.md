@@ -62,16 +62,19 @@ You remember sand 180 blocks west, at -40, 63, 2. Go there, or explore another w
   ravine, has no dry way there, and the pathfinder would walk all the way round looking for one. Once a
   stretch has walked two and a half times its length, it ends there and the bot tries another way.
 - **It doesn't set out for what it remembers is in the way.** With world memory on, before each stretch it
-  checks what it remembers at the stretch's end: water or lava where the ground should be, or a drop of more
-  than 8 blocks over open air. A person who saw a lake from the hill doesn't walk down to its shore to find
+  checks what it remembers on the stretch's far half (halfway, three quarters, the end): water or lava where
+  the ground should be, or a drop of more than 8 blocks over open air. Memory reaches about as far as a look
+  round, so a lake across the way is often remembered only at its near shore; that is enough. A person who saw a lake from the hill doesn't walk down to its shore to find
   out. It tries the stretch at half its length, then the next way round. When memory says every way is bad,
   it walks the first anyway: memory can be out of date, and the walk turns back from what is really there.
   The answer says what it turned from: "water to the east", "lava to the north", "a drop to the west".
 - **Underground, it follows the open air it has seen.** Under a roof (something solid over its head that
   isn't leaves), a level line runs into rock the bot has never seen. A stretch there ends at the farthest
   spot towards its heading where the bot has seen room to stand, as a person in a cave follows the passage
-  they can see. With no such spot, that way counts as blocked. This needs world memory; without it, a
-  stretch underground is a level line as on the surface.
+  they can see, however short. It never goes back to a spot it has stood on during the walk, so it doesn't
+  step back and forth round a bend. A way it can see no room along is shut from that spot only: a few steps
+  on, round a corner, it may open up. This needs world memory; without it, a stretch underground is a level
+  line as on the surface.
 - **It says what it came across.** After each stretch it notes the kinds of ground worth naming in view
   (water, sand, gravel, clay, snow, ice, ores, each kind of log, mushrooms, pumpkins, terracotta and the
   like), and the answer lists those that weren't in view or remembered where the walk began: "Came across:

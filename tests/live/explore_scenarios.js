@@ -13,6 +13,8 @@
 //   3. A lake across the way: the bot walks round it rather than swimming across.
 //   4. Sand behind the bot as it sets out: exploring for sand finds it and stops.
 //   5. Sand the bot remembers, farther than a search looks: it says where, and doesn't set out.
+//   6. A lake the bot saw from its shore earlier: exploring that way, it turns aside before reaching it.
+//   7. A tunnel that bends, under a stone roof: the bot follows the passage it sees, and digs none of it.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -201,6 +203,8 @@ try {
         if (LIVE_VIEW === 'narrow') assert.match(trip.text, found);
         else assert.ok(found.test(trip.text) || new RegExp(`^sand is .* at ${SAND.x}, ${G - 1}, ${SAND.z}\\. No need to explore`).test(trip.text), trip.text);
         assert.ok(trip.dx < SAND.x + 24, `stopped instead of walking on: ${JSON.stringify(trip)}`);
+        // Through a player's screen, the sand was out of sight at the start: it is something the walk came across.
+        if (LIVE_VIEW === 'narrow') assert.match(trip.text, /Came across: (.*, )?sand\b/);
         return trip;
     });
 
@@ -212,6 +216,54 @@ try {
         assert.equal(trip.outcome, 'ok', trip.text);
         assert.match(trip.text, new RegExp(`^You remember sand 1\\d\\d blocks east, at ${SAND.x}, ${G - 1}, ${SAND.z}`));
         assert.ok(Math.abs(trip.dx) <= 1 && Math.abs(trip.dz) <= 1, 'it stayed where it was');
+        return trip;
+    });
+
+    // ---- 6. A lake it remembers ----
+    await step('6: a lake the bot saw earlier is turned from before it gets there, not waded into', async () => {
+        const Z = 1200, X = 40;
+        await build(X, Z - 12, X + 60, Z + 12, [`fill ${X} ${G - 3} ${Z - 12} ${X + 60} ${G - 1} ${Z + 12} water`]);
+        await placeAt(X - 3, Z);    // on the shore, facing the lake: it sees the water and remembers it
+        await settled();
+        await placeAt(X - 34, Z);   // then away from it, out of sight of the water's edge
+        await settled();
+        const trip = await run(exploreCommand, ['east', 96]);
+        assert.match(trip.text, /water to the east/, trip.text);
+        assert.ok(trip.swimSeconds <= 1, `it waded in for ${trip.swimSeconds} s: ${JSON.stringify(trip)}`);
+        return trip;
+    });
+
+    // ---- 7. A cave ----
+    await step('7: underground, the bot follows a tunnel that bends, and digs none of it', async () => {
+        const Z = 1500;
+        // A block of stone over the ground, with a tunnel three wide and two high carved through it: east 20,
+        // north 30, then east again to its end.
+        await build(-6, Z - 36, 70, Z + 4, [
+            `fill -6 ${G} ${Z - 36} 70 ${G + 5} ${Z + 4} stone`,
+            `fill -2 ${G} ${Z - 1} 21 ${G + 1} ${Z + 1} air`,
+            `fill 19 ${G} ${Z - 31} 21 ${G + 1} ${Z} air`,
+            `fill 19 ${G} ${Z - 31} 66 ${G + 1} ${Z - 29} air`,
+        ]);
+        await placeAt(0, Z);
+        await settled();
+        const trip = await run(exploreCommand, ['east', 96], { deadlineMs: 240000 });
+        const holes = [];
+        for (let x = -6; x <= 70; x += 4) for (let z = Z - 36; z <= Z + 4; z += 4) {
+            // A chunk the bot has gone far from may be unloaded on its side (no block): not a hole.
+            const name = rawName(x, G + 3, z);
+            if (name !== undefined && name !== 'stone') holes.push(`${x},${z}:${name}`);
+        }
+        const tunnel = [];
+        for (let x = -6; x <= 70; x++) for (let z = Z - 36; z <= Z + 4; z++) for (const y of [G, G + 1]) {
+            const open = (x >= -2 && x <= 21 && z >= Z - 1 && z <= Z + 1) || (x >= 19 && x <= 21 && z >= Z - 31 && z <= Z)
+                || (x >= 19 && x <= 66 && z >= Z - 31 && z <= Z - 29);
+            const name = rawName(x, y, z);
+            if (!open && name !== undefined && name !== 'stone') tunnel.push([x, y, z]);
+        }
+        assert.deepEqual(holes, [], 'the rock above is whole');
+        assert.deepEqual(tunnel.slice(0, 5), [], 'nothing dug out of the rock beside the tunnel');
+        assert.ok(trip.dx >= 30 && trip.dz <= -25, `followed the tunnel round its bend: ${JSON.stringify(trip)}`);
+        assert.ok(['ok', 'blocked'].includes(trip.outcome), trip.text);
         return trip;
     });
 

@@ -21,7 +21,9 @@ const SIGHT = 64;              // how far a thing looked for counts as found: as
 const KINDS_REACH = 32;        // how far round the bot the kinds of ground worth naming are looked for
 const DROP = 8;                // a leg's end this far below the bot's level, over open air, is a drop
 const ROOF = 24;               // how far above the head a roof makes the bot underground
-const CAVE_MIN = 8;            // underground, a leg ends at least this far off, or the way counts as blocked
+const CAVE_MIN = 3;            // underground, a spot nearer than this is no way on
+const BEEN = 4;                // underground, a spot this near one where the bot has stood or been sent is not gone to again
+const LOOK_DEPTH = 16;         // how far down open air is known over ground the bot looked at (as route planning asks)
 
 // The kinds of ground worth naming when a walk comes across them: what a player exploring would mention.
 // Not every block: stone and grass are everywhere, and a list of them says nothing.
@@ -89,9 +91,11 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
         // so the leg ends at the farthest spot that way the bot has seen room to stand.
         let goal = new pf.goals.GoalNearXZ(point.x, point.z, 2);
         if (memory?.cells && underground()) {
+            stood.push(here());
             const spot = caveSpot(point);
-            if (!spot) return 'no_path';
-            goal = new pf.goals.GoalNear(spot.x, spot.y, spot.z, 2);
+            if (!spot) return 'unseen';
+            goal = new pf.goals.GoalNear(spot.x, spot.y, spot.z, 1);
+            stood.push(spot);
         }
         bot.pathfinder.setMovements(movements(bot));
         let outcome = null;
@@ -170,17 +174,24 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
     }
 
     // What the bot remembers at a cell, from world memory: a block name, 'air', or null when it never saw it.
-    // Air it only looked through counts as air too (`seenOpen`), as it does for routes.
+    // Air it only looked through counts as air too (`seenOpen`): the cells over ground it saw, as route
+    // planning counts them.
     const remembered = (x, y, z) => {
         const name = memory.cells.read(x, y, z);
         if (name !== null) return name;
-        return memory.cells.seenOpen(x, y, z) ? 'air' : null;
+        return memory.cells.seenOpen(x, y, z, LOOK_DEPTH) ? 'air' : null;
     };
     const isAir = name => name === 'air' || name === 'cave_air';
     const isFloor = name => Boolean(name) && !isAir(name) && !WET.test(name) && name !== 'lava';
 
+    // Where the bot has stood and been sent underground: a cave leg never goes back to one of these, or a
+    // bend in a passage would have it step back and forth between two corners.
+    const stood = [];
+    const beenNear = (x, z) => stood.some(p => Math.hypot(p.x - x, p.z - z) < BEEN);
+
     // The farthest spot towards a leg's end the bot has seen room to stand on: two open cells over a floor,
-    // near the straight line there and within a few blocks of its level. Null when there is none.
+    // near the straight line there, within a few blocks of its level, and not where it has already been.
+    // Null when there is none.
     function caveSpot(point) {
         const p = position();
         const angle = Math.atan2(point.z - p.z, point.x - p.x);
@@ -193,6 +204,7 @@ export function realLegs(bot, { targets = null, memory = null, swimMs = SWIM_MS,
                 const z = Math.floor(p.z + Math.sin(angle) * d + side.z * off);
                 for (const dy of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]) {
                     const y = y0 + dy;
+                    if (beenNear(x + 0.5, z + 0.5)) break;
                     if (isAir(remembered(x, y, z)) && isAir(remembered(x, y + 1, z)) && isFloor(remembered(x, y - 1, z))) return { x: x + 0.5, y, z: z + 0.5 };
                 }
             }
