@@ -48,7 +48,9 @@ You remember sand 180 blocks west, at -40, 63, 2. Go there, or explore another w
   its heading again once past. Told a direction, it never turns back past a quarter: a person told "go east"
   goes round a lake, not west.
 - **It doesn't dig.** A person exploring goes over or round a hill. It may break leaves where a forest comes
-  down to the ground, and place a block it carries to step up.
+  down to the ground, and place a block it carries to step up. With good-neighbor rules on, leaves someone put
+  up (a hedge) are a build like any other, and the route goes round them
+  ([`good-neighbor.md`](good-neighbor.md)).
 - **It doesn't swim out to sea.** A block of water costs a route as much as twenty of land, so a stream is
   crossed and a lake walked round. Five seconds of swimming without a break ends a stretch: the bot swims back to the
   last dry ground it stood on and tries another way, and a walk never ends with the bot in the water.
