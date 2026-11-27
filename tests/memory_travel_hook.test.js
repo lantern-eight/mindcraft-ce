@@ -22,3 +22,20 @@ test('an error from the guide reaches the caller, so an interrupted walk really 
         await assert.rejects(followKnownWay({}, {}, () => {}), /interrupted/);
     } finally { setTravelGuide(null); }
 });
+
+test('what the guide found comes back, and a way blocked by someone\'s build makes the rest of the trip dig nothing', async () => {
+    const { keepToWay } = await import('../src/agent/library/travel_guide.js');
+    setTravelGuide(async () => ({ followed: true, noDigging: true }));
+    try {
+        const way = await followKnownWay({}, {}, () => {});
+        assert.equal(way.noDigging, true);
+        const careful = { canDig: true }, any = { canDig: true };
+        keepToWay(way, careful, any);
+        assert.deepEqual([careful.canDig, any.canDig], [false, false]);
+        const open = { canDig: true };
+        keepToWay({ followed: true, noDigging: false }, open);
+        keepToWay(null, open);
+        assert.equal(open.canDig, true, 'otherwise left as they are');
+    } finally { setTravelGuide(null); }
+    assert.equal(await followKnownWay({}, {}, () => {}), null, 'no guide: nothing found');
+});

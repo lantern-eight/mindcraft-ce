@@ -1,7 +1,7 @@
 import * as mc from "../../utils/mcdata.js";
 import * as world from "./world.js";
 import { collectBlocks } from './mining.js';
-import { followKnownWay } from './travel_guide.js';
+import { followKnownWay, keepToWay } from './travel_guide.js';
 import { withinAttackReach, faceBeforeHit } from './attack_reach.js';
 // Fork hook (docs/core-hooks.md, 27): a skill that searches may look around first.
 import { lookBeforeSearch } from './search_look.js';
@@ -1180,8 +1180,9 @@ export async function goToGoal(bot, goal) {
     if (bot.interrupt_code) return false;
 
     // A trip the bot remembers a walked way for follows that way first, as far as it leads. The
-    // planning below then carries on from wherever that left the bot. See travel_guide.js.
-    await followKnownWay(bot, goal, log);
+    // planning below then carries on from wherever that left the bot, digging nothing if that way was
+    // found blocked by someone's build. See travel_guide.js.
+    const knownWay = await followKnownWay(bot, goal, log);
 
     const nonDestructiveMovements = new pf.Movements(bot);
     const dontBreakBlocks = ['glass', 'glass_pane'];
@@ -1192,6 +1193,7 @@ export async function goToGoal(bot, goal) {
     nonDestructiveMovements.digCost = 10;
 
     const destructiveMovements = new pf.Movements(bot);
+    keepToWay(knownWay, nonDestructiveMovements, destructiveMovements);
 
     let final_movements = destructiveMovements;
 

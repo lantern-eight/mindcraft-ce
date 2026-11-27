@@ -9,6 +9,16 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- A way the bot walked before and finds blocked is handled by whose blocker it is, on both editions (world
+  memory on). Before setting off, the route is checked against memory, and a stretch someone has walled up
+  since is gone round without walking up to the wall. What blocks a way is named from what the bot saw
+  ("oak_planks someone built", "gravel that fell in", "a shut iron_door"). Gravel or a cave-in is dug past
+  as before. Someone's build (with good-neighbor rules on) is neither dug past nor round: the bot takes
+  another way it knows, the rest of the trip digs nothing, ordinary travel included, and if no walk is left
+  it stops and says so. Before, getting past any blockage could tunnel round a wall into someone's base.
+
 ## [1.28.0-bedrock.1.30.0] - 2026-11-27
 
 Exploring's second part, for both editions. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.

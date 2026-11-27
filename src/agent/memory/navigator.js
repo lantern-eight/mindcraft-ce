@@ -21,6 +21,11 @@ import { cancellable } from '../action_context.js';
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 const NOT_FOLLOWED = reason => ({ followed: false, reason });
+const spot = p => `${Math.floor(p.x)}, ${Math.floor(p.y)}, ${Math.floor(p.z)}`;
+// Blocks that fall: one across a way the bot walked most likely fell there, and a player would dig it out.
+const FALLS = /^(gravel|sand|red_sand|suspicious_sand|suspicious_gravel|[a-z_]*concrete_powder)$/;
+// How many times a trip re-plans round links that memory says are walled up, before it sets off anyway.
+const WALL_CHECKS = 4;
 
 /**
  * Reads a fixed spot out of a pathfinder goal, or null when the goal has none: following something that
@@ -44,6 +49,11 @@ export function targetOf(goal) {
  *   resolving to whether it got there
  * @param {(name: string) => boolean} [options.blocksWay] - is a remembered block of this name solid,
  *   so that it stands in the way? Without it, memory of walls is not consulted
+ * @param {(name: string) => boolean} [options.isDoor] - is it a door or gate, which may be shut? Only used
+ *   to name what blocks a way
+ * @param {(cell: {x:number,y:number,z:number,name:string}) => ({why: string, text: string}|null)} [options.ownerOf] -
+ *   is a remembered block someone's (good-neighbor rules, `refusal`)? A way blocked by someone's block is
+ *   not dug past or round. Without it, every blocker is treated as one a player would dig out
  * @param {(point: object) => number} [options.priceAt] - what a spot costs a route to be in (place_costs.js),
  *   or none. A way that goes deeper into a priced place is left to ordinary travel, which goes round it
  * @param {number} [options.hopReach] - how far ahead one hop may end, in blocks. The pathfinder plans
@@ -55,8 +65,8 @@ export function targetOf(goal) {
  * @param {number} [options.minGain] - a route that ends short must bring the bot this much closer,
  * @param {number} [options.detourLimit] - and may be at most this many times longer than what it gains
  */
-export function createNavigator({ memory, legs, blocksWay = null, priceAt = null, hopReach = 20, lookAhead = 32, planMs = 200,
-    startReach = 8, arriveWithin = 3, minGain = 8, detourLimit = 1.5, maxDetours = 3 } = {}) {
+export function createNavigator({ memory, legs, blocksWay = null, isDoor = () => false, ownerOf = () => null, priceAt = null,
+    hopReach = 20, lookAhead = 32, planMs = 200, startReach = 8, arriveWithin = 3, minGain = 8, detourLimit = 1.5, maxDetours = 3 } = {}) {
     const { trail } = memory;
     let busy = false;
 
@@ -85,24 +95,95 @@ export function createNavigator({ memory, legs, blocksWay = null, priceAt = null
      * a check of only the first few blocks misses a wall the line meets at a shallow angle.
      */
     function facesWall(from, target, reach = 64) {
-        if (!blocksWay || !memory.cells) return false;
+        return Boolean(wallOnLine(from, target, { reach, skipTarget: true }));
+    }
+
+    /**
+     * The first remembered block on the straight line from a spot to another that leaves no room to pass
+     * (see facesWall), as {x, y, z, name}, or null. `skipTarget` leaves the target's own cell out: a target
+     * may well be a block, such as a chest. `solid` says which remembered blocks stand in the way.
+     */
+    function wallOnLine(from, target, { reach = 64, skipTarget = false, solid = solidAt } = {}) {
+        if (!blocksWay || !memory.cells) return null;
         const flat = Math.hypot(target.x - from.x, target.z - from.z);
-        if (flat < 0.5) return false;
-        const solid = (x, y, z) => {
-            const name = memory.cells.read(x, y, z);
-            return name != null && blocksWay(name);
-        };
+        if (flat < 0.5) return null;
         const targetCell = `${Math.floor(target.x)},${Math.floor(target.z)}`;
         let level = Math.floor(from.y + 0.2);
         for (let walked = 0.5; walked <= Math.min(flat, reach); walked += 0.5) {
             const x = Math.floor(from.x + (target.x - from.x) * (walked / flat));
             const z = Math.floor(from.z + (target.z - from.z) * (walked / flat));
-            if (`${x},${z}` === targetCell) break; // the target itself may well be a block, such as a chest
+            if (skipTarget && `${x},${z}` === targetCell) break;
             const open = [level, level + 1, level - 1].find(y => !solid(x, y, z) && !solid(x, y + 1, z));
-            if (open === undefined) return true;
+            if (open === undefined) {
+                const y = solid(x, level, z) ? level : level + 1;
+                return { x, y, z, name: memory.cells.read(x, y, z) };
+            }
             level = open;
         }
-        return false;
+        return null;
+    }
+    // A remembered block that stands in the way.
+    function solidAt(x, y, z) {
+        const name = memory.cells.read(x, y, z);
+        return name != null && blocksWay(name);
+    }
+    // A remembered block in the way that the bot saw someone put up: it appeared where the bot had seen
+    // something else (world memory's 'built' tag). Across a link the bot walked, that is a way walled up
+    // since. Any other remembered block is no such sign: a straight line between two spots on the trail can
+    // clip a corner the bot really walked round.
+    const builtAt = (x, y, z) => solidAt(x, y, z) && memory.cells.tagOf?.(x, y, z) === 'built';
+
+    // A door or gate on the straight line between two spots, as {x, y, z, name}, or null: when a hop fails
+    // there and no wall is remembered, it is most likely shut.
+    function doorOnLine(from, to) {
+        if (!memory.cells) return null;
+        const flat = Math.hypot(to.x - from.x, to.z - from.z);
+        const level = Math.floor(from.y + 0.2);
+        for (let walked = 0.5; walked <= flat; walked += 0.5) {
+            const x = Math.floor(from.x + (to.x - from.x) * (walked / flat));
+            const z = Math.floor(from.z + (to.z - from.z) * (walked / flat));
+            for (const y of [level, level + 1]) {
+                const name = memory.cells.read(x, y, z);
+                if (name && isDoor(name)) return { x, y, z, name };
+            }
+        }
+        return null;
+    }
+
+    /**
+     * What blocks a link, in words for the model, and whether it is someone's. Only what the bot remembers
+     * seeing is named: a blocker it never saw is "something I can't see from here".
+     * @returns {{text: string, someones: boolean}}
+     */
+    function blockerOf(from, to) {
+        // Something seen put up there first, then anything remembered in the way.
+        const built = wallOnLine(from, to, { solid: builtAt });
+        if (built) return { text: `${built.name} someone built`, someones: Boolean(ownerOf(built)) };
+        const wall = wallOnLine(from, to);
+        if (wall) {
+            const owner = ownerOf(wall);
+            if (owner?.why === 'area') return { text: `${wall.name} in a protected area`, someones: true };
+            if (owner?.why === 'built') return { text: `${wall.name} someone built`, someones: true };
+            if (owner) return { text: `${wall.name}, which isn't natural ground, so someone's`, someones: true };
+            if (FALLS.test(wall.name)) return { text: `${wall.name} that fell in`, someones: false };
+            return { text: wall.name, someones: false };
+        }
+        const door = doorOnLine(from, to);
+        if (door) return { text: `a shut ${door.name}`, someones: false };
+        return { text: `something I can't see from here`, someones: false };
+    }
+
+    /**
+     * The first link on a route that memory says someone has walled up since the bot walked it, as an index
+     * into `points`, or -1. Asked of memory alone, before setting off: no path search, nothing read from the
+     * world. (The idea is akarkin1's dry scan of a route, which asked the pathfinder about every hop.)
+     */
+    function walledLink(points) {
+        for (let i = 0; i + 1 < points.length; i++) {
+            if (points[i].id == null || points[i + 1].id == null) continue;
+            if (wallOnLine(points[i], points[i + 1], { reach: Infinity, solid: builtAt })) return i;
+        }
+        return -1;
     }
 
     /**
@@ -206,14 +287,39 @@ export function createNavigator({ memory, legs, blocksWay = null, priceAt = null
          * @param {{x:number,y:number,z:number,range?:number}} target
          * @param {object} [options]
          * @param {(text: string) => void} [options.say] - told what the model should hear: a blocked way, a detour
-         * @returns {Promise<{followed: boolean, reached?: 'end'|'part', hops?: number, reason?: string}>}
-         *   `followed` is false when nothing was walked. Rejects only when the trip was interrupted.
+         * @returns {Promise<{followed: boolean, reached?: 'end'|'part', hops?: number, reason?: string,
+         *   noDigging?: boolean}>} `followed` is false when nothing was walked. `noDigging` is true when a way
+         *   was found blocked by someone's block: the rest of the trip, ordinary travel included, should dig
+         *   nothing, or it would tunnel round their wall into what they built. Rejects only when the trip was
+         *   interrupted.
          */
         async follow(target, { say = () => {} } = {}) {
             if (busy) return NOT_FOLLOWED('busy');
             const goal = { range: 0, ...target };
-            const trip = plan(legs.position(), goal);
-            if (!trip) return NOT_FOLLOWED('no known way');
+            let noDigging = false;
+            // Once a way turns out to be blocked by someone's block, the rest of the trip digs nothing. Said
+            // once, with what the player can do about it.
+            const someones = what => {
+                if (!what.someones || noDigging) return;
+                noDigging = true;
+                say('It is someone\'s, so I won\'t dig past or round it. Ask whoever built it, or go another way.');
+            };
+            const blockedNear = (from, to) => {
+                trail.markBlocked(from.id, to.id);
+                const what = blockerOf(from, to);
+                say(`The way you walked before is blocked near ${spot(to)}: ${what.text}.`);
+                someones(what);
+            };
+            // Before setting off, the route is checked against memory: a link someone has walled up since is
+            // marked blocked and the route planned again, rather than found by walking up to the wall.
+            let trip = plan(legs.position(), goal);
+            for (let checks = 0; trip && checks < WALL_CHECKS; checks++) {
+                const walled = walledLink(trip.points);
+                if (walled < 0) break;
+                blockedNear(trip.points[walled], trip.points[walled + 1]);
+                trip = plan(legs.position(), goal);
+            }
+            if (!trip) return { ...NOT_FOLLOWED('no known way'), noDigging };
             busy = true;
             try {
                 let points = trip.points;
@@ -249,24 +355,31 @@ export function createNavigator({ memory, legs, blocksWay = null, priceAt = null
                     if (moved) { rest = Math.max(0, rest - 1); continue; }
 
                     // Not even the next spot can be walked to.
-                    if (at < 0) return hops ? { followed: true, reached: 'part', hops, reason: 'left the trail' } : NOT_FOLLOWED('cannot reach the trail');
+                    if (at < 0) return hops ? { followed: true, reached: 'part', hops, reason: 'left the trail', noDigging } : { ...NOT_FOLLOWED('cannot reach the trail'), noDigging };
                     const from = points[at], next = points[at + 1];
-                    trail.markBlocked(from.id, next.id);
-                    say(`The way you walked before is blocked near ${Math.floor(next.x)}, ${Math.floor(next.y)}, ${Math.floor(next.z)}.`);
+                    blockedNear(from, next);
                     // First an ordinary path past the blockage: a fallen block or a shut gap is usually
                     // a step or two to get past, and the rest of the way is still good. It aims for the
                     // farthest spot ahead that is close by, and only then for the very next one, or a
                     // bot that has dug its way round would walk back to the wall's far side to carry on.
+                    // Not past someone's block: that path may dig, if not through their wall then round it.
                     const ahead = candidates(points, at, legs.position(), true).shortCut;
                     let pushed = false;
-                    for (const index of new Set([ahead, at + 1])) {
+                    for (const index of noDigging ? [] : new Set([ahead, at + 1])) {
                         if (index <= at) continue;
                         if (await legs.pushThrough(points[index], planMs)) { at = index; hops++; pushed = true; break; }
                         if (legs.interrupted()) throw new Error('Travel interrupted');
                     }
                     if (pushed) continue;
-                    // Then another way the bot knows, now that routes avoid this link.
-                    const around = detours < maxDetours ? trail.route(from.id, trip.end.id) : null;
+                    // Then another way the bot knows, now that routes avoid this link, and any other link
+                    // memory says is walled up the same way.
+                    let around = detours < maxDetours ? trail.route(from.id, trip.end.id) : null;
+                    for (let checks = 0; around && checks < WALL_CHECKS; checks++) {
+                        const walled = walledLink(around.points);
+                        if (walled < 0) break;
+                        blockedNear(around.points[walled], around.points[walled + 1]);
+                        around = trail.route(from.id, trip.end.id);
+                    }
                     if (around && around.points.length >= 2) {
                         detours++;
                         say('Going around by another way you know.');
@@ -275,9 +388,9 @@ export function createNavigator({ memory, legs, blocksWay = null, priceAt = null
                         rest = 0;
                         continue;
                     }
-                    return { followed: hops > 0, reached: 'part', hops, reason: 'blocked' };
+                    return { followed: hops > 0, reached: 'part', hops, reason: 'blocked', noDigging };
                 }
-                return { followed: true, reached: 'end', hops };
+                return { followed: true, reached: 'end', hops, noDigging };
             } finally { busy = false; }
         },
     };
