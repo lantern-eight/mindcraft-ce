@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Changed
+
+- Claude's prompt cache keeps hitting while the memory summary is rewritten. The summary is rewritten every two
+  or three steps of a task, and it sat in the system prompt, so each rewrite lost the cached conversation after
+  it. For Claude it now goes after the conversation with the fresh state, on both the native tool path and the
+  legacy `!command` path, as do the live stats in the RP agent's prompt. In a measured session, every call
+  after the first read all it could from the cache, where 4 of 11 had read only the tools.
+
 ## [1.23.0-bedrock.1.25.0] - 2026-11-27
 
 Prompt caching for the legacy `!command` mode, for both editions: Claude reads each step of a task from its

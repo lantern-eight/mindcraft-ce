@@ -76,29 +76,39 @@ export function markForCache(body, { uncachedTail = 0, setting } = {}) {
     return body;
 }
 
-// The text path (legacy !command mode). Its template puts everything in the system prompt, the stats and
-// inventory read this turn and the examples picked for this message included, so a system prompt that
-// changed every turn hid the whole conversation after it from the cache. For Claude those parts are taken
-// out of the system prompt and sent once, after the conversation, like the fresh state on the tool path.
-// Any template works this way, a profile's own included: nothing has to be marked in it.
-
-// Placeholders whose text is new on nearly every request. The goal and the memory summary change only now
-// and then, so they stay in the cached system prompt.
-const perTurn = ['$STATS', '$INVENTORY', '$EXAMPLES', '$CODE_DOCS', '$ACTION'];
+// The parts of a prompt template that change often. A system prompt that changes hides the whole conversation
+// after it from the cache, so for Claude these parts are taken out of the system prompt and sent once, after
+// the conversation, with the fresh state. Any template works this way, a profile's own included: nothing has
+// to be marked in it.
+//
+// - The text path (legacy !command mode) puts everything in the system prompt: the stats and inventory read
+//   this turn and the examples picked for this message.
+// - Both paths put the memory summary there. It is rewritten whenever the stored history passes
+//   max_messages, which during a task is every two or three steps, as each step stores two turns. A task
+//   keeps every turn the new summary covers in its own history, so the model loses nothing by reading the
+//   summary after the conversation instead of before it.
+//
+// The goal ($SELF_PROMPT) changes only when one is set or dropped, so it stays in the cached system prompt.
+// Each part's line in the fresh block, where it needs a label of its own to make sense there.
+const changing = { '$STATS': '$STATS', '$INVENTORY': '$INVENTORY', '$EXAMPLES': '$EXAMPLES', '$CODE_DOCS': '$CODE_DOCS',
+    '$ACTION': '$ACTION', '$MEMORY': "Summarized memory: '$MEMORY'" };
 const freshHeading = 'CURRENT STATE (fresh, takes precedence over older observations):';
 
-// How to lay out a text request from `template` for `model`, or null to send it as before: for a model
-// other than Claude, or with prompt_caching off. `system` is the template without its per-turn parts (the
-// first leaves a note in its place), and `fresh` is a template of those parts alone, in the template's own
-// order, to fill in and send after the conversation. A template without any has an empty `fresh`.
-export function textCacheLayout(model, template, setting) {
+// How to lay out a request from `template` for `model`, or null to send it as before: for a model other
+// than Claude, or with prompt_caching off. `system` is the template without its changing parts (the first
+// leaves a note in its place). `parts` is a template of those parts alone, in the template's own order, and
+// `fresh` the same under a heading, to fill in and send after the conversation; both are empty for a
+// template without any. `keep` names placeholders to leave in the system prompt (the tool path's fixed
+// examples line).
+export function cacheLayout(model, template, { setting, keep = [] } = {}) {
     if (!model?.anthropic || typeof template !== 'string' || !cacheMarker(setting)) return null;
-    const found = perTurn.filter(placeholder => template.includes(placeholder))
+    const found = Object.keys(changing).filter(placeholder => template.includes(placeholder) && !keep.includes(placeholder))
         .sort((a, b) => template.indexOf(a) - template.indexOf(b));
     let system = template;
     found.forEach((placeholder, i) =>
         system = system.replaceAll(placeholder, i === 0 ? '(given at the end of the conversation)' : ''));
-    return { system, fresh: found.length ? [freshHeading, ...found].join('\n') : '' };
+    const parts = found.map(placeholder => changing[placeholder]).join('\n');
+    return { system, parts, fresh: parts ? `${freshHeading}\n${parts}` : '' };
 }
 
 // Marks a text request body for the cache and puts the filled-in `fresh` text after the conversation, as a
@@ -121,7 +131,7 @@ export function markTextRequest(body, { fresh = '', uncachedTail = 0, setting } 
 // prompt caching on, the per-turn parts are filled in separately and go after the conversation; otherwise it
 // is the request the prompter always sent.
 export async function fillTextRequest(model, template, fill) {
-    const layout = textCacheLayout(model, template);
+    const layout = cacheLayout(model, template);
     const prompt = await fill(layout ? layout.system : template);
     const fresh = layout?.fresh ? await fill(layout.fresh) : '';
     return {

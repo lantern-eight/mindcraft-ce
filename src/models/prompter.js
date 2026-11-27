@@ -14,7 +14,7 @@ import { getToolDefinitions } from '../agent/commands/tool_registry.js';
 import { responseFormatSchema } from './_response_format.js';
 import { narrationInstructions, narrationConfig } from '../agent/narration.js';
 import { UsageMeter } from './usage.js';
-import { fillTextRequest } from './prompt_cache.js';
+import { fillTextRequest, cacheLayout } from './prompt_cache.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -288,13 +288,17 @@ export class Prompter {
         const key = templates[source];
         if (!key) throw new Error(`Unknown request source: ${source}`);
         const examples = this.use_tools ? {createExampleMessage: () => Promise.resolve('Use the native function interface, not inline !commands.')} : this.convo_examples;
-        let prompt = await this.replaceStrings(this.profile[key] || '', messages, examples);
+        const model = source === 'brain' ? this.brain_model : source === 'rp' ? this.rp_model : this.chat_model;
+        // Prompt caching (prompt_cache.js): for Claude, the parts of the template that change often (the
+        // memory summary, live stats) go with the fresh state after the conversation. The fixed examples line stays.
+        const layout = cacheLayout(model, this.profile[key] || '', { keep: this.use_tools ? ['$EXAMPLES'] : [] });
+        let prompt = await this.replaceStrings(layout ? layout.system : this.profile[key] || '', messages, examples);
+        const fresh = layout?.parts ? await this.replaceStrings(layout.parts, messages, examples) : '';
         if (source === 'brain') prompt += '\nExact Task tool names available for grants (omit tools to grant the normal set): ' +
             getToolDefinitions(this.agent).map(t => t.function.name).join(', ');
         if (source === 'brain' && this.model_selection.enabled) prompt += '\nTask model choices: ' + JSON.stringify(
             (this.model_selection.models || []).filter(m => m.enabled !== false).map(m => ({id:m.id,notes:m.notes,scores:m.scores})));
-        return await this.requestTools(messages, prompt, tools, response_format,
-            source === 'brain' ? this.brain_model : source === 'rp' ? this.rp_model : this.chat_model, source);
+        return await this.requestTools(messages, prompt, tools, response_format, model, source, { fresh });
     }
 
     selectTaskModel(id) {
@@ -310,14 +314,17 @@ export class Prompter {
         return this.task_models.get(id);
     }
 
-    async requestTools(messages, prompt, tools = [], response_format = null, model = this.chat_model, role = 'task') {
+    // `fresh`: more text to send once with the fresh state (prompt caching's parts of the template, above).
+    async requestTools(messages, prompt, tools = [], response_format = null, model = this.chat_model, role = 'task', { fresh = '' } = {}) {
         const epoch = this.cancelEpoch, roleEpoch = this.roleEpochs.get(role) || 0;
         await this.checkCooldown();
         let requestMessages = messages;
+        let state = '';
         if (this.agent.bot?.entity?.position && this.agent.bot?.inventory) {
-            const state = await this.replaceStrings('CURRENT STATE (fresh, takes precedence over older observations):\n$STATS\n$INVENTORY', []);
-            requestMessages = [...messages, {role:'user',content:state}];
+            state = await this.replaceStrings('CURRENT STATE (fresh, takes precedence over older observations):\n$STATS\n$INVENTORY', []);
         }
+        if (fresh) state = state ? `${state}\n${fresh}` : fresh;
+        if (state) requestMessages = [...messages, {role:'user',content:state}];
         if (epoch !== this.cancelEpoch || roleEpoch !== (this.roleEpochs.get(role) || 0)) throw new Error('Request cancelled');
         const seconds = this.profile.request_timeout_seconds ?? settings.request_timeout_seconds ?? 120;
         if (!Number.isFinite(seconds) || seconds <= 0) throw new Error('request_timeout_seconds must be positive');
