@@ -11,6 +11,7 @@
 //   1. Told east the bot walks east; told "on" it carries on east.
 //   2. A stone wall across the strip, out of sight at the start: the bot goes round it and digs none of it.
 //   3. Sand set in the strip behind the bot as it sets out: exploring for sand finds it and stops.
+//   4. A tunnel that bends, under a stone roof: the bot follows the passage it sees, and digs none of it.
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdtempSync } from 'node:fs';
@@ -34,10 +35,10 @@ const fill = (a, b, block) => cmd(`fill ${xyz(at(...a))} ${xyz(at(...b))} ${bloc
 const set = (a, block) => cmd(`setblock ${xyz(at(...a))} ${block}`);
 const tpTo = (cell, yaw = 0, settle = 2500) => cmd(`tp ${NAME} ${at(...cell).x + 0.5} ${at(...cell).y} ${at(...cell).z + 0.5} ${yaw} 0`, settle);
 
-// Three strips side by side, each 25 blocks wide and running 100 east of where the bot starts on it: one
+// Four strips side by side, each 25 blocks wide and running 100 east of where the bot starts on it: one
 // floor of stone with dirt under it and clear air above. A fill on Bedrock takes at most 32,768 blocks, so
 // each strip is cleared in its own command. Bedrock's yaw for east is -90, as Java's.
-const STRIPS = { heading: 0, wall: 40, sand: 80 };
+const STRIPS = { heading: 0, wall: 40, sand: 80, cave: 120 };
 const LENGTH = 100, HALF = 12;
 async function buildStrip(z) {
     await fill([-4, 1, z - HALF], [LENGTH, 6, z + HALF], 'air');
@@ -48,7 +49,7 @@ async function buildStrip(z) {
 // ("Cannot place blocks outside of the world"). A ticking area keeps the strips loaded while they are built and
 // used; it is removed at tear-down.
 const AREA = 'explorestrips';
-const addArea = async () => { await cmd(`tickingarea add ${xyz(at(-4, -1, -HALF))} ${xyz(at(LENGTH, 6, STRIPS.sand + HALF))} ${AREA}`); await delay(6000); };
+const addArea = async () => { await cmd(`tickingarea add ${xyz(at(-4, -1, -HALF))} ${xyz(at(LENGTH, 6, STRIPS.cave + HALF))} ${AREA}`); await delay(6000); };
 async function clearStrip(z) {
     await fill([-4, -1, z - HALF], [LENGTH, 6, z + HALF], 'air');
 }
@@ -144,6 +145,28 @@ try {
         if (LIVE_VIEW === 'narrow') assert.match(trip.text, found);
         else assert.ok(found.test(trip.text) || new RegExp(`^sand is .* at ${at(X, 0, Z).x}, ${at(X, 0, Z).y}, ${at(X, 0, Z).z}\\. No need to explore`).test(trip.text), trip.text);
         assert.ok(trip.dx < X + 16, `stopped instead of walking on: ${JSON.stringify(trip)}`);
+        return trip;
+    });
+
+    await step('4: underground, the bot follows a tunnel that bends, and digs none of it', async () => {
+        const Z = STRIPS.cave;
+        // A block of stone over the strip with a tunnel three wide and two high carved through it: east 20,
+        // north 10, then east again to its end. Built while the bot is on another strip.
+        await fill([-4, 1, Z - HALF], [60, 5, Z + HALF], 'stone');
+        await fill([-1, 1, Z - 1], [21, 2, Z + 1], 'air');
+        await fill([19, 1, Z - 11], [21, 2, Z], 'air');
+        await fill([19, 1, Z - 11], [56, 2, Z - 9], 'air');
+        await tpTo([0, 1, Z], -90);
+        const trip = await run(exploreCommand, ['east', 80], 240000);
+        const open = (x, z) => (x >= -1 && x <= 21 && z >= Z - 1 && z <= Z + 1) || (x >= 19 && x <= 21 && z >= Z - 11 && z <= Z)
+            || (x >= 19 && x <= 56 && z >= Z - 11 && z <= Z - 9);
+        const dug = [];
+        for (let x = -4; x <= 60; x++) for (let z = Z - HALF; z <= Z + HALF; z++) for (const y of [1, 2, 3]) {
+            const name = rawName([x, y, z]);
+            if (!open(x, z) || y === 3) if (name !== undefined && name !== 'stone') dug.push([x, y, z - Z]);
+        }
+        assert.deepEqual(dug.slice(0, 5), [], 'nothing dug out of the rock');
+        assert.ok(trip.dx >= 30 && trip.dz <= -8 && trip.fell <= 1, `followed the tunnel round its bend: ${JSON.stringify(trip)}`);
         return trip;
     });
 
