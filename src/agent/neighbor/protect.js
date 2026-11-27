@@ -50,10 +50,12 @@ export function compileArea(area) {
  * @param {object[]} [options.areas] - protected areas, from compileArea
  * @param {() => string} [options.dimension] - the dimension the bot is in
  * @param {() => number} [options.now]
+ * @param {(x: number, y: number, z: number) => string|null} [options.grantedBy] - the player who let the bot break
+ *   this cell (grants.js), or null. A granted cell may be broken, whatever else holds
  * @returns {{refusal: (block: object) => ({why: string, text: string}|null), isTree: function}}
  */
 export function createProtector({ read, javaName = name => name, tagOf = () => null, placedNow = () => false,
-    leavesPersist = () => false, areas = [], dimension = () => 'overworld', now = Date.now }) {
+    leavesPersist = () => false, areas = [], dimension = () => 'overworld', now = Date.now, grantedBy = () => null }) {
     const mine = (x, y, z) => placedNow(x, y, z) || tagOf(x, y, z) === 'placed';
     const trees = createTreeJudge({ read, own: mine, now });
 
@@ -66,6 +68,8 @@ export function createProtector({ read, javaName = name => name, tagOf = () => n
         const name = javaName(block.name);
         if (isEmpty(name) || FLUIDS.has(name)) return null;
         const x = Math.floor(block.position.x), y = Math.floor(block.position.y), z = Math.floor(block.position.z);
+        // A player let the bot break this very block: that comes before every other rule, protected areas too.
+        if (grantedBy(x, y, z)) return null;
         if (mine(x, y, z)) return null;
         const here = String(dimension() ?? 'overworld').replace('minecraft:', '');
         const area = areas.find(a => (!a.dimension || a.dimension === here) && a.contains({ x, y, z }));

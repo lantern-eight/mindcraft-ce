@@ -132,6 +132,30 @@ try {
         return { text: result.text.trim() };
     });
 
+    await step('a player lets it break one plank of two: it breaks that one, once, and the other stands', async () => {
+        await reset();
+        await cmd('setblock 0 70 2 oak_planks');
+        await cmd('setblock 1 70 2 oak_planks');
+        await delay(1500);
+        // As a player's chat line comes in. It is taken before any model, and answered.
+        const said = [];
+        const openChat = agent.openChat;
+        agent.openChat = text => said.push(text);
+        try { await agent.handleMessage('Steve', '!allowBreak 0 70 2'); } finally { agent.openChat = openChat; }
+        assert.match(said[0] ?? '', /^Okay, Steve: I may break the block at 0, 70, 2/);
+        const result = await act('test:break', () => skills.breakBlockAt(bot, 0, 70, 2));
+        assert.equal(rawName(0, 70, 2), 'air', `the granted plank is broken: ${result.text}`);
+        const other = await act('test:break', () => skills.breakBlockAt(bot, 1, 70, 2));
+        assert.equal(rawName(1, 70, 2), 'oak_planks', 'the one beside it stands');
+        assert.match(other.text, /refused: .*!allowBreak 1, 70, 2/);
+        // Put back, the granted spot is protected again: the grant was used up.
+        await cmd('setblock 0 70 2 oak_planks');
+        await delay(1500);
+        const again = await act('test:break', () => skills.breakBlockAt(bot, 0, 70, 2));
+        assert.equal(rawName(0, 70, 2), 'oak_planks', `used up: ${again.text}`);
+        return { said: said[0], refused: other.text.trim() };
+    });
+
     await step('a dirt wall the bot watched go up is someone\'s: tagged built, and not dug through', async () => {
         await reset();
         // The bot looks down a closed room of bedrock. Then someone walls it across with dirt, which the stock
