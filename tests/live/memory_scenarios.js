@@ -199,6 +199,32 @@ try {
         return { notes: text.split('\n').filter(line => line.startsWith('Noticed')) };
     });
 
+    await step('a place a player told it of stays told until it walks there and sees it; a buried one it walks over stays told', async () => {
+        // A walkway south to ground it has never been near, with a chest at the far end. The player gives
+        // the lookout as x and z only, as players do, and a cellar ten blocks under the walkway's middle.
+        await cmd('forceload add -16 16 16 63');
+        await cmd('fill -6 69 21 6 69 60 stone');
+        await cmd('fill -6 70 21 6 75 60 air');
+        await cmd('setblock 1 70 52 chest[facing=north]');
+        await delay(1500);
+        const tell = (name, where) => getCommand('!rememberToldPlace').perform(agent, name, where);
+        assert.match(tell('lookout', '0, 50'), /^Saved "lookout", as you were told: 0, \?, 50, 50 blocks south\./);
+        assert.match(tell('cellar', '0 60 30'), /^Saved "cellar"/);
+        assert.match(getCommand('!places').perform(agent), /- "lookout" \(told just now, not seen yet\) at 0, \?, 50: 50 blocks south/);
+        assert.equal(memory().places.at({ x: 1, y: 70, z: 52 }), null, 'nothing is filed under the told spot');
+
+        const result = await getCommand('!goToPlace').perform(agent, 'lookout');
+        const p = bot.entity.position;
+        assert.ok(Math.hypot(p.x, p.z - 50) <= 3, `it walked there: ${p}`);
+        assert.match(result, /Seen "lookout", which you were told of, at 0, 70, 50\. It is the site where you saw chest 1\./, result);
+        const lookout = memory().places.byName('lookout');
+        assert.equal(lookout.kind, 'found', 'seen, the told name went to the site the chest started');
+        assert.ok(lookout.told?.seenAt);
+        assert.equal(memory().places.byName('cellar').kind, 'told', 'walking over a buried spot is not seeing it');
+        assert.match(recall('cellar'), /not seen yet/);
+        return { answer: result.split('\n').filter(line => /lookout/.test(line)) };
+    });
+
     await step('memory is saved, in small files', async () => {
         assert.equal(memory().save(), 0);
         const { readdirSync, statSync } = await import('node:fs');

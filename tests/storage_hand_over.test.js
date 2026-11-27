@@ -67,3 +67,15 @@ test('a player out of view is looked round for first, as one who fetched somethi
     assert.equal(nobody.thrown, 0);
     assert.match(nobody.problem, /don't know where Alice is/);
 });
+
+test('the turn toward the player reaches the server before the throw', async () => {
+    // The server throws the way it last heard the bot face; a turn goes out with the next movement packet.
+    const bot = fakeBot({ stacks: [['iron_ingot', 5]] });
+    const order = [];
+    const look = bot.lookAt, toss = bot.toss;
+    bot.lookAt = async at => { order.push('turn'); return look(at); };
+    bot.waitForTicks = async ticks => { order.push(`wait ${ticks} ticks`); };
+    bot.toss = async (...args) => { order.push('throw'); return toss(...args); };
+    await handOver(bot, 'iron_ingot', 'Alice', 5, { walk, takeMs: 200 });
+    assert.deepEqual(order, ['turn', 'wait 2 ticks', 'throw']);
+});
