@@ -17,6 +17,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   becomes a place like any other (the name of the site found there, if that has none), and the model hears
   of it once. `!goToPlace(name)` walks to any place by name, told ones included.
 
+### Fixed
+
+- `!bringItem` throws toward the player. When the bot already knew where they were (seeing all around), it
+  turned to them and threw at once, and the server, which had not yet heard of the turn, threw the item the
+  way the bot faced before: from the chest it had just emptied, away from the player. About one hand-over in
+  four was left on the ground. The bot now lets the turn reach the server first.
+
 ## [1.24.0-bedrock.1.26.0] - 2026-11-27
 
 Claude's prompt cache keeps hitting through a long task, for both editions: the memory summary, rewritten every
