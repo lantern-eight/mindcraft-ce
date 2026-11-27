@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { exploreCommands } from '../src/agent/explore/commands.js';
 import { installExplore } from '../src/agent/explore/install.js';
 import { getCommand } from '../src/agent/commands/index.js';
+import { exploreWayOf } from '../src/agent/library/explore_way.js';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -140,4 +141,25 @@ test('the setting turns the commands on, and leaving it out leaves them out', ()
     assert.deepEqual(installed.commands, ['!explore', '!exploreFor']);
     assert.ok(getCommand('!explore'));
     assert.ok(getCommand('!exploreFor'));
+});
+
+test('installed, it gives the NPC\'s item goals a way of exploring for what they need', async () => {
+    const { agent, pos } = setup({ sees: { name: 'sand', x: 0, y: 63, z: -60 } });
+    // The same pretend legs as the commands get: walking straight, seeing the sand once within 20 blocks.
+    const legsFor = (bot, options) => ({
+        position: () => ({ ...pos }),
+        interrupted: () => false,
+        async walk(point) { pos.x = point.x; pos.z = point.z; return 'arrived'; },
+        async lookAround() { return false; },
+        newGround: angle => (Math.abs(angle + Math.PI / 2) < 1e-6 ? 1 : 0),
+        find: () => (options.targets && Math.hypot(pos.x, pos.z + 60) < 20 ? { name: 'sand', x: 0, y: 63, z: -60 } : null),
+        recall: () => null,
+    });
+    installExplore(agent, { config: { explore: true }, deps: { legsFor } });
+    const way = exploreWayOf(agent.bot);
+    assert.ok(way, 'installed for the bot');
+    const result = await way('sand');
+    assert.equal(result.status, 'ok');
+    assert.match(result.text, /^Found sand/);
+    assert.ok(pos.z < -30, 'it went north, towards the newest ground');
 });

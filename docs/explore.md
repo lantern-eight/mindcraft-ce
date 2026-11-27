@@ -27,6 +27,10 @@ heads for land the bot hasn't looked over yet, and knows what the bot remembers 
 
 Both are actions: they take over from what the bot was doing, and `!stop` stops them.
 
+The NPC's item goals explore too. When the block or mob a goal needs isn't in sight a second time, the bot
+explores 64 blocks for it, carrying on the same heading at each try, instead of Mindcraft's step of 8 blocks
+any way at all.
+
 An answer says where the bot got to and what turned it aside:
 
 ```
@@ -114,7 +118,7 @@ All of it lives in `src/agent/explore/`:
 | `legs.js` | The real legs: the pathfinder with exploring's own movements, a watch for a stretch that is stuck, swimming or going the long way round, `world.js` for finding and for what it came across, world memory for new ground, for what lies at a stretch's end, and for where there is room underground |
 | `commands.js` | `!explore` and `!exploreFor`, and each bot's last walk |
 | `saved.js` | The last walk, saved with world memory (`explore.json` in the memory folder of the world and dimension) |
-| `install.js` | Adds the commands when `explore` is on |
+| `install.js` | Adds the commands when `explore` is on, and gives the NPC's item goals their way of exploring (`library/explore_way.js`, core hook 36) |
 
 `agent.js` calls `installExplore(this)` once (core hook 35 in [`core-hooks.md`](core-hooks.md)).
 

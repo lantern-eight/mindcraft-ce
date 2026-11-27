@@ -36,7 +36,17 @@ function asAction(label, fn) {
  * @param {(bot: object, options: object) => object} [options.legsFor] - the legs to walk on (tests hand in their own)
  * @returns {object[]} the two commands
  */
-export function exploreCommands({ memoryOf, legsFor = realLegs }) {
+export function exploreCommands(options) {
+    return createExploring(options).commands;
+}
+
+/**
+ * Exploring for one or more agents: the two commands, and `run(agent, what, direction, distance)`, the same
+ * walk for callers that are already inside an action (the NPC's item goal). `what` is null just to explore.
+ * @param {object} options - as for exploreCommands
+ * @returns {{commands: object[], run: (agent: object, what: string|null, direction: string, distance: number) => Promise<object>}}
+ */
+export function createExploring({ memoryOf, legsFor = realLegs }) {
     // Each bot's last walk, and the dimension it was in: a walk in the Nether doesn't carry on in the overworld.
     const lastWalks = new WeakMap();
 
@@ -79,7 +89,7 @@ export function exploreCommands({ memoryOf, legsFor = realLegs }) {
         return toolResult(status, result.text, status === 'ok' ? null : result.status);
     }
 
-    return [
+    const commands = [
         {
             name: '!explore',
             description: 'Explore new ground: walk about that far in a direction, keeping to it from one call to the next, '
@@ -99,4 +109,5 @@ export function exploreCommands({ memoryOf, legsFor = realLegs }) {
             perform: asAction('exploreFor', (agent, what, direction, distance) => run(agent, what, direction, distance)),
         },
     ];
+    return { commands, run };
 }

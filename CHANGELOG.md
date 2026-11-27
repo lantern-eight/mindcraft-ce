@@ -21,6 +21,9 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   each kind of log and the like) in view on the way that weren't around where it began.
 - Exploring keeps its heading after a restart: with world memory on, the last walk is saved with the memory
   of the world and dimension it was made in, and `"on"` carries it on.
+- The NPC's item goals explore for what they need (`explore` on): when the block or mob a goal needs isn't
+  in sight a second time, the bot explores 64 blocks for it on a kept heading, stopping when it is in view,
+  instead of stepping 8 blocks any way at all.
 
 ## [1.27.0-bedrock.1.29.0] - 2026-11-27
 
