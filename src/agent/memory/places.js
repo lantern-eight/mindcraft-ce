@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: CC0-1.0
 // Places: spots worth a name. "The base", "the lava cave", "a site with 4 chests and a bed".
 //
-// A place comes to exist in one of two ways:
+// A place comes to exist in one of three ways:
 //   found   the bot saw things a player uses (chests, workstations, beds, doors, signs) close together.
 //           Nobody had to decide to save it. Ores and animals don't start a place
 //   named   someone named the spot the bot stands on, whether or not anything is there
+//   told    a player said where it is ("the village is at 300, -120"). The bot has not seen it, so it is
+//           kept apart from everything seen: it never joins a found site and nothing seen is filed under
+//           it, until the bot sees the spot. Then it becomes a named spot, or the name of the site the
+//           bot found there. Its height may be unknown, since players often give only x and z
 // A found place can be given a name later, by the model or a player. Until then it is described by what
 // it holds.
 //
@@ -22,11 +26,18 @@ const FILE_NAME = 'places.json';
 
 const cellOf = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
 
-/** Distance from a point to the nearest part of a place's box (0 inside it). */
+/**
+ * Distance from a point to the nearest part of a place's box (0 inside it). A told place whose height is
+ * not known is measured across the ground only.
+ */
 function gapTo(place, p) {
     const gap = (v, lo, hi) => (v < lo ? lo - v : v > hi ? v - hi : 0);
-    return Math.hypot(gap(p.x, place.min.x, place.max.x), gap(p.y, place.min.y, place.max.y), gap(p.z, place.min.z, place.max.z));
+    const dy = place.min.y === null ? 0 : gap(p.y, place.min.y, place.max.y);
+    return Math.hypot(gap(p.x, place.min.x, place.max.x), dy, gap(p.z, place.min.z, place.max.z));
 }
+
+/** The cell of a told spot, keeping an unknown height unknown. */
+const toldCellOf = p => ({ x: Math.floor(p.x), y: p.y === null || p.y === undefined ? null : Math.floor(p.y), z: Math.floor(p.z) });
 
 /**
  * @param {object} options
@@ -42,7 +53,9 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
     let dirty = false;
 
     const resolve = id => { while (mergedInto.has(id)) id = mergedInto.get(id); return id; };
-    const copy = place => ({ ...place, min: { ...place.min }, max: { ...place.max }, ...(place.spot ? { spot: { ...place.spot } } : {}) });
+    const copy = place => ({ ...place, min: { ...place.min }, max: { ...place.max }, ...(place.spot ? { spot: { ...place.spot } } : {}),
+        ...(place.told ? { told: { ...place.told } } : {}) });
+    const sameName = (place, label) => place.name?.toLowerCase() === label.toLowerCase();
 
     function create(cell, kind, t) {
         const place = { id: nextId++, kind, name: null, min: { ...cell }, max: { ...cell }, crumb: null, created: t, lastSeen: t };
@@ -65,6 +78,7 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
         older.namedBy ??= newer.namedBy;
         older.spot ??= newer.spot;
         older.crumb ??= newer.crumb;
+        older.told ??= newer.told;
         older.lastSeen = Math.max(older.lastSeen, newer.lastSeen);
         places.delete(newer.id);
         mergedInto.set(newer.id, older.id);
@@ -108,10 +122,10 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
         remember(name, pos, { crumb = null, by = null } = {}) {
             const label = String(name).trim();
             for (const other of places.values()) {
-                if (other.name?.toLowerCase() !== label.toLowerCase()) continue;
+                if (!sameName(other, label)) continue;
                 other.name = null;
                 delete other.spot;
-                if (other.kind === 'named') places.delete(other.id); // it was only ever the name
+                if (other.kind === 'named' || other.kind === 'told') places.delete(other.id); // it was only ever the name
             }
             // A site that already has a name keeps it: the new name is then a spot of its own inside it.
             const here = api.at(pos, { raw: true });
@@ -128,7 +142,11 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
         name(id, name, { by = null } = {}) {
             const place = places.get(resolve(id));
             if (!place) return null;
-            for (const other of places.values()) if (other !== place && other.name?.toLowerCase() === String(name).trim().toLowerCase()) other.name = null;
+            for (const other of places.values()) {
+                if (other === place || !sameName(other, String(name).trim())) continue;
+                other.name = null;
+                if (other.kind === 'told') places.delete(other.id); // a told place is nothing without its name
+            }
             place.name = String(name).trim();
             place.namedBy = by;
             dirty = true;
@@ -148,11 +166,84 @@ export function createPlaces({ scope, now = Date.now, joinDistance = 24 } = {}) 
             return null;
         },
 
-        /** The place a point is in (or within `margin` blocks of). The smallest one, if several fit. */
+        /**
+         * A player says a place of this name is at `spot` ({x, y, z}, y null when they didn't say). It is
+         * kept as told, apart from what the bot has seen, until `confirmTold`. Told again, it moves. A
+         * name the bot already gave something it has seen is not taken over by what it was told.
+         * @param {object} [options]
+         * @param {string|null} [options.by] - who said so
+         * @returns {{place: object|null, taken: object|null}} the told place, or the seen place that has the name
+         */
+        tell(name, spot, { by = null } = {}) {
+            const label = String(name).trim();
+            const t = now();
+            let place = null;
+            for (const other of places.values()) {
+                if (!sameName(other, label)) continue;
+                if (other.kind !== 'told') return { place: null, taken: copy(other) };
+                place = other;
+            }
+            const cell = toldCellOf(spot);
+            if (!place) {
+                place = { id: nextId++, kind: 'told', name: label, min: null, max: null, crumb: null, created: t, lastSeen: null };
+                places.set(place.id, place);
+            }
+            place.name = label;
+            place.namedBy = by;
+            place.min = { ...cell };
+            place.max = { ...cell };
+            place.spot = { x: spot.x, y: cell.y === null ? null : spot.y, z: spot.z };
+            place.told = { by, at: t };
+            dirty = true;
+            return { place: copy(place), taken: null };
+        },
+
+        /**
+         * The bot has seen the spot of a told place. It becomes a named spot at `spot` (now with its
+         * height), or, when an unnamed site the bot found by sight is within `joinDistance`, that site takes
+         * the name and the told place is folded into it. A site that already has a name is left alone:
+         * the told place stays a spot of its own beside it.
+         * @returns {{place: object, joined: number|null, beside: string|null}|null} null when it is not a told place
+         */
+        confirmTold(id, spot) {
+            const place = places.get(resolve(id));
+            if (!place || place.kind !== 'told') return null;
+            const t = now();
+            const cell = cellOf(spot);
+            place.kind = 'named';
+            place.min = { ...cell };
+            place.max = { ...cell };
+            place.spot = { x: spot.x, y: spot.y, z: spot.z };
+            place.told = { ...place.told, seenAt: t };
+            place.lastSeen = t;
+            dirty = true;
+            const site = [...places.values()].filter(other => other.kind === 'found' && gapTo(other, cell) <= joinDistance)
+                .sort((a, b) => gapTo(a, cell) - gapTo(b, cell))[0];
+            if (!site) return { place: copy(place), joined: null, beside: null };
+            if (site.name) return { place: copy(place), joined: null, beside: site.name };
+            site.name = place.name;
+            site.namedBy = place.namedBy;
+            site.told = place.told;
+            site.lastSeen = Math.max(site.lastSeen, t);
+            places.delete(place.id);
+            mergedInto.set(place.id, site.id);
+            return { place: copy(site), joined: site.id, beside: null };
+        },
+
+        /** Told places not seen yet, nearest first, each with `distance` (across the ground when the height is unknown). */
+        toldNear(from, { maxDistance = Infinity } = {}) {
+            return [...places.values()].filter(place => place.kind === 'told').map(place => ({ ...copy(place), distance: gapTo(place, from) }))
+                .filter(place => place.distance <= maxDistance).sort((a, b) => a.distance - b.distance);
+        },
+
+        /**
+         * The place a point is in (or within `margin` blocks of). The smallest one, if several fit. A told
+         * place the bot hasn't seen is never the place it is in: what it sees there isn't filed under hearsay.
+         */
         at(pos, { margin = 4, raw = false } = {}) {
             let best = null, bestSize = Infinity;
             for (const place of places.values()) {
-                if (gapTo(place, pos) > margin) continue;
+                if (place.kind === 'told' || gapTo(place, pos) > margin) continue;
                 const size = (place.max.x - place.min.x + 1) * (place.max.y - place.min.y + 1) * (place.max.z - place.min.z + 1);
                 if (size < bestSize) { best = place; bestSize = size; }
             }

@@ -91,8 +91,9 @@ export function placeBank(getMemory, bank) {
             memory?.places.remember(name, { x, y, z }, { crumb: memory.trail.current });
         },
         recallPlace(name) {
+            // A told place with no height has no position this call can give; !goToPlace walks to it.
             const spot = getMemory()?.places.byName(name)?.spot;
-            return spot ? [spot.x, spot.y, spot.z] : bank.recallPlace(name);
+            return spot && spot.y !== null ? [spot.x, spot.y, spot.z] : bank.recallPlace(name);
         },
         getJson: () => bank.getJson(),
         loadJson(json) {

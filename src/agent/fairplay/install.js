@@ -48,11 +48,13 @@ import { installFairLegs } from './fair_legs.js';
 import { withSearchHint } from './commands.js';
 import { attachWorldMemory, placeBank } from '../memory/install.js';
 import { adoptFormerScope } from '../memory/files.js';
-import { namePlaceCommand, placesCommand, recallCommand, withNotes } from '../memory/commands.js';
+import { goToPlace, namePlaceCommand, placesCommand, recallCommand, rememberToldPlaceCommand, withNotes } from '../memory/commands.js';
+import { requestWatcher } from '../storage/asker.js';
 import { registerCommand } from '../commands/index.js';
 import * as skills from '../library/skills.js';
 import * as worldModule from '../library/world.js';
 import Vec3 from 'vec3';
+import pf from 'mineflayer-pathfinder';
 
 /**
  * Locks cheat mode off on a ModeController instance (bot.modes). Returns false from setOn when it
@@ -371,6 +373,12 @@ export function installFairPlay(agent, { config = settings, saveEveryMs = 60_000
         registerCommand(recallCommand);
         registerCommand(placesCommand);
         registerCommand(namePlaceCommand);
+        // Places a player told the bot of. Who is behind each request is kept, so only a player can tell
+        // (the model acting on its own idea can't make one up) and the place records who said so.
+        const watcher = requestWatcher(agent);
+        handle.asker = () => watcher.behind();
+        registerCommand(rememberToldPlaceCommand);
+        registerCommand(goToPlaceCommandSpec, { action: true });
         // Saved places (!rememberHere, !goToRememberedPlace) now live in world memory, as places.
         if (agent.memory_bank) agent.memory_bank = placeBank(() => handle.memory, agent.memory_bank);
     }
@@ -385,6 +393,39 @@ const lookAroundCommandSpec = {
     description: 'Turn round and look every way. You see only what is in front of you; this looks at the rest, so it is known in !entities, !nearbyBlocks and searches.',
     // What an action says is what it logs.
     perform: asAction('lookAround', async agent => skills.log(agent.bot, await lookAroundCommand(agent.bot))),
+};
+
+/**
+ * Walks to a place's spot. A told place may have no height: then anywhere at that x and z will do, and
+ * the pathfinder finds the ground. Ordinary travel plans the way, through the trail where it leads there.
+ */
+async function walkToSpot(bot, spot) {
+    if (spot.y !== null) return skills.goToPosition(bot, spot.x, spot.y, spot.z, 2);
+    try {
+        await skills.goToGoal(bot, new pf.goals.GoalNearXZ(spot.x, spot.z, 2));
+    } catch (error) {
+        skills.log(bot, `Pathfinding stopped: ${error.message}.`);
+        return false;
+    }
+    const p = bot.entity.position;
+    return Math.hypot(p.x - spot.x, p.z - spot.z) <= 3;
+}
+
+// !goToPlace: an action, as walking is. After arriving at a told spot it lets the look-around the arrival
+// started finish, so the place is checked against what the bot saw there.
+const goToPlaceCommandSpec = {
+    name: '!goToPlace',
+    description: 'Go to a place you know by name: one you found, named, or were told of (see !places). A told place is confirmed once you see it.',
+    params: { 'name': { type: 'string', description: 'The name of the place.' } },
+    perform: asAction('goToPlace', async (agent, name) => skills.log(agent.bot, await goToPlace(agent, name, {
+        goTo: walkToSpot,
+        settle: async () => {
+            // The look-around starts on the recorder's next slice after the bot stops; give it that, then let it finish.
+            await new Promise(r => setTimeout(r, 400));
+            const recorder = agent.fairPlay?.recorder;
+            for (let waited = 0; recorder?.busy && waited < 5000 && !agent.bot.interrupt_code; waited += 100) await new Promise(r => setTimeout(r, 100));
+        },
+    }))),
 };
 
 /** Runs a command's work as one of the bot's actions, as the built-in action commands do. */

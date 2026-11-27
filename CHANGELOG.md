@@ -9,6 +9,26 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.25.0-bedrock.1.27.0] - 2026-11-27
+
+Places a player told the bot of, for both editions, and a fix to `!bringItem`. Built on the same Mindcraft-CE
+commit as 1.24.0-bedrock.1.26.0.
+
+### Added
+
+- World memory keeps places a player told the bot of. `!rememberToldPlace(name, where)` takes the position
+  as the player gave it, with or without a height, and only a player can prompt it. Until the bot sees the
+  spot the place is listed as told, with who said it, and nothing it sees is joined to it; once seen, it
+  becomes a place like any other (the name of the site found there, if that has none), and the model hears
+  of it once. `!goToPlace(name)` walks to any place by name, told ones included.
+
+### Fixed
+
+- `!bringItem` throws toward the player. When the bot already knew where they were (seeing all around), it
+  turned to them and threw at once, and the server, which had not yet heard of the turn, threw the item the
+  way the bot faced before: from the chest it had just emptied, away from the player. About one hand-over in
+  four was left on the ground. The bot now lets the turn reach the server first.
+
 ## [1.24.0-bedrock.1.26.0] - 2026-11-27
 
 Claude's prompt cache keeps hitting through a long task, for both editions: the memory summary, rewritten every
@@ -1409,7 +1429,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.24.0-bedrock.1.26.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.25.0-bedrock.1.27.0...HEAD
+[1.25.0-bedrock.1.27.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.24.0-bedrock.1.26.0...v1.25.0-bedrock.1.27.0
 [1.24.0-bedrock.1.26.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.23.0-bedrock.1.25.0...v1.24.0-bedrock.1.26.0
 [1.23.0-bedrock.1.25.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.22.0-bedrock.1.24.0...v1.23.0-bedrock.1.25.0
 [1.22.0-bedrock.1.24.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.21.1-bedrock.1.23.0...v1.22.0-bedrock.1.24.0
