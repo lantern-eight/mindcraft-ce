@@ -269,6 +269,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/item_goal_hunt.test.js`,
   `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`, `tests/place_block_failure.test.js`,
   `tests/place_block_cheat.test.js`, `tests/till_and_sow_cheat.test.js`, `tests/collect_ripe_crops.test.js`, `tests/collect_without_collision.test.js`,
+  `tests/collect_plant_base.test.js`,
   `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,

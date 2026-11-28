@@ -307,6 +307,37 @@ try {
         } finally { neighbor.stop(); farming.stop(); }
     });
 
+    await step('melons and pumpkins: the fruit beside each stem is picked, the stems stay, a gap among melon stems is sown with melon seed', async () => {
+        // The bot is given melon seed only: the gap among the melon stems is what it sows with it.
+        await reset({ kit: ['melon_seeds 3'] });
+        // Melon stems at 7 and 9 on the empty row (z 2), their melons to the south on the grass beside the
+        // field, and a young one at 8 on the row before, round a gap at 8, 2. A pumpkin at 4, its fruit south.
+        await cmd(`fill ${X0} ${Y + 1} 1 ${X1} ${Y + 1} 2 air`);
+        await cmd(`fill ${X0} ${Y + 1} 1 5 ${Y + 1} 1 beetroots[age=3]`);
+        for (const x of [7, 9]) await cmd(`setblock ${x} ${Y + 1} 2 attached_melon_stem[facing=south]`);
+        await cmd(`setblock 8 ${Y + 1} 1 melon_stem[age=7]`);
+        await cmd(`setblock 4 ${Y + 1} 2 attached_pumpkin_stem[facing=south]`);
+        for (const x of [7, 9]) await cmd(`setblock ${x} ${Y + 1} 3 melon`);
+        await cmd(`setblock 4 ${Y + 1} 3 pumpkin`);
+        await delay(800);
+        const book = createFieldBook({ scope: 'live' });
+        const result = await act('test:tend', () => tendField(bot, { book, behind: { asked: true, by: 'Alex' }, name: NAME, memory: handle.memory }));
+        const said = String(result.text ?? '').replace(/\n/g, ' | ');
+        assert.ok(['ok', 'partial'].includes(result.status), said);
+        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${said}`);
+        for (const x of [7, 9]) assert.equal(raw(x, Y + 1, 3)?.name, 'air', `the melon at ${x} was picked: ${said}`);
+        assert.equal(raw(4, Y + 1, 3)?.name, 'air', `the pumpkin was picked: ${said}`);
+        for (const x of [7, 9]) assert.match(raw(x, Y + 1, 2)?.name ?? '', /melon_stem$/, `the melon stem at ${x} stands`);
+        assert.equal(raw(8, Y + 1, 1)?.name, 'melon_stem', 'the young melon stem stands');
+        assert.match(raw(4, Y + 1, 2)?.name ?? '', /pumpkin_stem$/, 'the pumpkin stem stands');
+        assert.equal(raw(8, Y + 1, 2)?.name, 'melon_stem', `the gap among the melon stems is sown with melon seed: ${said}`);
+        assert.ok(have('melon_slice') >= 6, `the melons' slices reached the bag (${have('melon_slice')}): ${said}`);
+        assert.equal(have('pumpkin'), 1, `so did the pumpkin: ${said}`);
+        assert.match(result.text, /Harvested[^.]*2 melon/, said);
+        assert.match(result.text, /Harvested[^.]*1 pumpkin/, said);
+        return { text: said };
+    });
+
     // What is really in a chest, by item, from the server's console: the test may look, the bot may not.
     const chestHolds = async ({ x, y, z }) => {
         const mark = server.log.length;

@@ -44,9 +44,16 @@ test('a poisonous potato is never food to keep, and a field of several crops kee
     assert.deepEqual(asCounts(plan.store), { beetroot: 5, beetroot_seeds: 8, poisonous_potato: 2, wheat_seeds: 4 });
 });
 
+test('melon slices are food, after carrots; a stem keeps a seed; pumpkins go to the chest', () => {
+    const plan = harvestPlan({ melon_slice: 30, melon_seeds: 5, pumpkin: 4, pumpkin_seeds: 2 }, [...cells('melon_stem', 2), ...cells('attached_pumpkin_stem', 1)], { isFood });
+    assert.deepEqual(asCounts(plan.keep), { melon_seeds: 2, melon_slice: 16, pumpkin_seeds: 1 });
+    assert.deepEqual(asCounts(plan.store), { melon_seeds: 3, melon_slice: 14, pumpkin: 4, pumpkin_seeds: 1 });
+});
+
 test('what a field gives, and nothing else, is the harvest', () => {
-    for (const name of ['wheat', 'wheat_seeds', 'carrot', 'potato', 'poisonous_potato', 'beetroot', 'beetroot_seeds']) assert.ok(isHarvest(name), name);
-    for (const name of ['bread', 'dirt', 'stone_hoe', 'melon_slice']) assert.ok(!isHarvest(name), name);
+    for (const name of ['wheat', 'wheat_seeds', 'carrot', 'potato', 'poisonous_potato', 'beetroot', 'beetroot_seeds', 'melon_slice', 'melon_seeds', 'pumpkin', 'pumpkin_seeds'])
+        assert.ok(isHarvest(name), name);
+    for (const name of ['bread', 'dirt', 'stone_hoe', 'carved_pumpkin']) assert.ok(!isHarvest(name), name);
     assert.deepEqual(harvestPlan({}, cells('wheat', 3)), { store: [], keep: [] });
 });
 
@@ -73,4 +80,14 @@ test('a round asks for its harvest to go to the chests of whose field it is, and
     assert.equal(await storeHarvest(bot, field, { owner: 'me' }, {}, none), null, 'no chest for it: nothing to add');
     const broken = async () => { throw new Error('the chest is gone'); };
     assert.equal(await storeHarvest(bot, field, { owner: 'me' }, {}, broken), 'Could not put the harvest away: the chest is gone');
+});
+
+test('the fruit a round picks is a melon or pumpkin beside a stem of its own kind, at the stem\'s height', async () => {
+    const { fruitsBeside } = await import('../src/agent/farming/tend.js');
+    const world = { '1,1,0': 'melon', '0,1,1': 'pumpkin', '-1,1,0': 'pumpkin', '0,2,-1': 'melon', '5,1,5': 'melon' };
+    const read = (x, y, z) => ({ name: world[`${x},${y},${z}`] ?? 'air' });
+    const found = fruitsBeside(read, [{ x: 0, y: 0, z: 0, above: 'attached_melon_stem' }, { x: 4, y: 0, z: 5, above: 'wheat' }]);
+    assert.deepEqual(found.map(f => `${f.name} ${f.x},${f.y},${f.z}`), ['melon 1,1,0'], 'not a pumpkin by a melon stem, nor one a block up, nor one by wheat');
+    const pumpkins = fruitsBeside(read, [{ x: 0, y: 0, z: 0, above: 'pumpkin_stem' }]);
+    assert.deepEqual(pumpkins.map(f => `${f.x},${f.z}`).sort(), ['-1,0', '0,1']);
 });

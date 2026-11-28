@@ -33,6 +33,11 @@ test('!sowField needs a hoe and seeds before it tills anything, and says how to 
     assert.match(notThat.text, /no carrot to sow/);
     const notASeed = await sowField(holding(['stone_hoe'], ['wheat_seeds', 8]), { seed: 'cobblestone', book: book() });
     assert.equal(notASeed.code, 'bad_args');
+    const stems = await sowField(holding(['stone_hoe'], ['melon_seeds', 8]), { seed: 'melon_seeds', book: book() });
+    assert.equal(stems.code, 'bad_args', 'a field tilled edge to edge leaves a stem no room for its fruit');
+    assert.match(stems.text, /!tendField\("melon_seeds"\)/);
+    const onlyStems = await sowField(holding(['stone_hoe'], ['pumpkin_seeds', 8]), { book: book() });
+    assert.equal(onlyStems.code, 'no_seed', '"any" never takes stem seed');
 });
 
 test('!sowField reads its seed and size', () => {

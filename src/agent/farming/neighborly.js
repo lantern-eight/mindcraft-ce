@@ -10,9 +10,9 @@
 //   - any other crop may be cut when the field book says its field is one the bot may always tend (its own,
 //     a shared one, or a player's who said "always"), or when the player who asked is the field's owner;
 //   - anything else stays refused, and the refusal says how to tend a field properly, instead of only "ask".
-// It answers for crops alone (the plant, never the farmland under it), and only ever lets the bot break more
+// It answers for crops alone (the plant or the fruit a stem bore, never the farmland under it), and only ever lets the bot break more
 // than good-neighbor rules allow on their own: it can't make a block someone's. Protected areas still win.
-import { cropOfBlock } from './crops.js';
+import { cropOfBlock, cropOfFruit } from './crops.js';
 import { sameOwner } from './field_book.js';
 
 const keyOf = (x, y, z) => `${x},${y},${z}`;
@@ -34,7 +34,8 @@ export function cropPermits({ book, behind = () => ({}) }) {
     const rounds = new Map();
 
     function permit({ x, y, z, name }) {
-        if (!cropOfBlock(name)) return null;
+        // A melon or pumpkin is a crop too: the fruit a stem bore. A round opens the block under it.
+        if (!cropOfBlock(name) && !cropOfFruit(name)) return null;
         const ground = { x, y: y - 1, z };
         if (rounds.has(keyOf(ground.x, ground.y, ground.z))) return { ok: true };
         const whose = book()?.whose([ground]);

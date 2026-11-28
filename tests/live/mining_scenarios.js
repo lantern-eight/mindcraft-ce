@@ -5,6 +5,7 @@ import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { once } from 'node:events';
 import assert from 'node:assert/strict';
+import Vec3 from 'vec3';
 import rootSettings from '../../settings.js';
 import { setSettings } from '../../src/agent/settings.js';
 import { GAME_VERSION } from '../helpers/game_version.js';
@@ -101,6 +102,23 @@ try {
         await delay(300);
         assert.ok(bot.digTime(target)<3000,`Unexpected enchanted dig time: ${bot.digTime(target)}`);
         const result=await mine('obsidian',1);assert.equal(result.status,'ok',result.text);
+    });
+    await scenario('sugar cane: the stalk is cut above its bottom block, and a lone bottom block is left',async()=>{
+        // Cane on dirt beside water, as it grows (dirt, as sand would fall from this floor in the air): a stalk
+        // three high at z 4 and a single block at z 2. Random ticks are off so neither grows while the bot works.
+        await command('gamerule random_tick_speed 0');
+        await command('tp CEVerification 0.5 70 0.5');
+        await command('fill 5 69 1 5 69 5 water');await command('fill 4 69 1 4 69 5 dirt');
+        await command('fill 4 70 4 4 72 4 sugar_cane');await command('setblock 4 70 2 sugar_cane');
+        await delay(500);
+        const at=(x,y,z)=>bot.blockAt(new Vec3(x,y,z))?.name;
+        const result=await mine('sugar_cane',2);
+        assert.equal(at(4,70,4),'sugar_cane','the stalk\'s bottom block stays: '+result.text);
+        assert.equal(at(4,71,4),'air','the stalk above it is cut: '+result.text);
+        assert.equal(at(4,70,2),'sugar_cane','the lone bottom block stays: '+result.text);
+        assert.ok(result.gains.sugar_cane>=2,result.text);
+        assert.match(result.text,/only the bottom block of each plant/);
+        await command('fill 4 69 1 5 72 5 air');await command('fill 4 69 1 5 69 5 stone');
     });
     await scenario('smelting updates inventory without restarting the bot',async()=>{
         await command('tp CEVerification 0.5 70 0.5');

@@ -9,7 +9,7 @@ How a fix is made and offered is in [CLAUDE.md](../CLAUDE.md), "Fixes to Inherit
 unreleased work, and the release each waits for, are in
 [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch).
 
-*As of `1.33.0-bedrock.1.35.0`.* A line is removed once its fix is merged upstream and this fork is on a release
+*As of `1.34.0-bedrock.1.36.0`.* A line is removed once its fix is merged upstream and this fork is on a release
 that has it. A fix that is declined stays on `main`, and its line says so.
 
 ## Mindcraft-CE
@@ -32,6 +32,7 @@ holds the fix and nothing else.
 | [#155](https://github.com/mindcraft-ce/mindcraft-ce/pull/155) | With native tools off, the conversing prompt puts its fixed instructions and the command list before the parts that change each turn, so providers that cache a repeated start can reuse them |
 | [#156](https://github.com/mindcraft-ce/mindcraft-ce/pull/156) | Collecting a crop takes only fully grown plants, and says the crop is not grown yet when nothing else is there |
 | [#157](https://github.com/mindcraft-ce/mindcraft-ce/pull/157) | Collecting walks up to a plant (it has no collision box for the line-of-sight goal), and that walk and its pickup never dig, place or leap |
+| [#159](https://github.com/mindcraft-ce/mindcraft-ce/pull/159) | Collecting sugar cane, bamboo or cactus leaves the bottom block of each plant to grow back |
 
 ### Merged, With a Difference Kept
 
