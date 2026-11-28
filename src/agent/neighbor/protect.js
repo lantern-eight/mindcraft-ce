@@ -52,12 +52,17 @@ export function compileArea(area) {
  * @param {() => number} [options.now]
  * @param {(x: number, y: number, z: number) => string|null} [options.grantedBy] - the player who let the bot break
  *   this cell (grants.js), or null. A granted cell may be broken, whatever else holds
- * @returns {{refusal: (block: object) => ({why: string, text: string}|null), isTree: function}}
+ * @returns {{refusal: (block: object) => ({why: string, text: string, hint?: string}|null), isTree: function,
+ *   permit: (fn: function) => () => void}} `permit` adds another module's say (see `refusal`), and returns its removal
  */
 export function createProtector({ read, javaName = name => name, tagOf = () => null, placedNow = () => false,
     leavesPersist = () => false, areas = [], dimension = () => 'overworld', now = Date.now, grantedBy = () => null }) {
     const mine = (x, y, z) => placedNow(x, y, z) || tagOf(x, y, z) === 'placed';
     const trees = createTreeJudge({ read, own: mine, now });
+    // Other modules' say over blocks they know more about (farming, over the crops of fields the bot may tend).
+    // Each is asked `{x, y, z, name}` and answers `{ok: true}` to let the bot break it, `{hint}` to add advice to
+    // a refusal, or null. A permit can only free a block: it is asked after protected areas, which stay absolute.
+    const permits = new Set();
 
     /**
      * Why the bot may not break this block, or null when it may.
@@ -74,6 +79,18 @@ export function createProtector({ read, javaName = name => name, tagOf = () => n
         const here = String(dimension() ?? 'overworld').replace('minecraft:', '');
         const area = areas.find(a => (!a.dimension || a.dimension === here) && a.contains({ x, y, z }));
         if (area) return { why: 'area', text: `it is inside the protected area "${area.name}"` };
+        let hint = null;
+        for (const permit of permits) {
+            const say = permit({ x, y, z, name });
+            if (say?.ok) return null;
+            if (say?.hint) hint ??= say.hint;
+        }
+        const reason = rule(x, y, z, name, block);
+        return reason && hint ? { ...reason, hint } : reason;
+    }
+
+    /** The rule itself, for a block no permit freed: why it is someone's, or null. */
+    function rule(x, y, z, name, block) {
         const trunk = isTrunk(name), canopy = isCanopy(name);
         if (!trunk && !canopy && tagOf(x, y, z) === 'built') return { why: 'built', text: `I saw someone put it there` };
         if (trunk) return trees.isTree(x, y, z, name) ? null : { why: 'not a tree', text: `it is not part of a tree I can see, so it may be someone's build` };
@@ -86,5 +103,9 @@ export function createProtector({ read, javaName = name => name, tagOf = () => n
         return { why: 'made', text: `${name} isn't natural ground, so someone made it` };
     }
 
-    return { refusal, isTree: (x, y, z, name) => trees.isTree(x, y, z, javaName(name)) };
+    return {
+        refusal,
+        isTree: (x, y, z, name) => trees.isTree(x, y, z, javaName(name)),
+        permit(fn) { permits.add(fn); return () => permits.delete(fn); },
+    };
 }

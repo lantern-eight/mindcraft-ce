@@ -25,6 +25,7 @@ A block is someone's unless something says it is free to break. In this order:
 | A log | Only as part of a natural tree ([below](#trees)) |
 | Leaves | Yes when grown, no when placed by hand |
 | Natural ground: stone, dirt, sand, gravel, ores, snow, wild plants, the Nether's and the End's own blocks | Yes |
+| A crop, with [farming](farming.md#with-good-neighbor-rules) on: of a field being tended, or one the bot may always tend, or asked for by the field's owner | Yes |
 | Anything else: planks, glass, cobblestone, bricks, wool, rails, torches, crops, doors, chests | No: someone made it |
 
 It goes the safe way round on purpose. A list of what players build with would never be finished, and a
@@ -132,7 +133,7 @@ The code is in `src/agent/neighbor/`:
 |---|---|
 | `natural.js` | Natural ground by name, what a trunk and a canopy are, what grows beside a trunk |
 | `trees.js` | The natural-tree test, over a reader of what the bot knows |
-| `protect.js` | The rule: why a block may not be broken, or nothing |
+| `protect.js` | The rule: why a block may not be broken, or nothing. Other modules may add a permit for blocks they know more about (farming, for crops): it can free a block or add advice to its refusal, never protect one, and protected areas come first |
 | `grants.js` | Blocks a player let the bot break: reading `!allowBreak` from a player's own chat message, keeping each grant for one break and ten minutes |
 | `enforce.js` | Puts the rule under the pathfinder's `safeToBreak` and the bot's `dig` |
 | `install.js` | Reads the settings, builds the reader (fair play's view, or the raw world), and guards the bot |

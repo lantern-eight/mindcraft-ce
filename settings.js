@@ -168,6 +168,10 @@ const settings = {
     // to the next, round water and steep ground, and stop on seeing what was looked for. Works with fair play
     // on or off; false leaves the commands out. See docs/explore.md.
     "explore": true,
+    // Farming: adds !tendField, which harvests the ripe crops of the field nearest the bot, replants them
+    // and sows the empty farmland, and !markField, which says whose a field is. Works with fair play on or
+    // off; false leaves the commands out. See docs/farming.md.
+    "farming": true,
     // Good-neighbor rules: protect_builds keeps the bot from breaking what other players built; protected_areas
     // lists places where it breaks nothing, each { name, min, max } or { name, x, z, radius }. protect_chests
     // and protect_animals are reserved. Works with fair play on or off. See docs/good-neighbor.md.

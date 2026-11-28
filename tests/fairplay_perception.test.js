@@ -157,6 +157,21 @@ test('memory never peeks at the live world: a crop that grew out of sight is rem
     assert.equal(perception.blockAt(at(6, 1, 0)).stateId, ripe, 'seen again, the bot knows it is ripe');
 });
 
+test('a crop remembered by name alone says nothing of how grown it is', () => {
+    const { world, bot, remembered, recorder, perception } = setup(w => {
+        w.set('wheat', 6, 1, 0, { age: 7 });
+        w.fill('stone', [6, 1, 3], [6, 5, 8]);
+    });
+    recorder.tick(); // the look-around notes the wheat, by name
+    assert.equal(remembered.get(6, 1, 0)?.name, 'wheat');
+    bot.moveTo(6.5, 1, 10.5); // behind the wall
+    const believed = perception.blockAt(at(6, 1, 0));
+    assert.ok(believed?.rememberedAt !== undefined, 'only remembered');
+    assert.deepEqual(believed.getProperties(), {}, 'not a seedling: its growth is unknown');
+    bot.moveTo(0.5, 1, 0.5);
+    assert.equal(perception.blockAt(at(6, 1, 0)).stateId, world.stateIdOf('wheat', { age: 7 }), 'seen again, it is the live block');
+});
+
 test('place memory: a block seen earlier is still found after its chunk is no longer loaded', () => {
     const { world, bot, remembered, recorder, perception } = setup(w => w.fill('sand', [20, 1, -1], [22, 1, 1]));
     const sand = world.registry.blocksByName.sand.id;

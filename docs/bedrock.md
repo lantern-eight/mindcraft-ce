@@ -158,7 +158,7 @@ one line of JSON for each step:
 export BEDROCK_TEST_HOST=<address> BEDROCK_TEST_PORT=19132
 export BEDROCK_TEST_CONSOLE="docker exec bedrock-test send-command"
 
-node tests/live/bedrock_all.js                         # all thirteen below, one after another
+node tests/live/bedrock_all.js                         # all fourteen below, one after another
 node tests/live/bedrock_smoke.js                       # the layer under the skills
 node tests/live/bedrock_skills.js                      # every skill, a scene each
 node tests/live/bedrock_skills.js --only=craftRecipe,goToBed   # only the scenes whose names start so
@@ -169,6 +169,7 @@ node tests/live/bedrock_fair_play.js                   # fair play as a whole, a
 node tests/live/bedrock_storage.js                     # chest sorting
 node tests/live/bedrock_stow.js                        # putting away and fetching
 node tests/live/bedrock_smelting.js                    # smelting
+node tests/live/bedrock_farming.js                     # tending a field
 node tests/live/bedrock_neighbor.js                    # good-neighbor rules
 node tests/live/bedrock_turning.js                     # work that turns a lot, timed
 node tests/live/bedrock_explore.js                     # exploring
@@ -250,6 +251,11 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   chest, or on its shelf; sand shared between a row of three furnaces; raw iron taken to a blast furnace over
   a nearer furnace, and raw beef to a smoker, each in half a furnace's time. The Bedrock twin of
   `smelting_scenarios.js`.
+- **`bedrock_farming.js`** builds a field from the console with random ticks off (they are turned back on at
+  the end), and has the bot tend it: ripe wheat, carrots and beetroot cut and replanted, young wheat left at
+  its stage, the empty farmland sown and none of it trampled; then `!collectBlocks`' search for wheat, which
+  must pass over the young plants. Bedrock calls a crop's stage `growth`, which is what it checks. The Bedrock
+  twin of `farming_scenarios.js`; whose field it is is the same code on both editions and is left to that one.
 
 For a server on another machine, `BEDROCK_TEST_CONSOLE` starts with `ssh <that machine>`. The scenes
 send hundreds of console lines, and ssh's connection sharing (`-o ControlMaster=auto -o
@@ -359,7 +365,7 @@ tests: run the script again.
 | `src/agent/bedrock/java_shapes.js` | Where the adapter hands back something of another shape than mineflayer does on Java, the Java shape is put back, once, on the bot. Today: an opened chest, recipes, a click on a block, a villager's trade window, and letting go of every key (through `setControlState`, as on Java, so that an action the agent stopped can't let go of the keys of the one after it). A plain mistake in the adapter is fixed in the adapter and offered upstream; it is put right here only until the pinned adapter has the fix |
 | `tests/bedrock_*.test.js` | Unit tests, no server |
 | `tests/live/bedrock_fixture.js` | Where the live tests find their server, and how they report |
-| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js`, `tests/live/bedrock_smelting.js`, `tests/live/bedrock_neighbor.js`, `tests/live/bedrock_explore.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, putting away and fetching, smelting, good-neighbor rules, and exploring |
+| `tests/live/bedrock_smoke.js`, `tests/live/bedrock_skills.js`, `tests/live/bedrock_perception.js`, `tests/live/bedrock_memory.js`, `tests/live/bedrock_memory_scenarios.js`, `tests/live/bedrock_fair_play.js`, `tests/live/bedrock_storage.js`, `tests/live/bedrock_stow.js`, `tests/live/bedrock_smelting.js`, `tests/live/bedrock_farming.js`, `tests/live/bedrock_neighbor.js`, `tests/live/bedrock_explore.js` | The live tests: the layer under the skills, the skills, fair play's senses, world memory, fair play as a whole, chest sorting, putting away and fetching, smelting, farming, good-neighbor rules, and exploring |
 | `tests/live/bedrock_all.js`, `tests/live/bedrock_spawn_check.js` | Running all of them in turn; what stands at the world spawn, and clearing it |
 | `tests/live/bedrock-server/` | A throwaway server to run them against: its Docker Compose file and a console that works under emulation |
 | [core-hooks.md](core-hooks.md#hooks-for-bedrock-edition) | The edits to inherited files. The `bedrock` branch's copy also lists the libraries it pins |

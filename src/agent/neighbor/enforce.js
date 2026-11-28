@@ -33,7 +33,8 @@ function patchSafeToBreak() {
 export function refusalError(block, reason) {
     const p = block.position;
     const where = `${Math.floor(p.x)}, ${Math.floor(p.y)}, ${Math.floor(p.z)}`;
-    return Object.assign(new Error(`Breaking ${block.name} at ${where} refused: ${reason.text}. Leave other players' builds alone: ask them (a player can let you break it by typing !allowBreak ${where}), or go another way.`),
+    return Object.assign(new Error(`Breaking ${block.name} at ${where} refused: ${reason.text}. ${reason.hint
+        ?? `Leave other players' builds alone: ask them (a player can let you break it by typing !allowBreak ${where}), or go another way.`}`),
         { code: 'good_neighbor', reason: reason.why });
 }
 
