@@ -103,3 +103,15 @@ test('installed farming answers the good-neighbor protector of its bot, and stop
         assert.ok(protector.refusal(crop(0, 0)), 'stopped, farming has no say');
     } finally { unguard(); }
 });
+
+test('a melon or pumpkin beside a stem is freed while the round that picks it holds its ground open', () => {
+    const { protector, permits } = setup();
+    const melon = { name: 'melon', position: { x: 9, y: 1, z: 9 } };
+    assert.ok(protector.refusal(melon)?.hint, 'a melon on ground no round holds is refused, with advice');
+    const close = permits.tending([{ x: 9, y: 0, z: 9 }]);
+    assert.equal(protector.refusal(melon), null, 'the round picking it');
+    assert.equal(protector.refusal({ name: 'pumpkin', position: { x: 9, y: 1, z: 9 } }), null);
+    assert.ok(protector.refusal({ name: 'carved_pumpkin', position: { x: 9, y: 1, z: 9 } }), 'a carved pumpkin is never fruit');
+    close();
+    assert.ok(protector.refusal(melon), 'refused again once the round is over');
+});

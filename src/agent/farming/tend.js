@@ -22,7 +22,7 @@ import { worldQueries } from '../library/world_queries.js';
 import { propsOfState } from '../memory/block_state.js';
 import { isCrop, isRipe } from '../memory/kinds.js';
 import { toolResult } from '../tool_result.js';
-import { cellPlan, cropOf, cropOfBlock, keepHarvesting, seedsOwed, seedToSow } from './crops.js';
+import { cellPlan, cropOf, cropOfBlock, cropOfFruit, keepHarvesting, seedsOwed, seedToSow } from './crops.js';
 import { harvestPlan } from './harvest_plan.js';
 import { visitOrder } from './visit_order.js';
 import { ME, SHARED, mayTend, sameOwner } from './field_book.js';
@@ -190,6 +190,24 @@ async function collectDrops(bot, field, cell) {
     }
 }
 
+/**
+ * The melons and pumpkins the field's stems bore: each one the bot knows on a block beside a stem of its own
+ * kind, at the stem's height. Java names, from the block reader (Bedrock's `melon_block` reads as `melon`).
+ * @returns {{x: number, y: number, z: number, name: string}[]}
+ */
+export function fruitsBeside(read, cells) {
+    const out = new Map();
+    for (const cell of cells ?? []) {
+        const row = cropOfBlock(cell.above);
+        if (!row?.fruit) continue;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const x = cell.x + dx, y = cell.y + 1, z = cell.z + dz;
+            if (read(x, y, z)?.name === row.fruit) out.set(posKey({ x, y, z }), { x, y, z, name: row.fruit });
+        }
+    }
+    return [...out.values()];
+}
+
 /** Breaks one ripe crop. True when it is gone. */
 async function harvest(bot, read, cell, block) {
     try {
@@ -255,7 +273,7 @@ export function ownerText(owner, botName) {
 export async function tendField(bot, { seed = null, book, behind = {}, name = '', memory = null, tending = () => () => {}, store = null } = {}) {
     assertActionOwner(bot);
     if (seed && !cropOf(seed)) {
-        return toolResult('failed', `"${seed}" is not something you can sow on farmland. Use wheat_seeds, carrot, potato or beetroot_seeds, or leave it out.`, 'bad_args');
+        return toolResult('failed', `"${seed}" is not something you can sow on farmland. Use wheat_seeds, carrot, potato, beetroot_seeds, melon_seeds or pumpkin_seeds, or leave it out.`, 'bad_args');
     }
     const read = blockReader(bot);
     const { start, how } = await findStart(bot, memory);
@@ -372,6 +390,24 @@ export async function tendField(bot, { seed = null, book, behind = {}, name = ''
                 closes.push(tending(field.cells)); // what came into view is the same field
                 for (const c of field.cells) if (c.ripe === false && !tally.planted.has(posKey(c))) tally.young.add(posKey(c));
             }
+        }
+
+        // Melons and pumpkins: the fruit beside a stem is picked, and the stem is left to bear another. The
+        // block under the fruit is opened to good-neighbor rules as the field's farmland is.
+        for (const fruit of stopReason ? [] : fruitsBeside(read, field.cells)) {
+            if (stopped(bot)) { stopReason = 'stopped'; break; }
+            if (Date.now() > deadline) { stopReason = 'time'; break; }
+            assertActionOwner(bot);
+            const ground = { x: fruit.x, y: fruit.y - 1, z: fruit.z };
+            closes.push(tending([ground]));
+            if (!(await walkTo(bot, field, ground))) { tally.unreached.add(posKey(ground)); continue; }
+            await lookAt(bot, ground);
+            const now = read(fruit.x, fruit.y, fruit.z);
+            if (!cropOfFruit(now?.name) || !now.block) continue;
+            if (!(await harvest(bot, read, { ...ground, above: now.name }, now.block))) continue;
+            tally.cut[now.name] = (tally.cut[now.name] ?? 0) + 1;
+            await sleep(400);
+            await collectDrops(bot, field, ground);
         }
 
         // What lies on the field still: drops that rolled off while the bot worked elsewhere.

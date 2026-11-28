@@ -9,6 +9,25 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.34.0-bedrock.1.36.0] - 2026-11-28
+
+Melons and pumpkins in a round of tending, for both editions, and collecting sugar cane, bamboo or cactus leaves
+each plant's bottom block. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.
+
+### Added
+
+- Melons and pumpkins in a round of `!tendField`: the fruit standing beside each of the field's stems is
+  picked and the stem is left to bear another. Empty farmland among melon or pumpkin stems is sown with their
+  seed, and `!tendField("melon_seeds")` sows it on the field's empty farmland. Stem seed is never sown just
+  because the bag holds the most of it, and `!sowField` won't sow a whole new field of stems: each needs a
+  free block beside it for its fruit. Melon slices count as food the bot keeps from a harvest.
+
+### Fixed
+
+- Collecting sugar cane, bamboo or cactus leaves the bottom block of each plant, as a player cuts them, so the
+  plant grows back. It used to break the bottom block too, and a patch collected once never came back. With
+  only bottom blocks near, the bot is told they are left to grow.
+
 ## [1.33.0-bedrock.1.35.0] - 2026-11-28
 
 The harvest, for both editions: a round takes it to the field's chest and keeps seed and food, and a walk on a
@@ -1587,7 +1606,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.33.0-bedrock.1.35.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.34.0-bedrock.1.36.0...HEAD
+[1.34.0-bedrock.1.36.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.33.0-bedrock.1.35.0...v1.34.0-bedrock.1.36.0
 [1.33.0-bedrock.1.35.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.32.0-bedrock.1.34.0...v1.33.0-bedrock.1.35.0
 [1.32.0-bedrock.1.34.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...v1.32.0-bedrock.1.34.0
 [1.31.0-bedrock.1.33.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...v1.31.0-bedrock.1.33.0
