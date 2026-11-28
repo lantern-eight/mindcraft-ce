@@ -141,6 +141,7 @@ try {
         assert.doesNotMatch(server.log, /Too many blocks/, 'the arena was reset');
         await cmd('time set noon');
         await cmd(`clear ${NAME}`);
+        await cmd('gamerule natural_health_regeneration true'); // a scene may have turned healing off
         await cmd(`effect clear ${NAME}`);
         await cmd(`effect give ${NAME} instant_health 1 5`);
         await cmd(`effect give ${NAME} saturation 1 20`);
@@ -368,6 +369,9 @@ try {
     await step('badly hurt with a zombie in view: the bot runs, it doesn\'t fight', async () => {
         await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword`);
+        // Fed and rested, a player heals half a heart every half second: from 5 back over half health (where
+        // the bot may fight) in a few seconds, before the zombie is near. Badly hurt has to stay badly hurt.
+        await cmd('gamerule natural_health_regeneration false');
         await cmd(`damage ${NAME} 15 minecraft:generic`);
         await waitFor(() => bot.health <= 5, 3000);
         // West again: through a player's screen the idle look turns the bot every second or two, and the wait
