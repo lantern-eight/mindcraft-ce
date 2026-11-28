@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { CROPS, bestHoe, cellPlan, cropOf, cropOfBlock, cropOfSeed, keepHarvesting, seedToSow, seedsOwed } from '../src/agent/farming/crops.js';
+import { CROPS, bestHoe, cellPlan, cropOf, cropOfBlock, cropOfFruit, cropOfSeed, keepHarvesting, seedToSow, seedsOwed } from '../src/agent/farming/crops.js';
 import { visitOrder } from '../src/agent/farming/visit_order.js';
 import { NO_STEP, fieldBox, findField, stepCost } from '../src/agent/farming/field.js';
 import { ME, SHARED, createFieldBook, loadFieldBook, mayTend } from '../src/agent/farming/field_book.js';
@@ -15,8 +15,9 @@ import { isCrop, isRipe } from '../src/agent/memory/kinds.js';
 
 // ---- The crops ----
 
-test('every crop farming sows is a crop world memory knows the ripe age of', () => {
-    for (const row of CROPS) {
+test('every crop farming cuts is a crop world memory knows the ripe age of', () => {
+    // A melon or pumpkin stem is never cut: its fruit, beside it, is picked when it is there.
+    for (const row of CROPS.filter(r => !r.fruit)) {
         assert.ok(isCrop(row.block), row.block);
         assert.equal(isRipe(row.block, { age: 0 }), false, `${row.block} at age 0`);
     }
@@ -32,7 +33,21 @@ test('crops are found by exact names, never by part of a name', () => {
     assert.equal(cropOf('baked_potato'), null);
     assert.equal(cropOfSeed('wheat'), null, 'wheat is the produce, not the seed');
     assert.equal(cropOfSeed('potato').block, 'potatoes', 'potatoes are planted with a potato');
-    assert.equal(cropOfBlock('attached_melon_stem'), null);
+    assert.equal(cropOfBlock('attached_melon_stem').seed, 'melon_seeds', 'a grown stem bent to its fruit is the same crop');
+    assert.equal(cropOf('melon').block, 'melon_stem', 'a melon is sown from its seed, as a stem');
+    assert.equal(cropOf('pumpkin_seeds').fruit, 'pumpkin');
+    assert.equal(cropOfFruit('melon').seed, 'melon_seeds');
+    assert.equal(cropOfFruit('carved_pumpkin'), null, 'a carved pumpkin is someone\'s, not a fruit on its stem');
+});
+
+test('a stem is never cut, and stem seed is sown only beside stems or when asked for', () => {
+    assert.deepEqual(cellPlan({ ground: 'farmland', above: 'attached_pumpkin_stem', ripe: null }), [], 'no look, no harvest: the stem stays');
+    assert.deepEqual(cellPlan({ ground: 'farmland', above: 'melon_stem', ripe: true }), []);
+    const cells = [{ x: 0, z: 0, above: 'air' }, { x: 1, z: 0, above: 'melon_stem' }, { x: 5, z: 0, above: 'air' }];
+    assert.equal(seedToSow(cells[0], cells, { melon_seeds: 9, wheat_seeds: 2 }), 'melon_seeds', 'beside a melon stem');
+    assert.equal(seedToSow(cells[2], cells, { melon_seeds: 9, wheat_seeds: 2 }), 'wheat_seeds', 'not just because the bag holds most of it');
+    assert.equal(seedToSow(cells[2], cells, { melon_seeds: 9 }), null, 'with only stem seed, nothing out on its own');
+    assert.equal(seedToSow(cells[2], cells, { melon_seeds: 9 }, 'melon'), 'melon_seeds', 'asked for');
 });
 
 test('the best hoe goes by material, and an empty stack is no hoe', () => {

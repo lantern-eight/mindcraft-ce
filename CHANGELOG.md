@@ -9,6 +9,14 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Melons and pumpkins in a round of `!tendField`: the fruit standing beside each of the field's stems is
+  picked and the stem is left to bear another. Empty farmland among melon or pumpkin stems is sown with their
+  seed, and `!tendField("melon_seeds")` sows it on the field's empty farmland. Stem seed is never sown just
+  because the bag holds the most of it, and `!sowField` won't sow a whole new field of stems: each needs a
+  free block beside it for its fruit. Melon slices count as food the bot keeps from a harvest.
+
 ## [1.33.0-bedrock.1.35.0] - 2026-11-28
 
 The harvest, for both editions: a round takes it to the field's chest and keeps seed and food, and a walk on a
