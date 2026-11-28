@@ -2,7 +2,7 @@
 
 Every edit this fork makes to a file that came from Mindcraft-CE is listed here. New code lives in
 `src/agent/fairplay/`, `src/agent/memory/`, `src/agent/storage/`, `src/agent/reflexes/`, `src/agent/smelting/`, `src/agent/neighbor/`,
-`src/agent/explore/` and `src/agent/edition/` and needs no entry.
+`src/agent/explore/`, `src/agent/farming/` and `src/agent/edition/` and needs no entry.
 
 **Why this list exists:** when CE updates, merge it, then re-check each hook below and run the tests. A short
 list keeps that a small job instead of a hunt.
@@ -49,6 +49,7 @@ file.
 | 34 | `src/models/claude.js` (`sendRequest`), `src/models/prompter.js` (`promptConvo`, `promptCoding`); plus `src/models/prompt_cache.js` | `sendRequest` takes a third argument, `{ cache }`, and when it is given the request body goes through `markTextRequest(body, { fresh, uncachedTail })` before it is sent. The two prompter methods fill their template through `fillTextRequest(model, template, fill)` and send through what it returns. For a model other than Claude, or with `prompt_caching` `"off"`, that is the prompt and the call they made before | The text request body is built inside `sendRequest`, and only the prompter knows which parts of its template change each turn. Claude's `sendRequest` had two arguments, so the third is free; other providers use theirs for other things and are called as before |
 | 35 | `src/agent/agent.js` | One import and one call: `installExplore(this)` right after `installGoodNeighbor(this)` | Exploring adds `!explore` and `!exploreFor` when the agent starts, and only when `explore` is on. It is its own call because it works with fair play off |
 | 36 | `src/agent/npc/item_goal.js` (`executeNext`; plus the new `src/agent/library/explore_way.js`) | One import, and inside the `itemGoal:explore` action two lines before the stock step: when a way of exploring is installed for the bot, `await explore(next.source)` explores for the block or mob the goal needs; otherwise `moveAway(bot, 8)` runs as before | The stock item goal steps 8 blocks any way at all when what it needs isn't in sight a second time, so a bot that needs sand walks round where it started. The setter is kept out of `skills.js` because that file is handed to generated code |
+| 37 | `src/agent/agent.js` | One import and one call: `installFarming(this)` right after `installExplore(this)` | The field commands are added when the agent starts, and only when `farming` is on. It is its own call because it works with fair play off |
 
 ## Replaced Pieces
 

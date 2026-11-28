@@ -9,6 +9,37 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.31.0-bedrock.1.33.0] - 2026-11-27
+
+Farming, for both editions: tending a field the way a careful player does. Built on the same Mindcraft-CE
+commit as 1.25.0-bedrock.1.27.0.
+
+### Added
+
+- Farming: `!tendField` tends the field nearest the bot. It cuts only the crops it sees are ripe (wheat,
+  carrots, potatoes, beetroot), picks up the drops, replants each cell, sows empty farmland with the seed asked
+  for or with what grows beside it, and says what reached its inventory and what is left. Among the crops it
+  never jumps, steps down onto the farmland or into its water, so nothing is trampled. With world memory and no
+  field in sight, it walks to the field it remembers. `!markField` says whose a field is and whether the bot
+  may tend it unasked; on its own idea it tends only its own, shared, and "always" fields, and a player asking
+  is never refused. `farming: false` leaves the commands out. See `docs/farming.md`.
+- Farming and good-neighbor rules agree on crops. With both on, the bot cuts the crops of a field it is
+  tending, or of one it may always tend (its own, a shared one, or a player's who said so), and those its
+  owner asks for; a stranger's crops stay protected, and the refusal points the model to `!tendField`.
+
+### Fixed
+
+- `!collectBlocks` of a crop (`wheat`, `carrots`, `potatoes`, `beetroots`, `nether_wart`) takes only fully grown
+  plants. It broke young ones too, flattening a field that was still growing for a seed apiece, and now says the
+  crop is not grown yet when that is all there is.
+- `!collectBlocks` of a plant (a crop, a flower, grass) walks up to it. The walk aimed for a line of sight to
+  the block's collision box, and a plant has none, so every walk timed out and nothing was collected. The
+  walk to a plant, and to its drops, neither digs nor places blocks, and the walk to it doesn't leap, so it no
+  longer breaks young crops or digs up farmland on its way across a field.
+- Under fair play a crop the bot remembers but can't see no longer reads as freshly planted. Memory keeps its
+  name, not its growth, and searches took the missing growth for a seedling, so a field out of view looked all
+  young.
+
 ## [1.30.0-bedrock.1.32.0] - 2026-11-27
 
 A player can let the bot break a protected block, for both editions. Built on the same Mindcraft-CE commit
@@ -1513,7 +1544,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...HEAD
+[1.31.0-bedrock.1.33.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...v1.31.0-bedrock.1.33.0
 [1.30.0-bedrock.1.32.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...v1.30.0-bedrock.1.32.0
 [1.29.0-bedrock.1.31.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.28.0-bedrock.1.30.0...v1.29.0-bedrock.1.31.0
 [1.28.0-bedrock.1.30.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.27.0-bedrock.1.29.0...v1.28.0-bedrock.1.30.0

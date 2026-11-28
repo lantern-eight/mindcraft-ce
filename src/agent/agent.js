@@ -25,6 +25,7 @@ import { installThreatReflexes } from './reflexes/install.js';
 import { installGoodNeighbor } from './neighbor/install.js';
 import { installSmelting } from './smelting/install.js';
 import { installExplore } from './explore/install.js';
+import { installFarming } from './farming/install.js';
 
 /** The chat command that applies a profile's skin, or null when the profile doesn't set one. */
 export function skinCommand(profile) {
@@ -120,6 +121,8 @@ export class Agent {
         installGoodNeighbor(this);
         // Exploring (off unless settings.explore is true): adds !explore and !exploreFor.
         installExplore(this);
+        // Farming (off unless settings.farming is true): adds the field commands.
+        installFarming(this);
 
         this.bot.on('login', () => {
             console.log(this.name, 'logged in!');

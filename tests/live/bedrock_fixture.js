@@ -20,14 +20,18 @@
 //
 // NEVER point these at a world you care about. They dig, build, hand out items and move players around.
 import { spawn } from 'node:child_process';
+import path from 'node:path';
 
 export const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // A console line may pass through a remote shell on its way to the server, and a shell would read
 // characters such as ~ * $ ; or quotes its own way before the server saw them. Rather than guess at the
-// quoting of every way a line can travel, only lines no shell changes are sent. Coordinates are written
-// absolute for the same reason: Bedrock's relative ones start with ~.
-const SAFE_LINE = /^[A-Za-z0-9 _.:\-]+$/;
+// quoting of every way a line can travel, only lines no shell changes are sent, plus what a block state
+// needs (`wheat ["growth"=7]`: brackets, double quotes, = and commas). A line sent over ssh is wrapped in single
+// quotes, which the remote shell takes off and passes the rest through as it is; a line can't hold a single
+// quote, so it can't end the wrapping early. Coordinates are written absolute for the same reason: Bedrock's
+// relative ones start with ~.
+const SAFE_LINE = /^[A-Za-z0-9 _.:\-[\]",=]+$/;
 
 /** Read the server from the environment. Throws, with what to set, when there is none. */
 export function bedrockTestServer(env = process.env) {
@@ -39,13 +43,14 @@ export function bedrockTestServer(env = process.env) {
     const port = Number(env.BEDROCK_TEST_PORT || 19132);
     const version = env.BEDROCK_TEST_VERSION || 'auto';
     const consoleCommand = (env.BEDROCK_TEST_CONSOLE || '').trim().split(/\s+/).filter(Boolean);
+    const overSsh = consoleCommand.length > 0 && path.basename(consoleCommand[0]) === 'ssh';
 
     /** Type one line into the server's console, and give the server a moment to act on it. */
     async function command(line, settleMs = 400) {
         if (!consoleCommand.length) throw new Error('No server console: BEDROCK_TEST_CONSOLE is not set');
         if (!SAFE_LINE.test(line)) throw new Error(`Console line has characters a shell could change: ${line}`);
         await new Promise((resolve, reject) => {
-            const child = spawn(consoleCommand[0], [...consoleCommand.slice(1), line], { stdio: ['ignore', 'pipe', 'pipe'] });
+            const child = spawn(consoleCommand[0], [...consoleCommand.slice(1), overSsh ? `'${line}'` : line], { stdio: ['ignore', 'pipe', 'pipe'] });
             let output = '';
             child.stdout.on('data', data => { output += data; });
             child.stderr.on('data', data => { output += data; });

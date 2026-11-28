@@ -38,6 +38,7 @@ import Vec3 from 'vec3';
 import { buildStopsSightTable, createSight, inView, screenOf } from './sight.js';
 import { lazyStateTable, scanSection, sectionsInRange } from './block_scan.js';
 import { stateOfProps } from '../memory/block_state.js';
+import { isCrop } from '../memory/kinds.js';
 import { editionOf } from '../edition/index.js';
 
 const PLAYER_EYE_HEIGHT = 1.62;
@@ -272,6 +273,11 @@ export function createPerception({ bot, policy, memory = null, getStateId = null
         };
         block.position = new Vec3(entry.x, entry.y, entry.z);
         block.rememberedAt = entry.lastSeen; // marks it as memory, and says how old the memory is
+        // Memory keeps an ordinary block's name, not its state, so the stand-in above is in the block's default
+        // state. For a crop that would claim a fact: the default is a seedling, and a search for ripe wheat
+        // would pass over every field out of view as young. A remembered crop says nothing of its growth.
+        const stateKnown = (Number.isInteger(entry.stateId) && nameOfState(entry.stateId) === entry.name) || Boolean(entry.state);
+        if (!stateKnown && isCrop(entry.name)) block.getProperties = () => ({});
         return block;
     }
 
