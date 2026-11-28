@@ -175,6 +175,51 @@ try {
         } finally { neighbor.stop(); farming.stop(); }
     });
 
+    await step('a field is made by water, and the bot\'s own field is made bigger from its edge, with nothing trampled', async () => {
+        const { sowField } = await import('../../src/agent/farming/sow.js');
+        const { ME } = await import('../../src/agent/farming/field_book.js');
+        const inField = (x, z) => x >= X0 && x <= X1 && z >= -2 && z <= 2;
+        const farmlandAround = () => {
+            const out = [];
+            for (let x = -10; x <= 13; x++) for (let z = -10; z <= 10; z++) if (raw([x, 0, z])?.name === 'farmland') out.push({ x, z });
+            return out;
+        };
+        const wet = c => Math.abs(c.x - WATER[0]) <= 4 && Math.abs(c.z - WATER[2]) <= 4;
+
+        // A new field: the old one taken up, wild grass to cut, the water left where it was.
+        await reset(['stone_hoe 1', 'wheat_seeds 5']);
+        await fill([X0, 0, -2], [X1, 0, 2], 'grass_block');
+        await fill([X0, 1, -2], [X1, 1, 2], 'air');
+        await set(WATER, 'water');
+        await fill([5, 1, 1], [8, 1, 3], 'short_grass');
+        await delay(1500);
+        const book = createFieldBook({ scope: 'live' });
+        const made = await act('test:sow', () => sowField(bot, { size: 9, book, behind: { asked: false }, name: NAME }));
+        const fresh = farmlandAround();
+        assert.equal(fresh.length, 5, `five cells, one for each seed: ${made.text} ${bot.output ?? ''}`);
+        for (const c of fresh) {
+            assert.ok(wet(c), `${c.x}, ${c.z} is kept wet`);
+            assert.equal(raw([c.x, 1, c.z])?.name, 'wheat', `${c.x}, ${c.z} is sown: ${made.text}`);
+            assert.equal(book.whose([at(c.x, 0, c.z)]).owner, ME);
+        }
+
+        // The bot's own field, made bigger.
+        await reset(['stone_hoe 1', 'carrot 3']);
+        await delay(500);
+        const field = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z)) field.push(at(x, 0, z));
+        book.mark(field, { owner: ME });
+        const bigger = await act('test:sow', () => sowField(bot, { seed: 'carrot', size: 3, book, behind: { asked: false }, name: NAME }));
+        const added = farmlandAround().filter(c => !inField(c.x, c.z));
+        assert.equal(added.length, 3, `three new cells: ${bigger.text} ${bot.output ?? ''}`);
+        for (const c of added) {
+            assert.ok(c.x >= X0 - 2 && c.x <= X1 + 2 && Math.abs(c.z) <= 4, `${c.x}, ${c.z} grows from the field`);
+            assert.equal(raw([c.x, 1, c.z])?.name, 'carrots', `${c.x}, ${c.z} is sown with carrots`);
+        }
+        assert.equal(farmlandLeft(), FARMLAND, `the field itself is whole: ${bigger.text}`);
+        return { made: made.text, bigger: bigger.text };
+    });
+
     await step('after all of that, the bot sent no command', () => {
         assert.ok(!sent.includes('command_request'), 'no command was sent');
     });
