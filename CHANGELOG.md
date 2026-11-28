@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.33.0-bedrock.1.35.0] - 2026-11-28
+
+The harvest, for both editions: a round takes it to the field's chest and keeps seed and food, and a walk on a
+field never jumps. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.
+
 ### Added
 
 - A round of `!tendField` ends by taking the harvest to the field's chest: a chest within 16 blocks that a
@@ -1582,7 +1587,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.32.0-bedrock.1.34.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.33.0-bedrock.1.35.0...HEAD
+[1.33.0-bedrock.1.35.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.32.0-bedrock.1.34.0...v1.33.0-bedrock.1.35.0
 [1.32.0-bedrock.1.34.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...v1.32.0-bedrock.1.34.0
 [1.31.0-bedrock.1.33.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...v1.31.0-bedrock.1.33.0
 [1.30.0-bedrock.1.32.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...v1.30.0-bedrock.1.32.0
