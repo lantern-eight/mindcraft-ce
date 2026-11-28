@@ -200,6 +200,16 @@ test('a Bedrock bot feels a hit from the side opposite the push it gets', () => 
     assert.ok(felt[0].z > 0.99, JSON.stringify(felt[0]));
 });
 
+test('Bedrock\'s food table, which its game data lacks, is Java\'s for the items the server has', () => {
+    const registry = bedrockRegistry();
+    assert.deepEqual(registry.foodsByName ?? {}, {}, 'the game data has none');
+    const foods = bedrockEdition.foodsOf(registry);
+    assert.equal(foods.carrot?.foodPoints, 3);
+    assert.equal(foods.bread?.foodPoints, 5);
+    assert.ok(!foods.wheat && !foods.wheat_seeds, 'wheat is no food');
+    assert.equal(bedrockEdition.foodsOf(registry), foods, 'read once');
+});
+
 test('Bedrock answers every question the edition seam asks', () => {
     // A question added to the seam for Java and not answered here stops whatever asks it on a Bedrock
     // bot, with an error, instead of failing a test.

@@ -9,6 +9,29 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.33.0-bedrock.1.35.0] - 2026-11-28
+
+The harvest, for both editions: a round takes it to the field's chest and keeps seed and food, and a walk on a
+field never jumps. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.
+
+### Added
+
+- A round of `!tendField` ends by taking the harvest to the field's chest: a chest within 16 blocks that a
+  player said is for it (`!chestFor` or a sign: plants takes wheat and seeds, food takes carrots, potatoes and
+  beetroot, or the crop by name). The bot keeps seed to sow the field again and food to eat (16 pieces in all,
+  counting what else it carries). Its own and shared fields fill its own and shared chests; a player's field
+  fills that player's, when a player asked. Needs putting away and fetching on; with no chest for it near,
+  the harvest stays in the bag. See `docs/farming.md`.
+
+### Fixed
+
+- A round of `!tendField` (1.31.0) or `!sowField` (1.32.0) now and then trampled a farmland cell beside the
+  field's water, on both editions. The pathfinder jumps on its own between the steps it planned, when it
+  reckons walking straight on won't get there (the bot at the water's edge, or on the line between two
+  cells) and whenever the bot is in water, and the jump came down on farmland. While walking a field the bot
+  now never jumps: a cell it can't reach without one is reported out of reach. A drop floating in the field's
+  water is picked up from beside it.
+
 ## [1.32.0-bedrock.1.34.0] - 2026-11-28
 
 Making fields, for both editions: tilling wet, free ground and sowing it, and saying whose a remembered field
@@ -1564,7 +1587,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.32.0-bedrock.1.34.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.33.0-bedrock.1.35.0...HEAD
+[1.33.0-bedrock.1.35.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.32.0-bedrock.1.34.0...v1.33.0-bedrock.1.35.0
 [1.32.0-bedrock.1.34.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...v1.32.0-bedrock.1.34.0
 [1.31.0-bedrock.1.33.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...v1.31.0-bedrock.1.33.0
 [1.30.0-bedrock.1.32.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...v1.30.0-bedrock.1.32.0
