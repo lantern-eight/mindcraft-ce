@@ -307,6 +307,69 @@ try {
         } finally { neighbor.stop(); farming.stop(); }
     });
 
+    // What is really in a chest, by item, from the server's console: the test may look, the bot may not.
+    const chestHolds = async ({ x, y, z }) => {
+        const mark = server.log.length;
+        await cmd(`data get block ${x} ${y} ${z} Items`);
+        const answer = /has the following block data: (.*)/;
+        await waitFor(() => answer.test(server.log.slice(mark)), 5000, () => `no answer about the block at ${x}, ${y}, ${z}`);
+        const out = {};
+        for (const entry of server.log.slice(mark).match(answer)[1].match(/\{[^{}]*id: "minecraft:[a-z0-9_]+"[^{}]*\}/g) ?? []) {
+            const name = entry.match(/id: "minecraft:([a-z0-9_]+)"/)[1];
+            out[name] = (out[name] ?? 0) + Number(entry.match(/count: (\d+)/)?.[1] ?? 1);
+        }
+        return out;
+    };
+
+    await step('a round takes the harvest to the chests by the field that are for it, keeping seed and food, and tramples nothing', async () => {
+        // Carrots to start with, so that there is more food than the bot keeps.
+        await reset({ kit: ['wheat_seeds 2', 'carrot 20'] });
+        // Beside the field, off the farmland: a chest for plants, one for food, and one for anything.
+        const PLANTS = { x: 4, y: Y + 1, z: 4 }, FOOD = { x: 6, y: Y + 1, z: 4 }, ANYTHING = { x: 8, y: Y + 1, z: 4 };
+        for (const c of [PLANTS, FOOD, ANYTHING]) await cmd(`setblock ${c.x} ${c.y} ${c.z} chest[facing=north]`);
+        const { installStorage } = await import('../../src/agent/storage/install.js');
+        const { storerOf } = await import('../../src/agent/library/store_way.js');
+        const { getCommand } = await import('../../src/agent/commands/index.js');
+        // A message is answered by running it, so chest storage's watcher (which wraps this) can tell a player asked.
+        agent.handleMessage = (source, run) => Promise.resolve(typeof run === 'function' ? run() : undefined);
+        const storage = installStorage(agent, { config: { ...rootSettings, chest_sorting: true, store_and_fetch: true },
+            bookDir: mkdtempSync(path.join(tmpdir(), 'farming-chests-')) });
+        assert.ok(storage && storerOf(bot), 'chest storage is on, with putting away');
+        // A player puts the chests by the field and says what they are for. The bot has looked at them.
+        await bot.lookAt(new Vec3(6.5, Y + 1.5, 4.5), true);
+        await delay(1000);
+        for (const [c, what] of [[PLANTS, 'plants'], [FOOD, 'food'], [ANYTHING, null]]) {
+            assert.match(String(await agent.handleMessage('Alex', () => getCommand('!markChest').perform(agent, c.x, c.y, c.z, NAME, 'same'))), /is now|was already/);
+            if (what) assert.match(String(await agent.handleMessage('Alex', () => getCommand('!chestFor').perform(agent, c.x, c.y, c.z, what))), new RegExp(`For ${what}`));
+        }
+        await bot.lookAt(new Vec3(9.5, Y + 1, 0.5), true);
+
+        const book = createFieldBook({ scope: 'live' });
+        const cells = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z)) cells.push({ x, y: Y, z });
+        book.mark(cells, { owner: ME });
+        const result = await act('test:tend', () => tendField(bot, { book, behind: { asked: false }, name: NAME, memory: handle.memory, store: storerOf(bot) }));
+        assert.ok(['ok', 'partial'].includes(result.status), result.text);
+        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${result.text}`);
+        assert.match(result.text, /The harvest, to the field's chest: Put away/, result.text);
+
+        const plants = await chestHolds(PLANTS), food = await chestHolds(FOOD), anything = await chestHolds(ANYTHING);
+        const growing = block => cells.filter(c => raw(c.x, Y + 1, c.z)?.name === block).length;
+        assert.equal(plants.wheat, X1 - X0 + 1, `all the wheat went to the chest for plants: ${JSON.stringify(plants)} ${result.text}`);
+        assert.equal(have('wheat'), 0, 'none of it kept');
+        assert.equal(have('wheat_seeds'), Math.min(growing('wheat'), have('wheat_seeds') + (plants.wheat_seeds ?? 0)),
+            `seed kept for each cell of wheat, the rest stored: ${JSON.stringify(plants)} ${result.text}`);
+        assert.equal(food.wheat ?? 0, 0, 'no wheat in the chest for food');
+        assert.equal(plants.carrot ?? 0, 0, 'carrots are food, not plants');
+        const eat = have('carrot') + have('beetroot'), stored = (food.carrot ?? 0) + (food.beetroot ?? 0);
+        // Food: 16 in all, or a carrot for each carrot cell when there are more (seed to sow the field again).
+        const meant = Math.min(eat + stored, Math.max(16, growing('carrots')));
+        assert.equal(eat, meant, `food kept, 16 in all or a carrot for each of ${growing('carrots')} carrot cells, the rest stored: kept ${eat}, stored ${JSON.stringify(food)}`);
+        assert.ok(stored > 0, `the food the bot doesn't keep went to the chest for food: ${JSON.stringify(food)}`);
+        assert.deepEqual(anything, {}, 'the chest for anything is left alone');
+        return { text: result.text };
+    });
+
     await step('after all of that, the server log shows no command issued by the bot', () => {
         assert.doesNotMatch(server.log, new RegExp(`${NAME} issued server command`));
     });

@@ -171,7 +171,9 @@ no chest it may take from has the item, the result says which chests it was left
 items with a like name that the bot remembers ("iron" finds `iron_ingot` and `raw_iron`). `!fetchItem` only
 puts it in the bot's bag; `!bringItem` also hands it over. Other modules fetch the same way, by these rules:
 smelting fetches an empty bucket for a lava farm ([smelting.md](smelting.md#lava-from-a-lava-farm)), asking
-through `src/agent/library/fetch_way.js`, which chest storage fills in for the bot.
+through `src/agent/library/fetch_way.js`, which chest storage fills in for the bot. And they put things away
+the same way, only into chests a player said are for them: farming takes a round's harvest to the field's
+chest ([farming.md](farming.md#storing-the-harvest)), through `src/agent/library/store_way.js`.
 
 **Bringing** ("bring me 10 iron") hands over what the bot already carries first, as a player gives what is
 in their bag, and fetches only what it is short of. Which chests it may take from follows who asked, never

@@ -33,6 +33,10 @@ import { registerEdition } from '../edition/index.js';
 import { javaEdition as java, isShelfBlock, shelfClickAt, shelfSlots } from '../edition/java.js';
 import { moveStack } from './window_moves.js';
 import { bedrockNamesFor } from './names.js';
+import { foodValues } from './eating.js';
+
+// The food table for each game data, read once (see foodsOf).
+const FOODS = new WeakMap();
 
 /** Does this game data give each block type a run of state numbers, as Java's does? */
 const numbered = new WeakMap();
@@ -665,6 +669,18 @@ export const bedrockEdition = Object.freeze({
         if (!(level > 0)) return { liquid: null, full: false };
         const liquid = ['water', 'lava', 'powder_snow'].includes(state.cauldron_liquid) ? state.cauldron_liquid : 'water';
         return { liquid, full: level === 6 };
+    },
+
+    /**
+     * What can be eaten, and how filling each is. Bedrock's game data has no food table (its `foodsByName`
+     * is empty), so nothing would count as food. A food is worth the same in both editions and is named
+     * alike, so Java's table is read, narrowed to the items this server has (eating.js does the same for
+     * the bot's own meals). Worked out once per game data.
+     */
+    foodsOf(registry) {
+        if (!registry) return {};
+        if (!FOODS.has(registry)) FOODS.set(registry, foodValues(registry.itemsByName));
+        return FOODS.get(registry);
     },
 
     moveStack,

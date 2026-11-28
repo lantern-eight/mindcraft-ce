@@ -23,6 +23,7 @@ import { propsOfState } from '../memory/block_state.js';
 import { isCrop, isRipe } from '../memory/kinds.js';
 import { toolResult } from '../tool_result.js';
 import { cellPlan, cropOf, cropOfBlock, keepHarvesting, seedsOwed, seedToSow } from './crops.js';
+import { harvestPlan } from './harvest_plan.js';
 import { visitOrder } from './visit_order.js';
 import { ME, SHARED, mayTend, sameOwner } from './field_book.js';
 import { fieldBox, findField, NO_STEP, stepCost } from './field.js';
@@ -117,17 +118,36 @@ async function findStart(bot, memory) {
     return farmland ? { start: farmland.position, how: 'remembered' } : { start: null, how: 'gone' };
 }
 
+/**
+ * Keeps the bot from jumping until the returned function is called.
+ *
+ * The pathfinder presses jump on its own between the steps it planned: when it reckons that walking straight
+ * on won't reach the next step (the bot stands at the edge of the field's water, or on the line between two
+ * cells), and whenever the bot is in water. Among the crops that jump comes down on farmland and tramples
+ * it, whatever the plan said. So while walking a field a press of jump is let through as a release: a step
+ * that needs a jump isn't made, the walk ends short, and the cell is reported out of reach.
+ */
+export function noJumping(bot) {
+    const press = bot.setControlState;
+    const guarded = function (control, state) { return press.call(this, control, control === 'jump' ? false : state); };
+    bot.setControlState = guarded;
+    press.call(bot, 'jump', false);
+    return () => { if (bot.setControlState === guarded) bot.setControlState = press; };
+}
+
 /** Walks within `distance` of a cell's crop, on the field's own rules. True when there. */
 export async function walkTo(bot, field, cell, distance = WORK_DISTANCE) {
     if (distanceFromEye(bot, cell) <= distance + 1) return true;
     const previous = bot.pathfinder.movements;
     bot.pathfinder.setMovements(fieldMovements(bot, field));
+    const jumpAgain = noJumping(bot);
     try {
         await cancellable(bot, () => bot.pathfinder.goto(new pf.goals.GoalNear(cell.x, cell.y + 1, cell.z, distance)),
             WALK_MS, () => bot.pathfinder.setGoal(null));
     } catch {
         if (stopped(bot)) return false;
     } finally {
+        jumpAgain();
         if (previous && !stopped(bot)) bot.pathfinder.setMovements(previous);
     }
     return distanceFromEye(bot, cell) <= distance + 1.5;
@@ -162,7 +182,10 @@ async function collectDrops(bot, field, cell) {
         if (!item) return;
         tried.add(item.id);
         const spot = { x: Math.floor(item.position.x), y: Math.floor(item.position.y) - 1, z: Math.floor(item.position.z) };
-        await walkTo(bot, field, spot, 0);
+        // A drop floating in the field's water is picked up from beside it, as a player reaches over the edge:
+        // walking onto it would leave the bot at the water's edge, or in it, with only a jump to get on.
+        const inWater = field.between.some(c => c.name === 'water' && c.x === spot.x && c.z === spot.z && Math.abs(c.y - (spot.y + 1)) <= 1);
+        await walkTo(bot, field, spot, inWater ? 1 : 0);
         await until(bot, () => item.isValid === false || !world.getNearbyEntities(bot, 8).some(e => e.id === item.id), 600);
     }
 }
@@ -225,9 +248,11 @@ export function ownerText(owner, botName) {
  * @param {object|null} [options.memory] - world memory, to find a remembered field
  * @param {(cells: object[]) => () => void} [options.tending] - opens the field to good-neighbor rules for the
  *   round (neighborly.js), and returns its close
+ * @param {Function|null} [options.store] - puts things away in the chests meant for them (library/store_way.js):
+ *   with it, the round ends by taking the harvest to the field's chest
  * @returns {Promise<{status: string, text: string}>}
  */
-export async function tendField(bot, { seed = null, book, behind = {}, name = '', memory = null, tending = () => () => {} } = {}) {
+export async function tendField(bot, { seed = null, book, behind = {}, name = '', memory = null, tending = () => () => {}, store = null } = {}) {
     assertActionOwner(bot);
     if (seed && !cropOf(seed)) {
         return toolResult('failed', `"${seed}" is not something you can sow on farmland. Use wheat_seeds, carrot, potato or beetroot_seeds, or leave it out.`, 'bad_args');
@@ -355,8 +380,39 @@ export async function tendField(bot, { seed = null, book, behind = {}, name = ''
         // A field tended at a player's request, that nobody had said anything about, is that player's.
         if (behind.asked === true && behind.by) book.claimUnknown(field.cells, behind.by);
 
-        return report(bot, { field, where, whose, tally, before, stopReason, name });
+        const result = report(bot, { field, where, whose, tally, before, stopReason, name });
+        if (!store || stopped(bot) || stopReason === 'stopped') return result;
+        const stored = await storeHarvest(bot, field, book.whose(field.cells), behind, store);
+        return stored ? { ...result, text: `${result.text}\n${stored}` } : result;
     } finally { for (const close of closes) close(); }
+}
+
+/** How far from the bot, at the end of a round, a chest counts as the field's. */
+export const FIELD_CHEST_RANGE = 16;
+
+/**
+ * Takes the harvest to the chests near the field that are meant for it, keeping seed and food
+ * (harvest_plan.js). Whose chests follows whose the field is: the bot's own, shared, or nobody's field fills
+ * the bot's own and shared chests; a player's field fills that player's, and only when a player asked.
+ * @returns {Promise<string|null>} what to add to the round's report, or null when nothing was meant to go anywhere
+ */
+export async function storeHarvest(bot, field, whose, behind, store) {
+    // What can be eaten, from the edition seam: Bedrock's game data has no food table of its own.
+    const foods = editionOf(bot.registry).foodsOf(bot.registry);
+    const plan = harvestPlan(counts(bot), field.cells, { isFood: name => Boolean(foods[name]) });
+    if (!plan.store.length) return null;
+    const owner = whose?.owner;
+    const mine = !owner || sameOwner(owner, ME) || sameOwner(owner, SHARED);
+    let result;
+    try {
+        result = await store(plan.store, { whose: mine ? 'any' : owner, distance: FIELD_CHEST_RANGE, asked: behind?.asked ?? null });
+    } catch (error) {
+        if (stopped(bot)) return null;
+        return `Could not put the harvest away: ${error.message}`;
+    }
+    if (!result || result.status === 'none' || !result.text) return null;
+    const kept = plan.keep.length ? `\nKept on you, to sow the field again and to eat: ${plan.keep.map(({ name, count }) => `${name} ${count}`).join(', ')}.` : '';
+    return `The harvest, to the field's chest: ${result.text}${result.stored ? kept : ''}`;
 }
 
 function report(bot, { field, where, whose, tally, before, stopReason, name }) {

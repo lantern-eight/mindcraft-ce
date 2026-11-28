@@ -432,6 +432,12 @@ test('a Java cauldron says what it holds by its name, and how full by its level'
     assert.equal(javaEdition.cauldronOf(null), null);
 });
 
+test('what can be eaten is the game data\'s own food table', () => {
+    const foods = { carrot: { foodPoints: 3, saturation: 3.6 } };
+    assert.equal(javaEdition.foodsOf({ foodsByName: foods }), foods);
+    assert.deepEqual(javaEdition.foodsOf({}), {});
+});
+
 test('Java smelts in all three furnace blocks: they open the same window', () => {
     assert.deepEqual(javaEdition.usableFurnaceKinds(), ['furnace', 'blast_furnace', 'smoker']);
 });

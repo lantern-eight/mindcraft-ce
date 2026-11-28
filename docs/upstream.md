@@ -9,7 +9,7 @@ How a fix is made and offered is in [CLAUDE.md](../CLAUDE.md), "Fixes to Inherit
 unreleased work, and the release each waits for, are in
 [core-hooks.md](core-hooks.md#dependencies-pinned-to-a-branch).
 
-*As of `1.32.0-bedrock.1.34.0`.* A line is removed once its fix is merged upstream and this fork is on a release
+*As of `1.33.0-bedrock.1.35.0`.* A line is removed once its fix is merged upstream and this fork is on a release
 that has it. A fix that is declined stays on `main`, and its line says so.
 
 ## Mindcraft-CE

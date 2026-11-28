@@ -2,11 +2,13 @@
 
 One instruction, and the bot tends a field the way a careful player does: it cuts the crops it sees are
 ripe, replants them, sows the empty farmland, and picks up what dropped. It leaves young plants to grow,
-never jumps onto the farmland, and on its own idea it tends only fields it may tend. Another, and it makes a
-field: it tills wet ground with a hoe and sows it.
+never jumps onto the farmland, and on its own idea it tends only fields it may tend. With a chest by the
+field for its crops, the harvest goes there, and the bot keeps seed and food. Another instruction, and it
+makes a field: it tills wet ground with a hoe and sows it.
 
 - [Turning It On or Off](#turning-it-on-or-off)
 - [What a Round Does](#what-a-round-does)
+- [Storing the Harvest](#storing-the-harvest)
 - [Whose Fields It Tends](#whose-fields-it-tends)
 - [Making a Field](#making-a-field)
 - [What the Model Can Ask](#what-the-model-can-ask)
@@ -29,6 +31,7 @@ It needs neither fair play nor world memory:
 | Fair play off | The bot sees the whole field at once, the way stock Mindcraft does |
 | Fair play on | It knows only the farmland it has seen, and a crop's ripeness only once it looks at it |
 | World memory on | With no farmland in sight, it walks to the nearest field it remembers, the one with ripe plants first |
+| [Putting away](chest-sorting.md#putting-away-and-fetching) on | A round ends by taking the harvest to the field's chest ([below](#storing-the-harvest)) |
 
 ## What a Round Does
 
@@ -64,6 +67,47 @@ can only reach by jumping is left, and said so.
 **When to stop.** Every break destroys a plant, so when two breaks in a row bring nothing into the bag
 (drops lost in water, through a gap), the round stops and says why instead of cutting the rest. A round also
 stops after a few minutes on a very large field; tending it again carries on.
+
+## Storing the Harvest
+
+A farm often has a chest beside it, where the harvest goes and the seed is kept handy. When a chest within
+16 blocks of the bot, at the end of a round, is **for** what the field gives, the round ends by putting the
+harvest in it, as a player leaves the farm chest full and walks home with their pockets light:
+
+| A chest for | Takes |
+|---|---|
+| `plants` (or a sign saying "crops", "farm") | wheat, wheat seeds and beetroot seeds |
+| `food` | carrots, potatoes and beetroot, which can be eaten |
+| an item, by name (`wheat`, `carrot`) | that item |
+
+A player says what a chest is for with `!chestFor(x, y, z, what)`, or with a sign on it ([what a chest is
+for](chest-sorting.md#what-a-chest-is-for)). A chest for anything, or one nobody said anything about, gets
+none of it: nobody said the harvest goes there. With no chest for it near, the harvest stays in the bag, and
+the model can still put it away with `!putAway`.
+
+**What the bot keeps:**
+
+- **Seed to sow the field again:** of each seed, as many as the field has cells of that crop (at most a
+  stack). Carrots and potatoes are their own seed.
+- **Food to eat:** enough carrots, potatoes and beetroot that it carries 16 pieces of food in all, counting
+  the other food it has, carrots first.
+- Everything else of the harvest goes: wheat, more seed than that, poisonous potatoes. Only what a field
+  gives is stored; the bot's other things stay where they are.
+
+**Whose chests**, by the [rules of putting away](chest-sorting.md#putting-away-and-fetching): the bot's own
+field, a shared one, or one nobody has spoken for fills the bot's own and shared chests. A player's field
+fills that player's chests, and only when a player asked for the round. Never a chest nobody has said whose
+it is.
+
+> The field at 3, 69, -2 to 9, 69, 2 has 34 farmland (it is yours). Harvested 6 carrots, 7 wheat, 3 beetroots, ...
+> The harvest, to the field's chest: Put away carrot 11, beetroot 3, wheat 7 in 2 chests:
+> - chest at 6, 70, 4 (your own): carrot 11, beetroot 3
+> - chest at 4, 70, 4 (your own): wheat 7
+> Kept on you, to sow the field again and to eat: beetroot_seeds 4, carrot 16, wheat_seeds 13.
+
+This needs chest sorting and its putting away on (`chest_sorting`, `store_and_fetch`), which know whose each
+chest is and what it is for. Farming asks them through `library/store_way.js`, so either can be off without
+the other breaking.
 
 ## Whose Fields It Tends
 
@@ -152,6 +196,8 @@ Everything farming knows comes through the same senses as the rest of [fair play
 - **Every cut and every seed planted** goes through the reach rule: within a survival player's reach and in
   view now.
 - **Every walk is planned by the pathfinder,** so route planning over what the bot has seen covers it.
+- **The field's chest is one the bot has seen,** and what it believes is inside is what it saw, as for
+  [putting away](chest-sorting.md#putting-away-and-fetching).
 
 ## Known Limits
 
@@ -167,7 +213,8 @@ Everything farming knows comes through the same senses as the rest of [fair play
 - **On Bedrock a cut beetroot can't always be replanted.** A Bedrock beetroot drops 0 to 3 seeds (a Java one
   at least 1), so a few beetroots can give fewer seeds than cells. The round leaves those cells empty and says
   so ("no seed for it"), as a player without a seed would.
-- **The harvest stays in the bot's inventory.** Taking it to a chest is not built yet.
+- **Only a chest that is for the harvest takes it.** The bot doesn't decide on its own that a chest by the
+  field is the farm's; a player says so (`!chestFor`, or a sign). The walk to the chest is ordinary travel.
 - **A village's field** counts as nobody's: the bot leaves it alone on its own idea, keeps a new field clear
   of it, and tends it when a player asks. Telling a village's field by the farmer working it is not built.
 - **With good-neighbor rules on, `!collectBlocks` of a stranger's crop says it found none,** not that the
@@ -187,9 +234,10 @@ All of it lives in `src/agent/farming/`:
 | `tend.js` | The round itself: the walking, looking, cutting and planting |
 | `ground.js` | Where to make a field: wet, free soil, grown from a field's edge and kept clear of others. Pure |
 | `sow.js` | Making a field: tilling (two strokes for coarse dirt), cutting wild grass, sowing, noting the owner |
+| `harvest_plan.js` | What of the harvest goes into the field's chest, and the seed and food kept. Pure |
 | `commands.js` | What the model can ask, and how the answers read |
 | `neighborly.js` | Answers good-neighbor rules about crops, from the field book and the round being tended |
-| `install.js` | Starts it for one agent, behind the setting, hands good-neighbor rules its answer, and tells `!recall` whose a field is (`library/field_owners.js`) |
+| `install.js` | Starts it for one agent, behind the setting, hands good-neighbor rules its answer, tells `!recall` whose a field is (`library/field_owners.js`), and hands a round chest storage's way of putting things away (`library/store_way.js`) |
 
 **What depends on the edition of the game.** Block names are turned into Java's through the
 [edition seam](edition-seam.md) (`javaNameOf`) before they are looked up, and a crop's ripeness is asked of
