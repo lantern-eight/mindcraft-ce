@@ -258,7 +258,8 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   each plant; with good-neighbor rules on, a stranger's wheat left standing; and a field
   made by water and the bot's own field made bigger with a hoe; and the harvest taken to the chests by the field
   that are for it, seed and food kept, read back by opening each chest; and the melons and pumpkins beside a
-  field's stems picked, the stems left, and the gap among melon stems sown with melon seed. Bedrock calls a crop's stage `growth`,
+  field's stems picked, the stems left, and the gap among melon stems sown with melon seed; and, asked, bone
+  meal made at a composter behind the bot and young wheat ripened with it, nothing cut. Bedrock calls a crop's stage `growth`,
   which is what it checks. The Bedrock twin of `farming_scenarios.js`; whose field it is is the same code on both
   editions and is left to that one.
 
