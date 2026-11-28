@@ -101,7 +101,7 @@ export function nearestFarmland(bot, range = FIELD_RANGE) {
  * there is none near, and with world memory, walking to the nearest remembered field.
  * @returns {Promise<{start: object|null, how: string}>}
  */
-async function findStart(bot, memory) {
+export async function findStart(bot, memory) {
     const nearest = () => nearestFarmland(bot);
     let farmland = nearest();
     if (!farmland || bot.entity.position.distanceTo(farmland.position) > 6) {

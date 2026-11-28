@@ -130,7 +130,7 @@ test('the setting adds the field commands, and MindServer knows it with the same
     assert.equal(installFarming(agent, { config: {} }), null, 'a config that leaves the key out gets nothing new');
     const bookDir = mkdtempSync(path.join(tmpdir(), 'farming-install-'));
     const installed = installFarming(agent, { config: { farming: true, world_id: 'test' }, bookDir });
-    assert.deepEqual(installed.commands, ['!tendField', '!sowField', '!markField']);
+    assert.deepEqual(installed.commands, ['!tendField', '!sowField', '!compost', '!boneMealField', '!markField']);
     for (const name of installed.commands) assert.ok(getCommands().includes(getCommand(name)), name);
     assert.deepEqual(parseCommandMessage('!tendField("wheat_seeds")'), { commandName: '!tendField', args: ['wheat_seeds'] });
     assert.deepEqual(parseCommandMessage('!markField("Alice", "always")'), { commandName: '!markField', args: ['Alice', 'always'] });

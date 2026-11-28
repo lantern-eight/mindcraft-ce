@@ -9,6 +9,13 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Bone meal and the composter, only when a player asks. `!compost(item, count)` puts what the player named in
+  the composter nearest the bot and takes out the bone meal once it is full; `!boneMealField(count)` uses bone
+  meal on the young crops of the field nearest the bot, a plant at a time until it is ripe, and cuts nothing.
+  On the bot's own idea it does neither: a crop ripens by itself, and a stack of seeds makes about two bone meal.
+
 ## [1.34.0-bedrock.1.36.0] - 2026-11-28
 
 Melons and pumpkins in a round of tending, for both editions, and collecting sugar cane, bamboo or cactus leaves
