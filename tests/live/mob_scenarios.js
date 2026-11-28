@@ -141,6 +141,7 @@ try {
         assert.doesNotMatch(server.log, /Too many blocks/, 'the arena was reset');
         await cmd('time set noon');
         await cmd(`clear ${NAME}`);
+        await cmd('gamerule natural_health_regeneration true'); // a scene may have turned healing off
         await cmd(`effect clear ${NAME}`);
         await cmd(`effect give ${NAME} instant_health 1 5`);
         await cmd(`effect give ${NAME} saturation 1 20`);
@@ -333,7 +334,12 @@ try {
             if (shield) await cmd(`give ${NAME} shield`);
             await delay(1500);
             await lookAbout(); // the bot sees its pen
-            const blocksBefore = blocked;
+            const blocksBefore = blocked, damageBefore = damage;
+            // The arrows shot in the pen, and when the shield went up and came down: a shield raised with nothing
+            // stopped says whether no arrow came, or one came while the shield was down or faced away.
+            const t0 = Date.now(), arrows = [];
+            const onArrow = entity => { if (entity.name === 'arrow') arrows.push(Number(((Date.now() - t0) / 1000).toFixed(1))); };
+            bot.on('entitySpawn', onArrow);
             await cmd('summon skeleton 5.5 70 0.5 {PersistenceRequired:1b,equipment:{mainhand:{id:"minecraft:bow",count:1}}}');
             // When no cover is ever looked for: where the bot is and faces, where the skeleton is, and whether the bot
             // sees it, beside what the reflexes did.
@@ -341,12 +347,14 @@ try {
                 .map(e => `(${e.position.x.toFixed(1)}, ${e.position.z.toFixed(1)}${fair.perception.seesEntity(e) ? ', in view' : ', not in view'})`);
             await waitFor(() => decided('mob_safety').some(e => e.stance === 'take_cover'), 15000, () => `the bot at (${bot.entity.position.x.toFixed(1)}, ${bot.entity.position.z.toFixed(1)}) facing ${Math.round(bot.entity.yaw * 180 / Math.PI)}, skeletons at ${skeletons().join(', ') || 'none'}, damage ${damage.toFixed(1)}: ${JSON.stringify(events)}`);
             await delay(12000);
+            bot.off('entitySpawn', onArrow);
             const raised = events.filter(e => e.event === 'shield').length;
             const fell = events.filter(e => e.event === 'cover').map(e => e.ended);
             assert.ok(fell.every(ended => ended === 'no cover' || ended === 'no way there'), `no cover was found: ${fell}`);
-            if (shield) assert.ok(raised > 0 && blocked > blocksBefore, `the shield went up (${raised}) and stopped arrows (${blocked - blocksBefore})`);
+            if (shield) assert.ok(raised > 0 && blocked > blocksBefore, `the shield went up (${raised}) and stopped arrows (${blocked - blocksBefore}); `
+                + `arrows shot at ${JSON.stringify(arrows)} s, damage ${(damage - damageBefore).toFixed(1)}, shield ${JSON.stringify(events.filter(e => e.event === 'shield'))}`);
             else assert.equal(raised, 0);
-            return { damage: Number(damage.toFixed(1)), raised, blocked: blocked - blocksBefore, moves: decided('mob_safety').length };
+            return { damage: Number(damage.toFixed(1)), raised, blocked: blocked - blocksBefore, arrows: arrows.length, moves: decided('mob_safety').length };
         });
     }
 
@@ -368,6 +376,9 @@ try {
     await step('badly hurt with a zombie in view: the bot runs, it doesn\'t fight', async () => {
         await reset({ facing: 90 }); // facing west, where the zombie will be
         await cmd(`give ${NAME} stone_sword`);
+        // Fed and rested, a player heals half a heart every half second: from 5 back over half health (where
+        // the bot may fight) in a few seconds, before the zombie is near. Badly hurt has to stay badly hurt.
+        await cmd('gamerule natural_health_regeneration false');
         await cmd(`damage ${NAME} 15 minecraft:generic`);
         await waitFor(() => bot.health <= 5, 3000);
         // West again: through a player's screen the idle look turns the bot every second or two, and the wait

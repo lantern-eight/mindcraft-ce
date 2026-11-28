@@ -149,6 +149,27 @@ export function loadFieldBook(dir, { warn, ...options } = {}) {
 }
 
 /**
+ * A few words on whose a remembered field is, for !recall: "your field", "a shared field", "Alex's field", or
+ * null when the book has no word on it. The field is world memory's: the box its crops span, so its
+ * farmland is the level below.
+ * @param {object} book
+ * @param {{min: {x,y,z}, max: {x,y,z}}} field
+ * @param {string} [botName]
+ */
+export function fieldOwnerWords(book, field, botName = '') {
+    const { min, max } = field ?? {};
+    if (!min || !max) return null;
+    const cells = [];
+    for (let x = min.x; x <= max.x && cells.length < 2048; x++) for (let z = min.z; z <= max.z; z++)
+        for (let y = min.y - 1; y <= max.y - 1; y++) cells.push({ x, y, z });
+    const { owner } = book.whose(cells);
+    if (!owner) return null;
+    if (sameOwner(owner, ME) || (botName && sameOwner(owner, botName))) return 'your field';
+    if (sameOwner(owner, SHARED)) return 'a shared field';
+    return `${owner}'s field`;
+}
+
+/**
  * May the bot tend this field now? A player is never refused: when a player asks, or when it can't be told
  * who asked, yes. On the bot's own idea, only a field whose owner allows it ("always": its own and shared
  * fields by default, and a player's that the player said may always be tended).

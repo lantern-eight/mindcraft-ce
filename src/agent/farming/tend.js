@@ -83,7 +83,7 @@ export function fieldMovements(bot, field) {
     return m;
 }
 
-const stopped = bot => Boolean(bot.interrupt_code || actionContext(bot)?.signal.aborted);
+export const stopped = bot => Boolean(bot.interrupt_code || actionContext(bot)?.signal.aborted);
 
 const eyeOf = bot => bot.entity.position.offset(0, bot.entity.eyeHeight ?? 1.62, 0);
 const distanceFromEye = (bot, cell) => eyeOf(bot).distanceTo(new Vec3(cell.x + 0.5, cell.y + 1.25, cell.z + 0.5));
@@ -118,7 +118,7 @@ async function findStart(bot, memory) {
 }
 
 /** Walks within `distance` of a cell's crop, on the field's own rules. True when there. */
-async function walkTo(bot, field, cell, distance = WORK_DISTANCE) {
+export async function walkTo(bot, field, cell, distance = WORK_DISTANCE) {
     if (distanceFromEye(bot, cell) <= distance + 1) return true;
     const previous = bot.pathfinder.movements;
     bot.pathfinder.setMovements(fieldMovements(bot, field));
@@ -134,12 +134,12 @@ async function walkTo(bot, field, cell, distance = WORK_DISTANCE) {
 }
 
 /** Turns to look at a cell's crop, so what stands there is seen now. */
-async function lookAt(bot, cell) {
+export async function lookAt(bot, cell) {
     try { await bot.lookAt(new Vec3(cell.x + 0.5, cell.y + 1.2, cell.z + 0.5)); } catch { /* a turn cut short */ }
 }
 
 /** Waits until `test` holds, or `ms` passes. */
-async function until(bot, test, ms) {
+export async function until(bot, test, ms) {
     const end = Date.now() + ms;
     while (Date.now() < end) {
         if (test()) return true;
@@ -149,7 +149,7 @@ async function until(bot, test, ms) {
     return test();
 }
 
-const counts = bot => world.getInventoryCounts(bot);
+export const counts = bot => world.getInventoryCounts(bot);
 
 /** Picks up the dropped items lying on or beside a cell, walking onto them on the field's rules. */
 async function collectDrops(bot, field, cell) {
@@ -180,7 +180,7 @@ async function harvest(bot, read, cell, block) {
 }
 
 /** Plants a seed on one empty farmland cell. True when the crop shows. */
-async function plant(bot, read, cell, seed) {
+export async function plant(bot, read, cell, seed) {
     const row = cropOf(seed);
     const item = bot.inventory.items().find(i => i.name === seed);
     if (!row || !item) return false;
