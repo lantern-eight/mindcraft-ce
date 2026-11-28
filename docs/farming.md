@@ -4,13 +4,15 @@ One instruction, and the bot tends a field the way a careful player does: it cut
 ripe, replants them, sows the empty farmland, and picks up what dropped. It leaves young plants to grow,
 never jumps onto the farmland, and on its own idea it tends only fields it may tend. With a chest by the
 field for its crops, the harvest goes there, and the bot keeps seed and food. Another instruction, and it
-makes a field: it tills wet ground with a hoe and sows it.
+makes a field: it tills wet ground with a hoe and sows it. And when a player asks, it makes bone meal at a
+composter and spends it on the young crops.
 
 - [Turning It On or Off](#turning-it-on-or-off)
 - [What a Round Does](#what-a-round-does)
 - [Storing the Harvest](#storing-the-harvest)
 - [Whose Fields It Tends](#whose-fields-it-tends)
 - [Making a Field](#making-a-field)
+- [Bone Meal and the Composter](#bone-meal-and-the-composter)
 - [What the Model Can Ask](#what-the-model-can-ask)
 - [Is It Fair?](#is-it-fair)
 - [Known Limits](#known-limits)
@@ -179,12 +181,39 @@ or growing a field does:
 
 Without a hoe it says how to get one (`!getTool`), and without seeds it says so before tilling anything.
 
+## Bone Meal and the Composter
+
+A crop ripens by itself, and bone meal is dear: each item put into a composter has only a chance to raise
+its level (a seed 30%, a carrot 65%, bread 85%), and seven levels make one bone meal, so a stack of seeds
+makes about two. A player spends it when they want food sooner. So does the bot, **only when a player
+asks**; on its own idea it does neither, and says so if the model tries.
+
+- **`!compost(item, count)`** puts up to `count` of the item the player named into the composter nearest
+  the bot, within 16 blocks, looking round for one first when none is in view. Each click takes one item
+  whether or not the level rises. When the composter is full it waits the second it takes to ripen, and
+  clicks it once more for the bone meal, which it picks up. It composts nothing the player didn't name, and
+  says how full the composter is at the end:
+
+> Put 64 wheat_seeds in the composter at -2, 70, 0 and took 2 bone_meal out. It is at level 3 of 7 now;
+> each wheat_seeds has a 30% chance to raise it. You have 2 bone_meal.
+
+- **`!boneMealField(count)`** uses up to `count` bone meal on the young crops of the field nearest the bot:
+  one plant until it is ripe, then the next, rather than a little on each, so what is spent ripens
+  something. It walks the field on a round's rules (never jumping onto the farmland), reads a plant's stage
+  only from a plant in view, and cuts nothing: the next `!tendField` harvests what ripened. Melon and pumpkin
+  stems get none; bone meal on a stem only sometimes brings a fruit.
+
+> Used 8 bone_meal on the field at 3, 69, -2 to 9, 69, 2: 5 plants are ripe now. You have 2 bone_meal left.
+> !tendField harvests what is ripe.
+
 ## What the Model Can Ask
 
 | Command | What it does |
 |---|---|
 | `!tendField(seed)` | Tends the field nearest the bot. `seed` is what to sow on empty farmland: `"wheat_seeds"`, `"carrot"`, `"potato"`, `"beetroot_seeds"`, `"melon_seeds"`, `"pumpkin_seeds"`, or `"any"` for what grows beside each cell |
 | `!sowField(seed, size)` | Makes a field: tills and sows up to `size` blocks of wet, free soil near the bot (the field it may tend made bigger, or a new one). `seed` as above, but not melon or pumpkin seed, as each stem needs a free block beside it for its fruit; or `"any"` for the seed held most of |
+| `!compost(item, count)` | Only when a player asks: puts up to `count` of `item` into the composter nearest the bot, and takes out the bone meal it gives ([above](#bone-meal-and-the-composter)) |
+| `!boneMealField(count)` | Only when a player asks: uses up to `count` bone meal on the young crops of the field nearest the bot, a plant at a time until it is ripe |
 | `!markField(owner, tending)` | Says whose the field nearest the bot is (a player's name, `"shared"`, the bot's own name, `"unknown"`, or `"same"`), and whether it may be tended unasked (`"always"`, `"asked"` or `"same"`) |
 
 `!recall("wheat")` from [world memory](world-memory.md) lists the fields the bot remembers, how many plants
@@ -203,6 +232,8 @@ Everything farming knows comes through the same senses as the rest of [fair play
 - **Every walk is planned by the pathfinder,** so route planning over what the bot has seen covers it.
 - **The field's chest is one the bot has seen,** and what it believes is inside is what it saw, as for
   [putting away](chest-sorting.md#putting-away-and-fetching).
+- **The composter is one the bot has seen,** its level read from it in view, and every click on it or on a
+  crop with bone meal goes through the reach rule.
 
 ## Known Limits
 
@@ -215,7 +246,10 @@ Everything farming knows comes through the same senses as the rest of [fair play
   rules start at its edge.
 - **Wheat, carrots, potatoes, beetroot, melons and pumpkins.** Sugar cane, cocoa, nether wart and sweet
   berries are not tended yet; `!collectBlocks("sugar_cane")` (`"reeds"` on Bedrock) cuts cane and leaves
-  the bottom block of each plant to grow back. Neither bone meal nor a composter is used.
+  the bottom block of each plant to grow back.
+- **Bone meal only when asked, and only on a field's crops.** Not on saplings, grass or flowers, and the
+  bot never decides on its own that a harvest is worth composting. A composter anyone placed is used, as a
+  player would use one standing by a farm.
 - **A melon or pumpkin is picked only from beside a stem of the field.** Fruit beside a stem on its own,
   away from farmland the bot tends, is left.
 - **On Bedrock a cut beetroot can't always be replanted.** A Bedrock beetroot drops 0 to 3 seeds (a Java one
@@ -243,13 +277,16 @@ All of it lives in `src/agent/farming/`:
 | `ground.js` | Where to make a field: wet, free soil, grown from a field's edge and kept clear of others. Pure |
 | `sow.js` | Making a field: tilling (two strokes for coarse dirt), cutting wild grass, sowing, noting the owner |
 | `harvest_plan.js` | What of the harvest goes into the field's chest, and the seed and food kept. Pure |
+| `compost.js` | Filling a composter and taking out its bone meal; the game's table of what fills it |
+| `bone_meal.js` | Bone meal on a field's young crops, a plant at a time |
 | `commands.js` | What the model can ask, and how the answers read |
 | `neighborly.js` | Answers good-neighbor rules about crops, from the field book and the round being tended |
 | `install.js` | Starts it for one agent, behind the setting, hands good-neighbor rules its answer, tells `!recall` whose a field is (`library/field_owners.js`), and hands a round chest storage's way of putting things away (`library/store_way.js`) |
 
 **What depends on the edition of the game.** Block names are turned into Java's through the
 [edition seam](edition-seam.md) (`javaNameOf`) before they are looked up, and a crop's ripeness is asked of
-world memory's `kinds.js`, which reads Bedrock's `growth` as Java's `age`. Seed and crop item names are the
+world memory's `kinds.js`, which reads Bedrock's `growth` as Java's `age`. How full a composter is comes from
+the seam's `composterOf` (`level` on Java, `composter_fill_level` on Bedrock). Seed and crop item names are the
 same in both editions.
 
 **Tests.** `tests/farming_*.test.js` cover the decisions, the field search over a hand-built world with fair
