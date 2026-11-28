@@ -60,6 +60,16 @@ function soundNameOf(registry, packet) {
     return Number.isInteger(id) ? registry?.sounds?.[id + base]?.name ?? null : null;
 }
 
+/**
+ * A composter's level, read from the state the edition names (see composterOf). Both editions count it
+ * alike, 0 to 8, so only the state's name differs.
+ */
+export function composterLevel(block, state) {
+    let level;
+    try { level = Number(block.getProperties?.()?.[state]); } catch { level = NaN; }
+    return Number.isInteger(level) && level >= 0 && level <= 8 ? { level, ready: level === 8 } : null;
+}
+
 // A survival player's reach on Java (see survivalReach).
 const SURVIVAL_REACH = Object.freeze({ blocks: 4.5, entities: 3 });
 
@@ -658,6 +668,18 @@ export const javaEdition = Object.freeze({
         let level;
         try { level = Number(block.getProperties?.()?.level); } catch { level = NaN; }
         return { liquid, full: level === 3 };
+    },
+
+    /**
+     * How full a composter is. Java calls it `level`: 0 empty, 1 to 7 filling, 8 ready, when a click on it
+     * gives bone meal. A composter at 7 turns 8 a second later by itself.
+     * @param {object|null} block - a block, as the bot knows it
+     * @returns {{level: number, ready: boolean}|null} null for anything but a composter, or one whose level
+     *   can't be read
+     */
+    composterOf(block) {
+        if (block?.name !== 'composter') return null;
+        return composterLevel(block, 'level');
     },
 
     /**

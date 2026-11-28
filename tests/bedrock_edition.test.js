@@ -279,6 +279,15 @@ test('a Bedrock cauldron is one block for every liquid: its states say which, an
     assert.equal(bedrockEdition.cauldronOf(null), null);
 });
 
+test('a Bedrock composter says how full it is by composter_fill_level, counted as on Java', () => {
+    const composter = state => ({ name: 'composter', getProperties: () => state });
+    assert.deepEqual(bedrockEdition.composterOf(composter({ composter_fill_level: 3 })), { level: 3, ready: false });
+    assert.deepEqual(bedrockEdition.composterOf(composter({ composter_fill_level: 8 })), { level: 8, ready: true });
+    assert.equal(bedrockEdition.composterOf(composter({ level: 8 })), null, 'Java\'s name for it is not Bedrock\'s');
+    assert.equal(bedrockEdition.composterOf({ name: 'cauldron' }), null);
+    assert.equal(bedrockEdition.composterOf(null), null);
+});
+
 test('Bedrock smelts in furnaces, blast furnaces and smokers, as Java does', () => {
     assert.deepEqual(bedrockEdition.usableFurnaceKinds(), ['furnace', 'blast_furnace', 'smoker']);
 });
