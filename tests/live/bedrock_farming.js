@@ -227,6 +227,25 @@ try {
         return { text };
     });
 
+    await step('collecting sugar cane cuts the stalk above its bottom block, and leaves a lone bottom block', async () => {
+        // Bedrock's sugar cane block is `reeds`, and collecting takes Bedrock's block names, so the model asks
+        // for reeds (its item is still sugar_cane). On the grass beside a strip of water west of the bot: a
+        // stalk three high at z 4 and a single block at z 2. Random ticks are off, so neither grows.
+        await reset();
+        await fill([-4, 0, 1], [-4, 0, 5], 'water');
+        await fill([-3, 1, 4], [-3, 3, 4], 'reeds');
+        await set([-3, 1, 2], 'reeds');
+        await delay(800);
+        const result = await act('test:collect', () => skills.collectBlockResult(bot, 'reeds', 2));
+        const said = String(result.text ?? '').replace(/\n/g, ' | ');
+        assert.equal(raw([-3, 1, 4])?.name, 'reeds', `the stalk's bottom block stays: ${said}`);
+        assert.equal(raw([-3, 2, 4])?.name, 'air', `the stalk above it is cut: ${said}`);
+        assert.equal(raw([-3, 1, 2])?.name, 'reeds', `the lone bottom block stays: ${said}`);
+        assert.ok(have('sugar_cane') >= 2, `the cane reached the bag (${have('sugar_cane')}): ${said}`);
+        assert.match(said, /only the bottom block of each plant/);
+        return { text: said };
+    });
+
     await step('with good-neighbor rules on, a stranger\'s wheat is not collected, and a field the bot is asked to tend is tended', async () => {
         await reset(['wheat_seeds 2']);
         const { installGoodNeighbor } = await import('../../src/agent/neighbor/install.js');

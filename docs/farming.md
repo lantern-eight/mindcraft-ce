@@ -214,8 +214,8 @@ Everything farming knows comes through the same senses as the rest of [fair play
 - **The walk to a field from afar** uses ordinary travel, which doesn't know about trampling; the field's own
   rules start at its edge.
 - **Wheat, carrots, potatoes, beetroot, melons and pumpkins.** Sugar cane, cocoa, nether wart and sweet
-  berries are not tended yet; `!collectBlocks("sugar_cane")` cuts cane and leaves the bottom block of each
-  plant to grow back. Neither bone meal nor a composter is used.
+  berries are not tended yet; `!collectBlocks("sugar_cane")` (`"reeds"` on Bedrock) cuts cane and leaves
+  the bottom block of each plant to grow back. Neither bone meal nor a composter is used.
 - **A melon or pumpkin is picked only from beside a stem of the field.** Fruit beside a stem on its own,
   away from farmland the bot tends, is left.
 - **On Bedrock a cut beetroot can't always be replanted.** A Bedrock beetroot drops 0 to 3 seeds (a Java one

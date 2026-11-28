@@ -254,7 +254,8 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
 - **`bedrock_farming.js`** builds a field from the console with random ticks off (they are turned back on at
   the end), and has the bot tend it: ripe wheat, carrots and beetroot cut and replanted, young wheat left at
   its stage, the empty farmland sown and none of it trampled; then `!collectBlocks`' search for wheat, which
-  must pass over the young plants; with good-neighbor rules on, a stranger's wheat left standing; and a field
+  must pass over the young plants; collecting cane (Bedrock's `reeds`), which must leave the bottom block of
+  each plant; with good-neighbor rules on, a stranger's wheat left standing; and a field
   made by water and the bot's own field made bigger with a hoe; and the harvest taken to the chests by the field
   that are for it, seed and food kept, read back by opening each chest; and the melons and pumpkins beside a
   field's stems picked, the stems left, and the gap among melon stems sown with melon seed. Bedrock calls a crop's stage `growth`,
