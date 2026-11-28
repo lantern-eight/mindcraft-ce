@@ -18,7 +18,8 @@ import { loadChestBook } from './chest_book.js';
 import { storageCommands } from './commands.js';
 import { setRoomMaker } from '../library/bag_room.js';
 import { setFetcher } from '../library/fetch_way.js';
-import { fetchHere, PUT_RANGE, putAwayHere, stowCommands } from './stow_commands.js';
+import { setStorer } from '../library/store_way.js';
+import { fetchHere, PUT_RANGE, putAwayHere, storeHere, stowCommands } from './stow_commands.js';
 import { watchMadeChests } from './made_chests.js';
 
 /**
@@ -109,6 +110,14 @@ export function installStorage(agent, { config = settings, deps = {}, bookDir = 
         setFetcher(agent.bot, async (name, count) => {
             const env = { contentsOf, similar, signNear, ...deps, book: bookNow(agent), name: agent.name, ...watcher.behind() };
             try { return await fetchHere(agent.bot, name, count, env); }
+            finally { save(agent); }
+        });
+        // And puts things away in the chests meant for them (farming, a round's harvest: library/store_way.js),
+        // by the same rules of whose. Who is behind it comes from the asking module, which knows its request.
+        setStorer(agent.bot, async (items, { whose = 'any', distance = 16, asked = null } = {}) => {
+            const env = { contentsOf, similar, signNear, ...deps, book: bookNow(agent), name: agent.name, ...watcher.behind() };
+            if (asked !== null) env.asked = asked;
+            try { return await storeHere(agent.bot, items, { whose, distance }, env); }
             finally { save(agent); }
         });
     }

@@ -28,7 +28,7 @@ import { isSortable } from './chests.js';
 import { grouper } from './item_groups.js';
 import { cleanName, keepPlan } from './keep_plan.js';
 import { fileInbox } from './inbox.js';
-import { isInbox } from './purposes.js';
+import { fitFor, isInbox } from './purposes.js';
 import { fetchItem, lookInto, putAway } from './stow.js';
 import { ANY, putInto, takeFrom } from './take_put.js';
 
@@ -106,6 +106,42 @@ const sizeOf = bot => name => bot.registry.itemsByName[name]?.stackSize ?? 64;
 const here = bot => bot.entity?.position ?? { x: 0, y: 0, z: 0 };
 
 /**
+ * The chests within `distance` that the bot may put things into for `whose`, with what each is for, and
+ * what was left out and why. A shelf counts only when a player has said what it is for.
+ * @param {boolean} [meantOnly] - only chests that are for one of `items` (by name or group): a chest for
+ *   anything, or for something else, is left out
+ */
+function chestsToPutIn(bot, items, whose, distance, env, { meantOnly = false, groupOf } = {}) {
+    forgetGone(bot, env);
+    // A shelf is often a display a player arranged by hand, so things go onto one only when a player has
+    // said what it is for (or a sign on it says): a shelf for torches takes torches. One for anything, or
+    // one nobody has said anything about, is left as it is.
+    const purposeOf = purposesOn(bot, env);
+    const named = shelf => { const { holds, from } = purposeOf(shelf); return from !== null && holds.length > 0 && !isInbox(holds); };
+    const found = chestsWithBeliefs(bot, Math.min(distance, PUT_RANGE), env, { shelves: true }).filter(chest => !chest.shelf || named(chest));
+    const allowed = putInto(found, env.book, { whose, asked: env.asked ?? null });
+    // What each chest is for (a player's word, else its sign): put-away keeps things out of a chest meant
+    // for something else, and out of the inbox.
+    let chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner, holds: purposeOf(chest).holds }));
+    if (meantOnly) chests = chests.filter(chest => items.some(({ name }) => fitFor(chest.holds, name, groupOf) > 0));
+    return { chests, leftOut: leftOutText(allowed.left) };
+}
+
+/** What a round of putting away did, as lines for the model: where things went, what is still carried, what was skipped. */
+function storedLines(report) {
+    const stored = sumOf(report.stored.flatMap(({ items }) => Object.entries(items).map(([name, count]) => ({ name, count }))));
+    const n = report.stored.length, lines = [];
+    if (n) {
+        lines.push(`Put away ${listOf(stored)} in ${n} ${plural(n, 'chest')}:`);
+        for (const { chest, items } of report.stored) lines.push(`- ${labelOf(chest)} (${ownerLabel(chest.owner)}): ${listOf(items)}`);
+    } else lines.push('Nothing was put away.');
+    return { lines, n };
+}
+const leftText = report => `Still carrying, with no room for it in the chests you may use: ${listOf(sumOf(report.left))}. `
+    + 'Place a chest, or ask a player where it should go.';
+const statusOf = (n, report) => (!n ? 'failed' : report.left.length || report.skipped.length ? 'partial' : 'ok');
+
+/**
  * !putAway: puts what the bot carries into the chests where those things belong.
  * @param {object} bot
  * @param {string} whatText - "all" for everything the keep plan does not keep, or one item's name
@@ -123,42 +159,58 @@ export async function putAwayHere(bot, whatText, whoseText, distance, deps = {})
     if (!plan.store.length) return toolResult('ok', 'Nothing to put away: everything you carry is something you keep with you.');
 
     const whose = readWhose(whoseText, env);
-    forgetGone(bot, env);
-    // A shelf is often a display a player arranged by hand, so things go onto one only when a player has
-    // said what it is for (or a sign on it says): a shelf for torches takes torches. One for anything, or
-    // one nobody has said anything about, is left as it is.
-    const purposeOf = purposesOn(bot, env);
-    const named = shelf => { const { holds, from } = purposeOf(shelf); return from !== null && holds.length > 0 && !isInbox(holds); };
-    const found = chestsWithBeliefs(bot, Math.min(distance, PUT_RANGE), env, { shelves: true }).filter(chest => !chest.shelf || named(chest));
-    const allowed = putInto(found, env.book, { whose, asked: env.asked ?? null });
-    const leftOut = leftOutText(allowed.left);
-    if (!allowed.usable.length) {
+    const { chests, leftOut } = chestsToPutIn(bot, plan.store, whose, distance, env);
+    if (!chests.length) {
         return toolResult('failed', `You know no chest within ${distance} blocks that you may put things in${whose === ANY ? ' (your own or shared ones)' : ''}. `
             + `Nothing was put away.${leftOut ? `\n${leftOut}` : ''}`);
     }
-    // What each chest is for (a player's word, else its sign): put-away keeps things out of a chest meant
-    // for something else, and out of the inbox.
-    const chests = allowed.usable.map(({ chest, rank, owner }) => ({ ...chest, rank, owner, holds: purposeOf(chest).holds }));
     const report = await putAway(chests, {
         items: plan.store, hands: hands(bot, env), from: here(bot), stackSize: sizeOf(bot),
         groupOf: grouper({ isFood: name => Boolean(bot.registry.foodsByName?.[name]) }), checkpoint: () => assertActionOwner(bot),
     });
 
-    const stored = sumOf(report.stored.flatMap(({ items }) => Object.entries(items).map(([name, count]) => ({ name, count }))));
-    const n = report.stored.length, lines = [];
-    if (n) {
-        lines.push(`Put away ${listOf(stored)} in ${n} ${plural(n, 'chest')}:`);
-        for (const { chest, items } of report.stored) lines.push(`- ${labelOf(chest)} (${ownerLabel(chest.owner)}): ${listOf(items)}`);
-    } else lines.push('Nothing was put away.');
+    const { lines, n } = storedLines(report);
     if (everything && plan.keep.length) lines.push(`Kept on you: ${plan.keep.map(({ name, count }) => `${name} ${count}`).join(', ')}.`);
-    if (report.left.length) {
-        lines.push(`Still carrying, with no room for it in the chests you may use: ${listOf(sumOf(report.left))}. `
-            + 'Place a chest, or ask a player where it should go.');
-    }
+    if (report.left.length) lines.push(leftText(report));
     for (const { chest, reason } of report.skipped) lines.push(`- ${labelOf(chest)} was left out: ${reason}`);
     if (leftOut) lines.push(`Left alone within ${distance} blocks:\n${leftOut}`);
-    const status = !n ? 'failed' : report.left.length || report.skipped.length ? 'partial' : 'ok';
-    return toolResult(status, lines.join('\n'));
+    return toolResult(statusOf(n, report), lines.join('\n'));
+}
+
+/**
+ * Puts the given items into the chests within `distance` that are for them: another module's question
+ * (farming stores a round's harvest in the field's chest: library/store_way.js). Only a chest a player has
+ * said is for one of them, by its name or its group (a player's word or a sign), is used; one for anything
+ * is not, since nobody said the harvest goes there.
+ * @param {object} bot
+ * @param {{name: string, count: number}[]} items - what to put away, and how many of each
+ * @param {object} request
+ * @param {string} [request.whose] - ANY (the bot's own chests, then shared), or a player's name
+ * @param {number} [request.distance]
+ * @param {object} deps - as for putAwayHere
+ * @returns {Promise<{status: string, text: string, stored: number, code?: string}>} `stored`: how many items went
+ *   into chests. Status `none` with no text when no chest near is for them
+ */
+export async function storeHere(bot, items, { whose = ANY, distance = 16 } = {}, deps = {}) {
+    const env = { ...real, ...deps };
+    // The slots to take each from, as the keep plan gives them: of each item, all but what is to go is kept.
+    const bag = bagOf(bot);
+    const asked = (items ?? []).filter(item => item?.name && item.count > 0);
+    const carried = name => bag.filter(item => item.name === name).reduce((n, item) => n + item.count, 0);
+    const wanted = keepPlan(bag, { only: asked.map(({ name }) => name),
+        keep: Object.fromEntries(asked.map(({ name, count }) => [name, Math.max(0, carried(name) - count)])) }).store;
+    if (!wanted.length) return { status: 'none', text: '', stored: 0 };
+    const groupOf = grouper({ isFood: name => Boolean(bot.registry.foodsByName?.[name]) });
+    const { chests } = chestsToPutIn(bot, wanted, whose, distance, env, { meantOnly: true, groupOf });
+    if (!chests.length) return { status: 'none', text: '', stored: 0 };
+    const report = await putAway(chests, {
+        items: wanted, hands: hands(bot, env), from: here(bot), stackSize: sizeOf(bot), groupOf, checkpoint: () => assertActionOwner(bot),
+    });
+    const { lines, n } = storedLines(report);
+    if (report.left.length) lines.push(`Still carrying, with no room for it in the chests for it: ${listOf(sumOf(report.left))}.`);
+    for (const { chest, reason } of report.skipped) lines.push(`- ${labelOf(chest)} was left out: ${reason}`);
+    const stored = report.stored.reduce((total, { items: there }) => total + Object.values(there).reduce((a, b) => a + b, 0), 0);
+    return { status: statusOf(n, report), text: lines.join('\n'), stored };
 }
 
 /**
