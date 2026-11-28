@@ -66,6 +66,12 @@ try {
     const raw = cell => bot.blockAt(at(...cell)); // the test may peek; the bot may not
     const growthAt = cell => Number(raw(cell)?.getProperties().growth);
     const have = name => bot.inventory.items().filter(i => i.name === name).reduce((n, i) => n + i.count, 0);
+    // The farmland cells of the field that aren't farmland any more, for a failure to name.
+    const trampled = () => {
+        const out = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z) && raw([x, 0, z])?.name !== 'farmland') out.push(`${x},${z}: ${raw([x, 0, z])?.name}`);
+        return out.join(' ');
+    };
     const farmlandLeft = () => {
         let n = 0;
         for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z) && raw([x, 0, z])?.name === 'farmland') n++;
@@ -118,7 +124,7 @@ try {
         const result = await act('test:tend', () => tendField(bot, { book, behind: { asked: true, by: 'Alex' }, name: NAME, memory: handle.memory }));
         assert.match(result.text, /not ripe yet/);
         assert.ok(['ok', 'partial'].includes(result.status), result.text);
-        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${result.text}`);
+        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${result.text}`);
         try { checkRound(); } catch (error) { error.message += ` (${result.text} ${bot.output ?? ''})`; throw error; }
         return { text: result.text };
     });
@@ -169,7 +175,7 @@ try {
             // A round of tending, as a command, with nobody to tell it was the bot's own idea: it is tended,
             // beetroot (Bedrock's `beetroot`, Java's `beetroots`) and all.
             const tendedText = String(await getCommand('!tendField').perform(agent, 'any') ?? '');
-            assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${tendedText}`);
+            assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${tendedText}`);
             try { checkRound(); } catch (error) { error.message += ` (${tendedText} ${bot.output ?? ''})`; throw error; }
             return { refused: refusedText.trim().slice(-200) };
         } finally { neighbor.stop(); farming.stop(); }
@@ -229,6 +235,8 @@ try {
 } finally {
     try {
         await cmd('gamerule randomtickspeed 1');
+        // What the scenes dropped and left lying would be picked up by the next script's bot.
+        if (origin) await cmd('kill @e[type=item]');
         if (origin) await fill([-12, -1, -12], [14, 8, 12], 'air');
     } catch (error) { console.error('Tear-down failed:', error.message); }
     bot?.quit();
