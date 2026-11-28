@@ -9,6 +9,9 @@
 // What the bot was told about fields (whose each is, and whether it may be tended unasked) is kept in the
 // field book, one file per world and dimension, under the bot's own folder.
 //
+// With chest storage's putting away on, a round ends by taking the harvest to a chest by the field that is
+// meant for it (library/store_way.js), keeping seed and food (harvest_plan.js).
+//
 // With good-neighbor rules on, the field book also answers them about crops (neighborly.js): the bot may cut
 // the crops of a field it is tending, or of one it may always tend. good-neighbor rules are installed first
 // (agent.js), so their protector is there to answer.
@@ -20,6 +23,7 @@ import { requestWatcher } from '../storage/asker.js';
 import { farmingCommands } from './commands.js';
 import { fieldOwnerWords, loadFieldBook } from './field_book.js';
 import { setFieldOwners } from '../library/field_owners.js';
+import { storerOf } from '../library/store_way.js';
 import { cropPermits } from './neighborly.js';
 import { protectorOf } from '../neighbor/enforce.js';
 
@@ -71,6 +75,9 @@ export function installFarming(agent, { config = settings, bookDir = null } = {}
     const commands = farmingCommands({
         book: bookNow, save, asker: () => watcher.behind(),
         memory: a => a.fairPlay?.memory ?? null, tending: permits.tending, mayTill,
+        // With chest storage's putting away on, a round takes its harvest to the field's chest. Asked for when
+        // the round runs, so it doesn't matter which of the two was installed first.
+        store: a => storerOf(a.bot),
     });
     for (const { command, action } of commands) registerCommand(command, { action });
     // !recall names whose a remembered field is, from the book.

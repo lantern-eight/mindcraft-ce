@@ -661,6 +661,16 @@ export const javaEdition = Object.freeze({
     },
 
     /**
+     * What can be eaten, and how filling each is: the game's food table, by item name (`foodPoints`,
+     * `saturation`). Java's game data carries it.
+     * @param {object} registry - the bot's game data
+     * @returns {Object<string, {foodPoints: number, saturation: number}>}
+     */
+    foodsOf(registry) {
+        return registry?.foodsByName ?? {};
+    },
+
+    /**
      * Moves the stack in one slot of an open window onto another slot, the way a player does it with the
      * mouse: pick it up, click the other slot, and put back whatever came off. Onto an empty slot it is
      * put down; onto the same kind of item it is poured in, and what doesn't fit goes back; onto

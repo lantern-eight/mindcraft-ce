@@ -145,11 +145,16 @@ try {
         await cmd(`effect clear ${NAME}`);
         await cmd(`effect give ${NAME} instant_health 1 5`);
         await cmd(`effect give ${NAME} saturation 1 20`);
-        await cmd(`tp ${NAME} ${x} 70 ${z} ${facing} 0`);
-        await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
+        // What the last scene left running (a reflex backing away, say) is stopped before the bot is put in
+        // place: stopped after, it walked on from the new spot, once out past where this scene's walls go up.
         await agent.actions.stop();
+        await waitFor(() => !agent.actions.executing, 20000, () => `still running ${agent.actions.currentActionLabel}`);
+        await cmd(`tp ${NAME} ${x} 70 ${z} ${facing} 0`);
         await delay(2000);
         await lookAbout();
+        const off = Math.hypot(bot.entity.position.x - x, bot.entity.position.z - z);
+        assert.ok(off < 1.5, `the bot is where the scene put it (${x}, ${z}), not at (${bot.entity.position.x.toFixed(1)}, ${bot.entity.position.z.toFixed(1)}): `
+            + `running ${agent.actions.currentActionLabel || 'nothing'}, ${JSON.stringify(events.slice(-5))}`);
         // Facing the way the scene asks again: the stock idle look-around may have turned the bot meanwhile,
         // and through a player's screen which way it faces decides what it sees.
         await faceExactly(bot, (180 - facing) * Math.PI / 180, 0);

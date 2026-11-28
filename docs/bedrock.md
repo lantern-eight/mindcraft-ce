@@ -169,7 +169,7 @@ node tests/live/bedrock_fair_play.js                   # fair play as a whole, a
 node tests/live/bedrock_storage.js                     # chest sorting
 node tests/live/bedrock_stow.js                        # putting away and fetching
 node tests/live/bedrock_smelting.js                    # smelting
-node tests/live/bedrock_farming.js                     # tending and making a field
+node tests/live/bedrock_farming.js                     # tending and making a field, storing the harvest
 node tests/live/bedrock_neighbor.js                    # good-neighbor rules
 node tests/live/bedrock_turning.js                     # work that turns a lot, timed
 node tests/live/bedrock_explore.js                     # exploring
@@ -255,9 +255,10 @@ node tests/live/bedrock_fight_arena.js                 # how well the bot fights
   the end), and has the bot tend it: ripe wheat, carrots and beetroot cut and replanted, young wheat left at
   its stage, the empty farmland sown and none of it trampled; then `!collectBlocks`' search for wheat, which
   must pass over the young plants; with good-neighbor rules on, a stranger's wheat left standing; and a field
-  made by water and the bot's own field made bigger with a hoe. Bedrock calls a crop's stage `growth`, which is
-  what it checks. The Bedrock
-  twin of `farming_scenarios.js`; whose field it is is the same code on both editions and is left to that one.
+  made by water and the bot's own field made bigger with a hoe; and the harvest taken to the chests by the field
+  that are for it, seed and food kept, read back by opening each chest. Bedrock calls a crop's stage `growth`,
+  which is what it checks. The Bedrock twin of `farming_scenarios.js`; whose field it is is the same code on both
+  editions and is left to that one.
 
 For a server on another machine, `BEDROCK_TEST_CONSOLE` starts with `ssh <that machine>`. The scenes
 send hundreds of console lines, and ssh's connection sharing (`-o ControlMaster=auto -o
