@@ -395,6 +395,8 @@ try {
     await step('a round takes the harvest to the chests by the field that are for it, keeping seed and food, and tramples nothing', async () => {
         // Carrots to start with, so that there is more food than the bot keeps.
         await reset(['wheat_seeds 2', 'carrot 20']);
+        // What the bag held when the scene began, for a failure to show whether the last scene left anything.
+        const bagAtStart = JSON.stringify(Object.fromEntries(bot.inventory.items().map(i => [i.name, have(i.name)])));
         // Beside the field, off the farmland: a chest for plants, one for food, and one for anything.
         const PLANTS = [4, 1, 4], FOOD = [6, 1, 4], ANYTHING = [8, 1, 4];
         for (const c of [PLANTS, FOOD, ANYTHING]) await set(c, 'chest');
@@ -425,10 +427,13 @@ try {
         const meals = [];
         const consume = bot.consume.bind(bot);
         bot.consume = (...args) => { meals.push(`${bot.heldItem?.name} at food ${bot.food}`); return consume(...args); };
+        bot.output = '';
         const result = await act('test:tend', () => tendField(bot, { book, behind: { asked: false }, name: NAME, memory: handle.memory, store: storerOf(bot) }));
         bot.consume = consume;
-        // The report on one line: a failure message keeps only its first.
-        const said = String(result.text ?? '').replace(/\n/g, ' | ');
+        // The report on one line: a failure message keeps only its first. A failure also says what the bag held
+        // at the start, what dropped and what still lies about, and the bot's own log of the round.
+        const said = String(result.text ?? '').replace(/\n/g, ' | ')
+            + ` [bag at start: ${bagAtStart};${motionText()}; log: ${String(bot.output ?? '').replace(/\n/g, ' | ').slice(-1500)}]`;
         assert.ok(['ok', 'partial'].includes(result.status), said);
         assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${said}`);
         assert.match(result.text, /The harvest, to the field's chest: Put away/, said);
@@ -455,8 +460,10 @@ try {
         assert.equal(plants.carrot ?? 0, 0, 'carrots are food, not plants');
         const stored = (food.carrot ?? 0) + (food.beetroot ?? 0);
         const bag = `carrot ${kept.carrot}, beetroot ${kept.beetroot} then; carrot ${have('carrot')}, beetroot ${have('beetroot')}, food ${bot.food} now; meals: ${meals.join(', ') || 'none'}`;
-        // Food: 16 in all, or a carrot for each carrot cell when there are more (seed to sow the field again).
-        const meant = Math.min(kept.eat + stored, Math.max(16, growing('carrots')));
+        // Food: 16 in all, or a carrot for each carrot cell when there are more (seed to sow the field again),
+        // as far as the carrots go: with fewer carrots than cells, all are kept and other food tops them up to 16.
+        const carrotsHeld = kept.carrot + (food.carrot ?? 0);
+        const meant = Math.min(kept.eat + stored, Math.max(16, Math.min(growing('carrots'), carrotsHeld)));
         assert.equal(kept.eat, meant, `food kept, 16 in all or a carrot for each of ${growing('carrots')} carrot cells, the rest stored: kept ${kept.eat} (${bag}), stored ${JSON.stringify(food)}: ${said}`);
         assert.ok(stored > 0, `the food the bot doesn't keep went to the chest for food: ${JSON.stringify(food)}`);
         assert.deepEqual(anything, {}, 'the chest for anything is left alone');
