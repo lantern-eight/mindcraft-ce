@@ -19,6 +19,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   field's owner's, the asking player's, or the bot's own. See `docs/farming.md`.
 - `!recall` of a crop says whose each remembered field is, when the field book knows ("Alice's field").
 
+### Fixed
+
+- `!tendField` (1.31.0) told the model only what it logged, not its report of the round: what was cut,
+  replanted and sown, and why a field was left alone. The model now gets the report.
+
 ## [1.31.0-bedrock.1.33.0] - 2026-11-27
 
 Farming, for both editions: tending a field the way a careful player does. Built on the same Mindcraft-CE

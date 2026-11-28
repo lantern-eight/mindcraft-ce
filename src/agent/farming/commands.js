@@ -127,7 +127,9 @@ export function farmingCommands({ book, save = () => {}, asker = () => ({}), mem
                         name: agent.name, memory: memory(agent), tending,
                     });
                     assertActionOwner(agent.bot);
-                    return result.status === 'ok' ? result.text : `[${result.status}] ${result.text}`;
+                    // The result itself, not its text: the action runner reads a result's status and text, and
+                    // takes anything else for a skill's return value, keeping only the log.
+                    return result;
                 } finally { save(); }
             }),
         } },
@@ -147,7 +149,9 @@ export function farmingCommands({ book, save = () => {}, asker = () => ({}), mem
                         name: agent.name, mayTill: mayTill(agent),
                     });
                     assertActionOwner(agent.bot);
-                    return result.status === 'ok' ? result.text : `[${result.status}] ${result.text}`;
+                    // The result itself, not its text: the action runner reads a result's status and text, and
+                    // takes anything else for a skill's return value, keeping only the log.
+                    return result;
                 } finally { save(); }
             }),
         } },

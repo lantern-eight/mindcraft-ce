@@ -70,3 +70,18 @@ test('!recall names whose a field is when something knows, and nothing otherwise
     setFieldOwners(bot, null);
     assert.equal(fieldOwnersOf(bot)({}), null);
 });
+
+test('a field command\'s answer reaches the model through the action runner, not only the log', async () => {
+    const { EventEmitter } = await import('node:events');
+    const { ActionManager } = await import('../src/agent/action_manager.js');
+    const { getCommand } = await import('../src/agent/commands/index.js');
+    for (const { command, action } of farmingCommands({ book })) registerCommand(command, { action });
+    const bot = Object.assign(new EventEmitter(), holding(['wheat_seeds', 4]), { output: '', interrupt_code: false });
+    bot.stopDigging = () => {};
+    bot.pathfinder = { setGoal() {} };
+    bot.clearControlStates = () => {};
+    const agent = { name: 'Andy', bot, requestInterrupt: () => {}, clearBotLogs: () => { bot.output = ''; } };
+    agent.actions = new ActionManager(agent);
+    const said = await getCommand('!sowField').perform(agent, 'any', 4);
+    assert.match(String(said), /no hoe to till the ground with/);
+});
