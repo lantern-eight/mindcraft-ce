@@ -79,10 +79,28 @@ try {
             jump: bot.getControlState('jump'), pathing: Boolean(bot.pathfinder?.isMoving?.()) };
     };
     const watchMotion = () => {
+        // The last two seconds of where the bot was, and its last few calls that act on the world (a dig, a
+        // click on a block, an equip, a walk), so a trampled cell says what came just before it.
+        const recent = [], calls = [];
+        for (const name of ['dig', 'activateBlock', 'equip', 'placeBlock']) {
+            const real = bot[name].bind(bot);
+            bot[name] = (target, ...rest) => {
+                const p = target?.position?.minus?.(origin);
+                calls.push({ s: Number(((Date.now() - since) / 1000).toFixed(1)), call: name, on: p ? `${target.name} ${p.x},${p.y},${p.z}` : target?.name ?? String(target) });
+                if (calls.length > 6) calls.shift();
+                return real(target, ...rest);
+            };
+        }
+        const goto = bot.pathfinder.goto.bind(bot.pathfinder);
+        bot.pathfinder.goto = goal => {
+            calls.push({ s: Number(((Date.now() - since) / 1000).toFixed(1)), call: 'goto', on: origin && goal?.x !== undefined ? `${goal.x - origin.x},${goal.y - origin.y},${goal.z - origin.z}` : '?' });
+            if (calls.length > 6) calls.shift();
+            return goto(goal);
+        };
         bot.on('blockUpdate', (before, after) => {
             if (before?.name !== 'farmland' || after?.name === 'farmland' || !origin) return;
             const c = after.position.minus(origin);
-            motion.push({ trampled: `${c.x},${c.z}: ${after.name}`, ...moment() });
+            motion.push({ trampled: `${c.x},${c.z}: ${after.name}`, ...moment(), before: recent.slice(), calls: calls.slice() });
         });
         bot.on('itemDrop', entity => {
             const item = entity.getDroppedItem?.();
@@ -90,6 +108,11 @@ try {
             dropped[name] = (dropped[name] ?? 0) + (item?.count ?? 1);
         });
         const timer = setInterval(() => {
+            if (origin && bot.entity) {
+                const e = bot.entity, p = e.position.minus(origin);
+                recent.push(`${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}${e.onGround ? '' : ' air'}`);
+                if (recent.length > 20) recent.shift();
+            }
             const inWater = Boolean(bot.entity?.isInWater);
             if (inWater && !wasInWater && origin) motion.push({ intoWater: true, ...moment() });
             wasInWater = inWater;
@@ -279,6 +302,77 @@ try {
         }
         assert.equal(farmlandLeft(), FARMLAND, `the field itself is whole: ${bigger.text}`);
         return { made: made.text, bigger: bigger.text };
+    });
+
+    await step('a round takes the harvest to the chests by the field that are for it, keeping seed and food, and tramples nothing', async () => {
+        // Carrots to start with, so that there is more food than the bot keeps.
+        await reset(['wheat_seeds 2', 'carrot 20']);
+        // Beside the field, off the farmland: a chest for plants, one for food, and one for anything.
+        const PLANTS = [4, 1, 4], FOOD = [6, 1, 4], ANYTHING = [8, 1, 4];
+        for (const c of [PLANTS, FOOD, ANYTHING]) await set(c, 'chest');
+        const rawOpen = bot.openContainer;
+        const { installStorage } = await import('../../src/agent/storage/install.js');
+        const { storerOf } = await import('../../src/agent/library/store_way.js');
+        const { getCommand } = await import('../../src/agent/commands/index.js');
+        const storage = installStorage(agent, { config: { ...rootSettings, ...bedrockTestSettings(server), chest_sorting: true, store_and_fetch: true },
+            bookDir: mkdtempSync(path.join(tmpdir(), 'bedrock-farming-chests-')) });
+        assert.ok(storage && storerOf(bot), 'chest storage is on, with putting away');
+        // A player puts the chests by the field and says what they are for. The bot has looked at them.
+        await bot.lookAt(at(6, 1.5, 4.5), true);
+        await delay(1500);
+        for (const [c, what] of [[PLANTS, 'plants'], [FOOD, 'food'], [ANYTHING, null]]) {
+            const p = at(...c);
+            assert.match(String(await agent.handleMessage('Alex', () => getCommand('!markChest').perform(agent, p.x, p.y, p.z, NAME, 'same'))), /is now|was already/);
+            if (what) assert.match(String(await agent.handleMessage('Alex', () => getCommand('!chestFor').perform(agent, p.x, p.y, p.z, what))), new RegExp(`For ${what}`));
+        }
+        await bot.lookAt(at(9.5, 1, 0.5), true);
+
+        const book = createFieldBook({ scope: 'live' });
+        const { ME } = await import('../../src/agent/farming/field_book.js');
+        const cells = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z)) cells.push(at(x, 0, z));
+        book.mark(cells, { owner: ME });
+        // Every meal the bot eats while the scene runs (the auto-eat plugin eats when it is hungry): a carrot
+        // eaten after the round would read as one the round didn't keep.
+        const meals = [];
+        const consume = bot.consume.bind(bot);
+        bot.consume = (...args) => { meals.push(`${bot.heldItem?.name} at food ${bot.food}`); return consume(...args); };
+        const result = await act('test:tend', () => tendField(bot, { book, behind: { asked: false }, name: NAME, memory: handle.memory, store: storerOf(bot) }));
+        bot.consume = consume;
+        // The report on one line: a failure message keeps only its first.
+        const said = String(result.text ?? '').replace(/\n/g, ' | ');
+        assert.ok(['ok', 'partial'].includes(result.status), said);
+        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${said}`);
+        assert.match(result.text, /The harvest, to the field's chest: Put away/, said);
+
+        // What is really in each chest: opened by the test's own hands from in front of it, off the field.
+        const kept = { wheat: have('wheat'), wheat_seeds: have('wheat_seeds'), carrot: have('carrot'), beetroot: have('beetroot'), eat: have('carrot') + have('beetroot') };
+        const growing = block => { let n = 0; for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (raw([x, 1, z])?.name === block) n++; return n; };
+        const wheatCells = growing('wheat');
+        const holds = async cell => {
+            if (bot.currentWindow) bot.closeWindow(bot.currentWindow);
+            await tpTo([cell[0], 1, cell[2] + 2], 180, 800);
+            const window = await rawOpen(bot.blockAt(at(...cell))).catch(async () => { await delay(1000); return rawOpen(bot.blockAt(at(...cell))); });
+            try {
+                const out = {};
+                for (let i = 0; i < window.inventoryStart; i++) { const item = window.slots[i]; if (item?.name) out[item.name] = (out[item.name] ?? 0) + item.count; }
+                return out;
+            } finally { window.close(); await delay(400); }
+        };
+        const plants = await holds(PLANTS), food = await holds(FOOD), anything = await holds(ANYTHING);
+        assert.equal(plants.wheat, X1 - X0 + 1, `all the wheat went to the chest for plants: ${JSON.stringify(plants)} ${said}`);
+        assert.equal(kept.wheat, 0, 'none of it kept');
+        assert.equal(kept.wheat_seeds, Math.min(wheatCells, kept.wheat_seeds + (plants.wheat_seeds ?? 0)),
+            `seed kept for each cell of wheat, the rest stored: ${JSON.stringify(plants)} ${said}`);
+        assert.equal(plants.carrot ?? 0, 0, 'carrots are food, not plants');
+        const stored = (food.carrot ?? 0) + (food.beetroot ?? 0);
+        const bag = `carrot ${kept.carrot}, beetroot ${kept.beetroot} then; carrot ${have('carrot')}, beetroot ${have('beetroot')}, food ${bot.food} now; meals: ${meals.join(', ') || 'none'}`;
+        // Food: 16 in all, or a carrot for each carrot cell when there are more (seed to sow the field again).
+        const meant = Math.min(kept.eat + stored, Math.max(16, growing('carrots')));
+        assert.equal(kept.eat, meant, `food kept, 16 in all or a carrot for each of ${growing('carrots')} carrot cells, the rest stored: kept ${kept.eat} (${bag}), stored ${JSON.stringify(food)}: ${said}`);
+        assert.ok(stored > 0, `the food the bot doesn't keep went to the chest for food: ${JSON.stringify(food)}`);
+        assert.deepEqual(anything, {}, 'the chest for anything is left alone');
+        return { text: result.text, dropped, ...(motion.length ? { motion } : {}) };
     });
 
     await step('after all of that, the bot sent no command', () => {
