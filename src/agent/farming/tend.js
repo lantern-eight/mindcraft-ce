@@ -118,17 +118,36 @@ async function findStart(bot, memory) {
     return farmland ? { start: farmland.position, how: 'remembered' } : { start: null, how: 'gone' };
 }
 
+/**
+ * Keeps the bot from jumping until the returned function is called.
+ *
+ * The pathfinder presses jump on its own between the steps it planned: when it reckons that walking straight
+ * on won't reach the next step (the bot stands at the edge of the field's water, or on the line between two
+ * cells), and whenever the bot is in water. Among the crops that jump comes down on farmland and tramples
+ * it, whatever the plan said. So while walking a field a press of jump is let through as a release: a step
+ * that needs a jump isn't made, the walk ends short, and the cell is reported out of reach.
+ */
+export function noJumping(bot) {
+    const press = bot.setControlState;
+    const guarded = function (control, state) { return press.call(this, control, control === 'jump' ? false : state); };
+    bot.setControlState = guarded;
+    press.call(bot, 'jump', false);
+    return () => { if (bot.setControlState === guarded) bot.setControlState = press; };
+}
+
 /** Walks within `distance` of a cell's crop, on the field's own rules. True when there. */
 export async function walkTo(bot, field, cell, distance = WORK_DISTANCE) {
     if (distanceFromEye(bot, cell) <= distance + 1) return true;
     const previous = bot.pathfinder.movements;
     bot.pathfinder.setMovements(fieldMovements(bot, field));
+    const jumpAgain = noJumping(bot);
     try {
         await cancellable(bot, () => bot.pathfinder.goto(new pf.goals.GoalNear(cell.x, cell.y + 1, cell.z, distance)),
             WALK_MS, () => bot.pathfinder.setGoal(null));
     } catch {
         if (stopped(bot)) return false;
     } finally {
+        jumpAgain();
         if (previous && !stopped(bot)) bot.pathfinder.setMovements(previous);
     }
     return distanceFromEye(bot, cell) <= distance + 1.5;
@@ -163,7 +182,10 @@ async function collectDrops(bot, field, cell) {
         if (!item) return;
         tried.add(item.id);
         const spot = { x: Math.floor(item.position.x), y: Math.floor(item.position.y) - 1, z: Math.floor(item.position.z) };
-        await walkTo(bot, field, spot, 0);
+        // A drop floating in the field's water is picked up from beside it, as a player reaches over the edge:
+        // walking onto it would leave the bot at the water's edge, or in it, with only a jump to get on.
+        const inWater = field.between.some(c => c.name === 'water' && c.x === spot.x && c.z === spot.z && Math.abs(c.y - (spot.y + 1)) <= 1);
+        await walkTo(bot, field, spot, inWater ? 1 : 0);
         await until(bot, () => item.isValid === false || !world.getNearbyEntities(bot, 8).some(e => e.id === item.id), 600);
     }
 }

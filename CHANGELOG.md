@@ -18,6 +18,15 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   fills that player's, when a player asked. Needs putting away and fetching on; with no chest for it near,
   the harvest stays in the bag. See `docs/farming.md`.
 
+### Fixed
+
+- A round of `!tendField` (1.31.0) or `!sowField` (1.32.0) now and then trampled a farmland cell beside the
+  field's water, on both editions. The pathfinder jumps on its own between the steps it planned, when it
+  reckons walking straight on won't get there (the bot at the water's edge, or on the line between two
+  cells) and whenever the bot is in water, and the jump came down on farmland. While walking a field the bot
+  now never jumps: a cell it can't reach without one is reported out of reach. A drop floating in the field's
+  water is picked up from beside it.
+
 ## [1.32.0-bedrock.1.34.0] - 2026-11-28
 
 Making fields, for both editions: tilling wet, free ground and sowing it, and saying whose a remembered field
