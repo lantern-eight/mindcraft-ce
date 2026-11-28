@@ -235,8 +235,10 @@ No code was copied for these. They are credited because the work builds on them.
   from `library/farming.js` in the [`asanrivas/mindcraft`](https://github.com/asanrivas/mindcraft) fork.
   **Sowing what grows beside an empty cell** comes from the farm rules in the
   [`chrisjoyce911/mindcraft`](https://github.com/chrisjoyce911/mindcraft) fork (`bot-rebuild` branch,
-  `bot/src/models/farm/rules.ts`), and the game's trampling rule from its farming research note. Used by
-  `src/agent/farming/`.
+  `bot/src/models/farm/rules.ts`), and the game's trampling rule from its farming research note. **Bone meal
+  made at a composter, from the game's table of how likely each item is to fill it**, follows the composter
+  tables of the akarkin1 farming pack (`crop_logic.js`), and **using bone meal only when a player asks, as it is
+  rarely worth it**, follows the chrisjoyce911 farming research note. Used by `src/agent/farming/`.
 
 ## What This Fork Added
 

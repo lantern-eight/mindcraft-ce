@@ -30,7 +30,7 @@
 // Registered for the game data type "bedrock" when this file is first imported. connect.js imports it,
 // so it is in place before any bot starts.
 import { registerEdition } from '../edition/index.js';
-import { javaEdition as java, isShelfBlock, shelfClickAt, shelfSlots } from '../edition/java.js';
+import { javaEdition as java, composterLevel, isShelfBlock, shelfClickAt, shelfSlots } from '../edition/java.js';
 import { moveStack } from './window_moves.js';
 import { bedrockNamesFor } from './names.js';
 import { foodValues } from './eating.js';
@@ -669,6 +669,15 @@ export const bedrockEdition = Object.freeze({
         if (!(level > 0)) return { liquid: null, full: false };
         const liquid = ['water', 'lava', 'powder_snow'].includes(state.cauldron_liquid) ? state.cauldron_liquid : 'water';
         return { liquid, full: level === 6 };
+    },
+
+    /**
+     * How full a composter is. Bedrock calls it `composter_fill_level`, counted as on Java: 0 empty, 1 to 7
+     * filling, 8 ready to give bone meal.
+     */
+    composterOf(block) {
+        if (block?.name !== 'composter') return null;
+        return composterLevel(block, 'composter_fill_level');
     },
 
     /**
