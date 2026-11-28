@@ -108,23 +108,26 @@ function asAction(label, fn) {
  *   rules, and returns its close (neighborly.js)
  * @param {(agent: object) => (x: number, y: number, z: number, name: string) => boolean} [context.mayTill] -
  *   whether soil is free to till (not someone's), for a bot
+ * @param {(agent: object) => Function|null} [context.store] - puts things away in the chests meant for them
+ *   (library/store_way.js), when chest storage installed that for the bot
  * @returns {{command: object, action: boolean}[]}
  */
 export function farmingCommands({ book, save = () => {}, asker = () => ({}), memory = () => null, tending = () => () => {},
-    mayTill = () => () => true }) {
+    mayTill = () => () => true, store = () => null }) {
     const players = agent => Object.keys(agent.bot.players ?? {}).filter(p => p !== agent.name);
     return [
         { action: true, command: {
             name: '!tendField',
             description: 'Tend the field nearest you: harvest the crops you see are ripe, replant them, sow the empty farmland, and pick up what drops. '
-                + 'Unripe crops are left to grow, and you never jump onto the farmland. On your own idea you only tend your own and shared fields.',
+                + 'Unripe crops are left to grow, and you never jump onto the farmland. On your own idea you only tend your own and shared fields. '
+                + 'A chest near the field that is for crops takes the harvest, and you keep seed and food.',
             params: { 'seed': { type: 'string', description: 'What to sow on empty farmland: "wheat_seeds", "carrot", "potato" or "beetroot_seeds"; or "any" to sow what grows beside each cell.' } },
             perform: asAction('tendField', async (agent, seed) => {
                 try {
                     const wanted = unquote(seed).toLowerCase();
                     const result = await tendField(agent.bot, {
                         seed: wanted && wanted !== 'any' ? wanted : null, book: book(), behind: asker(),
-                        name: agent.name, memory: memory(agent), tending,
+                        name: agent.name, memory: memory(agent), tending, store: store(agent),
                     });
                     assertActionOwner(agent.bot);
                     // The result itself, not its text: the action runner reads a result's status and text, and

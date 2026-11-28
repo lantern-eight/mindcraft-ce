@@ -9,6 +9,15 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- A round of `!tendField` ends by taking the harvest to the field's chest: a chest within 16 blocks that a
+  player said is for it (`!chestFor` or a sign: plants takes wheat and seeds, food takes carrots, potatoes and
+  beetroot, or the crop by name). The bot keeps seed to sow the field again and food to eat (16 pieces in all,
+  counting what else it carries). Its own and shared fields fill its own and shared chests; a player's field
+  fills that player's, when a player asked. Needs putting away and fetching on; with no chest for it near,
+  the harvest stays in the bag. See `docs/farming.md`.
+
 ## [1.32.0-bedrock.1.34.0] - 2026-11-28
 
 Making fields, for both editions: tilling wet, free ground and sowing it, and saying whose a remembered field

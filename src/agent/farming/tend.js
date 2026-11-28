@@ -23,6 +23,7 @@ import { propsOfState } from '../memory/block_state.js';
 import { isCrop, isRipe } from '../memory/kinds.js';
 import { toolResult } from '../tool_result.js';
 import { cellPlan, cropOf, cropOfBlock, keepHarvesting, seedsOwed, seedToSow } from './crops.js';
+import { harvestPlan } from './harvest_plan.js';
 import { visitOrder } from './visit_order.js';
 import { ME, SHARED, mayTend, sameOwner } from './field_book.js';
 import { fieldBox, findField, NO_STEP, stepCost } from './field.js';
@@ -225,9 +226,11 @@ export function ownerText(owner, botName) {
  * @param {object|null} [options.memory] - world memory, to find a remembered field
  * @param {(cells: object[]) => () => void} [options.tending] - opens the field to good-neighbor rules for the
  *   round (neighborly.js), and returns its close
+ * @param {Function|null} [options.store] - puts things away in the chests meant for them (library/store_way.js):
+ *   with it, the round ends by taking the harvest to the field's chest
  * @returns {Promise<{status: string, text: string}>}
  */
-export async function tendField(bot, { seed = null, book, behind = {}, name = '', memory = null, tending = () => () => {} } = {}) {
+export async function tendField(bot, { seed = null, book, behind = {}, name = '', memory = null, tending = () => () => {}, store = null } = {}) {
     assertActionOwner(bot);
     if (seed && !cropOf(seed)) {
         return toolResult('failed', `"${seed}" is not something you can sow on farmland. Use wheat_seeds, carrot, potato or beetroot_seeds, or leave it out.`, 'bad_args');
@@ -355,8 +358,37 @@ export async function tendField(bot, { seed = null, book, behind = {}, name = ''
         // A field tended at a player's request, that nobody had said anything about, is that player's.
         if (behind.asked === true && behind.by) book.claimUnknown(field.cells, behind.by);
 
-        return report(bot, { field, where, whose, tally, before, stopReason, name });
+        const result = report(bot, { field, where, whose, tally, before, stopReason, name });
+        if (!store || stopped(bot) || stopReason === 'stopped') return result;
+        const stored = await storeHarvest(bot, field, book.whose(field.cells), behind, store);
+        return stored ? { ...result, text: `${result.text}\n${stored}` } : result;
     } finally { for (const close of closes) close(); }
+}
+
+/** How far from the bot, at the end of a round, a chest counts as the field's. */
+export const FIELD_CHEST_RANGE = 16;
+
+/**
+ * Takes the harvest to the chests near the field that are meant for it, keeping seed and food
+ * (harvest_plan.js). Whose chests follows whose the field is: the bot's own, shared, or nobody's field fills
+ * the bot's own and shared chests; a player's field fills that player's, and only when a player asked.
+ * @returns {Promise<string|null>} what to add to the round's report, or null when nothing was meant to go anywhere
+ */
+export async function storeHarvest(bot, field, whose, behind, store) {
+    const plan = harvestPlan(counts(bot), field.cells, { isFood: name => Boolean(bot.registry.foodsByName?.[name]) });
+    if (!plan.store.length) return null;
+    const owner = whose?.owner;
+    const mine = !owner || sameOwner(owner, ME) || sameOwner(owner, SHARED);
+    let result;
+    try {
+        result = await store(plan.store, { whose: mine ? 'any' : owner, distance: FIELD_CHEST_RANGE, asked: behind?.asked ?? null });
+    } catch (error) {
+        if (stopped(bot)) return null;
+        return `Could not put the harvest away: ${error.message}`;
+    }
+    if (!result || result.status === 'none' || !result.text) return null;
+    const kept = plan.keep.length ? `\nKept on you, to sow the field again and to eat: ${plan.keep.map(({ name, count }) => `${name} ${count}`).join(', ')}.` : '';
+    return `The harvest, to the field's chest: ${result.text}${result.stored ? kept : ''}`;
 }
 
 function report(bot, { field, where, whose, tally, before, stopReason, name }) {
