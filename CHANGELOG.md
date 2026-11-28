@@ -9,6 +9,11 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.31.0-bedrock.1.33.0] - 2026-11-27
+
+Farming, for both editions: tending a field the way a careful player does. Built on the same Mindcraft-CE
+commit as 1.25.0-bedrock.1.27.0.
+
 ### Added
 
 - Farming: `!tendField` tends the field nearest the bot. It cuts only the crops it sees are ripe (wheat,
@@ -1539,7 +1544,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...HEAD
+[1.31.0-bedrock.1.33.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...v1.31.0-bedrock.1.33.0
 [1.30.0-bedrock.1.32.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...v1.30.0-bedrock.1.32.0
 [1.29.0-bedrock.1.31.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.28.0-bedrock.1.30.0...v1.29.0-bedrock.1.31.0
 [1.28.0-bedrock.1.30.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.27.0-bedrock.1.29.0...v1.28.0-bedrock.1.30.0
