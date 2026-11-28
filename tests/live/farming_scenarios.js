@@ -338,6 +338,45 @@ try {
         return { text: said };
     });
 
+    await step('asked to, the bot makes bone meal at a composter and ripens young wheat with it, cutting nothing', async () => {
+        // A composter behind the bot, out of a narrowed view; 64 seeds fill it about twice (each has a 30% chance
+        // to raise it a level, and 7 levels fill it). Then 8 bone meal more for the young wheat.
+        await reset({ kit: ['wheat_seeds 64'] });
+        await cmd(`setblock -2 ${Y + 1} 0 composter`);
+        await delay(500);
+        const { composting } = await import('../../src/agent/farming/compost.js');
+        const { boneMealField } = await import('../../src/agent/farming/bone_meal.js');
+        const made = await act('test:compost', () => composting().compost(bot, 'wheat_seeds', 64, { behind: { asked: true, by: 'Alex' } }));
+        const madeText = String(made.text ?? '').replace(/\n/g, ' | ');
+        assert.equal(made.status, 'ok', madeText);
+        assert.equal(have('wheat_seeds'), 0, `all 64 went in: ${madeText}`);
+        const fromCompost = have('bone_meal');
+        assert.ok(fromCompost >= 1, `the full composter gave bone meal: ${madeText}`);
+        const level = Number(raw(-2, Y + 1, 0)?.getProperties().level);
+        assert.match(madeText, new RegExp(`took ${fromCompost} bone_meal out. It is at level ${level} of 7`), `the report says what the server has (level ${level})`);
+
+        await cmd(`give ${NAME} bone_meal 8`);
+        await delay(500);
+        const book = createFieldBook({ scope: 'live' });
+        const before = have('bone_meal');
+        const result = await act('test:bonemeal', () => boneMealField(bot, { count: 8, book, behind: { asked: true, by: 'Alex' }, memory: handle.memory }));
+        const said = String(result.text ?? '').replace(/\n/g, ' | ');
+        assert.equal(result.status, 'ok', said);
+        const used = before - have('bone_meal');
+        assert.equal(used, 8, `it used the eight it was asked to: ${said}`);
+        const ripened = [];
+        for (let x = X0; x <= X1; x++) if (ageAt(x, Y + 1, -1) === 7) ripened.push(x);
+        // Each bone meal grows wheat two to five stages, so eight ripen at least two plants from stage 2.
+        assert.ok(ripened.length >= 2, `young wheat ripened at ${ripened.join(', ')}: ${said}`);
+        assert.match(said, new RegExp(`${ripened.length} plants? (is|are) ripe now`), said);
+        for (let x = X0; x <= X1; x++) {
+            assert.equal(ageAt(x, Y + 1, -2), 7, `the ripe wheat at ${x} is not cut`);
+            assert.equal(raw(x, Y + 1, -1)?.name, 'wheat', `the wheat at ${x} is not cut`);
+        }
+        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${said}`);
+        return { compost: madeText, boneMeal: said };
+    });
+
     // What is really in a chest, by item, from the server's console: the test may look, the bot may not.
     const chestHolds = async ({ x, y, z }) => {
         const mark = server.log.length;
