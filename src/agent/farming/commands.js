@@ -7,6 +7,10 @@
 //                                 without being asked, or both
 //   !sowField(seed, size)         tills wet, free soil near the bot and sows it: the field it may tend made
 //                                 bigger, or a new field by water
+//   !compost(item, count)         puts plant matter in the composter nearest the bot and takes out the bone
+//                                 meal it gives; only when a player asks
+//   !boneMealField(count)         uses bone meal on the young crops of the field nearest the bot, a plant at
+//                                 a time until it is ripe; only when a player asks
 //
 // Whether a field may be tended is decided in code (field_book.js `mayTend`) from what the field book was
 // told and who is behind the request, never by the model. The model only decides to ask.
@@ -15,6 +19,8 @@ import { toolResult } from '../tool_result.js';
 import { findField, fieldBox } from './field.js';
 import { ME, SHARED, TENDING, defaultTending } from './field_book.js';
 import { MAX_SOW, sowField } from './sow.js';
+import { boneMealField } from './bone_meal.js';
+import { composting } from './compost.js';
 import { FIELD_RANGE, blockReader, nearestFarmland, ownerText, tendField } from './tend.js';
 
 // The model speaks for several people, so "me" and "mine" could mean the player who is talking or the
@@ -115,6 +121,7 @@ function asAction(label, fn) {
 export function farmingCommands({ book, save = () => {}, asker = () => ({}), memory = () => null, tending = () => () => {},
     mayTill = () => () => true, store = () => null }) {
     const players = agent => Object.keys(agent.bot.players ?? {}).filter(p => p !== agent.name);
+    const { compost } = composting();
     return [
         { action: true, command: {
             name: '!tendField',
@@ -156,6 +163,31 @@ export function farmingCommands({ book, save = () => {}, asker = () => ({}), mem
                     // takes anything else for a skill's return value, keeping only the log.
                     return result;
                 } finally { save(); }
+            }),
+        } },
+        { action: true, command: {
+            name: '!compost',
+            description: 'Only when a player asks: put plant matter in the composter nearest you, and take out the bone meal it gives when full. '
+                + 'Each item has only a chance to fill it (a seed 30%), so it takes about a stack of seeds for two bone meal.',
+            params: {
+                'item': { type: 'ItemName', description: 'What to compost, e.g. "wheat_seeds". Only what the player said.' },
+                'count': { type: 'int', description: 'How many to put in at most.', domain: [1, Number.MAX_SAFE_INTEGER] },
+            },
+            perform: asAction('compost', async (agent, item, count) => {
+                const result = await compost(agent.bot, unquote(item).toLowerCase(), count, { behind: asker() });
+                assertActionOwner(agent.bot);
+                return result;
+            }),
+        } },
+        { action: true, command: {
+            name: '!boneMealField',
+            description: 'Only when a player asks: use bone meal on the young crops of the field nearest you, a plant at a time until it is ripe. '
+                + 'Cuts nothing; !tendField harvests what ripened.',
+            params: { 'count': { type: 'int', description: 'The most bone meal to use.', domain: [1, Number.MAX_SAFE_INTEGER] } },
+            perform: asAction('boneMealField', async (agent, count) => {
+                const result = await boneMealField(agent.bot, { count, book: book(), behind: asker(), memory: memory(agent) });
+                assertActionOwner(agent.bot);
+                return result;
             }),
         } },
         { action: false, command: {

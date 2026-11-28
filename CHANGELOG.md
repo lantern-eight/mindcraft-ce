@@ -9,6 +9,18 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.35.0-bedrock.1.37.0] - 2026-11-28
+
+Bone meal and the composter, for both editions, used only when a player asks. Built on the same Mindcraft-CE
+commit as 1.25.0-bedrock.1.27.0.
+
+### Added
+
+- Bone meal and the composter, only when a player asks. `!compost(item, count)` puts what the player named in
+  the composter nearest the bot and takes out the bone meal once it is full; `!boneMealField(count)` uses bone
+  meal on the young crops of the field nearest the bot, a plant at a time until it is ripe, and cuts nothing.
+  On the bot's own idea it does neither: a crop ripens by itself, and a stack of seeds makes about two bone meal.
+
 ## [1.34.0-bedrock.1.36.0] - 2026-11-28
 
 Melons and pumpkins in a round of tending, for both editions, and collecting sugar cane, bamboo or cactus leaves
@@ -1606,7 +1618,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.34.0-bedrock.1.36.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.35.0-bedrock.1.37.0...HEAD
+[1.35.0-bedrock.1.37.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.34.0-bedrock.1.36.0...v1.35.0-bedrock.1.37.0
 [1.34.0-bedrock.1.36.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.33.0-bedrock.1.35.0...v1.34.0-bedrock.1.36.0
 [1.33.0-bedrock.1.35.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.32.0-bedrock.1.34.0...v1.33.0-bedrock.1.35.0
 [1.32.0-bedrock.1.34.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...v1.32.0-bedrock.1.34.0

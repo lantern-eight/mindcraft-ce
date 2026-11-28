@@ -432,6 +432,17 @@ test('a Java cauldron says what it holds by its name, and how full by its level'
     assert.equal(javaEdition.cauldronOf(null), null);
 });
 
+test('a Java composter says how full it is by its level, and is ready at 8', () => {
+    const Block = blockFactory(registryFactory(GAME_VERSION));
+    const composter = level => Block.fromProperties('composter', { level }, 0);
+    assert.deepEqual(javaEdition.composterOf(composter(0)), { level: 0, ready: false });
+    assert.deepEqual(javaEdition.composterOf(composter(7)), { level: 7, ready: false });
+    assert.deepEqual(javaEdition.composterOf(composter(8)), { level: 8, ready: true });
+    assert.equal(javaEdition.composterOf({ name: 'composter' }), null, 'remembered without its state: the level is not known');
+    assert.equal(javaEdition.composterOf(Block.fromProperties('water_cauldron', { level: 3 }, 0)), null);
+    assert.equal(javaEdition.composterOf(null), null);
+});
+
 test('what can be eaten is the game data\'s own food table', () => {
     const foods = { carrot: { foodPoints: 3, saturation: 3.6 } };
     assert.equal(javaEdition.foodsOf({ foodsByName: foods }), foods);

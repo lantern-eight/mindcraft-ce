@@ -496,14 +496,21 @@ try {
         bot.on('threat_reflex', note);
         for (const cell of [[-6, 1, 0], [0, 1, -6]]) { const spot = at(...cell); await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`); }
         const started = Date.now();
+        const healthFell = [];
+        const fell = () => healthFell.push([Math.round((Date.now() - started) / 100) / 10, bot.health]);
+        bot.on('health', fell);
         try {
             await waitFor(() => !rawMob('zombie') || events.some(e => e.event === 'done' && e.mode === 'mob_safety'), 60000, () => JSON.stringify(events.filter(e => e.event !== 'step')));
-        } finally { bot.off('threat_reflex', note); }
+        } finally { bot.off('threat_reflex', note); bot.off('health', fell); }
         assert.ok(healthAt.some(d => d.mode === 'self_defense'), `it fought: ${JSON.stringify(healthAt)}`);
         assert.equal(healthAt.filter(d => d.mode === 'mob_safety' && d.health >= 10).length, 0, `no retreat at half health or more: ${JSON.stringify(healthAt)}`);
-        assert.ok(lowestHealth >= 4, `lowest health ${lowestHealth}`);
+        // A low point says how the fight went: each decision with the health then, when the health fell, and
+        // how many zombies were left.
+        const left = Object.values(bot.entities).filter(e => e.name === 'zombie').length;
+        assert.ok(lowestHealth >= 4, `lowest health ${lowestHealth}: decisions ${JSON.stringify(healthAt)}, health ${JSON.stringify(healthFell)}, `
+            + `zombies left ${left}, ${Math.round((Date.now() - started) / 1000)} s, events ${JSON.stringify(events.filter(e => e.event !== 'step').map(e => [Math.round(e.at - events[0].at), e.mode, e.event, e.stance, e.ended]))}`);
         return { killed: 2 - Object.values(bot.entities).filter(e => e.name === 'zombie').length, seconds: Math.round((Date.now() - started) / 1000),
-            fights: healthAt.filter(d => d.mode === 'self_defense').length, lowestHealth };
+            fights: healthAt.filter(d => d.mode === 'self_defense').length, lowestHealth, healthFell };
     });
 
     await step('told to flee creepers: one coming is left behind for good at the first meeting, no damage', async () => {
