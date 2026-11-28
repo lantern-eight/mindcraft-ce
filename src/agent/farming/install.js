@@ -59,9 +59,17 @@ export function installFarming(agent, { config = settings, bookDir = null } = {}
     const permits = cropPermits({ book: bookNow, behind: () => watcher.behind() });
     const unpermit = protectorOf(agent.bot)?.permit(permits.permit) ?? (() => {});
 
+    // Soil is free to till unless good-neighbor rules say it is someone's (a protected area, a block seen
+    // built), or, with those rules off, world memory saw someone put it there.
+    const mayTill = a => (x, y, z, name) => {
+        const protector = protectorOf(a.bot);
+        if (protector) return !protector.refusal({ name, position: { x, y, z } });
+        return a.fairPlay?.memory?.cells?.tagOf?.(x, y, z) !== 'built';
+    };
+
     const commands = farmingCommands({
         book: bookNow, save, asker: () => watcher.behind(),
-        memory: a => a.fairPlay?.memory ?? null, tending: permits.tending,
+        memory: a => a.fairPlay?.memory ?? null, tending: permits.tending, mayTill,
     });
     for (const { command, action } of commands) registerCommand(command, { action });
     return { commands: commands.map(({ command }) => command.name), book: bookNow, save, stop: unpermit };

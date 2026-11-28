@@ -9,6 +9,15 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+### Added
+
+- Making a field, on both editions: `!sowField(seed, size)` tills ground near the bot with its best hoe and
+  sows it. Only soil that water keeps wet (within 4 blocks, at its level or one above), never a path, a
+  build or what good-neighbor rules protect; wild grass on top is cut first, coarse dirt takes two strokes.
+  It makes the field it may tend nearest it bigger from its edge, or starts a new one, kept clear of fields
+  it may not tend. It tills only as much as it has seed for, and tramples nothing. The new farmland is the
+  field's owner's, the asking player's, or the bot's own. See `docs/farming.md`.
+
 ## [1.31.0-bedrock.1.33.0] - 2026-11-27
 
 Farming, for both editions: tending a field the way a careful player does. Built on the same Mindcraft-CE

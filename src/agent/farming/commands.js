@@ -5,6 +5,8 @@
 //                                 empty farmland, and picks up the drops
 //   !markField(owner, tending)    says whose the field nearest the bot is, whether it may be tended
 //                                 without being asked, or both
+//   !sowField(seed, size)         tills wet, free soil near the bot and sows it: the field it may tend made
+//                                 bigger, or a new field by water
 //
 // Whether a field may be tended is decided in code (field_book.js `mayTend`) from what the field book was
 // told and who is behind the request, never by the model. The model only decides to ask.
@@ -12,6 +14,7 @@ import { assertActionOwner } from '../action_context.js';
 import { toolResult } from '../tool_result.js';
 import { findField, fieldBox } from './field.js';
 import { ME, SHARED, TENDING, defaultTending } from './field_book.js';
+import { MAX_SOW, sowField } from './sow.js';
 import { FIELD_RANGE, blockReader, nearestFarmland, ownerText, tendField } from './tend.js';
 
 // The model speaks for several people, so "me" and "mine" could mean the player who is talking or the
@@ -103,9 +106,12 @@ function asAction(label, fn) {
  * @param {(agent: object) => object|null} [context.memory] - world memory, when on
  * @param {(cells: object[]) => () => void} [context.tending] - opens the field a round tends to good-neighbor
  *   rules, and returns its close (neighborly.js)
+ * @param {(agent: object) => (x: number, y: number, z: number, name: string) => boolean} [context.mayTill] -
+ *   whether soil is free to till (not someone's), for a bot
  * @returns {{command: object, action: boolean}[]}
  */
-export function farmingCommands({ book, save = () => {}, asker = () => ({}), memory = () => null, tending = () => () => {} }) {
+export function farmingCommands({ book, save = () => {}, asker = () => ({}), memory = () => null, tending = () => () => {},
+    mayTill = () => () => true }) {
     const players = agent => Object.keys(agent.bot.players ?? {}).filter(p => p !== agent.name);
     return [
         { action: true, command: {
@@ -119,6 +125,26 @@ export function farmingCommands({ book, save = () => {}, asker = () => ({}), mem
                     const result = await tendField(agent.bot, {
                         seed: wanted && wanted !== 'any' ? wanted : null, book: book(), behind: asker(),
                         name: agent.name, memory: memory(agent), tending,
+                    });
+                    assertActionOwner(agent.bot);
+                    return result.status === 'ok' ? result.text : `[${result.status}] ${result.text}`;
+                } finally { save(); }
+            }),
+        } },
+        { action: true, command: {
+            name: '!sowField',
+            description: 'Make a field: till wet, free soil near you with your hoe and sow it. Makes the field near you bigger when you may tend it, '
+                + 'else starts a new one by water you can see. Tills only as much as you have seed for, and never a path, a build or someone else\'s field.',
+            params: {
+                'seed': { type: 'string', description: 'What to sow: "wheat_seeds", "carrot", "potato" or "beetroot_seeds"; or "any" for the seed you have most of.' },
+                'size': { type: 'int', description: 'How many blocks of ground to till at most.', domain: [1, MAX_SOW, '[]'] },
+            },
+            perform: asAction('sowField', async (agent, seed, size) => {
+                try {
+                    const wanted = unquote(seed).toLowerCase();
+                    const result = await sowField(agent.bot, {
+                        seed: wanted && wanted !== 'any' ? wanted : null, size, book: book(), behind: asker(),
+                        name: agent.name, mayTill: mayTill(agent),
                     });
                     assertActionOwner(agent.bot);
                     return result.status === 'ok' ? result.text : `[${result.status}] ${result.text}`;
