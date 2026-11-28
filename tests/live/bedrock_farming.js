@@ -304,6 +304,37 @@ try {
         return { made: made.text, bigger: bigger.text };
     });
 
+    await step('melons and pumpkins: the fruit beside each stem is picked, the stems stay, a gap among melon stems is sown with melon seed', async () => {
+        // As on Java: melon stems at 7 and 9 on the empty row, their melons (Bedrock's `melon_block`) to the
+        // south beside the field, a young stem at 8 on the row before, round a gap at 8, 2; a pumpkin at 4.
+        // Bedrock keeps one stem block, grown or not, and the bot is given melon seed only.
+        await reset(['melon_seeds 3']);
+        await fill([X0, 1, 1], [X1, 1, 2], 'air');
+        for (let x = X0; x <= 5; x++) await set([x, 1, 1], 'beetroot ["growth"=7]');
+        for (const x of [7, 9]) await set([x, 1, 2], 'melon_stem ["growth"=7]');
+        await set([8, 1, 1], 'melon_stem ["growth"=7]');
+        await set([4, 1, 2], 'pumpkin_stem ["growth"=7]');
+        for (const x of [7, 9]) await set([x, 1, 3], 'melon_block');
+        await set([4, 1, 3], 'pumpkin');
+        await delay(800);
+        const book = createFieldBook({ scope: 'live' });
+        const result = await act('test:tend', () => tendField(bot, { book, behind: { asked: true, by: 'Alex' }, name: NAME, memory: handle.memory }));
+        const said = String(result.text ?? '').replace(/\n/g, ' | ');
+        assert.ok(['ok', 'partial'].includes(result.status), said);
+        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${said}`);
+        for (const x of [7, 9]) assert.equal(raw([x, 1, 3])?.name, 'air', `the melon at ${x} was picked: ${said}`);
+        assert.equal(raw([4, 1, 3])?.name, 'air', `the pumpkin was picked: ${said}`);
+        for (const x of [7, 9]) assert.equal(raw([x, 1, 2])?.name, 'melon_stem', `the melon stem at ${x} stands`);
+        assert.equal(raw([8, 1, 1])?.name, 'melon_stem', 'the young melon stem stands');
+        assert.equal(raw([4, 1, 2])?.name, 'pumpkin_stem', 'the pumpkin stem stands');
+        assert.equal(raw([8, 1, 2])?.name, 'melon_stem', `the gap among the melon stems is sown with melon seed: ${said}`);
+        assert.ok(have('melon_slice') >= 6, `the melons' slices reached the bag (${have('melon_slice')}): ${said}`);
+        assert.equal(have('pumpkin'), 1, `so did the pumpkin: ${said}`);
+        assert.match(result.text, /Harvested[^.]*2 melon/, said);
+        assert.match(result.text, /Harvested[^.]*1 pumpkin/, said);
+        return { text: said, dropped, ...(motion.length ? { motion } : {}) };
+    });
+
     await step('a round takes the harvest to the chests by the field that are for it, keeping seed and food, and tramples nothing', async () => {
         // Carrots to start with, so that there is more food than the bot keeps.
         await reset(['wheat_seeds 2', 'carrot 20']);
