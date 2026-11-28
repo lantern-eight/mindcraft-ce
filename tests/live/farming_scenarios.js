@@ -196,9 +196,12 @@ try {
     await step('a field is made by water: as many cells as there are seeds, all wet and sown, none on the path, none trampled', async () => {
         await reset({ kit: ['stone_hoe 1', 'wheat_seeds 6'] });
         // No field here this time: only grass, the water at 6, 69, 0, a path across, and wild grass to cut.
-        await cmd(`fill ${X0} ${Y} -2 ${X1} ${Y} 2 grass_block`);
+        // The crops first: farmland taken from under them would pop them off as drops, seeds for the bot to
+        // pick up. And whatever did drop is cleared last.
         await cmd(`fill ${X0} ${Y + 1} -2 ${X1} ${Y + 1} 2 air`);
+        await cmd(`fill ${X0} ${Y} -2 ${X1} ${Y} 2 grass_block`);
         await cmd(`setblock ${WATER.x} ${Y} ${WATER.z} water`);
+        await cmd('kill @e[type=item]');
         await cmd(`fill 4 ${Y} -6 4 ${Y} 6 dirt_path`);
         await cmd(`fill 5 ${Y + 1} 1 8 ${Y + 1} 3 short_grass`);
         await delay(1500);

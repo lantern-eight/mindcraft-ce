@@ -194,9 +194,12 @@ try {
 
         // A new field: the old one taken up, wild grass to cut, the water left where it was.
         await reset(['stone_hoe 1', 'wheat_seeds 5']);
-        await fill([X0, 0, -2], [X1, 0, 2], 'grass_block');
+        // The crops first: farmland taken from under them would pop them off as drops, seeds for the bot to
+        // pick up. And whatever did drop is cleared last.
         await fill([X0, 1, -2], [X1, 1, 2], 'air');
+        await fill([X0, 0, -2], [X1, 0, 2], 'grass_block');
         await set(WATER, 'water');
+        await cmd('kill @e[type=item]');
         await fill([5, 1, 1], [8, 1, 3], 'short_grass');
         await delay(1500);
         const book = createFieldBook({ scope: 'live' });
