@@ -164,6 +164,9 @@ Everything farming knows comes through the same senses as the rest of [fair play
   rules start at its edge.
 - **Only wheat, carrots, potatoes and beetroot.** Melons, pumpkins, sugar cane, cocoa, nether wart and sweet
   berries are not tended yet. Neither is bone meal or a composter.
+- **On Bedrock a cut beetroot can't always be replanted.** A Bedrock beetroot drops 0 to 3 seeds (a Java one
+  at least 1), so a few beetroots can give fewer seeds than cells. The round leaves those cells empty and says
+  so ("no seed for it"), as a player without a seed would.
 - **The harvest stays in the bot's inventory.** Taking it to a chest is not built yet.
 - **A village's field** counts as nobody's: the bot leaves it alone on its own idea, keeps a new field clear
   of it, and tends it when a player asks. Telling a village's field by the farmer working it is not built.
