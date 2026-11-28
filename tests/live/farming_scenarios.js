@@ -172,9 +172,22 @@ try {
         const onProgress = m => progress.push(`${((Date.now() - t0) / 1000).toFixed(1)}s ${m.message}`);
         const t0 = Date.now();
         bot.on('mining_progress', onProgress);
+        // Farmland turned to dirt under the bot's feet, and what the bot was doing just then: where it stood,
+        // how it moved, in water or not, jumping or not. A trampled cell says how it was trampled.
+        const trampled = [];
+        const onBlock = (before, after) => {
+            if (before?.name !== 'farmland' || after?.name !== 'dirt') return;
+            const e = bot.entity, v = e.velocity;
+            trampled.push({ s: Number(((Date.now() - t0) / 1000).toFixed(1)), cell: `${after.position.x},${after.position.z}`,
+                bot: `${e.position.x.toFixed(2)},${e.position.y.toFixed(2)},${e.position.z.toFixed(2)}`,
+                v: `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`, onGround: e.onGround, inWater: Boolean(e.isInWater),
+                jump: bot.getControlState('jump'), sprint: bot.getControlState('sprint'), pathing: Boolean(bot.pathfinder.isMoving?.()) });
+        };
+        bot.on('blockUpdate', onBlock);
         const result = await act('test:collect', () => skills.collectBlockResult(bot, 'wheat', X1 - X0 + 1));
         bot.off('mining_progress', onProgress);
-        const text = `${result.text ?? result.message ?? String(result)} [${progress.join(' | ')}]`;
+        bot.off('blockUpdate', onBlock);
+        const text = `${result.text ?? result.message ?? String(result)} [${progress.join(' | ')}]${trampled.length ? ` trampled: ${JSON.stringify(trampled)}` : ''}`;
         for (let x = X0; x <= X1; x++) assert.equal(ageAt(x, Y + 1, -1), 2, `the young wheat at ${x} is untouched (there: ${raw(x, Y + 1, -1)?.name} on ${raw(x, Y, -1)?.name}): ${text}`);
         const left = [];
         for (let x = X0; x <= X1; x++) if (raw(x, Y + 1, -2)?.name === 'wheat') left.push(x);
