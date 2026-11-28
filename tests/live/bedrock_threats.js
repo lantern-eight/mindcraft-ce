@@ -430,7 +430,9 @@ try {
             return [name, fn];
         });
         const felt = [];
-        const onFelt = event => { if (event.event === 'felt') felt.push(event.direction); };
+        // Where every zombie and the bot were when the hit was felt: a failure says which one hit and from where.
+        let atHit = null;
+        const onFelt = event => { if (event.event === 'felt') { felt.push(event.direction); atHit ??= mobsReport('zombie'); } };
         bot.on('threat_reflex', onFelt);
         const spot = at(0, 1, 4); // to the south
         await cmd(`summon zombie ${spot.x + 0.5} ${spot.y} ${spot.z + 0.5} 0 0 minecraft:as_adult`);
@@ -439,7 +441,7 @@ try {
         for (const [name, fn] of listeners) bot._client.off(name, fn);
         bot.off('threat_reflex', onFelt);
         reflexes.mob.mode.on = true; reflexes.fight.mode.on = true;
-        assert.ok(felt[0] && felt[0].z > 0.7, `felt from ${JSON.stringify(felt[0])}: ${JSON.stringify(packets).slice(0, 400)}`);
+        assert.ok(felt[0] && felt[0].z > 0.7, `felt from ${JSON.stringify(felt[0])}, summoned at ${spot}, at the hit ${JSON.stringify(atHit)}: ${JSON.stringify(packets).slice(0, 400)}`);
         return { felt: felt.map(d => d && { x: Number(d.x.toFixed(2)), z: Number(d.z.toFixed(2)) }) };
     });
 

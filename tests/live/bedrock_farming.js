@@ -66,6 +66,47 @@ try {
     const raw = cell => bot.blockAt(at(...cell)); // the test may peek; the bot may not
     const growthAt = cell => Number(raw(cell)?.getProperties().growth);
     const have = name => bot.inventory.items().filter(i => i.name === name).reduce((n, i) => n + i.count, 0);
+    // How the bot moved while a scene ran, for a failure to say how a cell was trampled: each farmland that
+    // turned to dirt, and each time the bot went into water, with where it was (from the platform's middle,
+    // as the cells are named), how it moved and whether the pathfinder was walking it. Started by reset().
+    // Also what dropped while it ran, and what still lies near the field after it: whether a seed short for
+    // replanting never dropped, or dropped and was left lying.
+    let motion = [], since = Date.now(), wasInWater = false, dropped = {};
+    const moment = () => {
+        const e = bot.entity, v = e.velocity, p = e.position.minus(origin);
+        return { s: Number(((Date.now() - since) / 1000).toFixed(1)), at: `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}`,
+            v: `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`, onGround: e.onGround, inWater: Boolean(e.isInWater),
+            jump: bot.getControlState('jump'), pathing: Boolean(bot.pathfinder?.isMoving?.()) };
+    };
+    const watchMotion = () => {
+        bot.on('blockUpdate', (before, after) => {
+            if (before?.name !== 'farmland' || after?.name === 'farmland' || !origin) return;
+            const c = after.position.minus(origin);
+            motion.push({ trampled: `${c.x},${c.z}: ${after.name}`, ...moment() });
+        });
+        bot.on('itemDrop', entity => {
+            const item = entity.getDroppedItem?.();
+            const name = item?.name ?? '?';
+            dropped[name] = (dropped[name] ?? 0) + (item?.count ?? 1);
+        });
+        const timer = setInterval(() => {
+            const inWater = Boolean(bot.entity?.isInWater);
+            if (inWater && !wasInWater && origin) motion.push({ intoWater: true, ...moment() });
+            wasInWater = inWater;
+        }, 100);
+        timer.unref();
+    };
+    const lying = () => Object.values(bot.entities).filter(e => e.name === 'item' && e.position.distanceTo(at(6, 1, 0)) < 10).map(e => {
+        const p = e.position.minus(origin);
+        return `${e.getDroppedItem?.()?.name ?? '?'} at ${p.x.toFixed(1)},${p.y.toFixed(1)},${p.z.toFixed(1)}`;
+    });
+    const motionText = () => `${motion.length ? ` motion: ${JSON.stringify(motion)}` : ''} dropped: ${JSON.stringify(dropped)} lying: ${JSON.stringify(lying())}`;
+    // The farmland cells of the field that aren't farmland any more, for a failure to name.
+    const trampled = () => {
+        const out = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z) && raw([x, 0, z])?.name !== 'farmland') out.push(`${x},${z}: ${raw([x, 0, z])?.name}`);
+        return out.join(' ') + motionText();
+    };
     const farmlandLeft = () => {
         let n = 0;
         for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z) && raw([x, 0, z])?.name === 'farmland') n++;
@@ -77,6 +118,7 @@ try {
         await cmd(`clear ${NAME}`);
         for (const item of kit) await cmd(`give ${NAME} ${item}`, 300);
         await tpTo([0, 1, 0], -90);
+        motion = []; dropped = {}; since = Date.now();
     };
 
     await step('the bot joins, and farming runs with fair play and world memory', async () => {
@@ -85,6 +127,7 @@ try {
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
         await freshStart(server, [bot]);
+        watchMotion();
         for (const method of ['write', 'queue']) {
             const send = bot._client[method].bind(bot._client);
             bot._client[method] = (name, ...rest) => { sent.push(name); return send(name, ...rest); };
@@ -118,19 +161,34 @@ try {
         const result = await act('test:tend', () => tendField(bot, { book, behind: { asked: true, by: 'Alex' }, name: NAME, memory: handle.memory }));
         assert.match(result.text, /not ripe yet/);
         assert.ok(['ok', 'partial'].includes(result.status), result.text);
-        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${result.text}`);
-        try { checkRound(); } catch (error) { error.message += ` (${result.text} ${bot.output ?? ''})`; throw error; }
-        return { text: result.text };
+        assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${result.text}`);
+        try { checkRound(result.text); } catch (error) { error.message += ` (${result.text} ${bot.output ?? ''})${motionText()}`; throw error; }
+        return { text: result.text, dropped, ...(motion.length ? { motion } : {}) };
     });
 
-    function checkRound() {
+    function checkRound(text) {
         for (let x = X0; x <= X1; x++) {
             assert.equal(raw([x, 1, -1])?.name, 'wheat', `the young wheat at ${x} is still there`);
             assert.equal(growthAt([x, 1, -1]), 2, 'and still at stage 2');
             assert.ok(raw([x, 1, -2])?.name === 'wheat' && growthAt([x, 1, -2]) < 7, `the cut wheat at ${x} was replanted (there: ${raw([x, 1, -2])?.name})`);
             if (!isWater(x, 0)) assert.ok(raw([x, 1, 0])?.name === 'carrots' && growthAt([x, 1, 0]) < 7, `carrots replanted at ${x}`);
         }
-        for (let x = X0; x <= 5; x++) assert.ok(raw([x, 1, 1])?.name === 'beetroot' && growthAt([x, 1, 1]) < 7, `beetroot replanted at ${x} (there: ${raw([x, 1, 1])?.name})`);
+        // A Bedrock beetroot drops 0 to 3 seeds (a Java one always at least 1), so the three cut here give fewer
+        // than three about one round in twenty-five. A player can't replant without a seed either: the cells
+        // left over must be empty, said to be, and with no beetroot seed in the bag or left lying about.
+        const bare = [];
+        for (let x = X0; x <= 5; x++) {
+            if (raw([x, 1, 1])?.name === 'beetroot' && growthAt([x, 1, 1]) < 7) continue;
+            assert.equal(raw([x, 1, 1])?.name, 'air', `beetroot replanted at ${x} (there: ${raw([x, 1, 1])?.name})`);
+            bare.push(x);
+        }
+        if (bare.length) {
+            const where = `beetroot left unplanted at ${bare.join(', ')}`;
+            assert.ok((dropped.beetroot_seeds ?? 0) < 3, `${where}, though ${dropped.beetroot_seeds} seeds dropped`);
+            assert.equal(have('beetroot_seeds'), 0, `${where}, with beetroot seeds in the bag`);
+            assert.ok(!lying().some(item => item.startsWith('beetroot_seeds')), `${where}, with beetroot seeds left lying`);
+            assert.match(text, /farmland left empty: no seed for it/, `${where}, and the round didn't say why`);
+        }
         // Carrots are their own seed, and may all go back into the ground: wheat and beetroot can't.
         assert.ok(have('wheat') > 0 && have('beetroot') > 0, 'the harvest reached the inventory');
     }
@@ -169,10 +227,58 @@ try {
             // A round of tending, as a command, with nobody to tell it was the bot's own idea: it is tended,
             // beetroot (Bedrock's `beetroot`, Java's `beetroots`) and all.
             const tendedText = String(await getCommand('!tendField').perform(agent, 'any') ?? '');
-            assert.equal(farmlandLeft(), FARMLAND, `farmland trampled: ${tendedText}`);
-            try { checkRound(); } catch (error) { error.message += ` (${tendedText} ${bot.output ?? ''})`; throw error; }
-            return { refused: refusedText.trim().slice(-200) };
+            assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${tendedText}`);
+            try { checkRound(tendedText); } catch (error) { error.message += ` (${tendedText} ${bot.output ?? ''})${motionText()}`; throw error; }
+            return { refused: refusedText.trim().slice(-200), dropped, ...(motion.length ? { motion } : {}) };
         } finally { neighbor.stop(); farming.stop(); }
+    });
+
+    await step('a field is made by water, and the bot\'s own field is made bigger from its edge, with nothing trampled', async () => {
+        const { sowField } = await import('../../src/agent/farming/sow.js');
+        const { ME } = await import('../../src/agent/farming/field_book.js');
+        const inField = (x, z) => x >= X0 && x <= X1 && z >= -2 && z <= 2;
+        const farmlandAround = () => {
+            const out = [];
+            for (let x = -10; x <= 13; x++) for (let z = -10; z <= 10; z++) if (raw([x, 0, z])?.name === 'farmland') out.push({ x, z });
+            return out;
+        };
+        const wet = c => Math.abs(c.x - WATER[0]) <= 4 && Math.abs(c.z - WATER[2]) <= 4;
+
+        // A new field: the old one taken up, wild grass to cut, the water left where it was.
+        await reset(['stone_hoe 1', 'wheat_seeds 5']);
+        // The crops first: farmland taken from under them would pop them off as drops, seeds for the bot to
+        // pick up. And whatever did drop is cleared last.
+        await fill([X0, 1, -2], [X1, 1, 2], 'air');
+        await fill([X0, 0, -2], [X1, 0, 2], 'grass_block');
+        await set(WATER, 'water');
+        await cmd('kill @e[type=item]');
+        await fill([5, 1, 1], [8, 1, 3], 'short_grass');
+        await delay(1500);
+        const book = createFieldBook({ scope: 'live' });
+        const made = await act('test:sow', () => sowField(bot, { size: 9, book, behind: { asked: false }, name: NAME }));
+        const fresh = farmlandAround();
+        assert.equal(fresh.length, 5, `five cells, one for each seed: ${made.text} ${bot.output ?? ''}`);
+        for (const c of fresh) {
+            assert.ok(wet(c), `${c.x}, ${c.z} is kept wet`);
+            assert.equal(raw([c.x, 1, c.z])?.name, 'wheat', `${c.x}, ${c.z} is sown: ${made.text}`);
+            assert.equal(book.whose([at(c.x, 0, c.z)]).owner, ME);
+        }
+
+        // The bot's own field, made bigger.
+        await reset(['stone_hoe 1', 'carrot 3']);
+        await delay(500);
+        const field = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z)) field.push(at(x, 0, z));
+        book.mark(field, { owner: ME });
+        const bigger = await act('test:sow', () => sowField(bot, { seed: 'carrot', size: 3, book, behind: { asked: false }, name: NAME }));
+        const added = farmlandAround().filter(c => !inField(c.x, c.z));
+        assert.equal(added.length, 3, `three new cells: ${bigger.text} ${bot.output ?? ''}`);
+        for (const c of added) {
+            assert.ok(c.x >= X0 - 2 && c.x <= X1 + 2 && Math.abs(c.z) <= 4, `${c.x}, ${c.z} grows from the field`);
+            assert.equal(raw([c.x, 1, c.z])?.name, 'carrots', `${c.x}, ${c.z} is sown with carrots`);
+        }
+        assert.equal(farmlandLeft(), FARMLAND, `the field itself is whole: ${bigger.text}`);
+        return { made: made.text, bigger: bigger.text };
     });
 
     await step('after all of that, the bot sent no command', () => {
@@ -184,6 +290,8 @@ try {
 } finally {
     try {
         await cmd('gamerule randomtickspeed 1');
+        // What the scenes dropped and left lying would be picked up by the next script's bot.
+        if (origin) await cmd('kill @e[type=item]');
         if (origin) await fill([-12, -1, -12], [14, 8, 12], 'air');
     } catch (error) { console.error('Tear-down failed:', error.message); }
     bot?.quit();

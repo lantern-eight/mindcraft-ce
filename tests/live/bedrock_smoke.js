@@ -130,8 +130,9 @@ try {
         const lying = () => Object.values(bot.entities).find(entity => entity.name === 'item' && entity.position.distanceTo(hole) < 4);
         const where = position => (position ? `${position.x.toFixed(1)} ${position.y.toFixed(1)} ${position.z.toFixed(1)}` : 'nowhere to be seen');
         // A block to place next, not whatever is picked up first: an item an earlier run left on the ground (a
-        // stick from leaves that decayed) can be picked up on the way, and a stick can't be placed.
-        const block = () => bot.inventory.items().find(item => bot.registry.blocksByName[item.name]);
+        // stick from leaves that decayed) can be picked up on the way, and a stick can't be placed. Nor can
+        // wheat, which shares its name with the crop's block: a whole block only.
+        const block = () => bot.inventory.items().find(item => bot.registry.blocksByName[item.name]?.boundingBox === 'block');
         while (!block() && Date.now() < deadline) {
             const target = lying()?.position.floored() ?? hole;
             await bot.pathfinder.goto(new goals.GoalNear(target.x, target.y, target.z, 0)).catch(() => {});

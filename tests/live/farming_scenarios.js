@@ -89,6 +89,8 @@ try {
     }
     async function reset({ x = 0.5, z = 0.5, facing = -90, kit = [] } = {}) {
         await buildField();
+        // What the last scene dropped and left lying would be picked up into this one's counts.
+        await cmd('kill @e[type=item]');
         await cmd(`clear ${NAME}`);
         for (const item of kit) await cmd(`give ${NAME} ${item}`);
         await cmd(`tp ${NAME} ${x} 70 ${z} ${facing} 0`);
@@ -170,15 +172,107 @@ try {
         const onProgress = m => progress.push(`${((Date.now() - t0) / 1000).toFixed(1)}s ${m.message}`);
         const t0 = Date.now();
         bot.on('mining_progress', onProgress);
+        // Farmland turned to dirt under the bot's feet, and what the bot was doing just then: where it stood,
+        // how it moved, in water or not, jumping or not. A trampled cell says how it was trampled.
+        const trampled = [];
+        const onBlock = (before, after) => {
+            if (before?.name !== 'farmland' || after?.name !== 'dirt') return;
+            const e = bot.entity, v = e.velocity;
+            trampled.push({ s: Number(((Date.now() - t0) / 1000).toFixed(1)), cell: `${after.position.x},${after.position.z}`,
+                bot: `${e.position.x.toFixed(2)},${e.position.y.toFixed(2)},${e.position.z.toFixed(2)}`,
+                v: `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`, onGround: e.onGround, inWater: Boolean(e.isInWater),
+                jump: bot.getControlState('jump'), sprint: bot.getControlState('sprint'), pathing: Boolean(bot.pathfinder.isMoving?.()) });
+        };
+        bot.on('blockUpdate', onBlock);
         const result = await act('test:collect', () => skills.collectBlockResult(bot, 'wheat', X1 - X0 + 1));
         bot.off('mining_progress', onProgress);
-        const text = `${result.text ?? result.message ?? String(result)} [${progress.join(' | ')}]`;
-        for (let x = X0; x <= X1; x++) assert.equal(ageAt(x, Y + 1, -1), 2, `the young wheat at ${x} is untouched: ${text}`);
+        bot.off('blockUpdate', onBlock);
+        const text = `${result.text ?? result.message ?? String(result)} [${progress.join(' | ')}]${trampled.length ? ` trampled: ${JSON.stringify(trampled)}` : ''}`;
+        for (let x = X0; x <= X1; x++) assert.equal(ageAt(x, Y + 1, -1), 2, `the young wheat at ${x} is untouched (there: ${raw(x, Y + 1, -1)?.name} on ${raw(x, Y, -1)?.name}): ${text}`);
         const left = [];
         for (let x = X0; x <= X1; x++) if (raw(x, Y + 1, -2)?.name === 'wheat') left.push(x);
         assert.deepEqual(left, [], `ripe wheat left standing: ${text}`);
         assert.ok(have('wheat') >= X1 - X0 + 1, `got ${have('wheat')} wheat: ${text}`);
         return { text };
+    });
+
+    // New farmland the test finds after making a field: every farmland cell near the field that isn't part of it.
+    const { sowField } = await import('../../src/agent/farming/sow.js');
+    const inField = (x, z) => x >= X0 && x <= X1 && z >= -2 && z <= 2;
+    const newFarmland = () => {
+        const out = [];
+        for (let x = -12; x <= 16; x++) for (let z = -12; z <= 12; z++) if (!inField(x, z) && raw(x, Y, z)?.name === 'farmland') out.push({ x, y: Y, z });
+        return out;
+    };
+    const wetFrom = (cell, water) => Math.abs(cell.x - water.x) <= 4 && Math.abs(cell.z - water.z) <= 4;
+
+    await step('a field is made by water: as many cells as there are seeds, all wet and sown, none on the path, none trampled', async () => {
+        await reset({ kit: ['stone_hoe 1', 'wheat_seeds 6'] });
+        // No field here this time: only grass, the water at 6, 69, 0, a path across, and wild grass to cut.
+        // The crops first: farmland taken from under them would pop them off as drops, seeds for the bot to
+        // pick up. And whatever did drop is cleared last.
+        await cmd(`fill ${X0} ${Y + 1} -2 ${X1} ${Y + 1} 2 air`);
+        await cmd(`fill ${X0} ${Y} -2 ${X1} ${Y} 2 grass_block`);
+        await cmd(`setblock ${WATER.x} ${Y} ${WATER.z} water`);
+        await cmd('kill @e[type=item]');
+        await cmd(`fill 4 ${Y} -6 4 ${Y} 6 dirt_path`);
+        await cmd(`fill 5 ${Y + 1} 1 8 ${Y + 1} 3 short_grass`);
+        await delay(1500);
+        const book = createFieldBook({ scope: 'live' });
+        const result = await act('test:sow', () => sowField(bot, { size: 9, book, behind: { asked: false }, name: NAME }));
+        // Farmland anywhere: where the field used to be, and round it.
+        const made = newFarmland();
+        const tilled = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (raw(x, Y, z)?.name === 'farmland') tilled.push({ x, y: Y, z });
+        const all = made.concat(tilled);
+        assert.equal(all.length, 6, `six cells, one for each seed: ${result.text}`);
+        for (const c of all) {
+            assert.ok(wetFrom(c, WATER), `${c.x}, ${c.z} is kept wet by the water`);
+            assert.equal(raw(c.x, Y + 1, c.z)?.name, 'wheat', `${c.x}, ${c.z} is sown: ${result.text}`);
+            assert.equal(book.whose([c]).owner, ME, 'and is the bot\'s own');
+        }
+        for (let z = -6; z <= 6; z++) assert.equal(raw(4, Y, z)?.name, 'dirt_path', `the path at z ${z} is left as it was`);
+        // Seeds left over come only from the wild grass it cut (grass drops a wheat seed now and then).
+        assert.ok(have('wheat_seeds') <= 2, `the seeds went into the ground: ${have('wheat_seeds')} left`);
+        assert.match(result.text, /Made a field of 6 farmland/);
+        return { text: result.text };
+    });
+
+    await step('the bot\'s own field is made bigger from its edge, and none of it is trampled', async () => {
+        await reset({ kit: ['stone_hoe 1', 'carrot 4'] });
+        const book = createFieldBook({ scope: 'live' });
+        const field = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z)) field.push({ x, y: Y, z });
+        book.mark(field, { owner: ME });
+        const result = await act('test:sow', () => sowField(bot, { seed: 'carrot', size: 4, book, behind: { asked: false }, name: NAME }));
+        const made = newFarmland();
+        assert.equal(made.length, 4, `four new cells: ${result.text}`);
+        for (const c of made) {
+            assert.ok(field.some(f => Math.abs(f.x - c.x) <= 2 && Math.abs(f.z - c.z) <= 2), `${c.x}, ${c.z} grows from the field`);
+            assert.equal(raw(c.x, Y + 1, c.z)?.name, 'carrots', `${c.x}, ${c.z} is sown with carrots`);
+            assert.equal(book.whose([c]).owner, ME);
+        }
+        assert.equal(farmlandLeft(), FARMLAND, `the field itself is whole: ${result.text}`);
+        assert.match(result.text, /Made the field beside you bigger by 4 farmland/);
+        return { text: result.text };
+    });
+
+    await step('on its own idea the bot keeps clear of a field nobody said it may tend', async () => {
+        await reset({ kit: ['stone_hoe 1', 'wheat_seeds 4'] });
+        const book = createFieldBook({ scope: 'live' });
+        const field = [];
+        for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z)) field.push({ x, y: Y, z });
+        book.mark(field, { owner: 'Alex' });
+        const result = await act('test:sow', () => sowField(bot, { size: 4, book, behind: { asked: false }, name: NAME }));
+        const made = newFarmland();
+        assert.equal(made.length, 4, `four cells: ${result.text}`);
+        for (const c of made) {
+            assert.ok(!field.some(f => Math.abs(f.x - c.x) <= 1 && Math.abs(f.z - c.z) <= 1), `${c.x}, ${c.z} does not touch Alex's field`);
+            assert.equal(book.whose([c]).owner, ME, 'the new field is the bot\'s');
+        }
+        assert.equal(book.whose(field).owner, 'Alex', 'Alex\'s field is still Alex\'s');
+        assert.equal(farmlandLeft(), FARMLAND);
+        return { text: result.text };
     });
 
     await step('with good-neighbor rules on, a stranger\'s wheat is not collected, and a field the bot is asked to tend is tended', async () => {

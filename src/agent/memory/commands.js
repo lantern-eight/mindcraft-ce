@@ -16,6 +16,7 @@ import { isCrop, isHerdAnimal, kindOf } from './kinds.js';
 import { confirm, parseWhere, seenSpot } from './told.js';
 import { loadPlaces } from './places.js';
 import { scopeDir } from './files.js';
+import { fieldOwnersOf } from '../library/field_owners.js';
 
 export const ago = ms => {
     const seconds = Math.round(ms / 1000);
@@ -92,7 +93,7 @@ function placeLine(memory, here, place, t = Date.now()) {
  * @param {{x:number,y:number,z:number}} here - where the bot is
  * @param {string} what - what the model asked about
  */
-export function recallText(memory, here, what, { limit = 5, now = Date.now } = {}) {
+export function recallText(memory, here, what, { limit = 5, now = Date.now, ownerOf = () => null } = {}) {
     const query = String(what ?? '').trim();
     const key = query.toLowerCase().replace(/\s+/g, '_');
     const t = now();
@@ -120,7 +121,9 @@ export function recallText(memory, here, what, { limit = 5, now = Date.now } = {
 
     if (isCrop(key) || key === 'crops' || key === 'fields') {
         const fields = memory.things.fieldsNear(here, { crop: isCrop(key) ? key : null, limit });
-        if (fields.length) sections.push(`FIELDS YOU REMEMBER\n${fields.map((field, i) => `- ${field.crop} x${field.count} (${field.ripe} ripe when last seen) near `
+        // Whose each field is comes from whatever keeps that (farming's field book), when it is on.
+        const whose = field => { try { return field.min && field.max ? ownerOf(field) : null; } catch { return null; } };
+        if (fields.length) sections.push(`FIELDS YOU REMEMBER\n${fields.map((field, i) => `- ${field.crop} x${field.count} (${field.ripe} ripe when last seen${whose(field) ? `, ${whose(field)}` : ''}) near `
             + `${Math.round(field.x)}, ${Math.round(field.y)}, ${Math.round(field.z)}: ${whereFrom(here, field)}, seen ${ago(t - field.lastSeen)}${i === 0 ? walkText(memory, here, field) : ''}`).join('\n')}`);
     }
 
@@ -298,7 +301,8 @@ export const recallCommand = {
     description: 'Ask what you remember, however far away: a block type ("sand", "iron_ore"), a kind of thing ("chest", "door", "bed"), '
         + 'an item to find in the containers you looked into ("iron"), an animal, a crop, a place name, or "changes" for what you noticed had changed.',
     params: { 'what': { type: 'string', description: 'What to recall.' } },
-    perform: (agent, what) => (memoryOf(agent) ? recallText(memoryOf(agent), agent.bot.entity.position, what) : OFF),
+    perform: (agent, what) => (memoryOf(agent)
+        ? recallText(memoryOf(agent), agent.bot.entity.position, what, { ownerOf: fieldOwnersOf(agent.bot) }) : OFF),
 };
 
 export const placesCommand = {
