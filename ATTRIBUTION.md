@@ -48,14 +48,7 @@ which is the inherited code's MIT License; the file says where it came from.
 | Fork | What was taken | License |
 |---|---|---|
 | [akarkin1/mindcraft-fk](https://github.com/akarkin1/mindcraft-fk) | The keep plan (`keepPlan` in its `packs/storage/storage_logic.js`, release `v0.1.4.17-rc`), which decides what the bot keeps on itself when it puts things away: `src/agent/storage/keep_plan.js`, with its test cases in `tests/storage_keep_plan.test.js` | MIT |
-
-## Code Taken From Other Forks
-
-Code from other forks of Mindcraft, ported here in files of its own that keep its license and notice.
-
-| Fork | What was taken | Where it is here | License |
-|---|---|---|---|
-| [akarkin1/mindcraft-fk](https://github.com/akarkin1/mindcraft-fk) | `visitOrder`, the plough's order a farm round visits the cells of a field in (`packs/farming/crop_logic.js`, branch `release/v0.1.4.17-rc`) | `src/agent/farming/visit_order.js` | MIT |
+| [akarkin1/mindcraft-fk](https://github.com/akarkin1/mindcraft-fk) | `visitOrder`, the plough's order a farm round visits the cells of a field in (`packs/farming/crop_logic.js`, branch `release/v0.1.4.17-rc`): `src/agent/farming/visit_order.js` | MIT |
 
 ## Libraries
 
@@ -259,7 +252,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/smelting/` (all files)
 - `src/agent/neighbor/` (all files)
 - `src/agent/explore/` (all files)
-- `src/agent/farming/` (all files but `visit_order.js`, which is MIT: see "Code Taken From Other Forks")
+- `src/agent/farming/` (all files but `visit_order.js`, which is MIT: see "Code Ported From Other Forks")
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/smelt_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`, `src/agent/library/bag_room.js`,
