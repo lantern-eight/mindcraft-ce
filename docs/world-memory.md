@@ -44,7 +44,7 @@ forget.
 | **Cells** | Every block the bot has seen, exactly, in 16-block cubes | "sand, 30 blocks north" |
 | **Things** | Single objects a player uses, with their state and when they were last seen: containers, workstations, doors, beds, signs, portals, spawners, ores | "an oak door, open, seen an hour ago" |
 | **Contents** | What was in a container, taken when the bot opens it and again when it closes it. A shelf has no lid: what stands on it is taken whenever its front is in view, and a shelf seen only from behind, beside or above is one of unknown contents | "chest: iron_ingot 30, bread 6" |
-| **Fields and herds** | Per area: how many plants of a crop and how many were ripe; which animals and how many | "wheat x12, 5 ripe", "cow x4" |
+| **Fields and herds** | Per area: how many plants of a crop and how many were ripe; which animals and how many | "wheat x12, 5 ripe", "cow x4". With farming on, `!recall` adds whose a field is, from its field book |
 | **Trail** | Where the bot has walked, as spots joined by links it can route over and walk again | "about 40 seconds on foot by a way you know" |
 | **Places** | Sites it found (things a player uses, close together), spots it was told the name of, and places a player told it the position of | "the base: chest 4, furnace 2, red_bed 1" |
 | **Changes** | Short notes for when a place is not as it remembers it | "Gone: chest 2. New: oak_planks 42" |

@@ -2,11 +2,13 @@
 
 One instruction, and the bot tends a field the way a careful player does: it cuts the crops it sees are
 ripe, replants them, sows the empty farmland, and picks up what dropped. It leaves young plants to grow,
-never jumps onto the farmland, and on its own idea it tends only fields it may tend.
+never jumps onto the farmland, and on its own idea it tends only fields it may tend. Another, and it makes a
+field: it tills wet ground with a hoe and sows it.
 
 - [Turning It On or Off](#turning-it-on-or-off)
 - [What a Round Does](#what-a-round-does)
 - [Whose Fields It Tends](#whose-fields-it-tends)
+- [Making a Field](#making-a-field)
 - [What the Model Can Ask](#what-the-model-can-ask)
 - [Is It Fair?](#is-it-fair)
 - [Known Limits](#known-limits)
@@ -106,15 +108,38 @@ The field book is the owner record those rules lack, so it answers them about cr
 - **Anything else stays refused,** and the refusal sends the model to `!tendField` and `!markField`.
 - Only the crop is freed, never the farmland under it, and a protected area from the settings still wins.
 
+## Making a Field
+
+`!sowField` tills ground near the bot with the best hoe it carries and sows it, the way a player starting
+or growing a field does:
+
+- **Wet ground only.** Farmland dries back to dirt unless water lies within 4 blocks of it sideways, at its
+  own level or one above, so the bot tills only soil some water it has seen keeps wet. With no water in view,
+  it looks round once, then says to go near water.
+- **Free soil only:** grass, dirt, coarse dirt (two strokes) or rooted dirt, with room above it. Wild grass
+  and ferns on top are cut first. Never a path, never a block it saw someone put there, and, with
+  [good-neighbor rules](good-neighbor.md) on, nothing they protect.
+- **Bigger, not beside.** When a field the bot may tend (above) is near, it grows that field from its own
+  edge. A field it may not tend is kept clear of: new farmland next to it would join it, and then nobody
+  could say whose each part is. Otherwise it starts a new, flat field from the free ground nearest it.
+- **No more than it can sow.** Bare farmland dries out, so it tills one cell for each seed it holds, at
+  most the size asked (up to 64), and sows each as it goes.
+- **Nothing trampled:** it walks on what it has tilled the way it walks on a field it tends.
+- **Whose it is:** new farmland joins the book as the field's owner's when it made a field bigger, else as
+  the player's who asked for it, else as its own.
+
+Without a hoe it says how to get one (`!getTool`), and without seeds it says so before tilling anything.
+
 ## What the Model Can Ask
 
 | Command | What it does |
 |---|---|
 | `!tendField(seed)` | Tends the field nearest the bot. `seed` is what to sow on empty farmland: `"wheat_seeds"`, `"carrot"`, `"potato"`, `"beetroot_seeds"`, or `"any"` for what grows beside each cell |
+| `!sowField(seed, size)` | Makes a field: tills and sows up to `size` blocks of wet, free soil near the bot (the field it may tend made bigger, or a new one). `seed` as above, or `"any"` for the seed held most of |
 | `!markField(owner, tending)` | Says whose the field nearest the bot is (a player's name, `"shared"`, the bot's own name, `"unknown"`, or `"same"`), and whether it may be tended unasked (`"always"`, `"asked"` or `"same"`) |
 
-`!recall("wheat")` from [world memory](world-memory.md) lists the fields the bot remembers and how many
-plants were ripe when it last looked.
+`!recall("wheat")` from [world memory](world-memory.md) lists the fields the bot remembers, how many plants
+were ripe when it last looked, and, from the field book, whose each is ("Alice's field").
 
 ## Is It Fair?
 
@@ -130,15 +155,18 @@ Everything farming knows comes through the same senses as the rest of [fair play
 
 ## Known Limits
 
-- **It tends; it doesn't make fields yet.** Tilling new ground with a hoe, choosing ground by water, and
-  extending a field are not built. `tillAndSow` in generated code still tills one block.
+- **`!tendField` doesn't till.** A bare cell in a field (a path, a strip of grass) is left as the field's
+  owner made it; `!sowField` grows a field only at its edge. `tillAndSow` in generated code still tills one
+  block.
+- **Light isn't checked.** Crops need light to grow; a field made in a dark cave is made, and grows slowly or
+  not at all.
 - **The walk to a field from afar** uses ordinary travel, which doesn't know about trampling; the field's own
   rules start at its edge.
 - **Only wheat, carrots, potatoes and beetroot.** Melons, pumpkins, sugar cane, cocoa, nether wart and sweet
   berries are not tended yet. Neither is bone meal or a composter.
 - **The harvest stays in the bot's inventory.** Taking it to a chest is not built yet.
-- **A village's field** counts as nobody's: the bot leaves it alone on its own idea and tends it when a
-  player asks.
+- **A village's field** counts as nobody's: the bot leaves it alone on its own idea, keeps a new field clear
+  of it, and tends it when a player asks. Telling a village's field by the farmer working it is not built.
 - **With good-neighbor rules on, `!collectBlocks` of a stranger's crop says it found none,** not that the
   crop is someone's: the search leaves out what the bot may not break before it looks. `!tendField` says whose
   the field is.
@@ -153,10 +181,12 @@ All of it lives in `src/agent/farming/`:
 | `visit_order.js` | The plough's order of the cells. Ported from the `akarkin1/mindcraft-fk` fork, under the MIT License (see [ATTRIBUTION.md](../ATTRIBUTION.md)) |
 | `field.js` | The field around a cell, from a block reader that answers only what the bot knows; the step cost that keeps the pathfinder off the farmland. Pure |
 | `field_book.js` | Whose each field is, and the rule for tending it unasked. A plain store, one file per world |
-| `tend.js` | The round itself: the only part that walks, looks, cuts and plants |
+| `tend.js` | The round itself: the walking, looking, cutting and planting |
+| `ground.js` | Where to make a field: wet, free soil, grown from a field's edge and kept clear of others. Pure |
+| `sow.js` | Making a field: tilling (two strokes for coarse dirt), cutting wild grass, sowing, noting the owner |
 | `commands.js` | What the model can ask, and how the answers read |
 | `neighborly.js` | Answers good-neighbor rules about crops, from the field book and the round being tended |
-| `install.js` | Starts it for one agent, behind the setting, and hands good-neighbor rules its answer |
+| `install.js` | Starts it for one agent, behind the setting, hands good-neighbor rules its answer, and tells `!recall` whose a field is (`library/field_owners.js`) |
 
 **What depends on the edition of the game.** Block names are turned into Java's through the
 [edition seam](edition-seam.md) (`javaNameOf`) before they are looked up, and a crop's ripeness is asked of
