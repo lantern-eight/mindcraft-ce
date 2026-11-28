@@ -5,7 +5,7 @@
 // rest of the harvest in the chest by the field. So does the bot:
 //   - seed: as many of each as the field has cells of that crop, so the whole field could be sown again
 //     (at most a stack). Carrots and potatoes are their own seed;
-//   - food: of the crops that can be eaten (carrots, potatoes, beetroot), enough that the bag holds
+//   - food: of the crops that can be eaten (carrots, melon slices, potatoes, beetroot), enough that the bag holds
 //     FOOD_RESERVE pieces of food in all, counting the other food it carries, the most filling first;
 //   - everything else of the harvest goes: wheat, more seed than that, a poisonous potato.
 // Only what a field gives is planned: the bot's other things are not the harvest, and stay where they are.
@@ -20,7 +20,7 @@ export const SEED_KEEP_MAX = 64;
 const HARVEST = new Set([...CROPS.flatMap(row => [row.seed, row.produce]), 'poisonous_potato']);
 // How filling each crop is (the game's food points), to keep the best first.
 // Beetroot and potatoes give 1 each; beetroot fills a little more (saturation), and comes first by name too.
-const POINTS = Object.freeze({ carrot: 3, potato: 1, beetroot: 1 });
+const POINTS = Object.freeze({ carrot: 3, melon_slice: 2, potato: 1, beetroot: 1 });
 
 const countOf = (bag, name) => (Number.isFinite(bag?.[name]) && bag[name] > 0 ? bag[name] : 0);
 

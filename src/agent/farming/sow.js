@@ -38,7 +38,8 @@ function seedFor(bot, wanted) {
         return row && (held[row.seed] ?? 0) > 0 ? row.seed : null;
     }
     let best = null;
-    for (const row of CROPS) if ((held[row.seed] ?? 0) > (best ? held[best] : 0)) best = row.seed;
+    // Not melon or pumpkin seed: a field sown full of stems leaves their fruit nowhere to grow.
+    for (const row of CROPS) if (!row.fruit && (held[row.seed] ?? 0) > (best ? held[best] : 0)) best = row.seed;
     return best;
 }
 
@@ -85,6 +86,11 @@ export async function sowField(bot, { seed = null, size = 9, book, behind = {}, 
     assertActionOwner(bot);
     if (seed && !cropOf(seed)) {
         return toolResult('failed', `"${seed}" is not something you can sow on farmland. Use wheat_seeds, carrot, potato or beetroot_seeds, or leave it out.`, 'bad_args');
+    }
+    if (cropOf(seed)?.fruit) {
+        // Every stem needs a free block beside it for its fruit, which a field tilled edge to edge hasn't got.
+        return toolResult('failed', `A ${cropOf(seed).fruit} stem bears its fruit on a free block beside it, and a field made by tilling leaves none. `
+            + `Sow ${cropOf(seed).seed} on farmland with room around it instead: !tendField("${cropOf(seed).seed}") sows a field's empty farmland.`, 'bad_args');
     }
     const hoe = bestHoe(bot.inventory.items());
     if (!hoe) return toolResult('failed', 'You have no hoe to till the ground with. Get one (!getTool("hoe", "any")), then try again.', 'no_hoe');

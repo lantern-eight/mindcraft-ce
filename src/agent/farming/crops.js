@@ -15,15 +15,22 @@
 /**
  * The crops a field grows from a seed on farmland: the crop block, the item that plants it, and what it
  * gives. Carrots and potatoes are planted with the produce itself; there is no "carrot seed".
+ *
+ * Melons and pumpkins grow from a stem that stays: the stem bears a fruit on a block beside it (`fruit`), and
+ * the fruit is what is picked, never the stem, which then bears another. A grown stem bent towards its fruit
+ * is another block in Java (`attached`); Bedrock keeps one stem block and says which way it faces.
  */
 export const CROPS = Object.freeze([
     Object.freeze({ block: 'wheat', seed: 'wheat_seeds', produce: 'wheat' }),
     Object.freeze({ block: 'carrots', seed: 'carrot', produce: 'carrot' }),
     Object.freeze({ block: 'potatoes', seed: 'potato', produce: 'potato' }),
     Object.freeze({ block: 'beetroots', seed: 'beetroot_seeds', produce: 'beetroot' }),
+    Object.freeze({ block: 'melon_stem', attached: 'attached_melon_stem', seed: 'melon_seeds', produce: 'melon_slice', fruit: 'melon' }),
+    Object.freeze({ block: 'pumpkin_stem', attached: 'attached_pumpkin_stem', seed: 'pumpkin_seeds', produce: 'pumpkin', fruit: 'pumpkin' }),
 ]);
 
-const BY_BLOCK = new Map(CROPS.map(row => [row.block, row]));
+const BY_BLOCK = new Map(CROPS.flatMap(row => [[row.block, row], ...(row.attached ? [[row.attached, row]] : [])]));
+const BY_FRUIT = new Map(CROPS.filter(row => row.fruit).map(row => [row.fruit, row]));
 const BY_SEED = new Map(CROPS.map(row => [row.seed, row]));
 // What a player might call a crop: its block, its seed, its produce, a plural. Exact names only.
 const ALIASES = new Map([
@@ -31,6 +38,8 @@ const ALIASES = new Map([
     ['carrot', 'carrots'], ['carrots', 'carrots'],
     ['potato', 'potatoes'], ['potatoes', 'potatoes'],
     ['beetroot', 'beetroots'], ['beetroots', 'beetroots'], ['beetroot_seeds', 'beetroots'],
+    ['melon', 'melon_stem'], ['melons', 'melon_stem'], ['melon_seeds', 'melon_stem'], ['melon_slice', 'melon_stem'],
+    ['pumpkin', 'pumpkin_stem'], ['pumpkins', 'pumpkin_stem'], ['pumpkin_seeds', 'pumpkin_stem'],
 ]);
 
 const clean = name => (typeof name === 'string' ? name.trim().toLowerCase().replace(/^minecraft:/, '') : '');
@@ -43,6 +52,9 @@ export const cropOfSeed = name => BY_SEED.get(clean(name)) ?? null;
 
 /** The crop row for any name a player might use for it (block, seed, produce), or null. */
 export const cropOf = name => BY_BLOCK.get(ALIASES.get(clean(name))) ?? null;
+
+/** The crop row whose stem bears this fruit block (`melon`, `pumpkin`), or null. */
+export const cropOfFruit = name => BY_FRUIT.get(clean(name)) ?? null;
 
 /** Ground a hoe turns into farmland. Coarse dirt and rooted dirt turn into dirt first, so take two. */
 export const TILLABLE = Object.freeze(['dirt', 'grass_block', 'dirt_path', 'coarse_dirt', 'rooted_dirt']);
@@ -72,7 +84,8 @@ const count = (counts, name) => {
  *     (it has to see it first: what is remembered of a crop says nothing about its age);
  *   - a ripe crop: `harvest`, then `plant` when the bag will hold that crop's seed (`seedsAfter`: a crop's
  *     own drops give it back, so a ripe crop can always be replanted unless the drops are lost);
- *   - a crop that isn't ripe, or anything else that isn't air: nothing;
+ *   - a crop that isn't ripe, a melon or pumpkin stem (its fruit is picked beside it, the stem stays), or
+ *     anything else that isn't air: nothing;
  *   - air on farmland: `plant`, when there is any seed to plant.
  * @param {{ground: string, above: string|null, ripe?: boolean|null}} cell - Java names; `above` null when
  *   unknown; `ripe` true or false only for a crop seen now
@@ -83,6 +96,7 @@ export function cellPlan(cell, have = {}) {
     if (!cell || clean(cell.ground) !== 'farmland') return [];
     if (cell.above === null || cell.above === undefined) return ['look'];
     const row = cropOfBlock(cell.above);
+    if (row?.fruit) return [];
     if (row) {
         if (cell.ripe === null || cell.ripe === undefined) return ['look'];
         return cell.ripe ? ['harvest', 'plant'] : [];
@@ -94,7 +108,9 @@ export function cellPlan(cell, have = {}) {
 /**
  * Which seed to sow on an empty cell: the one asked for when the bag holds it; else the crop most of its
  * eight neighbours grow, when the bag holds that seed (a row of carrots gets carrots); else the seed the
- * bag holds most of. Ties go by the order of CROPS. Null when there is nothing to sow.
+ * bag holds most of. Ties go by the order of CROPS. Null when there is nothing to sow. A melon or pumpkin
+ * stem needs a free block beside it for its fruit, so their seeds are sown only when asked for, or beside
+ * stems of their own kind, never just because the bag holds the most of them.
  * @param {{x: number, z: number}} cell
  * @param {{x: number, z: number, above: string|null}[]} cells - the field's cells
  * @param {Object<string, number>} seeds - seeds held, by item name, after keeping what is owed to replanting
@@ -117,7 +133,7 @@ export function seedToSow(cell, cells, seeds, wanted = null) {
     }
     if (best) return best;
     for (const row of CROPS) {
-        if (count(seeds, row.seed) > (best ? count(seeds, best) : 0)) best = row.seed;
+        if (!row.fruit && count(seeds, row.seed) > (best ? count(seeds, best) : 0)) best = row.seed;
     }
     return best;
 }
