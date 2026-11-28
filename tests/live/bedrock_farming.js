@@ -66,11 +66,35 @@ try {
     const raw = cell => bot.blockAt(at(...cell)); // the test may peek; the bot may not
     const growthAt = cell => Number(raw(cell)?.getProperties().growth);
     const have = name => bot.inventory.items().filter(i => i.name === name).reduce((n, i) => n + i.count, 0);
+    // How the bot moved while a scene ran, for a failure to say how a cell was trampled: each farmland that
+    // turned to dirt, and each time the bot went into water, with where it was (from the platform's middle,
+    // as the cells are named), how it moved and whether the pathfinder was walking it. Started by reset().
+    let motion = [], since = Date.now(), wasInWater = false;
+    const moment = () => {
+        const e = bot.entity, v = e.velocity, p = e.position.minus(origin);
+        return { s: Number(((Date.now() - since) / 1000).toFixed(1)), at: `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}`,
+            v: `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`, onGround: e.onGround, inWater: Boolean(e.isInWater),
+            jump: bot.getControlState('jump'), pathing: Boolean(bot.pathfinder?.isMoving?.()) };
+    };
+    const watchMotion = () => {
+        bot.on('blockUpdate', (before, after) => {
+            if (before?.name !== 'farmland' || after?.name === 'farmland' || !origin) return;
+            const c = after.position.minus(origin);
+            motion.push({ trampled: `${c.x},${c.z}: ${after.name}`, ...moment() });
+        });
+        const timer = setInterval(() => {
+            const inWater = Boolean(bot.entity?.isInWater);
+            if (inWater && !wasInWater && origin) motion.push({ intoWater: true, ...moment() });
+            wasInWater = inWater;
+        }, 100);
+        timer.unref();
+    };
+    const motionText = () => (motion.length ? ` motion: ${JSON.stringify(motion)}` : '');
     // The farmland cells of the field that aren't farmland any more, for a failure to name.
     const trampled = () => {
         const out = [];
         for (let x = X0; x <= X1; x++) for (let z = -2; z <= 2; z++) if (!isWater(x, z) && raw([x, 0, z])?.name !== 'farmland') out.push(`${x},${z}: ${raw([x, 0, z])?.name}`);
-        return out.join(' ');
+        return out.join(' ') + motionText();
     };
     const farmlandLeft = () => {
         let n = 0;
@@ -83,6 +107,7 @@ try {
         await cmd(`clear ${NAME}`);
         for (const item of kit) await cmd(`give ${NAME} ${item}`, 300);
         await tpTo([0, 1, 0], -90);
+        motion = []; since = Date.now();
     };
 
     await step('the bot joins, and farming runs with fair play and world memory', async () => {
@@ -91,6 +116,7 @@ try {
         await Promise.race([once(bot, 'spawn'), delay(30000).then(() => { throw new Error('No spawn within 30 s'); })]);
         await delay(2500);
         await freshStart(server, [bot]);
+        watchMotion();
         for (const method of ['write', 'queue']) {
             const send = bot._client[method].bind(bot._client);
             bot._client[method] = (name, ...rest) => { sent.push(name); return send(name, ...rest); };
@@ -125,8 +151,8 @@ try {
         assert.match(result.text, /not ripe yet/);
         assert.ok(['ok', 'partial'].includes(result.status), result.text);
         assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${result.text}`);
-        try { checkRound(); } catch (error) { error.message += ` (${result.text} ${bot.output ?? ''})`; throw error; }
-        return { text: result.text };
+        try { checkRound(); } catch (error) { error.message += ` (${result.text} ${bot.output ?? ''})${motionText()}`; throw error; }
+        return { text: result.text, ...(motion.length ? { motion } : {}) };
     });
 
     function checkRound() {
@@ -176,8 +202,8 @@ try {
             // beetroot (Bedrock's `beetroot`, Java's `beetroots`) and all.
             const tendedText = String(await getCommand('!tendField').perform(agent, 'any') ?? '');
             assert.equal(farmlandLeft(), FARMLAND, `farmland trampled (${trampled()}): ${tendedText}`);
-            try { checkRound(); } catch (error) { error.message += ` (${tendedText} ${bot.output ?? ''})`; throw error; }
-            return { refused: refusedText.trim().slice(-200) };
+            try { checkRound(); } catch (error) { error.message += ` (${tendedText} ${bot.output ?? ''})${motionText()}`; throw error; }
+            return { refused: refusedText.trim().slice(-200), ...(motion.length ? { motion } : {}) };
         } finally { neighbor.stop(); farming.stop(); }
     });
 
