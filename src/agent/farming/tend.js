@@ -397,7 +397,9 @@ export const FIELD_CHEST_RANGE = 16;
  * @returns {Promise<string|null>} what to add to the round's report, or null when nothing was meant to go anywhere
  */
 export async function storeHarvest(bot, field, whose, behind, store) {
-    const plan = harvestPlan(counts(bot), field.cells, { isFood: name => Boolean(bot.registry.foodsByName?.[name]) });
+    // What can be eaten, from the edition seam: Bedrock's game data has no food table of its own.
+    const foods = editionOf(bot.registry).foodsOf(bot.registry);
+    const plan = harvestPlan(counts(bot), field.cells, { isFood: name => Boolean(foods[name]) });
     if (!plan.store.length) return null;
     const owner = whose?.owner;
     const mine = !owner || sameOwner(owner, ME) || sameOwner(owner, SHARED);
