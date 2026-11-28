@@ -13,6 +13,7 @@
 import Vec3 from 'vec3';
 import { assertActionOwner } from '../action_context.js';
 import { editionOf } from '../edition/index.js';
+import { lookBeforeSearch } from '../library/search_look.js';
 import * as skills from '../library/skills.js';
 import * as world from '../library/world.js';
 import { worldQueries } from '../library/world_queries.js';
@@ -64,9 +65,10 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
  * @param {object} [deps.skills] - `goToPosition`, `pickupNearbyItems` (library/skills.js)
  * @param {(bot: object, pos: Vec3) => object|null} [deps.blockAt] - a block as the bot may know it
  * @param {(ms: number) => Promise<void>} [deps.sleep]
+ * @param {Function} [deps.lookAround] - looks round when nothing is in view (library/search_look.js)
  */
 export function composting({ world: w = world, skills: s = skills, blockAt = (bot, pos) => worldQueries().blockAt(bot, pos),
-    sleep: wait = sleep } = {}) {
+    sleep: wait = sleep, lookAround = lookBeforeSearch } = {}) {
     const countOf = (bot, name) => w.getInventoryCounts(bot)[name] ?? 0;
     const stopped = bot => Boolean(bot.interrupt_code);
     const until = async (bot, test, ms) => {
@@ -95,7 +97,10 @@ export function composting({ world: w = world, skills: s = skills, blockAt = (bo
         const held = countOf(bot, item);
         if (!held) return toolResult('failed', `You have no ${item}.`, 'missing_items');
         const edition = editionOf(bot.registry);
-        const found = w.getNearestBlocksWhere(bot, block => block?.name === 'composter', COMPOSTER_RANGE, 1)?.[0];
+        const nearest = () => w.getNearestBlocksWhere(bot, block => block?.name === 'composter', COMPOSTER_RANGE, 1)?.[0];
+        // Under a narrowed view the bot looks round first, as a player does, when none is in view.
+        let found = nearest();
+        if (!found && await lookAround(bot, null)) found = nearest();
         if (!found) {
             return toolResult('failed', `You see no composter within ${COMPOSTER_RANGE} blocks. Go to one, or craft one (from 7 wooden slabs) and place it.`, 'no_composter');
         }
