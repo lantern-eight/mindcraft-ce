@@ -17,6 +17,12 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   because the bag holds the most of it, and `!sowField` won't sow a whole new field of stems: each needs a
   free block beside it for its fruit. Melon slices count as food the bot keeps from a harvest.
 
+### Fixed
+
+- Collecting sugar cane, bamboo or cactus leaves the bottom block of each plant, as a player cuts them, so the
+  plant grows back. It used to break the bottom block too, and a patch collected once never came back. With
+  only bottom blocks near, the bot is told they are left to grow.
+
 ## [1.33.0-bedrock.1.35.0] - 2026-11-28
 
 The harvest, for both editions: a round takes it to the field's chest and keeps seed and food, and a walk on a
