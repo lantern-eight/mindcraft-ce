@@ -47,14 +47,19 @@ It needs neither fair play nor world memory:
 4. **Cut what is ripe** (wheat, carrots, potatoes at full growth; beetroot at its fourth stage), wait for
    the drops, step onto them to pick them up, and **replant** that cell with that crop's seed. Carrots and
    potatoes replant from the crop itself.
-5. **Sow empty farmland** with the seed asked for. When none is named, it sows what grows beside each cell
+5. **Pick the melons and pumpkins** standing beside the field's stems, and leave the stems: a stem goes on
+   bearing fruit, and breaking it would end that. Only a fruit beside a stem of its own kind counts, so a
+   melon or pumpkin block set down elsewhere is left alone.
+6. **Sow empty farmland** with the seed asked for. When none is named, it sows what grows beside each cell
    (a row of carrots gets carrots), else the seed it holds most of. It holds back a seed for each ripe plant
-   still to be replanted, so a field doesn't end up half bare.
-6. **Look again.** Walking the rows brings more of the field into view; the round takes in what it found,
+   still to be replanted, so a field doesn't end up half bare. Melon and pumpkin seed is sown only where
+   stems of its kind grow beside the cell, or when asked for: never because the bag holds the most of it, as a
+   stem in the middle of a field has no room for its fruit.
+7. **Look again.** Walking the rows brings more of the field into view; the round takes in what it found,
    up to three passes. A cell where a seed was planted but nothing grew (the click went astray, or the server
    was slow to show it) is tried again on the next pass, with the same seed if the bot cut a crop there. So is
    a cut cell whose seed hadn't dropped yet when the bot went to plant it: it picks up what lies about it first.
-7. **Report what happened,** counted from what reached the bag, never from what was broken:
+8. **Report what happened,** counted from what reached the bag, never from what was broken:
 
 > The field at 2, -61, -2 to 6, -61, 2 has 24 farmland (it is yours). Harvested 10 wheat, and gained 10 wheat,
 > 23 wheat_seeds. Replanted 10. Sowed 2 empty farmland. 12 not ripe yet, left to grow.
@@ -76,8 +81,8 @@ harvest in it, as a player leaves the farm chest full and walks home with their 
 
 | A chest for | Takes |
 |---|---|
-| `plants` (or a sign saying "crops", "farm") | wheat, wheat seeds and beetroot seeds |
-| `food` | carrots, potatoes and beetroot, which can be eaten |
+| `plants` (or a sign saying "crops", "farm") | wheat, pumpkins, and wheat, beetroot, melon and pumpkin seeds |
+| `food` | carrots, potatoes, beetroot and melon slices, which can be eaten |
 | an item, by name (`wheat`, `carrot`) | that item |
 
 A player says what a chest is for with `!chestFor(x, y, z, what)`, or with a sign on it ([what a chest is
@@ -89,9 +94,9 @@ the model can still put it away with `!putAway`.
 
 - **Seed to sow the field again:** of each seed, as many as the field has cells of that crop (at most a
   stack). Carrots and potatoes are their own seed.
-- **Food to eat:** enough carrots, potatoes and beetroot that it carries 16 pieces of food in all, counting
-  the other food it has, carrots first.
-- Everything else of the harvest goes: wheat, more seed than that, poisonous potatoes. Only what a field
+- **Food to eat:** enough carrots, melon slices, potatoes and beetroot that it carries 16 pieces of food in
+  all, counting the other food it has, the most filling first.
+- Everything else of the harvest goes: wheat, pumpkins, more seed than that, poisonous potatoes. Only what a field
   gives is stored; the bot's other things stay where they are.
 
 **Whose chests**, by the [rules of putting away](chest-sorting.md#putting-away-and-fetching): the bot's own
@@ -178,8 +183,8 @@ Without a hoe it says how to get one (`!getTool`), and without seeds it says so 
 
 | Command | What it does |
 |---|---|
-| `!tendField(seed)` | Tends the field nearest the bot. `seed` is what to sow on empty farmland: `"wheat_seeds"`, `"carrot"`, `"potato"`, `"beetroot_seeds"`, or `"any"` for what grows beside each cell |
-| `!sowField(seed, size)` | Makes a field: tills and sows up to `size` blocks of wet, free soil near the bot (the field it may tend made bigger, or a new one). `seed` as above, or `"any"` for the seed held most of |
+| `!tendField(seed)` | Tends the field nearest the bot. `seed` is what to sow on empty farmland: `"wheat_seeds"`, `"carrot"`, `"potato"`, `"beetroot_seeds"`, `"melon_seeds"`, `"pumpkin_seeds"`, or `"any"` for what grows beside each cell |
+| `!sowField(seed, size)` | Makes a field: tills and sows up to `size` blocks of wet, free soil near the bot (the field it may tend made bigger, or a new one). `seed` as above, but not melon or pumpkin seed, as each stem needs a free block beside it for its fruit; or `"any"` for the seed held most of |
 | `!markField(owner, tending)` | Says whose the field nearest the bot is (a player's name, `"shared"`, the bot's own name, `"unknown"`, or `"same"`), and whether it may be tended unasked (`"always"`, `"asked"` or `"same"`) |
 
 `!recall("wheat")` from [world memory](world-memory.md) lists the fields the bot remembers, how many plants
@@ -208,8 +213,11 @@ Everything farming knows comes through the same senses as the rest of [fair play
   not at all.
 - **The walk to a field from afar** uses ordinary travel, which doesn't know about trampling; the field's own
   rules start at its edge.
-- **Only wheat, carrots, potatoes and beetroot.** Melons, pumpkins, sugar cane, cocoa, nether wart and sweet
-  berries are not tended yet. Neither is bone meal or a composter.
+- **Wheat, carrots, potatoes, beetroot, melons and pumpkins.** Sugar cane, cocoa, nether wart and sweet
+  berries are not tended yet; `!collectBlocks("sugar_cane")` cuts cane and leaves the bottom block of each
+  plant to grow back. Neither bone meal nor a composter is used.
+- **A melon or pumpkin is picked only from beside a stem of the field.** Fruit beside a stem on its own,
+  away from farmland the bot tends, is left.
 - **On Bedrock a cut beetroot can't always be replanted.** A Bedrock beetroot drops 0 to 3 seeds (a Java one
   at least 1), so a few beetroots can give fewer seeds than cells. The round leaves those cells empty and says
   so ("no seed for it"), as a player without a seed would.
