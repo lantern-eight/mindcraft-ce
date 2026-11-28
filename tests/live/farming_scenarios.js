@@ -362,7 +362,9 @@ try {
         assert.equal(food.wheat ?? 0, 0, 'no wheat in the chest for food');
         assert.equal(plants.carrot ?? 0, 0, 'carrots are food, not plants');
         const eat = have('carrot') + have('beetroot'), stored = (food.carrot ?? 0) + (food.beetroot ?? 0);
-        assert.equal(eat, Math.min(16, eat + stored), `food kept, 16 in all, the rest stored: kept ${eat}, stored ${JSON.stringify(food)}`);
+        // Food: 16 in all, or a carrot for each carrot cell when there are more (seed to sow the field again).
+        const meant = Math.min(eat + stored, Math.max(16, growing('carrots')));
+        assert.equal(eat, meant, `food kept, 16 in all or a carrot for each of ${growing('carrots')} carrot cells, the rest stored: kept ${eat}, stored ${JSON.stringify(food)}`);
         assert.ok(stored > 0, `the food the bot doesn't keep went to the chest for food: ${JSON.stringify(food)}`);
         assert.deepEqual(anything, {}, 'the chest for anything is left alone');
         return { text: result.text };
