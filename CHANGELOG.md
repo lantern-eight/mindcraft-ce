@@ -17,6 +17,7 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
   It makes the field it may tend nearest it bigger from its edge, or starts a new one, kept clear of fields
   it may not tend. It tills only as much as it has seed for, and tramples nothing. The new farmland is the
   field's owner's, the asking player's, or the bot's own. See `docs/farming.md`.
+- `!recall` of a crop says whose each remembered field is, when the field book knows ("Alice's field").
 
 ## [1.31.0-bedrock.1.33.0] - 2026-11-27
 

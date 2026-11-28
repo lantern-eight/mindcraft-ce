@@ -18,7 +18,8 @@ import { scopeOf } from '../fairplay/install.js';
 import { scopeDir } from '../memory/files.js';
 import { requestWatcher } from '../storage/asker.js';
 import { farmingCommands } from './commands.js';
-import { loadFieldBook } from './field_book.js';
+import { fieldOwnerWords, loadFieldBook } from './field_book.js';
+import { setFieldOwners } from '../library/field_owners.js';
 import { cropPermits } from './neighborly.js';
 import { protectorOf } from '../neighbor/enforce.js';
 
@@ -72,5 +73,8 @@ export function installFarming(agent, { config = settings, bookDir = null } = {}
         memory: a => a.fairPlay?.memory ?? null, tending: permits.tending, mayTill,
     });
     for (const { command, action } of commands) registerCommand(command, { action });
-    return { commands: commands.map(({ command }) => command.name), book: bookNow, save, stop: unpermit };
+    // !recall names whose a remembered field is, from the book.
+    setFieldOwners(agent.bot, field => fieldOwnerWords(bookNow(), field, agent.name));
+    const stop = () => { unpermit(); setFieldOwners(agent.bot, null); };
+    return { commands: commands.map(({ command }) => command.name), book: bookNow, save, stop };
 }
