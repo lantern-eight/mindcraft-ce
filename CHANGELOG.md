@@ -9,6 +9,26 @@ Version numbers are this fork's own. Each release names the Mindcraft-CE commit 
 
 ## [Unreleased]
 
+## [1.32.0-bedrock.1.34.0] - 2026-11-28
+
+Making fields, for both editions: tilling wet, free ground and sowing it, and saying whose a remembered field
+is. Built on the same Mindcraft-CE commit as 1.25.0-bedrock.1.27.0.
+
+### Added
+
+- Making a field, on both editions: `!sowField(seed, size)` tills ground near the bot with its best hoe and
+  sows it. Only soil that water keeps wet (within 4 blocks, at its level or one above), never a path, a
+  build or what good-neighbor rules protect; wild grass on top is cut first, coarse dirt takes two strokes.
+  It makes the field it may tend nearest it bigger from its edge, or starts a new one, kept clear of fields
+  it may not tend. It tills only as much as it has seed for, and tramples nothing. The new farmland is the
+  field's owner's, the asking player's, or the bot's own. See `docs/farming.md`.
+- `!recall` of a crop says whose each remembered field is, when the field book knows ("Alice's field").
+
+### Fixed
+
+- `!tendField` (1.31.0) told the model only what it logged, not its report of the round: what was cut,
+  replanted and sown, and why a field was left alone. The model now gets the report.
+
 ## [1.31.0-bedrock.1.33.0] - 2026-11-27
 
 Farming, for both editions: tending a field the way a careful player does. Built on the same Mindcraft-CE
@@ -1544,7 +1564,8 @@ These are fixes to code inherited from Mindcraft-CE. Each is its own commit, so 
 - With fair play on, model-written code no longer receives the real bot, the agent, or host globals. This
   narrows what such code can do; it is not a full sandbox, and `allow_insecure_coding` stays off by default.
 
-[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...HEAD
+[Unreleased]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.32.0-bedrock.1.34.0...HEAD
+[1.32.0-bedrock.1.34.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.31.0-bedrock.1.33.0...v1.32.0-bedrock.1.34.0
 [1.31.0-bedrock.1.33.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.30.0-bedrock.1.32.0...v1.31.0-bedrock.1.33.0
 [1.30.0-bedrock.1.32.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.29.0-bedrock.1.31.0...v1.30.0-bedrock.1.32.0
 [1.29.0-bedrock.1.31.0]: https://github.com/lantern-eight/mindcraft-ce/compare/v1.28.0-bedrock.1.30.0...v1.29.0-bedrock.1.31.0

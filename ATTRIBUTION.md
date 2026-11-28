@@ -256,7 +256,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/smelt_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`, `src/agent/library/bag_room.js`,
-  `src/agent/library/fetch_way.js`, `src/agent/library/drop_look.js`, `src/agent/library/explore_way.js`,
+  `src/agent/library/fetch_way.js`, `src/agent/library/drop_look.js`, `src/agent/library/explore_way.js`, `src/agent/library/field_owners.js`,
   `src/agent/action_hold.js`, `src/models/prompt_cache.js`
 - `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/explore_*.test.js`, `tests/farming_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,

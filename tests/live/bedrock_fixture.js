@@ -27,11 +27,12 @@ export const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 // A console line may pass through a remote shell on its way to the server, and a shell would read
 // characters such as ~ * $ ; or quotes its own way before the server saw them. Rather than guess at the
 // quoting of every way a line can travel, only lines no shell changes are sent, plus what a block state
-// needs (`wheat ["growth"=7]`: brackets, double quotes, = and commas). A line sent over ssh is wrapped in single
+// needs (`wheat ["growth"=7]`: brackets, double quotes, = and commas), and a target selector's @ (`kill @e[type=item]`;
+// no shell changes @ in a word). A line sent over ssh is wrapped in single
 // quotes, which the remote shell takes off and passes the rest through as it is; a line can't hold a single
 // quote, so it can't end the wrapping early. Coordinates are written absolute for the same reason: Bedrock's
 // relative ones start with ~.
-const SAFE_LINE = /^[A-Za-z0-9 _.:\-[\]",=]+$/;
+const SAFE_LINE = /^[A-Za-z0-9 _.:\-[\]",=@]+$/;
 
 /** Read the server from the environment. Throws, with what to set, when there is none. */
 export function bedrockTestServer(env = process.env) {
