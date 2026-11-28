@@ -48,6 +48,7 @@ which is the inherited code's MIT License; the file says where it came from.
 | Fork | What was taken | License |
 |---|---|---|
 | [akarkin1/mindcraft-fk](https://github.com/akarkin1/mindcraft-fk) | The keep plan (`keepPlan` in its `packs/storage/storage_logic.js`, release `v0.1.4.17-rc`), which decides what the bot keeps on itself when it puts things away: `src/agent/storage/keep_plan.js`, with its test cases in `tests/storage_keep_plan.test.js` | MIT |
+| [akarkin1/mindcraft-fk](https://github.com/akarkin1/mindcraft-fk) | `visitOrder`, the plough's order a farm round visits the cells of a field in (`packs/farming/crop_logic.js`, branch `release/v0.1.4.17-rc`): `src/agent/farming/visit_order.js` | MIT |
 
 ## Libraries
 
@@ -224,6 +225,18 @@ No code was copied for these. They are credited because the work builds on them.
   never changes first** from the [`siacavazzi/mindcraft`](https://github.com/siacavazzi/mindcraft) fork
   (branch `prompt-caching-token-usage`). Used by `src/models/prompt_cache.js` and the order of the legacy
   conversing prompt in `profiles/defaults/`.
+- **Tending a field: a crop table with exact names, the jobs of one cell (cut, replant, sow), the best hoe by
+  material, and a step cost that keeps the pathfinder from jumping or dropping onto farmland** come from the
+  farming pack in the [`akarkin1/mindcraft-fk`](https://github.com/akarkin1/mindcraft-fk) fork
+  (`packs/farming/crop_logic.js`, `field_logic.js`, `farming.js`). **The farmland joined to a start cell, as a
+  field** comes from its open farm (`areas/open_farm.js`) and from the connected plot of `tendNearbyFarm` in the
+  [`hashtagakiaki/mindcraft`](https://github.com/hashtagakiaki/mindcraft) fork. **Never matching crops by part
+  of a name, and a harvest that counts only what reached the bag and stops when breaking gains nothing** come
+  from `library/farming.js` in the [`asanrivas/mindcraft`](https://github.com/asanrivas/mindcraft) fork.
+  **Sowing what grows beside an empty cell** comes from the farm rules in the
+  [`chrisjoyce911/mindcraft`](https://github.com/chrisjoyce911/mindcraft) fork (`bot-rebuild` branch,
+  `bot/src/models/farm/rules.ts`), and the game's trampling rule from its farming research note. Used by
+  `src/agent/farming/`.
 
 ## What This Fork Added
 
@@ -239,12 +252,13 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
 - `src/agent/smelting/` (all files)
 - `src/agent/neighbor/` (all files)
 - `src/agent/explore/` (all files)
+- `src/agent/farming/` (all files but `visit_order.js`, which is MIT: see "Code Ported From Other Forks")
 - `src/agent/library/world_queries.js`, `src/agent/library/travel_guide.js`, `src/agent/library/attack_reach.js`,
   `src/agent/library/look_first.js`, `src/agent/library/dig_down_way.js`, `src/agent/library/smelt_way.js`, `src/agent/library/stairs_down.js`,
   `src/agent/library/path_verdicts.js`, `src/agent/library/place_costs.js`, `src/agent/library/search_look.js`, `src/agent/library/bag_room.js`,
   `src/agent/library/fetch_way.js`, `src/agent/library/drop_look.js`, `src/agent/library/explore_way.js`,
   `src/agent/action_hold.js`, `src/models/prompt_cache.js`
-- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/explore_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
+- `tests/fairplay_*.test.js`, `tests/memory_*.test.js`, `tests/storage_*.test.js` (but `tests/storage_keep_plan.test.js`, which is MIT), `tests/reflexes_*.test.js`, `tests/neighbor_*.test.js`, `tests/explore_*.test.js`, `tests/farming_*.test.js`, `tests/smelting_*.test.js`, `tests/edition.test.js`,
   `tests/world_queries.test.js`, `tests/world_free_space.test.js`, `tests/world_unknown_block.test.js`,
   `tests/skills_missing_player.test.js`, `tests/skills_chest_kinds.test.js`, `tests/skin_command.test.js`, `tests/command_blacklist.test.js`,
   `tests/command_register.test.js`, `tests/live_jar_cache.test.js`, `tests/live_test_worlds.test.js`, `tests/bag_room.test.js`, `tests/goto_path_search.test.js`,
@@ -254,7 +268,7 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/door_types.test.js`, `tests/door_walk.test.js`, `tests/door_search.test.js`, `tests/hunting_babies.test.js`, `tests/idle_staring_babies.test.js`, `tests/baby_villagers.test.js`,
   `tests/villager_profession.test.js`, `tests/villagers_edition.test.js`, `tests/item_goal_hunt.test.js`,
   `tests/craft_table_placement.test.js`, `tests/craft_no_recipe.test.js`, `tests/place_block_failure.test.js`,
-  `tests/place_block_cheat.test.js`, `tests/till_and_sow_cheat.test.js`,
+  `tests/place_block_cheat.test.js`, `tests/till_and_sow_cheat.test.js`, `tests/collect_ripe_crops.test.js`, `tests/collect_without_collision.test.js`,
   `tests/inventory_counts_armor.test.js`, `tests/novita_retry.test.js`,
   `tests/create_agent_failure.test.js`, `tests/attack_input.test.js`,
   `tests/attack_player_name.test.js`, `tests/attack_reach.test.js`, `tests/bedrock_*.test.js`,
@@ -266,10 +280,10 @@ These files are this fork's own work, under CC0 1.0. Source files among them say
   `tests/helpers/walker_bot.js`, `tests/helpers/game_version.js`, `tests/helpers/bedrock_libraries.js`,
   `tests/helpers/named_cells.js`, `tests/helpers/test_worlds.js`, `tests/helpers/live_view.js`, `tests/helpers/fake_furnace.js`
 - `tests/live/fairplay_*.js`, `tests/live/prompt_cache_check.js`, `tests/live/memory_scenarios.js`, `tests/live/navigator_scenarios.js`,
-  `tests/live/storage_scenarios.js`, `tests/live/stow_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
+  `tests/live/storage_scenarios.js`, `tests/live/stow_scenarios.js`, `tests/live/storage_agent_scenarios.js`, `tests/live/farming_scenarios.js`, `tests/live/travel_scenarios.js`, `tests/live/turning_scenarios.js`,
   `tests/live/legs_scenarios.js`, `tests/live/villager_scenarios.js`, `tests/live/look_first_scenarios.js`, `tests/live/neighbor_scenarios.js`, `tests/live/narrow_view_scenarios.js`, `tests/live/threat_scenarios.js`, `tests/live/mob_scenarios.js`, `tests/live/danger_scenarios.js`, `tests/live/explore_scenarios.js`, `tests/live/fight_arena.js`, `tests/live/arena_meter.js`, `tests/live/java_all.js`, `tests/live/smelting_scenarios.js`, `tests/live/bedrock_*.js`,
   `tests/live/bedrock-server/` (all files), `tests/live/perception_bench_results.json`
-- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/explore.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
+- `docs/fair-play.md`, `docs/world-memory.md`, `docs/chest-sorting.md`, `docs/threat-reflexes.md`, `docs/good-neighbor.md`, `docs/explore.md`, `docs/farming.md`, `docs/edition-seam.md`, `docs/core-hooks.md`, `docs/bedrock.md`,
   `docs/upstream.md`, `docs/prompt-caching.md`
 - `README.md`, `CHANGELOG.md`, `CLAUDE.md`, and this file, and on the `bedrock` branch `CHANGELOG-bedrock.md`
 
